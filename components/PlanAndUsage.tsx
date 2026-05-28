@@ -6,16 +6,17 @@
 
 import { PlanPaywall } from "@/components/PlanPaywall";
 import { UsageBar } from "@/components/UsageBar";
-import { useEffectivePlan, useEntitlementStore } from "@/store/entitlement";
+import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
 export function PlanAndUsage() {
   const { t } = useTranslation();
   const entitlement = useEntitlementStore((s) => s.entitlement);
-  // currentPlan comes from the cross-store max so a freshly-purchased RC tier
-  // shows immediately, even before the Firestore mirror catches up.
-  const currentPlan = useEffectivePlan();
+  // Display plan comes from the backend mirror — the same source as the usage
+  // bars below — so the "you're on X" label can never disagree with the
+  // numbers. (PlanPaywall handles payment routing off the live RC state.)
+  const currentPlan = useDisplayPlan();
 
   return (
     <View style={{ gap: 24 }}>

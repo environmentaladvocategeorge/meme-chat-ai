@@ -20,12 +20,14 @@ import { Typography } from "@/components/Typography";
 import { PLAN_RANK, type PlanId } from "@/domain/billing";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients, themes } from "@/nativewind-theme";
+import { useEffectivePlan } from "@/store/entitlement";
 import { useSubscriptionStore } from "@/store/subscription";
+import { TouchableOpacity as BottomSheetTouchableOpacity } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Platform, Pressable, StyleSheet, View } from "react-native";
+import { Alert, Platform, StyleSheet, View } from "react-native";
 import Purchases from "react-native-purchases";
 
 type PaidPlanId = Exclude<PlanId, "free">;
@@ -72,7 +74,14 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
   // changes to flow through their subscription-management UI so proration,
   // refunds, and downgrade timing all behave correctly. We only call
   // purchasePackage() when the user is on `free`.
-  const hasActiveSubscription = currentPlan !== "free";
+  //
+  // This is PAYMENT-CRITICAL, so it uses the effective plan (RC-live ∪ mirror)
+  // rather than the display-only `currentPlan` prop: RC is the real-time truth
+  // of "do you already have an active subscription", and routing a current
+  // subscriber into purchasePackage() risks a double charge. The `currentPlan`
+  // prop drives only the display (badges, labels, selection default).
+  const effectivePlan = useEffectivePlan();
+  const hasActiveSubscription = effectivePlan !== "free";
 
   // Default selection prefers the user's current paid plan so the page opens
   // showing what they already have; otherwise the recommended tier.
@@ -239,17 +248,18 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
       />
 
       {/* CTA */}
-      <Pressable
+      <BottomSheetTouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={ctaLabel}
         disabled={isCurrentSelected || busy}
         onPress={() => void handleCta()}
-        style={({ pressed }) => ({
+        activeOpacity={0.9}
+        style={{
           height: 56,
           borderRadius: 28,
           overflow: "hidden",
-          opacity: isCurrentSelected ? 0.55 : busy ? 0.7 : pressed ? 0.92 : 1,
-        })}
+          opacity: isCurrentSelected ? 0.55 : busy ? 0.7 : 1,
+        }}
       >
         {!isCurrentSelected ? (
           <LinearGradient
@@ -286,7 +296,7 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
             {ctaLabel}
           </Typography>
         </View>
-      </Pressable>
+      </BottomSheetTouchableOpacity>
 
       <Typography
         variant="caption"
@@ -345,10 +355,11 @@ function TierCard({
   const BADGE_SLOT_HEIGHT = 16;
 
   return (
-    <Pressable
+    <BottomSheetTouchableOpacity
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      activeOpacity={0.9}
       style={{
         flex: 1,
         borderRadius: 16,
@@ -452,7 +463,7 @@ function TierCard({
           </Typography>
         </View>
       </View>
-    </Pressable>
+    </BottomSheetTouchableOpacity>
   );
 }
 

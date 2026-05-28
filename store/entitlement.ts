@@ -13,11 +13,21 @@ type EntitlementState = {
   bindUid: (uid: string | null) => void;
 };
 
-// The Firestore-backed entitlement mirror can lag behind the live RC state
-// (e.g. user just purchased, syncRevenueCatPlan / webhook haven't completed
-// the round-trip yet). For UI purposes we always take the highest-rank
-// known tier between the server mirror and the local RC store so the user
-// sees their new plan instantly after a successful purchase.
+// Display plan — the single source of truth for everything the user SEES
+// (plan label, caps, limits, gating). Reads ONLY the backend entitlement
+// mirror, so the plan label can never disagree with the usage bars (which are
+// mirror-derived too). After a purchase the mirror is refreshed by
+// syncRevenueCatPlan + the RC webhook, and the Firestore listener pushes it
+// here within a beat.
+export function useDisplayPlan(): PlanId {
+  return useEntitlementStore((s) => s.entitlement?.plan ?? "free");
+}
+
+// Effective plan — the higher-rank tier between the RC-live state and the
+// backend mirror. Reserved for PAYMENT-CRITICAL routing only (purchase vs.
+// manage-in-store), where RC is the real-time truth of "do you have an active
+// subscription right now" and must win immediately to avoid double charges.
+// Do NOT use this to display limits/allowance.
 export function useEffectivePlan(): PlanId {
   const entitlementPlan = useEntitlementStore((s) => s.entitlement?.plan ?? "free");
   const subscriptionPlan = useSubscriptionStore((s) => s.plan);

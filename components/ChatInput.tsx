@@ -21,6 +21,7 @@ import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetTextInput,
+  TouchableOpacity as BottomSheetTouchableOpacity,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
@@ -460,11 +461,12 @@ export function ChatInput({
               paddingBottom: 6,
             }}
           >
-            <Pressable
+            <BottomSheetTouchableOpacity
               onPress={() => sheetRef.current?.dismiss()}
               accessibilityRole="button"
               accessibilityLabel={collapseAccessibilityLabel}
               hitSlop={8}
+              activeOpacity={0.82}
               style={{
                 width: 36,
                 height: 36,
@@ -479,7 +481,7 @@ export function ChatInput({
                 color={theme["--color-foreground-muted"]}
                 weight="bold"
               />
-            </Pressable>
+            </BottomSheetTouchableOpacity>
           </View>
 
           {/* The text input fills the available height between header and
@@ -520,13 +522,14 @@ export function ChatInput({
               paddingTop: 8,
             }}
           >
-            <Pressable
+            <BottomSheetTouchableOpacity
               onPress={handleSheetSend}
               disabled={!canSend}
               accessibilityRole="button"
               accessibilityLabel={sendAccessibilityLabel}
               accessibilityState={{ disabled: !canSend }}
               hitSlop={8}
+              activeOpacity={0.86}
               style={{
                 width: SEND_BUTTON_SIZE + 4,
                 height: SEND_BUTTON_SIZE + 4,
@@ -572,7 +575,7 @@ export function ChatInput({
                   weight="fill"
                 />
               </Animated.View>
-            </Pressable>
+            </BottomSheetTouchableOpacity>
           </View>
         </BottomSheetView>
       </BottomSheetModal>

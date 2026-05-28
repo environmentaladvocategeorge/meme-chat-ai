@@ -14,7 +14,7 @@ import { useResetCountdown } from "@/hooks/useResetCountdown";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import { useChatStore, type ChatMessage, type QuotaInfo } from "@/store/chat";
-import { useEffectivePlan, useEntitlementStore } from "@/store/entitlement";
+import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { NotePencil, X } from "phosphor-react-native";
@@ -113,7 +113,7 @@ export default function ChatScreen() {
   const cancelStreaming = useChatStore((s) => s.cancelStreaming);
   const dismissQuota = useChatStore((s) => s.dismissQuota);
   const entitlement = useEntitlementStore((s) => s.entitlement);
-  const currentPlan = useEffectivePlan();
+  const currentPlan = useDisplayPlan();
   const openPlan = useOpenPlan();
   const router = useRouter();
   const [advanced, setAdvanced] = useState(false);
