@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "MeMe Chat AI",
+    "slug": "meme-chat-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/app-icon.png",
+    "scheme": "memechatai",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "bundleIdentifier": "com.jorgejimenez.memeai",
+      "icon": "./assets/images/app-icon.png",
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": ["en", "es"],
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.jorgejimenez.memeai",
+      "icon": "./assets/images/app-icon.png",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/app-icon.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/app-icon.png"
+    },
+    "plugins": [
+      "expo-apple-authentication",
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/app-icon.png",
+          "imageWidth": 210,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "backgroundColor": "#0E0F12"
+          }
+        }
+      ],
+      "expo-localization"
+    ],
+    "locales": {
+      "en": { "ios": { "CFBundleDisplayName": "MeMe Chat AI" } },
+      "es": { "ios": { "CFBundleDisplayName": "MeMe Chat AI" } }
+    },
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "%EAS_PROJECT_ID%"
+      }
+    }
+  }
+}

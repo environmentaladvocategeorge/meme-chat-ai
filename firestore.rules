@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// All mutations to profiles/ are performed server-side via Cloud Functions
+// (onUserCreated bootstrap + deleteMyAccount cleanup) using the Admin SDK,
+// which bypasses these rules. Clients can only READ their own profile doc.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function emailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    match /profiles/{uid} {
+      allow get: if isOwner(uid) && emailVerified();
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /conversations/{cid} {
+      allow get: if signedIn() && emailVerified() && resource.data.uid == request.auth.uid;
+      allow list: if signedIn() && emailVerified();
+      allow create, update, delete: if false;
+
+      match /messages/{mid} {
+        allow get, list: if signedIn() && emailVerified()
+          && get(/databases/$(database)/documents/conversations/$(cid)).data.uid == request.auth.uid;
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

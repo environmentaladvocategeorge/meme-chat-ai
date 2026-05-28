@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: var(--color-background);
+  --color-background-secondary: var(--color-background-secondary);
+  --color-background-muted: var(--color-background-muted);
+
+  --color-foreground: var(--color-foreground);
+  --color-foreground-secondary: var(--color-foreground-secondary);
+  --color-foreground-muted: var(--color-foreground-muted);
+
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-card-muted: var(--color-card-muted);
+  --color-card-pressed: var(--color-card-pressed);
+
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
+
+  --color-primary: var(--color-primary);
+  --color-primary-foreground: var(--color-primary-foreground);
+  --color-primary-muted: var(--color-primary-muted);
+  --color-primary-subtle: var(--color-primary-subtle);
+
+  --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
+
+  --color-tertiary: var(--color-tertiary);
+  --color-tertiary-foreground: var(--color-tertiary-foreground);
+
+  --color-success: var(--color-success);
+  --color-success-muted: var(--color-success-muted);
+  --color-warning: var(--color-warning);
+  --color-warning-muted: var(--color-warning-muted);
+  --color-error: var(--color-error);
+  --color-error-muted: var(--color-error-muted);
+  --color-info: var(--color-info);
+  --color-info-muted: var(--color-info-muted);
+
+  --color-tab: var(--color-tab);
+  --color-tab-active: var(--color-tab-active);
+  --color-progress-track: var(--color-progress-track);
+  --color-overlay: var(--color-overlay);
+}

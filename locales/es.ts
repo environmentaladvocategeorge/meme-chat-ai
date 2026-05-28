@@ -1,0 +1,115 @@
+const es = {
+  common: {
+    appName: "MeMe Chat AI",
+    appLoading: "Cargando…",
+    retry: "Reintentar",
+    continue: "Continuar",
+    cancel: "Cancelar",
+    confirm: "Confirmar",
+    save: "Guardar",
+    delete: "Eliminar",
+    back: "Atrás",
+    done: "Listo",
+    error: "Algo salió mal.",
+  },
+  landing: {
+    title: "MeMe Chat AI",
+    subtitle: "Bienvenido — inicia sesión para continuar.",
+    signIn: "Iniciar sesión",
+    signUp: "Crear una cuenta",
+    continueWithApple: "Continuar con Apple",
+  },
+  auth: {
+    signInTitle: "Iniciar sesión",
+    signUpTitle: "Crea tu cuenta",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    emailPlaceholder: "tu@ejemplo.com",
+    passwordPlaceholder: "Mínimo 8 caracteres",
+    forgotPassword: "¿Olvidaste tu contraseña?",
+    submitSignIn: "Iniciar sesión",
+    submitSignUp: "Registrarse",
+    haveAccount: "¿Ya tienes cuenta? Inicia sesión",
+    needAccount: "¿Eres nuevo? Crea una cuenta",
+    errors: {
+      invalidEmail: "Ese correo electrónico no es válido.",
+      weakPassword: "Usa al menos 8 caracteres.",
+      emailInUse: "Ese correo ya está registrado.",
+      invalidCredential: "El correo o la contraseña son incorrectos.",
+      tooManyRequests: "Demasiados intentos. Espera un momento.",
+      generic: "No pudimos completar esa acción. Inténtalo de nuevo.",
+    },
+    verifyEmail: {
+      title: "Verifica tu correo",
+      body: "Enviamos un enlace de verificación a {{email}}. Toca el enlace y vuelve aquí.",
+      checkAgain: "Ya verifiqué",
+      resend: "Reenviar correo",
+      resent: "Correo de verificación enviado.",
+      signOut: "Cerrar sesión",
+    },
+  },
+  onboarding: {
+    welcomeTitle: "Bienvenido a MeMe Chat AI",
+    welcomeBody:
+      "Este es un paso de onboarding de ejemplo. Reemplázalo con lo que tu app necesite recopilar antes de mostrar la pantalla principal.",
+    continue: "Empezar",
+  },
+  menu: {
+    open: "Abrir menú",
+    close: "Cerrar menú",
+    chat: "Chat",
+    history: "Historial",
+    settings: "Ajustes",
+  },
+  chat: {
+    title: "Chat",
+    empty: "Empieza una conversación.",
+    input: {
+      placeholder: "Mensaje para MeMe",
+    },
+    send: "Enviar",
+    cancel: "Cancelar",
+    expand: "Expandir mensaje",
+    collapse: "Colapsar",
+    errors: {
+      generic: "La respuesta se detuvo. Inténtalo de nuevo.",
+      signedOut: "Inicia sesión de nuevo para seguir chateando.",
+    },
+  },
+  history: {
+    title: "Historial",
+    empty: "Aún no hay conversaciones.",
+    untitled: "Chat sin título",
+  },
+  settings: {
+    title: "Ajustes",
+    appearance: {
+      label: "Apariencia",
+      system: "Sistema",
+      light: "Claro",
+      dark: "Oscuro",
+    },
+    language: {
+      label: "Idioma",
+      system: "Sistema",
+      en: "Inglés",
+      es: "Español",
+    },
+    deleteData: {
+      label: "Eliminar todos los datos",
+      description:
+        "Elimina permanentemente tu cuenta y borra todo lo guardado en este dispositivo.",
+      button: "Eliminar todo",
+      confirmTitle: "¿Eliminar todo?",
+      confirmBody:
+        "Esto cierra tu sesión, elimina tu cuenta y borra todos los ajustes de este dispositivo. No se puede deshacer.",
+      confirm: "Eliminar",
+      passwordPrompt: "Confirma tu contraseña",
+      success: "Tu cuenta ha sido eliminada.",
+      failed: "No pudimos eliminar tu cuenta. Inténtalo de nuevo.",
+    },
+    signOut: "Cerrar sesión",
+  },
+};
+
+export default es;

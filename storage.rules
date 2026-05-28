@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Default deny. The template doesn't ship any file-upload features; if
+// you add one (e.g. profile photos, attachments), open up the matching
+// path here and keep server-side moderation in Cloud Functions.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

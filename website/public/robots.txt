@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://%APP_DOMAIN%/sitemap.xml

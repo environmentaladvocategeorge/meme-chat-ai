@@ -1,0 +1,115 @@
+const en = {
+  common: {
+    appName: "MeMe Chat AI",
+    appLoading: "Loading…",
+    retry: "Try again",
+    continue: "Continue",
+    cancel: "Cancel",
+    confirm: "Confirm",
+    save: "Save",
+    delete: "Delete",
+    back: "Back",
+    done: "Done",
+    error: "Something went wrong.",
+  },
+  landing: {
+    title: "MeMe Chat AI",
+    subtitle: "Welcome — sign in to continue.",
+    signIn: "Sign in",
+    signUp: "Create an account",
+    continueWithApple: "Continue with Apple",
+  },
+  auth: {
+    signInTitle: "Sign in",
+    signUpTitle: "Create your account",
+    email: "Email",
+    password: "Password",
+    emailPlaceholder: "you@example.com",
+    passwordPlaceholder: "At least 8 characters",
+    forgotPassword: "Forgot password?",
+    submitSignIn: "Sign in",
+    submitSignUp: "Sign up",
+    haveAccount: "Have an account? Sign in",
+    needAccount: "New here? Create an account",
+    errors: {
+      invalidEmail: "That email address looks wrong.",
+      weakPassword: "Use at least 8 characters.",
+      emailInUse: "That email is already registered.",
+      invalidCredential: "Email or password is incorrect.",
+      tooManyRequests: "Too many tries. Wait a moment, then retry.",
+      generic: "We couldn't complete that. Please try again.",
+    },
+    verifyEmail: {
+      title: "Verify your email",
+      body: "We sent a verification link to {{email}}. Tap the link, then come back here.",
+      checkAgain: "I've verified",
+      resend: "Resend email",
+      resent: "Verification email sent.",
+      signOut: "Sign out",
+    },
+  },
+  onboarding: {
+    welcomeTitle: "Welcome to MeMe Chat AI",
+    welcomeBody:
+      "This is a placeholder onboarding step. Replace it with whatever your app needs to collect before the user lands on the home screen.",
+    continue: "Get started",
+  },
+  menu: {
+    open: "Open menu",
+    close: "Close menu",
+    chat: "Chat",
+    history: "Chat history",
+    settings: "Settings",
+  },
+  chat: {
+    title: "Chat",
+    empty: "Start a conversation.",
+    input: {
+      placeholder: "Message MeMe",
+    },
+    send: "Send",
+    cancel: "Cancel",
+    expand: "Expand message",
+    collapse: "Collapse",
+    errors: {
+      generic: "The reply stopped. Please try again.",
+      signedOut: "Sign in again to keep chatting.",
+    },
+  },
+  history: {
+    title: "Chat history",
+    empty: "No conversations yet.",
+    untitled: "Untitled chat",
+  },
+  settings: {
+    title: "Settings",
+    appearance: {
+      label: "Appearance",
+      system: "System",
+      light: "Light",
+      dark: "Dark",
+    },
+    language: {
+      label: "Language",
+      system: "System",
+      en: "English",
+      es: "Spanish",
+    },
+    deleteData: {
+      label: "Delete all data",
+      description:
+        "Permanently delete your account and clear everything stored on this device.",
+      button: "Delete everything",
+      confirmTitle: "Delete everything?",
+      confirmBody:
+        "This signs you out, deletes your account, and clears every setting on this device. This cannot be undone.",
+      confirm: "Delete",
+      passwordPrompt: "Confirm your password",
+      success: "Your account has been deleted.",
+      failed: "We couldn't delete your account. Please try again.",
+    },
+    signOut: "Sign out",
+  },
+};
+
+export default en;

@@ -1,0 +1,128 @@
+:root {
+  --color-background: #fafafb;
+  --color-foreground: #151517;
+  --color-foreground-secondary: #5b5d66;
+  --color-primary: #4f46e5;
+  --color-primary-foreground: #ffffff;
+  --color-border: #e5e8ee;
+  --color-card: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0e0f12;
+    --color-foreground: #f7f7f5;
+    --color-foreground-secondary: #c8cad1;
+    --color-primary: #6366f1;
+    --color-primary-foreground: #ffffff;
+    --color-border: #2d323b;
+    --color-card: #171a20;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 32px;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-foreground);
+}
+
+.nav a {
+  margin-left: 16px;
+  color: var(--color-foreground-secondary);
+}
+
+.hero h1 {
+  font-size: 40px;
+  line-height: 1.1;
+  margin: 0 0 16px;
+}
+
+.hero p {
+  font-size: 18px;
+  color: var(--color-foreground-secondary);
+  margin: 0 0 28px;
+  max-width: 540px;
+}
+
+.cta {
+  display: inline-block;
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
+  padding: 12px 20px;
+  border-radius: 5px;
+  font-weight: 600;
+}
+
+.legal {
+  font-size: 14px;
+  color: var(--color-foreground-secondary);
+}
+
+.legal h2 {
+  font-size: 20px;
+  margin-top: 32px;
+  color: var(--color-foreground);
+}
+
+.legal p,
+.legal li {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-foreground-secondary);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
