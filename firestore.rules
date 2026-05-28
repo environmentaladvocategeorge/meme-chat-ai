@@ -24,6 +24,19 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    match /personas/{personaId} {
+      allow read: if resource.data.isEnabled == true;
+      allow write: if false;
+    }
+
+    match /platform_prompts/{promptId} {
+      allow read, write: if false;
+    }
+
+    match /persona_prompts/{promptId} {
+      allow read, write: if false;
+    }
+
     match /conversations/{cid} {
       allow get: if signedIn() && emailVerified() && resource.data.uid == request.auth.uid;
       allow list: if signedIn() && emailVerified();

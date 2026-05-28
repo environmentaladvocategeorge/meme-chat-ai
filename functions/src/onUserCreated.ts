@@ -1,6 +1,7 @@
 import { auth } from "firebase-functions/v1";
 import { logger } from "firebase-functions";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { initialBilling } from "./entitlement/schema";
 
 // Seeds an empty profile document the moment a Firebase Auth user is
 // created. The client never writes here directly (security rules forbid it)
@@ -16,6 +17,8 @@ export const onUserCreated = auth.user().onCreate(async (user) => {
       ?.map((p) => p.providerId)
       .filter((id): id is string => typeof id === "string" && id.length > 0) ?? [];
 
+  const billing = initialBilling(new Date());
+
   try {
     await getFirestore().doc(`profiles/${uid}`).set(
       {
@@ -24,6 +27,7 @@ export const onUserCreated = auth.user().onCreate(async (user) => {
         emailVerified,
         providers,
         createdAt: FieldValue.serverTimestamp(),
+        ...billing,
       },
       { merge: true },
     );

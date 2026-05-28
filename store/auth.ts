@@ -18,9 +18,11 @@ import {
   type ResendVerificationResult,
   type SignInEmailResult,
 } from "@/services/firebase/emailAuth";
+import { useEntitlementStore } from "@/store/entitlement";
 import { useOnboardingStore } from "@/store/onboarding";
 import { useSettingsStore } from "@/store/settings";
 import { wipeLocalAppData } from "@/store/storage";
+import { useSubscriptionStore } from "@/store/subscription";
 import { FirebaseError } from "firebase/app";
 import {
   signOut as firebaseSignOut,
@@ -152,12 +154,16 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
               // transitions to signedOut after local cleanup completes.
               if (useAuthStore.getState().status === "deleting") return;
               set({ status: "signedOut", ...SIGNED_OUT_STATE });
+              void useSubscriptionStore.getState().setRcUser(null);
+              useEntitlementStore.getState().bindUid(null);
               return;
             }
 
             if (user.isAnonymous) {
               void firebaseSignOut(auth).catch(() => {});
               set({ status: "signedOut", ...SIGNED_OUT_STATE });
+              void useSubscriptionStore.getState().setRcUser(null);
+              useEntitlementStore.getState().bindUid(null);
               return;
             }
 
@@ -167,6 +173,12 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
               error: null,
               unavailableReason: null,
             });
+            // Bind the RevenueCat App User ID to the Firebase uid so the RC
+            // webhook can resolve back to this user's Firestore profile.
+            void useSubscriptionStore.getState().setRcUser(user.uid);
+            // Subscribe to the user's billing profile so the UI can live-
+            // update credit counts as the backend settles usage events.
+            useEntitlementStore.getState().bindUid(user.uid);
           },
           (error) => {
             set({ status: "error", error: getAuthErrorCode(error) });

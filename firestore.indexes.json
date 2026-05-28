@@ -1,0 +1,31 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "platform_prompts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "key", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "personas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isDefault", "order": "ASCENDING" },
+        { "fieldPath": "isEnabled", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "persona_prompts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "personaId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

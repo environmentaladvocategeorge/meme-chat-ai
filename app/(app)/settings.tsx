@@ -4,6 +4,7 @@ import { Input } from "@/components/Input";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { SettingsRow } from "@/components/SettingsRow";
 import { Typography } from "@/components/Typography";
+import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/store/auth";
 import {
@@ -11,9 +12,11 @@ import {
   type Language,
   useSettingsStore,
 } from "@/store/settings";
+import { useRouter } from "expo-router";
+import { CaretRight } from "phosphor-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, ScrollView, View } from "react-native";
+import { Alert, Pressable, ScrollView, View } from "react-native";
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -22,6 +25,8 @@ export default function SettingsScreen() {
   const setAppearance = useSettingsStore((s) => s.setAppearance);
   const language = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
+  const router = useRouter();
+  const openPlan = useOpenPlan();
   const signOut = useAuthStore((s) => s.signOut);
   const providers = useAuthStore((s) => s.providers);
   const deleteAccount = useAuthStore((s) => s.deleteAccount);
@@ -96,6 +101,44 @@ export default function SettingsScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
+        <Pressable
+          onPress={openPlan}
+          accessibilityRole="button"
+          accessibilityLabel={t("settings.plan.heading")}
+          style={({ pressed }) => ({
+            borderRadius: 16,
+            backgroundColor: pressed
+              ? theme["--color-card-pressed"]
+              : theme["--color-card"],
+            borderWidth: 1,
+            borderColor: theme["--color-border"],
+            padding: 16,
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 12,
+          })}
+        >
+          <View style={{ flex: 1, gap: 4 }}>
+            <Typography
+              variant="title-sm"
+              style={{ color: theme["--color-foreground"] }}
+            >
+              {t("settings.plan.heading")}
+            </Typography>
+            <Typography
+              variant="caption"
+              style={{ color: theme["--color-foreground-secondary"] }}
+            >
+              {t("settings.plan.rowDescription")}
+            </Typography>
+          </View>
+          <CaretRight
+            size={18}
+            weight="bold"
+            color={theme["--color-foreground-muted"]}
+          />
+        </Pressable>
+
         <SettingsRow label={t("settings.appearance.label")}>
           <SegmentedControl
             options={appearanceOptions}

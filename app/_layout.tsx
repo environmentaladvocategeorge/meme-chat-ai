@@ -1,3 +1,4 @@
+import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
@@ -44,6 +45,7 @@ function LoadingScreen({
         backgroundColor,
       }}
     >
+      <MemeAvatar variant="loading" size={108} pulse />
       <View style={{ alignItems: "center", gap: 6, width: "100%" }}>
         <Typography
           variant="title-xl"

@@ -1,3 +1,4 @@
+import { PlanSheet } from "@/components/PlanSheet";
 import { PlayfulMenu } from "@/components/PlayfulMenu";
 import { useTheme } from "@/hooks/useTheme";
 import { Stack } from "expo-router";
@@ -18,8 +19,10 @@ export default function AppLayout() {
         <Stack.Screen name="chat" />
         <Stack.Screen name="history" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="plan" />
       </Stack>
       <PlayfulMenu />
+      <PlanSheet />
     </View>
   );
 }

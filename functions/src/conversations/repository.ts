@@ -13,6 +13,14 @@ type StoredMessage = {
   status?: MessageStatus;
 };
 
+export type MessagePersonaMetadata = {
+  id: string;
+  name: string;
+  slug: string;
+  displayName: string;
+  avatarKey: string;
+};
+
 function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
   const data = doc.data() as StoredMessage;
   if (
@@ -61,7 +69,14 @@ export async function assertConversationOwner(
 
 export async function appendMessage(
   conversationId: string,
-  message: { role: ChatRole; text: string; status: MessageStatus },
+  message: {
+    role: ChatRole;
+    text: string;
+    status: MessageStatus;
+    clientMessageId?: string;
+    inReplyToClientMessageId?: string;
+    persona?: MessagePersonaMetadata;
+  },
 ): Promise<{ messageId: string }> {
   const db = getFirestore();
   const messageRef = db
@@ -70,17 +85,37 @@ export async function appendMessage(
     .collection("messages")
     .doc();
 
-  await messageRef.set({
+  const messageData: Record<string, unknown> = {
     role: message.role,
     text: message.text,
     status: message.status,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
-  });
+  };
+
+  if (message.persona) {
+    messageData.personaId = message.persona.id;
+    messageData.persona = message.persona;
+  }
+
+  if (message.clientMessageId) {
+    messageData.clientMessageId = message.clientMessageId;
+  }
+
+  if (message.inReplyToClientMessageId) {
+    messageData.inReplyToClientMessageId = message.inReplyToClientMessageId;
+  }
+
+  await messageRef.set(messageData);
 
   const conversationUpdate: Record<string, unknown> = {
     updatedAt: FieldValue.serverTimestamp(),
   };
+
+  if (message.persona) {
+    conversationUpdate.lastPersonaId = message.persona.id;
+    conversationUpdate.lastPersona = message.persona;
+  }
 
   if (message.text.length > 0) {
     conversationUpdate.lastMessagePreview = message.text.slice(0, 160);

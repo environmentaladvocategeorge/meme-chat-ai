@@ -25,6 +25,17 @@ export type StoredChatMessage = {
   role: "user" | "agent";
   text: string;
   status: "complete" | "streaming" | "error";
+  createdAt: Date | null;
+  clientMessageId?: string;
+  inReplyToClientMessageId?: string;
+  personaId?: string;
+  persona?: {
+    id: string;
+    name: string;
+    slug: string;
+    displayName: string;
+    avatarKey: string;
+  };
 };
 
 function requireFirestore() {
@@ -70,12 +81,37 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
 
   const text = typeof data.text === "string" ? data.text : "";
   if (status === "streaming" && text.length === 0) return null;
+  const persona =
+    data.persona &&
+    typeof data.persona === "object" &&
+    typeof data.persona.id === "string" &&
+    typeof data.persona.name === "string" &&
+    typeof data.persona.slug === "string" &&
+    typeof data.persona.displayName === "string" &&
+    typeof data.persona.avatarKey === "string"
+      ? {
+          id: data.persona.id,
+          name: data.persona.name,
+          slug: data.persona.slug,
+          displayName: data.persona.displayName,
+          avatarKey: data.persona.avatarKey,
+        }
+      : undefined;
 
   return {
     id,
     role,
     text,
     status,
+    createdAt: asDate(data.createdAt),
+    clientMessageId:
+      typeof data.clientMessageId === "string" ? data.clientMessageId : undefined,
+    inReplyToClientMessageId:
+      typeof data.inReplyToClientMessageId === "string"
+        ? data.inReplyToClientMessageId
+        : undefined,
+    personaId: typeof data.personaId === "string" ? data.personaId : undefined,
+    persona,
   };
 }
 
