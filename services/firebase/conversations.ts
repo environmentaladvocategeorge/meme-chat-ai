@@ -7,10 +7,23 @@ import {
   query,
   where,
   type DocumentData,
+  type FirestoreError,
   type Query,
   type Unsubscribe,
 } from "firebase/firestore";
 import { getFirebaseServices } from "./app";
+
+// A snapshot listener fires `permission-denied` when its query stops being
+// readable while still attached — most commonly in the brief window during
+// account deletion (the auth user is removed server-side first) or on sign-out
+// before the listener is torn down. That's expected, not a real failure, so we
+// swallow it instead of letting it surface as an uncaught Firestore error.
+function handleSnapshotError(scope: string) {
+  return (error: FirestoreError) => {
+    if (error.code === "permission-denied") return;
+    console.warn(`[${scope}] snapshot error:`, error);
+  };
+}
 
 export type ConversationSummary = {
   id: string;
@@ -138,9 +151,13 @@ export function subscribeToConversations(
   uid: string,
   cb: (conversations: ConversationSummary[]) => void,
 ): Unsubscribe {
-  return onSnapshot(listConversations(uid), (snapshot) => {
-    cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())));
-  });
+  return onSnapshot(
+    listConversations(uid),
+    (snapshot) => {
+      cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())));
+    },
+    handleSnapshotError("conversations"),
+  );
 }
 
 export function subscribeToMessages(
@@ -153,12 +170,16 @@ export function subscribeToMessages(
     orderBy("createdAt", "asc"),
   );
 
-  return onSnapshot(messagesQuery, (snapshot) => {
-    cb(
-      snapshot.docs.flatMap((doc) => {
-        const message = mapMessage(doc.id, doc.data());
-        return message ? [message] : [];
-      }),
-    );
-  });
+  return onSnapshot(
+    messagesQuery,
+    (snapshot) => {
+      cb(
+        snapshot.docs.flatMap((doc) => {
+          const message = mapMessage(doc.id, doc.data());
+          return message ? [message] : [];
+        }),
+      );
+    },
+    handleSnapshotError("messages"),
+  );
 }

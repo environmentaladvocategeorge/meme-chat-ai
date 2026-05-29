@@ -22,9 +22,10 @@ export type PlanConfig = {
 };
 
 // Credits map to AI cost at 1 credit = $0.001 (see credits.ts USD_PER_CREDIT),
-// so monthlyCredits is the MAX monthly AI spend per user; unused reservations
-// are refunded to real cost on settle. Allocations are sized so worst-case AI
-// cost stays well under net subscription revenue even at a 30% app-store fee:
+// so monthlyCredits is the MAX monthly AI spend per user. Credits are charged
+// once per turn from real token usage (no up-front reservation). Allocations
+// are sized so worst-case AI cost stays well under net subscription revenue
+// even at a 30% app-store fee:
 //   Basic $3.99 → ~$2.79 net, $1.20 max cost
 //   Plus  $6.99 → ~$4.89 net, $2.00 max cost
 //   Power $12.99 → ~$9.09 net, $4.00 max cost

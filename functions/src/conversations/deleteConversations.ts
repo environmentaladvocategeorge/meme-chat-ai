@@ -1,4 +1,4 @@
-import { getFirestore } from "firebase-admin/firestore";
+import { getFirestore, type DocumentReference } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { z } from "zod";
@@ -22,8 +22,11 @@ export async function deleteConversationsForUser(
   db: Db,
 ): Promise<number> {
   const ids = Array.from(new Set(conversationIds));
-  let deleted = 0;
 
+  // First pass: resolve which conversations exist and confirm ownership for
+  // ALL of them before deleting anything. A single not-owner id rejects the
+  // whole batch, so we never half-delete.
+  const refs: DocumentReference[] = [];
   for (const id of ids) {
     const ref = db.collection("conversations").doc(id);
     const snap = await ref.get();
@@ -34,13 +37,19 @@ export async function deleteConversationsForUser(
       throw new HttpsError("permission-denied", "not-owner");
     }
 
-    // recursiveDelete removes the conversation doc plus its messages
-    // subcollection in one shot.
-    await db.recursiveDelete(ref);
-    deleted += 1;
+    refs.push(ref);
   }
 
-  return deleted;
+  if (refs.length === 0) return 0;
+
+  // Second pass: tear every conversation (doc + messages subcollection) down
+  // through ONE shared BulkWriter so Firestore drains them all in a single
+  // batched sweep, rather than a serial recursiveDelete round-trip each.
+  const writer = db.bulkWriter();
+  await Promise.all(refs.map((ref) => db.recursiveDelete(ref, writer)));
+  await writer.close();
+
+  return refs.length;
 }
 
 // Deletes one or more of the caller's conversations via the Admin SDK, since

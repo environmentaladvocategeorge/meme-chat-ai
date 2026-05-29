@@ -46,7 +46,8 @@ export const generateConversationTitle = onDocumentCreated(
       const client = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
       const completion = await client.chat.completions.create({
         model: UTILITY_MODEL,
-        max_tokens: 24,
+        // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s.
+        max_completion_tokens: 24,
         messages: [
           { role: "system", content: TITLE_SYSTEM_PROMPT },
           { role: "user", content: firstMessage },

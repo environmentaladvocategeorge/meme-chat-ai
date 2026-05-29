@@ -18,30 +18,32 @@ const REAUTH_MAX_AGE_SECONDS = 5 * 60;
 //   - usageDaily/*        — anonymized daily aggregates, no per-user fields.
 //   - rateLimits/*        — keyed by IP + hour bucket, TTL-swept, no uid.
 export async function deleteUserData(uid: string, db: Firestore): Promise<void> {
-  // Profile doc + every subcollection under it (reservations, …).
-  await db.recursiveDelete(db.doc(`profiles/${uid}`));
+  const [conversations, usageEvents] = await Promise.all([
+    db.collection("conversations").where("uid", "==", uid).get(),
+    db.collection("usageEvents").where("uid", "==", uid).get(),
+  ]);
+
+  // One shared BulkWriter drains every per-user document — the profile tree,
+  // each conversation tree, and the usage events — in a single batched sweep
+  // instead of a serial recursiveDelete round-trip per conversation.
+  const writer = db.bulkWriter();
+  const pending: Promise<unknown>[] = [
+    // Profile doc + every subcollection under it (reservations, …).
+    db.recursiveDelete(db.doc(`profiles/${uid}`), writer),
+  ];
 
   // Conversations the user owns, each with its messages subcollection.
-  const conversations = await db
-    .collection("conversations")
-    .where("uid", "==", uid)
-    .get();
   for (const conversation of conversations.docs) {
-    await db.recursiveDelete(conversation.ref);
+    pending.push(db.recursiveDelete(conversation.ref, writer));
   }
 
   // Top-level usage/cost events tied to the user.
-  const usageEvents = await db
-    .collection("usageEvents")
-    .where("uid", "==", uid)
-    .get();
-  if (!usageEvents.empty) {
-    const writer = db.bulkWriter();
-    for (const event of usageEvents.docs) {
-      void writer.delete(event.ref);
-    }
-    await writer.close();
+  for (const event of usageEvents.docs) {
+    void writer.delete(event.ref);
   }
+
+  await Promise.all(pending);
+  await writer.close();
 }
 
 // Auth + Firestore live in different systems, so the deletion can't be

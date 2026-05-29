@@ -1,9 +1,4 @@
-import {
-  USD_PER_CREDIT,
-  calculateCostUsd,
-  calculateCredits,
-  estimateReservationCredits,
-} from "../credits";
+import { USD_PER_CREDIT, calculateCostUsd, calculateCredits } from "../credits";
 import { MODEL_PRICING } from "../models";
 
 describe("calculateCostUsd", () => {
@@ -65,17 +60,5 @@ describe("calculateCredits", () => {
 
   it("USD_PER_CREDIT is 0.001", () => {
     expect(USD_PER_CREDIT).toBe(0.001);
-  });
-});
-
-describe("estimateReservationCredits", () => {
-  it("reserves at least 1 credit pre-call", () => {
-    expect(estimateReservationCredits("nano", 1000, 512)).toBeGreaterThanOrEqual(1);
-  });
-
-  it("reserves more for mini than nano at the same token counts", () => {
-    const nano = estimateReservationCredits("nano", 4000, 1024);
-    const mini = estimateReservationCredits("mini", 4000, 1024);
-    expect(mini).toBeGreaterThan(nano);
   });
 });

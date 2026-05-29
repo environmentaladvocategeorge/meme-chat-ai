@@ -83,7 +83,8 @@ export const summarizeConversation = onDocumentWritten(
       const client = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
       const completion = await client.chat.completions.create({
         model: UTILITY_MODEL,
-        max_tokens: 400,
+        // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s.
+        max_completion_tokens: 400,
         messages: [
           {
             role: "system",

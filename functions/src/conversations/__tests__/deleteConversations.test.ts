@@ -33,6 +33,9 @@ function makeDb(conversations: Record<string, Doc>) {
         },
       };
     },
+    bulkWriter() {
+      return { delete: jest.fn(), close: jest.fn(async () => {}) };
+    },
     async recursiveDelete(ref: { path: string }) {
       deletedPaths.push(ref.path);
     },

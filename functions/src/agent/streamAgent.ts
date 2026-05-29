@@ -1,3 +1,4 @@
+import { logger } from "firebase-functions";
 import OpenAI from "openai";
 import type { OpenAIMessage } from "../context/assemble";
 import type { AgentDelta } from "./types";
@@ -29,7 +30,9 @@ export async function* streamAgent({
     const stream = await client.chat.completions.create(
       {
         model,
-        max_tokens: maxOutputTokens,
+        // gpt-5.x models reject the legacy `max_tokens` — they require
+        // `max_completion_tokens`. Sending the old key 400s before any token.
+        max_completion_tokens: maxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
         messages,
@@ -62,6 +65,27 @@ export async function* streamAgent({
 
     yield { type: "done" };
   } catch (error) {
+    // Surface the real OpenAI failure at the source. SDK APIErrors carry
+    // status/code/type that pin down model_not_found vs auth vs bad-param far
+    // better than the message alone — and logging here sidesteps the reserved
+    // `message` field collision in the downstream logger.
+    const e = error as {
+      name?: string;
+      status?: number;
+      code?: string;
+      type?: string;
+      param?: string;
+      message?: string;
+    };
+    logger.error("[streamAgent] OpenAI stream failed", {
+      model,
+      name: e?.name,
+      status: e?.status,
+      code: e?.code,
+      type: e?.type,
+      param: e?.param,
+      detail: e?.message,
+    });
     const message = error instanceof Error ? error.message : "agent-error";
     yield { type: "error", message };
   }

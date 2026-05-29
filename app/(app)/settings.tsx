@@ -13,10 +13,68 @@ import {
   useSettingsStore,
 } from "@/store/settings";
 import { useRouter } from "expo-router";
-import { CaretRight } from "phosphor-react-native";
+import {
+  ArrowSquareOut,
+  CaretRight,
+  Lifebuoy,
+  ShieldCheck,
+} from "phosphor-react-native";
+import type { ComponentType } from "react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, View } from "react-native";
+import type { IconProps } from "phosphor-react-native";
+
+const SUPPORT_URL = "https://meme-chat-ai.com/support";
+const PRIVACY_URL = "https://meme-chat-ai.com/privacy";
+
+// A tappable settings row that opens an external URL. Mirrors the plan card's
+// treatment, with a leading icon and a trailing "external link" glyph.
+function LinkRow({
+  icon: Icon,
+  label,
+  onPress,
+}: {
+  icon: ComponentType<IconProps>;
+  label: string;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      style={({ pressed }) => ({
+        borderRadius: 16,
+        backgroundColor: pressed
+          ? theme["--color-card-pressed"]
+          : theme["--color-card"],
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+      })}
+    >
+      <Icon size={20} color={theme["--color-foreground"]} weight="regular" />
+      <Typography
+        variant="body"
+        weight="semibold"
+        style={{ flex: 1, color: theme["--color-foreground"] }}
+      >
+        {label}
+      </Typography>
+      <ArrowSquareOut
+        size={18}
+        weight="bold"
+        color={theme["--color-foreground-muted"]}
+      />
+    </Pressable>
+  );
+}
 
 export default function SettingsScreen() {
   const { t } = useTranslation();
@@ -49,6 +107,14 @@ export default function SettingsScreen() {
     { value: "en", label: t("settings.language.en") },
     { value: "es", label: t("settings.language.es") },
   ];
+
+  const openUrl = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(t("common.error"), t("settings.about.openFailed"));
+    }
+  };
 
   const performDeletion = async () => {
     setDeleting(true);
@@ -154,6 +220,19 @@ export default function SettingsScreen() {
             onChange={setLanguage}
           />
         </SettingsRow>
+
+        <View style={{ gap: 10 }}>
+          <LinkRow
+            icon={Lifebuoy}
+            label={t("settings.about.support")}
+            onPress={() => void openUrl(SUPPORT_URL)}
+          />
+          <LinkRow
+            icon={ShieldCheck}
+            label={t("settings.about.privacy")}
+            onPress={() => void openUrl(PRIVACY_URL)}
+          />
+        </View>
 
         <SettingsRow
           label={t("settings.deleteData.label")}

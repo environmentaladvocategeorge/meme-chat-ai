@@ -115,7 +115,22 @@ const es = {
     expand: "Expandir mensaje",
     collapse: "Colapsar",
     thinking: "Memeando…",
+    // Se elige uno al azar cada vez que empieza a llegar una respuesta.
+    loadingMessages: [
+      "Memeando…",
+      "Sospechando…",
+      "Revisando la lore…",
+      "Midiendo el aura…",
+      "Cocinando…",
+      "Dejándolo cocinar…",
+      "Detectando brainrot…",
+      "Consultando el grupo…",
+      "Des-NPC-ificando esto…",
+      "Buscando el chiste…",
+    ],
     errors: {
+      title: "Eso no se envió",
+      signedOutTitle: "Se cerró tu sesión",
       generic: "La respuesta se detuvo. Inténtalo de nuevo.",
       signedOut: "Inicia sesión de nuevo para seguir chateando.",
     },
@@ -136,6 +151,16 @@ const es = {
       upgrade: "Mejorar plan",
       seeLimits: "Ver límites",
       dismiss: "Descartar",
+    },
+    memes: {
+      button: "Memes",
+      close: "Ocultar memes",
+      empty: "No hay memes ahora mismo",
+      noResults: "No hay memes para eso",
+      error: "No se pudieron cargar los memes",
+      retry: "Reintentar",
+      // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
+      searchPlaceholder: "Search KLIPY",
     },
   },
   history: {
@@ -290,6 +315,11 @@ const es = {
       passwordPrompt: "Confirma tu contraseña",
       success: "Tu cuenta ha sido eliminada.",
       failed: "No pudimos eliminar tu cuenta. Inténtalo de nuevo.",
+    },
+    about: {
+      support: "Soporte",
+      privacy: "Política de privacidad",
+      openFailed: "No pudimos abrir ese enlace.",
     },
     signOut: "Cerrar sesión",
   },

@@ -18,6 +18,7 @@ import { CheckCircle, MagnifyingGlass, Trash, X } from "phosphor-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   SectionList,
@@ -396,22 +397,30 @@ function DeleteConfirmModal({
             </Pressable>
             <Pressable
               accessibilityRole="button"
+              accessibilityState={{ busy: deleting, disabled: deleting }}
               onPress={onConfirm}
               disabled={deleting}
               style={({ pressed }) => ({
+                minWidth: 96,
+                alignItems: "center",
+                justifyContent: "center",
                 paddingHorizontal: 16,
                 paddingVertical: 10,
                 borderRadius: 10,
                 backgroundColor: theme["--color-error"],
-                opacity: deleting ? 0.6 : pressed ? 0.9 : 1,
+                opacity: deleting ? 0.85 : pressed ? 0.9 : 1,
               })}
             >
-              <Typography
-                variant="body"
-                style={{ color: "#FFFFFF", fontWeight: "800" }}
-              >
-                {t("history.select.confirm")}
-              </Typography>
+              {deleting ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Typography
+                  variant="body"
+                  style={{ color: "#FFFFFF", fontWeight: "800" }}
+                >
+                  {t("history.select.confirm")}
+                </Typography>
+              )}
             </Pressable>
           </View>
         </View>

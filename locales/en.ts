@@ -115,7 +115,22 @@ const en = {
     expand: "Expand message",
     collapse: "Collapse",
     thinking: "Memeing…",
+    // One is picked at random each time a reply starts streaming.
+    loadingMessages: [
+      "Memeing…",
+      "Sussing…",
+      "Checking the lore…",
+      "Measuring aura…",
+      "Cooking…",
+      "Letting it cook…",
+      "Detecting brainrot…",
+      "Consulting the group chat…",
+      "Un-NPC-ing this…",
+      "Finding the bit…",
+    ],
     errors: {
+      title: "That didn't go through",
+      signedOutTitle: "You've been signed out",
       generic: "The reply stopped. Please try again.",
       signedOut: "Sign in again to keep chatting.",
     },
@@ -136,6 +151,16 @@ const en = {
       upgrade: "Upgrade Plan",
       seeLimits: "See limits",
       dismiss: "Dismiss",
+    },
+    memes: {
+      button: "Memes",
+      close: "Hide memes",
+      empty: "No memes right now",
+      noResults: "No memes match that",
+      error: "Couldn't load memes",
+      retry: "Retry",
+      // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
+      searchPlaceholder: "Search KLIPY",
     },
   },
   history: {
@@ -290,6 +315,11 @@ const en = {
       passwordPrompt: "Confirm your password",
       success: "Your account has been deleted.",
       failed: "We couldn't delete your account. Please try again.",
+    },
+    about: {
+      support: "Support",
+      privacy: "Privacy Policy",
+      openFailed: "We couldn't open that link.",
     },
     signOut: "Sign out",
   },

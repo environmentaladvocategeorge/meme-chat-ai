@@ -1,5 +1,9 @@
 import { httpsCallable } from "firebase/functions";
 import { type PlanId } from "@/domain/billing";
+import {
+  type ContentFilter,
+  type TrendingMemesResult,
+} from "@/domain/memes";
 import { getFirebaseServices } from "./app";
 
 export async function deleteMyAccountCallable(): Promise<{ success: true }> {
@@ -50,5 +54,54 @@ export async function syncRevenueCatPlanCallable(args: {
     { plan: PlanId }
   >(firebase.services.functions, "syncRevenueCatPlan");
   const result = await callable(args);
+  return result.data;
+}
+
+export type TrendingMemesParams = {
+  page?: number;
+  perPage?: number;
+  // ISO 3166-1 alpha-2 country code, e.g. "us".
+  locale?: string;
+  contentFilter?: ContentFilter;
+};
+
+// Fetches a page of trending memes from Klipy via the backend (which holds the
+// app key and passes the signed-in user's uid as a stable customer_id).
+export async function getTrendingMemesCallable(
+  params: TrendingMemesParams = {},
+): Promise<TrendingMemesResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<TrendingMemesParams, TrendingMemesResult>(
+    firebase.services.functions,
+    "getTrendingMemes",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+export type SearchMemesParams = TrendingMemesParams & {
+  // The search keyword. per_page minimum is 8 for search (Klipy bound).
+  query: string;
+};
+
+// Searches Klipy memes by keyword via the backend. Same normalized result
+// shape + pagination as trending.
+export async function searchMemesCallable(
+  params: SearchMemesParams,
+): Promise<TrendingMemesResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<SearchMemesParams, TrendingMemesResult>(
+    firebase.services.functions,
+    "searchMemes",
+  );
+  const result = await callable(params);
   return result.data;
 }

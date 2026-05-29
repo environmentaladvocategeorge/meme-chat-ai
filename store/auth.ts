@@ -18,6 +18,7 @@ import {
   type ResendVerificationResult,
   type SignInEmailResult,
 } from "@/services/firebase/emailAuth";
+import { useChatStore } from "@/store/chat";
 import { useEntitlementStore } from "@/store/entitlement";
 import { useOnboardingStore } from "@/store/onboarding";
 import { useSettingsStore } from "@/store/settings";
@@ -352,6 +353,13 @@ async function finalizeAccountDeletion(
 ): Promise<
   { success: true } | { success: false; error: DeleteAccountError }
 > {
+  // Tear down the active chat messages listener before the callable runs:
+  // deleteMyAccount removes the auth user server-side first, which revokes the
+  // token and would make any still-attached Firestore listener fire
+  // permission-denied. (The history conversations listener unsubscribes on its
+  // own once `uid` clears below.)
+  useChatStore.getState().startNewConversation();
+
   try {
     // Reauth bumps auth_time server-side but does NOT refresh the cached ID
     // token the callable attaches. If that cached token is already expired

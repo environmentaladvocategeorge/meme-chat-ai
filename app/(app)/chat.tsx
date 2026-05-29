@@ -2,7 +2,10 @@ import { AgentAvatar } from "@/components/AgentAvatar";
 import { AppHeader } from "@/components/AppHeader";
 import { ChatInput } from "@/components/ChatInput";
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import { Typography } from "@/components/Typography";
+import type { TrendingMeme } from "@/domain/memes";
+import { useKlipy } from "@/hooks/useKlipy";
 import {
   computeUsageState,
   formatResetMoment,
@@ -16,9 +19,23 @@ import { useChatStore, type ChatMessage, type QuotaInfo } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { NotePencil, X } from "phosphor-react-native";
+import {
+  ArrowClockwise,
+  NotePencil,
+  Sticker,
+  WarningCircle,
+  X,
+} from "phosphor-react-native";
 import { useColorScheme } from "nativewind";
-import { useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import Markdown from "react-native-markdown-display";
 import {
@@ -27,20 +44,57 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
   Easing,
   FadeIn,
+  interpolateColor,
   runOnJS,
+  type SharedValue,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-type RenderMessage = ChatMessage & { retry?: boolean; thinking?: boolean };
+type RenderMessage = ChatMessage & {
+  retry?: boolean;
+  thinking?: boolean;
+  // Which copy to show in the agent-side error card. Only set on synthesized
+  // error bubbles (see `visibleMessages`).
+  errorKind?: "generic" | "signed-out";
+};
+
+// Page-level bubble gradient
+//
+// Telegram-style trick: rather than painting a full gradient inside every
+// user bubble (which makes each bubble look identical), we draw ONE gradient
+// that spans the whole screen and let each bubble act as a window onto it.
+// Every user bubble renders a screen-tall gradient translated by its own
+// on-screen Y, so a bubble near the top reveals the top of the gradient and a
+// bubble near the bottom reveals the bottom — masked to the bubble by its
+// `overflow: hidden`. A shared scroll offset keeps the gradient pinned to the
+// viewport as bubbles slide past, so the thread reads as a single continuous
+// sweep painted down the page.
+type BubbleGradientValue = {
+  // Live content offset of the message list (driven on the UI thread).
+  scrollY: SharedValue<number>;
+  // Bumped whenever bubbles may have shifted on screen (content resize,
+  // momentum settle) so each bubble re-measures its anchor.
+  measureTick: number;
+};
+const BubbleGradientContext = createContext<BubbleGradientValue | null>(null);
+const useBubbleGradient = () => useContext(BubbleGradientContext);
+
+// The list is `inverted`, so a bubble's on-screen Y *increases* as the content
+// offset grows (scrolling toward older messages pushes existing bubbles down).
+// Flip to -1 if the gradient ever drifts the wrong way during a scroll.
+const SCROLL_SIGN = 1;
 
 // Stable list identity for a message bubble. An agent reply keeps the SAME
 // key across its whole lifecycle — synthetic streaming placeholder → settled
@@ -90,12 +144,117 @@ function NewConversationButton({
   );
 }
 
+// The memes affordance that sits just under the composer. A chunky little
+// "sticker" chip: a rounded square icon badge + label. When the strip is open
+// it fills with the brand gradient and lifts; closed, it's a soft card chip.
+// Squishes on press so it feels tactile and playful rather than form-y.
+function MemeToggleButton({
+  label,
+  open,
+  onPress,
+}: {
+  label: string;
+  open: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const { colorScheme } = useColorScheme();
+  const gradient = gradients[colorScheme ?? "light"].primary;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ expanded: open }}
+      hitSlop={8}
+      style={({ pressed }) => ({
+        alignSelf: "flex-start",
+        borderRadius: 16,
+        overflow: "hidden",
+        // A gentle squish + dip on press; the open chip rides a touch higher
+        // so its lift reads as "on".
+        transform: [
+          { scale: pressed ? 0.95 : 1 },
+          { translateY: pressed ? 1 : open ? -1 : 0 },
+        ],
+        // Soft colored glow under the open (gradient) chip for a bit of pop.
+        shadowColor: open ? theme["--color-primary"] : "#000000",
+        shadowOpacity: open ? 0.32 : 0.08,
+        shadowRadius: open ? 10 : 5,
+        shadowOffset: { width: 0, height: open ? 4 : 2 },
+        elevation: open ? 4 : 1,
+      })}
+    >
+      {open ? (
+        <LinearGradient
+          colors={gradient.colors}
+          start={gradient.start}
+          end={gradient.end}
+          style={StyleSheet.absoluteFillObject}
+        />
+      ) : null}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          paddingLeft: 7,
+          paddingRight: 14,
+          paddingVertical: 7,
+          borderRadius: 16,
+          borderWidth: open ? 0 : 1,
+          borderColor: theme["--color-border"],
+          backgroundColor: open ? "transparent" : theme["--color-card"],
+        }}
+      >
+        {/* Icon badge — a little rounded-square "sticker" that flips colors
+            with the open state. */}
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 9,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: open
+              ? "rgba(255,255,255,0.22)"
+              : theme["--color-primary-subtle"],
+            transform: [{ rotate: "-8deg" }],
+          }}
+        >
+          <Sticker
+            size={18}
+            color={open ? "#FFFFFF" : theme["--color-primary"]}
+            weight="fill"
+          />
+        </View>
+        <Typography
+          variant="body-sm"
+          weight="bold"
+          style={{
+            color: open ? "#FFFFFF" : theme["--color-foreground"],
+            letterSpacing: 0.2,
+          }}
+        >
+          {label}
+        </Typography>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function ChatScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const [draft, setDraft] = useState("");
+  const [memesOpen, setMemesOpen] = useState(false);
+  // Memes for the composer strip (trending + debounced KLIPY search). Modular —
+  // the same hook can power a meme picker anywhere else in the app. `enabled`
+  // defers the first network call until the strip is actually opened.
+  const klipy = useKlipy({ perPage: 24, enabled: memesOpen });
   const conversationId = useChatStore((s) => s.conversationId);
   const messages = useChatStore((s) => s.messages);
   const streamingText = useChatStore((s) => s.streamingText);
@@ -163,6 +322,25 @@ export default function ChatScreen() {
     [messages],
   );
 
+  // Loading label shown while a reply is in flight. We pick one of the playful
+  // phrases at random, but lock it in for the duration of a given reply
+  // (keyed on activeReplyClientId) so it doesn't reshuffle on every re-render.
+  const pickLoadingMessage = useCallback(() => {
+    const options = t("chat.loadingMessages", {
+      returnObjects: true,
+    }) as string[];
+    if (!Array.isArray(options) || options.length === 0) {
+      return t("chat.thinking");
+    }
+    return options[Math.floor(Math.random() * options.length)];
+  }, [t]);
+  const [thinkingLabel, setThinkingLabel] = useState(pickLoadingMessage);
+  useEffect(() => {
+    if (activeReplyClientId) {
+      setThinkingLabel(pickLoadingMessage());
+    }
+  }, [activeReplyClientId, pickLoadingMessage]);
+
   const visibleMessages = useMemo<RenderMessage[]>(() => {
     // Drop empty placeholders, but keep errored agent bubbles so the user
     // sees the failure state.
@@ -172,13 +350,7 @@ export default function ChatScreen() {
           message.text.length > 0 ||
           (message.role === "agent" && message.status === "error"),
       )
-      .map((message) => ({
-        ...message,
-        retry:
-          status === "error" &&
-          message.role === "user" &&
-          message.id === lastUserMessage?.id,
-      }));
+      .map((message) => ({ ...message }));
 
     if (status === "streaming" && activeReplyClientId) {
       // The in-flight agent reply. We give it a STABLE id tied to the user
@@ -218,10 +390,34 @@ export default function ChatScreen() {
       }
     }
 
+    // A failed turn surfaces as a single agent-side error card answering the
+    // last user message — carrying both the explanation and the retry action,
+    // so the failure reads as one coherent reply from Me-Me. Skipped if the
+    // backend already persisted an agent error reply for this turn.
+    if (status === "error" && lastUserMessage) {
+      const alreadyErrored = base.some(
+        (message) =>
+          message.role === "agent" && message.status === "error",
+      );
+      if (!alreadyErrored) {
+        base.push({
+          id: `agent-error:${lastUserMessage.id}`,
+          role: "agent",
+          inReplyToClientMessageId: lastUserMessage.clientMessageId,
+          text: "",
+          status: "error",
+          createdAt: null,
+          errorKind: error === "signed-out" ? "signed-out" : "generic",
+          retry: error !== "signed-out",
+        });
+      }
+    }
+
     return base.reverse();
   }, [
     activeReplyClientId,
-    lastUserMessage?.id,
+    error,
+    lastUserMessage,
     messages,
     settledReply,
     status,
@@ -247,12 +443,42 @@ export default function ChatScreen() {
     void sendMessage(lastUserMessage.text);
   };
 
+  // Toggle the meme strip. The hook's `enabled` flag (wired to memesOpen) is
+  // what triggers the first fetch, so this just flips visibility.
+  const handleToggleMemes = () => {
+    setMemesOpen((open) => !open);
+  };
+
+  // Tapping a meme drops its image URL into the draft so the user can send it.
+  const handleSelectMeme = (meme: TrendingMeme) => {
+    setDraft((current) =>
+      current.trim().length > 0 ? `${current} ${meme.url}` : meme.url,
+    );
+  };
+
   // Drives the cross-fade when starting a new chat: fade the current thread
   // out, swap in the fresh empty state, then fade that back in.
   const contentOpacity = useSharedValue(1);
   const contentFadeStyle = useAnimatedStyle(() => ({
     opacity: contentOpacity.value,
   }));
+
+  // Shared scroll offset + re-measure signal for the page-level bubble
+  // gradient (see BubbleGradientContext). The handler runs on the UI thread so
+  // the gradient tracks scrolling smoothly; the tick nudges bubbles to
+  // re-anchor whenever the layout settles.
+  const pageScrollY = useSharedValue(0);
+  const [gradientTick, setGradientTick] = useState(0);
+  const bumpGradient = useCallback(() => setGradientTick((t) => t + 1), []);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      pageScrollY.value = event.contentOffset.y;
+    },
+  });
+  const bubbleGradient = useMemo(
+    () => ({ scrollY: pageScrollY, measureTick: gradientTick }),
+    [pageScrollY, gradientTick],
+  );
 
   const handleNewConversation = () => {
     const reset = () => {
@@ -291,12 +517,17 @@ export default function ChatScreen() {
         }
       />
 
+      <BubbleGradientContext.Provider value={bubbleGradient}>
       <Animated.FlatList
         style={contentFadeStyle}
         inverted
         data={visibleMessages}
         keyExtractor={messageKey}
         keyboardShouldPersistTaps="handled"
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        onContentSizeChange={bumpGradient}
+        onMomentumScrollEnd={bumpGradient}
         contentContainerStyle={{
           flexGrow: 1,
           justifyContent:
@@ -325,26 +556,12 @@ export default function ChatScreen() {
             message={item}
             retryLabel={t("common.retry")}
             errorLabel={t("chat.errors.generic")}
-            thinkingLabel={t("chat.thinking")}
+            thinkingLabel={thinkingLabel}
             onRetry={handleRetry}
           />
         )}
       />
-
-      {error ? (
-        <Typography
-          variant="caption"
-          style={{
-            color: theme["--color-error"],
-            paddingHorizontal: 18,
-            paddingBottom: 8,
-          }}
-        >
-          {error === "signed-out"
-            ? t("chat.errors.signedOut")
-            : t("chat.errors.generic")}
-        </Typography>
-      ) : null}
+      </BubbleGradientContext.Provider>
 
       <View
         style={{
@@ -385,6 +602,32 @@ export default function ChatScreen() {
                 onUpgrade={openPlan}
               />
             ) : null}
+            {memesOpen ? (
+              <View style={{ marginBottom: 8 }}>
+                <TrendingMemeStrip
+                  memes={klipy.memes}
+                  loading={klipy.loading}
+                  loadingMore={klipy.loadingMore}
+                  error={klipy.error}
+                  hasNext={klipy.hasNext}
+                  mode={klipy.mode}
+                  searching={klipy.searching}
+                  query={klipy.query}
+                  onChangeQuery={klipy.setQuery}
+                  onClearSearch={klipy.clearSearch}
+                  onEndReached={klipy.loadMore}
+                  onRetry={klipy.retry}
+                  onSelectMeme={handleSelectMeme}
+                  labels={{
+                    searchPlaceholder: t("chat.memes.searchPlaceholder"),
+                    empty: t("chat.memes.empty"),
+                    noResults: t("chat.memes.noResults"),
+                    error: t("chat.memes.error"),
+                    retry: t("chat.memes.retry"),
+                  }}
+                />
+              </View>
+            ) : null}
             <ChatInput
               value={draft}
               onChangeText={setDraft}
@@ -397,6 +640,13 @@ export default function ChatScreen() {
               expandAccessibilityLabel={t("chat.expand")}
               collapseAccessibilityLabel={t("chat.collapse")}
             />
+            <View style={{ marginTop: 8 }}>
+              <MemeToggleButton
+                label={t("chat.memes.button")}
+                open={memesOpen}
+                onPress={handleToggleMemes}
+              />
+            </View>
           </Animated.View>
         )}
       </View>
@@ -441,6 +691,127 @@ function ChatLoading({ label }: { label: string }) {
   );
 }
 
+// A soft highlight band sweeps left→right across the label on a loop. Each
+// glyph warms from the muted base color up into the brand gradient (and lifts
+// a hair) as the band passes over it, giving "Memeing…" a gentle, playful
+// shimmer instead of dead static text. Built on Animated.Text directly because
+// Reanimated needs a ref-forwarding host to push animated style updates to
+// native — our Typography wrapper doesn't forward refs.
+const SHIMMER_DURATION_MS = 1600;
+const SHIMMER_BAND = 0.42; // fraction of the sweep that's "lit" at once
+const SHIMMER_LIFT = 2; // px the brightest glyph rises
+
+// Linear interpolate between two #RRGGBB hex colors on the JS thread, so each
+// glyph's target brand hue is precomputed and the worklet only fades between
+// the muted base and that target.
+function lerpHex(a: string, b: string, t: number): string {
+  const ai = parseInt(a.slice(1), 16);
+  const bi = parseInt(b.slice(1), 16);
+  const ar = (ai >> 16) & 255;
+  const ag = (ai >> 8) & 255;
+  const ab = ai & 255;
+  const br = (bi >> 16) & 255;
+  const bg = (bi >> 8) & 255;
+  const bb = bi & 255;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + bl).toString(16).slice(1)}`;
+}
+
+function ShimmerChar({
+  char,
+  position,
+  progress,
+  baseColor,
+  brightColor,
+}: {
+  char: string;
+  position: number; // 0..1 across the label
+  progress: SharedValue<number>;
+  baseColor: string;
+  brightColor: string;
+}) {
+  const animatedStyle = useAnimatedStyle(() => {
+    // Distance from the sweeping head, wrapped onto [-0.5, 0.5] so the band
+    // re-enters seamlessly from the left each loop.
+    let d = (((position - progress.value) % 1) + 1) % 1;
+    if (d > 0.5) d -= 1;
+    const closeness = Math.max(0, 1 - Math.abs(d) / SHIMMER_BAND);
+    // smoothstep for a soft falloff at the band edges
+    const eased = closeness * closeness * (3 - 2 * closeness);
+    return {
+      color: interpolateColor(eased, [0, 1], [baseColor, brightColor]),
+      opacity: 0.5 + 0.5 * eased,
+      transform: [{ translateY: -SHIMMER_LIFT * eased }],
+    };
+  });
+
+  return (
+    <Animated.Text
+      style={[
+        {
+          fontFamily: "Poppins-Medium",
+          fontSize: 14,
+          lineHeight: 21,
+          includeFontPadding: false,
+          textAlignVertical: "center",
+        },
+        animatedStyle,
+      ]}
+    >
+      {char}
+    </Animated.Text>
+  );
+}
+
+function ThinkingText({
+  label,
+  baseColor,
+  gradient,
+}: {
+  label: string;
+  baseColor: string;
+  gradient: readonly string[];
+}) {
+  const progress = useSharedValue(0);
+  useEffect(() => {
+    progress.value = withRepeat(
+      withTiming(1, {
+        duration: SHIMMER_DURATION_MS,
+        easing: Easing.inOut(Easing.ease),
+      }),
+      -1,
+      false,
+    );
+  }, [progress]);
+
+  const chars = useMemo(() => Array.from(label), [label]);
+  const from = gradient[0] ?? baseColor;
+  const to = gradient[gradient.length - 1] ?? from;
+
+  return (
+    <View style={{ flexDirection: "row", paddingTop: SHIMMER_LIFT }}>
+      {chars.map((c, i) => (
+        <ShimmerChar
+          key={`${c}-${i}`}
+          char={c}
+          position={chars.length > 1 ? i / (chars.length - 1) : 0}
+          progress={progress}
+          baseColor={baseColor}
+          // Spread the brand sweep across the glyphs so the lit band itself
+          // reads as a gradient, not a single flat highlight color.
+          brightColor={lerpHex(
+            from,
+            to,
+            chars.length > 1 ? i / (chars.length - 1) : 0,
+          )}
+        />
+      ))}
+    </View>
+  );
+}
+
 const STARTER_COUNT = 4;
 
 // Fisher–Yates pick of n distinct items. Copies first so the source list
@@ -473,6 +844,27 @@ function EmptyChatState({
     return pickRandom(pool as string[], STARTER_COUNT);
   }, [t]);
 
+  // Entrance for the whole empty state. Plays once when this mounts — i.e. the
+  // moment the loader clears and Me-Me "wakes up". A soft opacity fade paired
+  // with a gentle spring scale so it eases in instead of hard-blinking. The
+  // animated transform lives on an inner view so it doesn't disturb the
+  // outer scaleY:-1 counter-flip the inverted FlatList requires.
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.92);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, {
+      duration: 420,
+      easing: Easing.out(Easing.cubic),
+    });
+    scale.value = withSpring(1, { damping: 13, stiffness: 170, mass: 0.85 });
+  }, [opacity, scale]);
+
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
     <View
       style={{
@@ -483,13 +875,16 @@ function EmptyChatState({
         paddingVertical: 28,
       }}
     >
-      <View
-        style={{
-          alignItems: "center",
-          gap: 12,
-          width: "100%",
-          maxWidth: 420,
-        }}
+      <Animated.View
+        style={[
+          {
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            maxWidth: 420,
+          },
+          entranceStyle,
+        ]}
       >
         <View
           style={{
@@ -562,7 +957,7 @@ function EmptyChatState({
             style={StyleSheet.absoluteFillObject}
           />
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -986,11 +1381,13 @@ function MessageBubble({
   thinkingLabel: string;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation();
   const theme = useTheme();
   const { colorScheme } = useColorScheme();
   const primaryGradient = gradients[colorScheme ?? "light"].primary;
   const mine = message.role === "user";
   const errored = message.status === "error";
+  const isErrorCard = message.role === "agent" && errored;
   const thinking = message.thinking === true;
   const useGradient = mine && !errored;
   const timestampLabel = formatMessageTimestamp(message.createdAt);
@@ -1207,6 +1604,45 @@ function MessageBubble({
     transform: [{ scale: scale.value }, { translateY: translateY.value }],
   }));
 
+  // Page-level gradient anchoring (user bubbles only). We measure the bubble's
+  // window Y and the scroll offset at that instant, then translate a
+  // screen-tall gradient so the slice showing through the bubble matches its
+  // position on the page. Re-anchors on layout + whenever the list signals a
+  // shift (measureTick). See BubbleGradientContext.
+  const bubbleGradient = useBubbleGradient();
+  const { height: windowHeight } = useWindowDimensions();
+  const bubbleRef = useRef<View>(null);
+  const anchorWinY = useSharedValue(0);
+  const anchorScroll = useSharedValue(0);
+  const gradientReady = useSharedValue(0);
+
+  const remeasureGradient = useCallback(() => {
+    const node = bubbleRef.current;
+    if (!node || !useGradient || !bubbleGradient) return;
+    node.measureInWindow((_x, y) => {
+      if (typeof y !== "number" || !Number.isFinite(y)) return;
+      anchorWinY.value = y;
+      anchorScroll.value = bubbleGradient.scrollY.value;
+      gradientReady.value = withTiming(1, { duration: 200 });
+    });
+  }, [useGradient, bubbleGradient, anchorWinY, anchorScroll, gradientReady]);
+
+  const measureTick = bubbleGradient?.measureTick;
+  useEffect(() => {
+    if (useGradient) remeasureGradient();
+  }, [useGradient, remeasureGradient, measureTick]);
+
+  const pageGradientStyle = useAnimatedStyle(() => {
+    const screenY = bubbleGradient
+      ? anchorWinY.value +
+        SCROLL_SIGN * (bubbleGradient.scrollY.value - anchorScroll.value)
+      : 0;
+    return {
+      opacity: gradientReady.value,
+      transform: [{ translateY: -screenY }],
+    };
+  });
+
   // Bubble bg: the user's bubble uses a vertical gradient (top → bottom)
   // of the brand colors; the agent's uses --color-card, the same subtle
   // surface the chat input pill sits on, so they read as part of the
@@ -1233,6 +1669,106 @@ function MessageBubble({
     paddingRight: mine ? 0 : AVATAR_SIZE + AVATAR_GUTTER,
   };
 
+  // Failed turn: a self-contained agent card with the worried mascot, a
+  // headline + explanation, and the retry action all in one place — instead
+  // of a bare error bubble plus a stray "try again" pill under the user's
+  // message.
+  if (isErrorCard) {
+    const signedOut = message.errorKind === "signed-out";
+    const errorTitle = signedOut
+      ? t("chat.errors.signedOutTitle")
+      : t("chat.errors.title");
+    const errorBody = signedOut
+      ? t("chat.errors.signedOut")
+      : message.text.length > 0
+        ? message.text
+        : errorLabel;
+
+    return (
+      <Animated.View style={[{ gap: 6 }, entranceStyle]}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "flex-start",
+            paddingRight: AVATAR_SIZE + AVATAR_GUTTER,
+          }}
+        >
+          <View style={{ marginRight: AVATAR_GUTTER, paddingTop: 2 }}>
+            <MemeAvatar variant="worried" size={AVATAR_SIZE} />
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+              borderRadius: BUBBLE_RADIUS,
+              borderBottomLeftRadius: BUBBLE_TAIL_RADIUS,
+              paddingHorizontal: 14,
+              paddingVertical: 12,
+              gap: 10,
+              backgroundColor: theme["--color-error-muted"],
+              borderWidth: 1,
+              borderColor: theme["--color-error"],
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}
+            >
+              <WarningCircle
+                size={18}
+                color={theme["--color-error"]}
+                weight="fill"
+                style={{ marginTop: 1 }}
+              />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Typography
+                  variant="body-sm"
+                  weight="bold"
+                  style={{ color: theme["--color-foreground"] }}
+                >
+                  {errorTitle}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  style={{ color: theme["--color-foreground-secondary"] }}
+                >
+                  {errorBody}
+                </Typography>
+              </View>
+            </View>
+
+            {message.retry ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={retryLabel}
+                onPress={onRetry}
+                hitSlop={6}
+                style={({ pressed }) => ({
+                  flexDirection: "row",
+                  alignItems: "center",
+                  alignSelf: "flex-start",
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 999,
+                  backgroundColor: theme["--color-error"],
+                  opacity: pressed ? 0.9 : 1,
+                })}
+              >
+                <ArrowClockwise size={14} color="#FFFFFF" weight="bold" />
+                <Typography
+                  variant="caption"
+                  style={{ color: "#FFFFFF", fontWeight: "800" }}
+                >
+                  {retryLabel}
+                </Typography>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
+      </Animated.View>
+    );
+  }
+
   return (
     <Animated.View style={[{ gap: 6 }, entranceStyle]}>
       <View style={rowStyle}>
@@ -1245,6 +1781,8 @@ function MessageBubble({
         ) : null}
 
         <Pressable
+          ref={bubbleRef}
+          onLayout={useGradient ? remeasureGradient : undefined}
           accessibilityRole="button"
           accessibilityLabel={
             timestampLabel ? `${messageText}. ${timestampLabel}` : messageText
@@ -1268,20 +1806,36 @@ function MessageBubble({
           })}
         >
           {useGradient ? (
-            <LinearGradient
-              colors={primaryGradient.colors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-              style={StyleSheet.absoluteFillObject}
-            />
+            // One screen-tall gradient, slid so the slice behind this bubble
+            // matches its place on the page. `overflow: hidden` on the
+            // Pressable masks it to the bubble shape.
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                {
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  height: windowHeight,
+                },
+                pageGradientStyle,
+              ]}
+            >
+              <LinearGradient
+                colors={primaryGradient.colors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{ width: "100%", height: windowHeight }}
+              />
+            </Animated.View>
           ) : null}
           {thinking ? (
-            <Typography
-              variant="body-lg"
-              style={{ color: theme["--color-foreground-muted"] }}
-            >
-              {thinkingLabel}
-            </Typography>
+            <ThinkingText
+              label={thinkingLabel}
+              baseColor={theme["--color-foreground-muted"]}
+              gradient={primaryGradient.colors}
+            />
           ) : (
             <Markdown style={markdownStyles}>{messageText}</Markdown>
           )}
@@ -1302,33 +1856,6 @@ function MessageBubble({
           >
             {timestampLabel}
           </Typography>
-        </View>
-      ) : null}
-
-      {message.retry ? (
-        <View
-          style={{
-            paddingLeft: AVATAR_SIZE + AVATAR_GUTTER,
-            alignItems: "flex-end",
-          }}
-        >
-          <Pressable
-            accessibilityRole="button"
-            onPress={onRetry}
-            style={{
-              paddingHorizontal: 10,
-              paddingVertical: 5,
-              borderRadius: 8,
-              backgroundColor: theme["--color-background-secondary"],
-            }}
-          >
-            <Typography
-              variant="caption"
-              style={{ color: theme["--color-primary"], fontWeight: "700" }}
-            >
-              {retryLabel}
-            </Typography>
-          </Pressable>
         </View>
       ) : null}
     </Animated.View>

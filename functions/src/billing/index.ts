@@ -9,12 +9,7 @@ export type { ModelId, ModelPricing } from "./models";
 export { PLANS, PLAN_IDS, PLAN_RANK } from "./plans";
 export type { PlanConfig, PlanId } from "./plans";
 
-export {
-  USD_PER_CREDIT,
-  calculateCostUsd,
-  calculateCredits,
-  estimateReservationCredits,
-} from "./credits";
+export { USD_PER_CREDIT, calculateCostUsd, calculateCredits } from "./credits";
 export type { TokenUsage } from "./credits";
 
 export { chooseModel } from "./router";

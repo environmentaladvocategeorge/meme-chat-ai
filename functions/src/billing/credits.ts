@@ -34,18 +34,3 @@ export function calculateCredits(costUsd: number): number {
   if (costUsd <= 0) return 0;
   return Math.max(1, Math.ceil(costUsd / USD_PER_CREDIT));
 }
-
-// Pre-call reservation. Assumes a worst-case full-context request at
-// plan.maxOutputTokens so we never under-reserve. Settled to actual usage
-// after the stream's final chunk.
-export function estimateReservationCredits(
-  model: ModelId,
-  estimatedInputTokens: number,
-  maxOutputTokens: number,
-): number {
-  const costUsd = calculateCostUsd(model, {
-    inputTokens: estimatedInputTokens,
-    outputTokens: maxOutputTokens,
-  });
-  return calculateCredits(costUsd);
-}

@@ -5,17 +5,8 @@ import { onRequest } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
-import {
-  QuotaExceededError,
-  releaseReservation,
-  reserveCredits,
-  settleCredits,
-} from "./billing/ledger";
-import {
-  calculateCostUsd,
-  calculateCredits,
-  estimateReservationCredits,
-} from "./billing/credits";
+import { chargeCredits, evaluateQuota } from "./billing/ledger";
+import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
 import { chooseModel } from "./billing/router";
@@ -140,16 +131,45 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
-    // ---------- routing + entitlement ----------
+    // ---------- entitlement ----------
     let entitlement;
+    try {
+      entitlement = await loadEntitlement(uid);
+    } catch (err) {
+      logger.error("[streamAgentAnswer] entitlement load failed", {
+        conversationId,
+        err,
+      });
+      res.status(500).json({ code: "internal" });
+      return;
+    }
+
+    // ---------- quota gate (read-only) ----------
+    // No credits are reserved up front. We only refuse a turn when the user
+    // has already exhausted a window; the real cost is charged after the
+    // stream (see chargeForUsage), so the displayed balance moves exactly once.
+    const quota = evaluateQuota({ state: entitlement, plan: entitlement.plan });
+    if (!quota.ok) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
+      writeSse(res, "quota_exceeded", {
+        reason: quota.reason,
+        resetAt: quota.resetAt?.toISOString() ?? null,
+      });
+      res.end();
+      return;
+    }
+
+    // ---------- routing + context ----------
     let internalModel;
     let assembleResult;
     let resolvedPersona:
       | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
       | null = null;
-    let reservedCredits = 0;
     try {
-      entitlement = await loadEntitlement(uid);
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId);
       resolvedPersona = promptResult.persona;
@@ -159,41 +179,8 @@ export const streamAgentAnswer = onRequest(
         currentUserMessage: userText,
         systemPrompt: promptResult.systemPrompt,
       });
-      reservedCredits = estimateReservationCredits(
-        internalModel,
-        assembleResult.inputTokens,
-        entitlement.maxOutputTokens,
-      );
     } catch (err) {
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
-      res.status(500).json({ code: "internal" });
-      return;
-    }
-
-    // ---------- reserve credits ----------
-    let reservation;
-    try {
-      reservation = await reserveCredits(
-        uid,
-        entitlement.plan,
-        internalModel,
-        reservedCredits,
-      );
-    } catch (err) {
-      if (err instanceof QuotaExceededError) {
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache, no-transform");
-        res.setHeader("Connection", "keep-alive");
-        res.setHeader("X-Accel-Buffering", "no");
-        res.flushHeaders();
-        writeSse(res, "quota_exceeded", {
-          reason: err.reason,
-          resetAt: err.resetAt?.toISOString() ?? null,
-        });
-        res.end();
-        return;
-      }
-      logger.error("[streamAgentAnswer] reserveCredits failed", { uid, err });
       res.status(500).json({ code: "internal" });
       return;
     }
@@ -206,41 +193,30 @@ export const streamAgentAnswer = onRequest(
     let lastUsage: AgentUsage | null = null;
     const abortController = new AbortController();
 
-    // Run reservation disposition after the response finishes. Settle if we
-    // saw deltas (or completed) AND have usage; release if we never delivered
-    // a delta and never paid OpenAI for tokens.
-    const disposeReservation = async (reason: string) => {
+    // Charge the turn's real cost once the stream's final usage is known.
+    // There is nothing to reserve or release: if no usage ever arrived (e.g.
+    // the client aborted before any output), the turn is free.
+    const chargeForUsage = async (reason: string) => {
+      if (!lastUsage) return;
       try {
-        if (!sawDelta) {
-          await releaseReservation(uid, reservation.reservationId);
-          return;
-        }
-        if (lastUsage) {
-          const costUsd = calculateCostUsd(internalModel, lastUsage);
-          const credits = calculateCredits(costUsd);
-          await settleCredits(
-            uid,
-            reservation.reservationId,
-            {
-              conversationId: conversationId!,
-              messageId: agentMessageId,
-              inputTokens: lastUsage.inputTokens,
-              cachedInputTokens: lastUsage.cachedInputTokens,
-              outputTokens: lastUsage.outputTokens,
-              reasoningTokens: lastUsage.reasoningTokens,
-              costUsd,
-              credits,
-            },
-            entitlement.plan,
-          );
-        }
-        // If sawDelta but no usage (stream errored mid-flight), keep the
-        // reservation as-is — we paid OpenAI for partial output, the user
-        // pays the reserved amount as a worst-case approximation.
+        const costUsd = calculateCostUsd(internalModel, lastUsage);
+        const credits = calculateCredits(costUsd);
+        await chargeCredits(uid, entitlement.plan, {
+          conversationId: conversationId!,
+          messageId: agentMessageId,
+          model: internalModel,
+          inputTokens: lastUsage.inputTokens,
+          cachedInputTokens: lastUsage.cachedInputTokens,
+          outputTokens: lastUsage.outputTokens,
+          reasoningTokens: lastUsage.reasoningTokens,
+          costUsd,
+          credits,
+        });
       } catch (err) {
-        logger.error("[streamAgentAnswer] reservation disposition failed", {
+        logger.error("[streamAgentAnswer] charge failed", {
           uid,
-          reservationId: reservation.reservationId,
+          conversationId,
+          agentMessageId,
           reason,
           err,
         });
@@ -321,7 +297,7 @@ export const streamAgentAnswer = onRequest(
         if (clientClosed) {
           await markErroredSafely(conversationId, agentMessageId);
           finalized = true;
-          await disposeReservation("client-closed");
+          await chargeForUsage("client-closed");
           return;
         }
 
@@ -339,14 +315,16 @@ export const streamAgentAnswer = onRequest(
 
         if (delta.type === "error") {
           logger.error("[streamAgentAnswer] agent stream failed", {
-            message: delta.message,
+            // Renamed off `message` — the logger reserves that field and was
+            // overwriting the real agent error with the log title.
+            agentError: delta.message,
             sawDelta,
           });
           writeSse(res, "error", { code: "agent_error" });
           res.end();
           finalized = true;
           await markErroredSafely(conversationId, agentMessageId);
-          await disposeReservation("agent-error");
+          await chargeForUsage("agent-error");
           return;
         }
       }
@@ -365,7 +343,7 @@ export const streamAgentAnswer = onRequest(
         });
         await markErroredSafely(conversationId, agentMessageId);
       }
-      await disposeReservation("done");
+      await chargeForUsage("done");
     } catch (err) {
       logger.error("[streamAgentAnswer] request failed", {
         conversationId,
@@ -380,12 +358,12 @@ export const streamAgentAnswer = onRequest(
           await markErroredSafely(conversationId, agentMessageId);
         }
         finalized = true;
-        await disposeReservation("exception-after-headers");
+        await chargeForUsage("exception-after-headers");
         return;
       }
 
       res.status(500).json({ code: "internal" });
-      await disposeReservation("exception-before-headers");
+      await chargeForUsage("exception-before-headers");
     }
   },
 );

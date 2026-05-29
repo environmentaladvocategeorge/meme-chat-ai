@@ -12,3 +12,4 @@ export { syncRevenueCatPlan } from "./revenueCat/syncPlan";
 export { summarizeConversation } from "./context/summarize";
 export { generateConversationTitle } from "./context/title";
 export { aggregateDailyUsage } from "./aggregations/dailyUsage";
+export { getTrendingMemes, searchMemes } from "./memes/getTrendingMemes";

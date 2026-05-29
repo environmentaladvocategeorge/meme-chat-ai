@@ -3,38 +3,365 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MeMe Chat AI</title>
-    <meta name="description" content="%APP_DESCRIPTION%" />
+    <title>MeMe Chat AI | Funny AI chat app for replies that hit</title>
+    <meta
+      name="description"
+      content="MeMe Chat AI is a funny AI chat app that fixes dry texts, explains confusing stuff fast, roasts half-baked ideas usefully, and turns brain soup into replies, captions, and plans."
+    />
+    <meta
+      name="keywords"
+      content="meme AI chat, funny AI assistant, AI text rewriter, AI chat app, meme chatbot, iPhone AI chat"
+    />
     <link rel="canonical" href="https://%APP_DOMAIN%/" />
+    <link rel="icon" href="/assets/images/app-icon.png" />
+    <meta name="theme-color" content="#7C3AED" />
     <meta property="og:title" content="MeMe Chat AI" />
-    <meta property="og:description" content="%APP_DESCRIPTION%" />
+    <meta
+      property="og:description"
+      content="A funny AI chat app that fixes dry texts, explains confusing stuff, roasts ideas usefully, and turns brain soup into replies, captions, and plans."
+    />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://%APP_DOMAIN%/" />
+    <meta property="og:image" content="https://%APP_DOMAIN%/assets/images/app-icon.png" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      /* "Send a meme" callout — white KLIPY mark sits on a purple panel. */
+      .meme-card {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
+        border-radius: calc(var(--radius-card) * 2.5);
+        padding: clamp(28px, 5vw, 48px);
+        background: linear-gradient(135deg, #7c3aed 0%, #a76bff 55%, #c98bff 100%);
+        box-shadow: 0 22px 50px rgba(124, 58, 237, 0.32);
+        color: #fffdf7;
+      }
+      .meme-card-copy {
+        max-width: 540px;
+      }
+      .meme-card .eyebrow {
+        color: rgba(255, 253, 247, 0.85);
+      }
+      .meme-card h2 {
+        color: #fffdf7;
+        margin: 6px 0 10px;
+      }
+      .meme-card p {
+        color: rgba(255, 253, 247, 0.92);
+        margin: 0;
+      }
+      .meme-card-emojis {
+        font-size: 30px;
+        margin-top: 16px;
+        letter-spacing: 6px;
+      }
+      .klipy-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 26px;
+        border-radius: calc(var(--radius-card) * 2);
+        background: rgba(11, 7, 20, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+      }
+      .klipy-badge img {
+        display: block;
+        height: 34px;
+        width: auto;
+      }
+    </style>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "MeMe Chat AI",
+        "description": "A funny AI chat app that fixes dry texts, explains confusing stuff fast, roasts ideas usefully, and turns brain soup into replies, captions, and plans.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS",
+        "url": "https://%APP_DOMAIN%/",
+        "image": "https://%APP_DOMAIN%/assets/images/app-icon.png",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "%COMPANY_NAME%"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is MeMe Chat AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "MeMe Chat AI is a funny AI chat app for writing replies that do not sound like an NPC, getting quick explanations, brainstorming captions, and making half-baked ideas actually useful."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is the iOS app available?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The iOS app is not live on the App Store yet. The iOS page is a placeholder and will become the install page when the app launches."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are meme-power plans?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Meme-power plans set your monthly chat allowance, smarter answers, and memory size. The tiers are Hatchling, Sidekick, Wingman, and MVP, and Wingman is the usual pick."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div class="container">
-      <header class="site-header">
-        <div class="brand">MeMe Chat AI</div>
-        <nav class="nav">
-          <a href="/support.html">Support</a>
-          <a href="/privacy.html">Privacy</a>
-        </nav>
-      </header>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="MeMe Chat AI home">
+        <img src="/assets/images/app-icon.png" alt="" />
+        <span>MeMe Chat AI</span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#how">How it works</a>
+        <a href="#plans">Plans</a>
+        <a href="/ios">iOS</a>
+        <a href="/support">Support</a>
+      </nav>
+    </header>
 
-      <section class="hero">
-        <h1>MeMe Chat AI</h1>
-        <p>%APP_DESCRIPTION%</p>
-        <a class="cta" href="%APP_STORE_URL%">Download for iOS</a>
+    <main>
+      <section class="hero section">
+        <div class="hero-copy">
+          <p class="eyebrow">AI chat with group-chat energy</p>
+          <h1>Say the thing without sounding like an NPC.</h1>
+          <p class="lead">
+            Me-Me fixes dry texts, explains confusing stuff without the
+            textbook fog, roasts half-baked ideas usefully, and turns brain
+            soup into replies, captions, plans, and actual lore.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="/ios">iOS app warming up</a>
+            <a class="button button-secondary" href="#demo">See the chat lore</a>
+          </div>
+          <ul class="quick-tags" aria-label="Popular uses">
+            <li>NPC reply rescue</li>
+            <li>Useful roasts</li>
+            <li>Caption CPR</li>
+            <li>Side-quest ideas</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual" id="demo" aria-label="Example MeMe Chat AI conversation">
+          <div class="phone-shell">
+            <div class="phone-top">
+              <div class="phone-brand">
+                <img src="/assets/images/app-icon.png" alt="" />
+                <span>Me-Me</span>
+              </div>
+              <span class="status-pill">meme-power: 82%</span>
+            </div>
+            <div class="chat-stack">
+              <div class="bubble user">make this sound less NPC</div>
+              <div class="bubble agent">
+                <img src="/assets/images/app-icon.png" alt="" />
+                <p>"i'm down" works. "i'm in, send the plan before i regain common sense" has actual pulse.</p>
+              </div>
+              <div class="bubble user">explain this like i'm doomscrolling</div>
+              <div class="bubble agent compact">
+                <img src="/assets/images/meme-loading.png" alt="" />
+                <p>you're not doomed. the plan just needs one clean next step. lore contained.</p>
+              </div>
+            </div>
+          </div>
+          <img
+            class="hero-avatar"
+            src="/assets/images/meme-level-up.png"
+            alt="Me-Me avatar wearing sunglasses"
+          />
+        </div>
       </section>
 
-      <footer>
-        <span>&copy; %COMPANY_NAME%</span>
-        <span>
-          <a href="/privacy.html">Privacy</a> &middot;
-          <a href="/support.html">Support</a>
-        </span>
-      </footer>
-    </div>
+      <section class="status-strip" aria-label="Launch status">
+        <span>Built for iPhone</span>
+        <span>App Store page is a placeholder for now</span>
+        <span>Your account controls live in the app</span>
+      </section>
+
+      <section class="section split-section" id="how">
+        <div>
+          <p class="eyebrow">What it is</p>
+          <h2>For brain soup that needs better packaging.</h2>
+          <p>
+            MeMe Chat AI is what you open when your message is dry, your idea is
+            half-baked, or your brain is off doing side quests. It helps you get
+            clearer words without losing personality, no enterprise dashboard
+            energy required.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Rewrite replies</h3>
+            <p>Turn dry texts into messages with a pulse, not something assembled in a spreadsheet.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Roast, then fix</h3>
+            <p>Get honest feedback on your ideas without getting emotionally dropkicked.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Explain fast</h3>
+            <p>For when you need the answer, not a textbook doing parkour at 2am.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Find the angle</h3>
+            <p>Captions, prompts, plans, and day recaps that are no longer fighting for their lives.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section prompt-section">
+        <div class="prompt-copy">
+          <p class="eyebrow">Starter prompts</p>
+          <h2>Open chat, pick a vibe, keep moving.</h2>
+        </div>
+        <div class="prompt-list" aria-label="Example prompts">
+          <span>make this sound less NPC</span>
+          <span>am i cooked or can this be fixed?</span>
+          <span>give me the lore in 5 lines</span>
+          <span>roast this idea, then save it</span>
+          <span>turn my brain soup into a text</span>
+          <span>help me lock in for 30 minutes</span>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="meme-card">
+          <div class="meme-card-copy">
+            <p class="eyebrow">Memes on tap</p>
+            <h2>When words fail, send the meme.</h2>
+            <p>
+              Mid-chat, pull up a strip of trending memes or search for the
+              exact reaction, then drop it straight into the convo. Some moments
+              deserve a face, not a paragraph.
+            </p>
+            <p class="meme-card-emojis" aria-hidden="true">😎 🔥 💀 ✨</p>
+          </div>
+          <a
+            class="klipy-badge"
+            href="https://klipy.com"
+            target="_blank"
+            rel="noopener"
+            aria-label="Meme media powered by KLIPY"
+          >
+            <img src="/assets/images/powered-by-klipy-white.png" alt="Powered by KLIPY" />
+          </a>
+        </div>
+      </section>
+
+      <section class="section plans-section" id="plans">
+        <div class="section-heading">
+          <p class="eyebrow">Meme-power</p>
+          <h2>Plans that match how hard you chat.</h2>
+          <p>
+            The in-app plan sheet sets your monthly allowance, daily limits,
+            smarter answers, and memory size. Wingman is the usual pick.
+          </p>
+        </div>
+        <div class="plan-grid">
+          <article class="plan-card">
+            <span class="plan-kicker">Free</span>
+            <h3>Hatchling</h3>
+            <p>Starter chaos.</p>
+            <strong>1x chats</strong>
+          </article>
+          <article class="plan-card">
+            <span class="plan-kicker">Basic</span>
+            <h3>Sidekick</h3>
+            <p>More replies, less aura debt.</p>
+            <strong>5x chats</strong>
+          </article>
+          <article class="plan-card recommended">
+            <span class="plan-kicker">Best</span>
+            <h3>Wingman</h3>
+            <p>Smart answers, bigger memory, better momentum.</p>
+            <strong>25x chats</strong>
+          </article>
+          <article class="plan-card">
+            <span class="plan-kicker">Power</span>
+            <h3>MVP</h3>
+            <p>For heavy chat days and professional yapping.</p>
+            <strong>50x chats</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="section ios-callout">
+        <img src="/assets/images/meme-out-of-power.png" alt="Concerned Me-Me avatar" />
+        <div>
+          <p class="eyebrow">iOS launch status</p>
+          <h2>The App Store button is warming up.</h2>
+          <p>
+            No live iOS listing yet, so install taps go to a placeholder page
+            for now. When the App Store page is ready, this turns into the Smart
+            App Banner, campaign link, and QR-code hub. No vaporware lore here.
+          </p>
+          <a class="button button-primary" href="/ios">View iOS placeholder</a>
+        </div>
+      </section>
+
+      <section class="section faq-section">
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2>Questions, minus the lore wall.</h2>
+        </div>
+        <div class="faq-grid">
+          <details>
+            <summary>Is this for business chat agents?</summary>
+            <p>
+              Not right now. MeMe Chat AI is a personal AI chat app for humor,
+              writing help, explanations, and getting your ideas un-cooked.
+            </p>
+          </details>
+          <details>
+            <summary>Can I download it today?</summary>
+            <p>
+              Not yet. The iOS app is still warming up. The placeholder page is
+              ready so the real App Store link can drop in cleanly at launch.
+            </p>
+          </details>
+          <details>
+            <summary>Does the website use real app assets?</summary>
+            <p>
+              Yes. The homepage uses the app icon, Me-Me avatar images, Poppins,
+              Fredoka, and the same brand colors as the app.
+            </p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand" href="/">
+        <img src="/assets/images/app-icon.png" alt="" />
+        <span>MeMe Chat AI</span>
+      </a>
+      <div class="footer-links">
+        <a href="/privacy">Privacy</a>
+        <a href="/support">Support</a>
+        <a href="/ios">iOS</a>
+      </div>
+      <span>&copy; %COMPANY_NAME%</span>
+    </footer>
   </body>
 </html>
