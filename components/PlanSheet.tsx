@@ -1,13 +1,6 @@
-// PlanSheet
-//
-// Global Plan & Usage bottom sheet. Mounted once in the (app) layout and
-// driven by usePlanSheetStore, so the paywall + usage view can be summoned
-// from anywhere (chat nudges, the quota modal, settings) without a route
-// change.
-//
-// Sizing mirrors the proven pattern from the hobby-dex BottomSheetPicker:
-// dynamic content sizing capped at ~90% of the screen, NO fixed snapPoints
-// (fixed percentage snap points + a scroll view rendered the sheet invisible).
+// Global Plan & Usage bottom sheet. Mounted once in the root layout and driven
+// by usePlanSheetStore, so the paywall + usage view can be summoned from
+// anywhere (chat nudges, the quota modal, settings) without a route change.
 
 import { PlanAndUsage } from "@/components/PlanAndUsage";
 import { Typography } from "@/components/Typography";
@@ -19,19 +12,20 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function PlanSheet() {
   const { t } = useTranslation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { height: screenHeight } = useWindowDimensions();
+
   const isOpen = usePlanSheetStore((s) => s.isOpen);
   const close = usePlanSheetStore((s) => s.close);
+
   const sheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["92%"], []);
 
   useEffect(() => {
     if (isOpen) sheetRef.current?.present();
@@ -54,17 +48,21 @@ export function PlanSheet() {
   return (
     <BottomSheetModal
       ref={sheetRef}
-      enableDynamicSizing
-      maxDynamicContentSize={screenHeight * 0.92}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
       enablePanDownToClose
-      onDismiss={close}
       backdropComponent={renderBackdrop}
-      backgroundStyle={{ backgroundColor: theme["--color-background"] }}
+      onDismiss={close}
+      backgroundStyle={{
+        backgroundColor: theme["--color-background-secondary"],
+        borderTopLeftRadius: 8,
+        borderTopRightRadius: 8,
+      }}
       handleIndicatorStyle={{
         width: 40,
         height: 4,
         borderRadius: 999,
-        backgroundColor: theme["--color-foreground-muted"],
+        backgroundColor: theme["--color-border"],
       }}
     >
       <BottomSheetScrollView
@@ -77,14 +75,12 @@ export function PlanSheet() {
           gap: 20,
         }}
       >
-        <View>
-          <Typography
-            variant="title-xl"
-            style={{ color: theme["--color-foreground"], fontWeight: "800" }}
-          >
-            {t("settings.plan.heading")}
-          </Typography>
-        </View>
+        <Typography
+          variant="title-xl"
+          style={{ color: theme["--color-foreground"], fontWeight: "800" }}
+        >
+          {t("settings.plan.heading")}
+        </Typography>
         <PlanAndUsage />
       </BottomSheetScrollView>
     </BottomSheetModal>

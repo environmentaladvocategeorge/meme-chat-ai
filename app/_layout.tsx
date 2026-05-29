@@ -1,4 +1,5 @@
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { PlanSheet } from "@/components/PlanSheet";
 import { Typography } from "@/components/Typography";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
@@ -100,15 +101,10 @@ export default function RootLayout() {
   }, [appearance]);
 
   const [fontsLoaded] = useFonts({
-    // Body face: Poppins (static per-weight TTFs). Each weight is its own
-    // font-family name because RN doesn't reliably engage the wght axis of
-    // a single variable font via the `fontWeight` style — which is why
-    // earlier NunitoSans-Variable always rendered at 400 regardless.
     "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
     "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
     "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
-    // Display face: Fredoka (variable, weights do engage in our setup).
     Fredoka: require("../assets/fonts/Fredoka-Variable.ttf"),
   });
 
@@ -116,6 +112,7 @@ export default function RootLayout() {
     authStatus !== "idle" &&
     authStatus !== "initializing" &&
     authStatus !== "deleting";
+
   const isAuthenticated = authStatus === "authenticated";
   const appReady = fontsLoaded && hydrated && authResolved;
   const segs = segments as readonly string[];
@@ -125,6 +122,7 @@ export default function RootLayout() {
   const authRoute: string | undefined =
     typeof segs[1] === "string" ? segs[1] : undefined;
   const atVerifyEmail = inAuth && authRoute === "verify-email";
+
   const needsEmailVerification =
     isAuthenticated &&
     !authEmailVerified &&
@@ -183,19 +181,25 @@ export default function RootLayout() {
       <PortalProvider>
         <BottomSheetModalProvider>
           <VariableContextProvider value={theme}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: theme["--color-background"] },
-              }}
-            >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="auth/sign-in" />
-              <Stack.Screen name="auth/email" />
-              <Stack.Screen name="auth/verify-email" />
-              <Stack.Screen name="onboarding" />
-              <Stack.Screen name="(app)" />
-            </Stack>
+            <View style={{ flex: 1 }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: {
+                    backgroundColor: theme["--color-background"],
+                  },
+                }}
+              >
+                <Stack.Screen name="index" />
+                <Stack.Screen name="auth/sign-in" />
+                <Stack.Screen name="auth/email" />
+                <Stack.Screen name="auth/verify-email" />
+                <Stack.Screen name="onboarding" />
+                <Stack.Screen name="(app)" />
+              </Stack>
+            </View>
+
+            <PlanSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

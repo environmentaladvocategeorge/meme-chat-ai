@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-// Drives the global Plan & Usage bottom sheet (mounted once in the (app)
+// Drives the global Plan & Usage bottom sheet (mounted once in the root
 // layout). Any upgrade CTA — chat usage nudges, the quota modal, the settings
 // row — opens it via useOpenPlan() so the paywall surfaces in place rather
 // than navigating away.

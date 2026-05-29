@@ -350,7 +350,11 @@ export default function ChatScreen() {
           // usage state — showing either would flicker into the other.
           <Animated.View
             entering={FadeIn.duration(220)}
-            style={{ height: 52, alignItems: "center", justifyContent: "center" }}
+            style={{
+              height: 52,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
           >
             <MemeAvatar variant="loading" size={36} pulse />
           </Animated.View>
@@ -450,7 +454,10 @@ function ChatLoading({ label }: { label: string }) {
       <MemeAvatar variant="loading" size={88} pulse />
       <Typography
         variant="body"
-        style={{ color: theme["--color-foreground-muted"], textAlign: "center" }}
+        style={{
+          color: theme["--color-foreground-muted"],
+          textAlign: "center",
+        }}
       >
         {label}
       </Typography>
@@ -767,7 +774,10 @@ function UsageNudge({
       >
         <Typography
           variant="caption"
-          style={{ color: theme["--color-primary-foreground"], fontWeight: "800" }}
+          style={{
+            color: theme["--color-primary-foreground"],
+            fontWeight: "800",
+          }}
         >
           {isTopTier ? t("chat.usage.seeLimits") : t("chat.usage.upgrade")}
         </Typography>
@@ -825,7 +835,10 @@ function UsageLimitBlock({
           </Typography>
           <Typography
             variant="caption"
-            style={{ color: theme["--color-foreground-secondary"], marginTop: 1 }}
+            style={{
+              color: theme["--color-foreground-secondary"],
+              marginTop: 1,
+            }}
           >
             {t("chat.usage.atBody", { when })}
           </Typography>
@@ -876,9 +889,11 @@ function QuotaModal({
 
   const handleUpgrade = () => {
     onDismiss();
-    onUpgrade();
-  };
 
+    setTimeout(() => {
+      onUpgrade();
+    }, 300);
+  };
   return (
     <Modal
       visible={visible}
