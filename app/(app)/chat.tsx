@@ -23,7 +23,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Markdown from "react-native-markdown-display";
 import {
-  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -256,13 +255,29 @@ export default function ChatScreen() {
     });
   };
 
+  // Drives the cross-fade when starting a new chat: fade the current thread
+  // out, swap in the fresh empty state, then fade that back in.
+  const contentOpacity = useSharedValue(1);
+  const contentFadeStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }));
+
   const handleNewConversation = () => {
-    startNewConversation();
-    // Clear any conversationId route param so the load effect doesn't
-    // immediately re-hydrate the conversation we just cleared.
-    if (params.conversationId) {
-      router.setParams({ conversationId: "" });
-    }
+    const reset = () => {
+      startNewConversation();
+      // Clear any conversationId route param so the load effect doesn't
+      // immediately re-hydrate the conversation we just cleared.
+      if (params.conversationId) {
+        router.setParams({ conversationId: "" });
+      }
+    };
+
+    contentOpacity.value = withTiming(0, { duration: 160 });
+    // Swap content at the trough of the fade, then fade the empty state in.
+    setTimeout(() => {
+      reset();
+      contentOpacity.value = withTiming(1, { duration: 240 });
+    }, 170);
   };
 
   return (
@@ -284,7 +299,8 @@ export default function ChatScreen() {
         }
       />
 
-      <FlatList
+      <Animated.FlatList
+        style={contentFadeStyle}
         inverted
         data={visibleMessages}
         keyExtractor={messageKey}
