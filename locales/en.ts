@@ -77,6 +77,9 @@ const en = {
     empty: {
       title: "Me-Me is awake",
       subtitle: "Pick a starter or type anything. The chat lore begins now.",
+      atTitle: "Me-Me's out of meme-power",
+      atSubtitle:
+        "You've used up your allowance for now — your reset time and upgrade options are right below.",
     },
     starters: {
       items: [

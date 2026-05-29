@@ -77,6 +77,9 @@ const es = {
     empty: {
       title: "Me-Me esta despierto",
       subtitle: "Elige una idea o escribe algo. Empieza el lore.",
+      atTitle: "Me-Me se quedó sin meme-power",
+      atSubtitle:
+        "Has gastado tu cupo por ahora — tu tiempo de renovación y opciones para mejorar están justo abajo.",
     },
     starters: {
       items: [

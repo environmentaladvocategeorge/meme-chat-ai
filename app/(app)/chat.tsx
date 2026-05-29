@@ -308,7 +308,7 @@ export default function ChatScreen() {
           ) : (
             <EmptyChatState
               onStarterPress={handleStarterPress}
-              showStarters={!atLimit}
+              atLimit={atLimit}
             />
           )
         }
@@ -480,10 +480,10 @@ function pickRandom<T>(items: T[], n: number): T[] {
 
 function EmptyChatState({
   onStarterPress,
-  showStarters,
+  atLimit,
 }: {
   onStarterPress: (text: string) => void;
-  showStarters: boolean;
+  atLimit: boolean;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -533,7 +533,7 @@ function EmptyChatState({
             variant="title-xl"
             style={{ color: theme["--color-foreground"], textAlign: "center" }}
           >
-            {t("chat.empty.title")}
+            {t(atLimit ? "chat.empty.atTitle" : "chat.empty.title")}
           </Typography>
           <Typography
             variant="body"
@@ -543,11 +543,11 @@ function EmptyChatState({
               maxWidth: 330,
             }}
           >
-            {t("chat.empty.subtitle")}
+            {t(atLimit ? "chat.empty.atSubtitle" : "chat.empty.subtitle")}
           </Typography>
         </View>
 
-        {showStarters ? (
+        {!atLimit ? (
           <View
             style={{
               flexDirection: "row",
