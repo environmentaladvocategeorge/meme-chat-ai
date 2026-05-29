@@ -2,7 +2,6 @@ import { getAuth } from "firebase-admin/auth";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
-import { z } from "zod";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
 import { chargeCredits, evaluateQuota } from "./billing/ledger";
@@ -11,6 +10,7 @@ import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
 import { chooseModel } from "./billing/router";
 import { assembleContext } from "./context/assemble";
+import { IMAGE_TOKENS_LOW } from "./context/tokens";
 import {
   appendMessage,
   assertConversationOwner,
@@ -19,14 +19,9 @@ import {
   markAgentMessageErrored,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
+import { summarizeImagesForLog } from "./messages/messageImage";
 import { buildSystemPromptForStream } from "./personas/prompts";
-
-const requestSchema = z.object({
-  message: z.string().trim().min(1).max(4000),
-  conversationId: z.string().min(1).optional(),
-  clientMessageId: z.string().trim().min(1).max(128).optional(),
-  personaId: z.string().trim().min(1).max(128).optional(),
-});
+import { streamAgentRequestSchema } from "./streamAgentRequest";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
@@ -106,15 +101,24 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
-    const parsed = requestSchema.safeParse(req.body);
+    const parsed = streamAgentRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ code: "invalid_request" });
       return;
     }
 
-    const userText = parsed.data.message;
+    const userText = parsed.data.message.trim();
+    const images = parsed.data.images;
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
+
+    // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
+    // Never log full image URLs.
+    if (images.length > 0) {
+      logger.info("[streamAgentAnswer] received image attachments", {
+        ...summarizeImagesForLog(images),
+      });
+    }
 
     // ---------- resolve conversation ----------
     let conversationId = parsed.data.conversationId;
@@ -123,7 +127,9 @@ export const streamAgentAnswer = onRequest(
       if (conversationId) {
         await assertConversationOwner(conversationId, uid);
       } else {
-        const created = await createConversation(uid, userText);
+        const created = await createConversation(uid, userText, {
+          hasImages: images.length > 0,
+        });
         conversationId = created.conversationId;
       }
     } catch {
@@ -177,6 +183,7 @@ export const streamAgentAnswer = onRequest(
         conversationId,
         plan: entitlement.plan,
         currentUserMessage: userText,
+        currentImages: images,
         systemPrompt: promptResult.systemPrompt,
       });
     } catch (err) {
@@ -198,6 +205,21 @@ export const streamAgentAnswer = onRequest(
     // the client aborted before any output), the turn is free.
     const chargeForUsage = async (reason: string) => {
       if (!lastUsage) return;
+
+      // Early-rollout calibration: compare our flat image-token estimate to the
+      // model's actual prompt tokens so we can tune IMAGE_TOKENS_LOW per model.
+      // No image URLs are logged.
+      if (images.length > 0) {
+        logger.info("[streamAgentAnswer] image turn usage", {
+          model: internalModel,
+          imageCount: images.length,
+          estimatedImageTokens: images.length * IMAGE_TOKENS_LOW,
+          actualPromptTokens: lastUsage.inputTokens,
+          actualTotalTokens: lastUsage.inputTokens + lastUsage.outputTokens,
+          detail: "low",
+        });
+      }
+
       try {
         const costUsd = calculateCostUsd(internalModel, lastUsage);
         const credits = calculateCredits(costUsd);
@@ -242,6 +264,7 @@ export const streamAgentAnswer = onRequest(
         text: userText,
         status: "complete",
         clientMessageId,
+        images: images.length > 0 ? images : undefined,
       });
 
       if (newConversation) {

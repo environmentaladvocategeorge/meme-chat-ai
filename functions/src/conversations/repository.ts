@@ -4,6 +4,7 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 import type { ChatMessage, ChatRole } from "../agent/types";
+import type { MessageImage } from "../messages/messageImage";
 
 type MessageStatus = "complete" | "streaming" | "error";
 
@@ -11,7 +12,13 @@ type StoredMessage = {
   role?: ChatRole;
   text?: string;
   status?: MessageStatus;
+  images?: MessageImage[];
 };
+
+// Title shown for image-only conversations (no first-message text for the
+// title model to work from). The generateConversationTitle trigger leaves this
+// untouched because firstUserMessage is empty.
+const IMAGE_ONLY_TITLE_FALLBACK = "Sent a meme";
 
 export type MessagePersonaMetadata = {
   id: string;
@@ -23,30 +30,40 @@ export type MessagePersonaMetadata = {
 
 function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
   const data = doc.data() as StoredMessage;
-  if (
-    (data.role === "user" || data.role === "agent") &&
-    typeof data.text === "string" &&
-    data.text.length > 0 &&
-    data.status === "complete"
-  ) {
-    return { role: data.role, text: data.text };
+  if ((data.role !== "user" && data.role !== "agent") || data.status !== "complete") {
+    return null;
   }
 
-  return null;
+  const text = typeof data.text === "string" ? data.text : "";
+  const images = Array.isArray(data.images) ? data.images : undefined;
+  const hasImages = Boolean(images && images.length > 0);
+  if (text.length === 0 && !hasImages) return null;
+
+  return hasImages ? { role: data.role, text, images } : { role: data.role, text };
 }
 
 export async function createConversation(
   uid: string,
   firstUserMessageText: string,
+  options?: { hasImages?: boolean },
 ): Promise<{ conversationId: string }> {
   const db = getFirestore();
   const conversationRef = db.collection("conversations").doc();
+
+  const trimmedFirst = firstUserMessageText.trim();
+  // Image-only opener: there's no text for the title model, so seed a fixed
+  // fallback and leave firstUserMessage empty (the title trigger short-circuits
+  // on empty text, so the fallback stays).
+  const title =
+    trimmedFirst.length === 0 && options?.hasImages
+      ? IMAGE_ONLY_TITLE_FALLBACK
+      : firstUserMessageText.slice(0, 60);
 
   await conversationRef.set({
     uid,
     // Truncated fallback title shown immediately; the generateConversationTitle
     // trigger replaces it with a meme title once gpt-5-nano responds.
-    title: firstUserMessageText.slice(0, 60),
+    title,
     firstUserMessage: firstUserMessageText.slice(0, 500),
     titleGenerated: false,
     createdAt: FieldValue.serverTimestamp(),
@@ -80,6 +97,7 @@ export async function appendMessage(
     clientMessageId?: string;
     inReplyToClientMessageId?: string;
     persona?: MessagePersonaMetadata;
+    images?: MessageImage[];
   },
 ): Promise<{ messageId: string }> {
   const db = getFirestore();
@@ -89,6 +107,8 @@ export async function appendMessage(
     .collection("messages")
     .doc();
 
+  const hasImages = Boolean(message.images && message.images.length > 0);
+
   const messageData: Record<string, unknown> = {
     role: message.role,
     text: message.text,
@@ -96,6 +116,10 @@ export async function appendMessage(
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   };
+
+  if (hasImages) {
+    messageData.images = message.images;
+  }
 
   if (message.persona) {
     messageData.personaId = message.persona.id;
@@ -123,6 +147,10 @@ export async function appendMessage(
 
   if (message.text.length > 0) {
     conversationUpdate.lastMessagePreview = message.text.slice(0, 160);
+  } else if (hasImages) {
+    // Image-only turn: keep the list preview non-blank. The client renders the
+    // thumbnail itself; this is just the fallback label for the history list.
+    conversationUpdate.lastMessagePreview = IMAGE_ONLY_TITLE_FALLBACK;
   }
 
   await db.collection("conversations").doc(conversationId).update(conversationUpdate);

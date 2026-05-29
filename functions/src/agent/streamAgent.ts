@@ -1,7 +1,24 @@
 import { logger } from "firebase-functions";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import type { OpenAIMessage } from "../context/assemble";
 import type { AgentDelta } from "./types";
+
+// Map our internal message shape onto the SDK's discriminated union. The
+// content parts we emit (text + image_url with detail:"low") are structurally
+// identical to the SDK's ChatCompletionContentPart types; this just satisfies
+// the role-discriminated overload. Only the user turn ever carries parts.
+function toChatParams(messages: OpenAIMessage[]): ChatCompletionMessageParam[] {
+  return messages.map((m) => {
+    if (m.role === "user") {
+      return { role: "user", content: m.content } as ChatCompletionMessageParam;
+    }
+    return {
+      role: m.role,
+      content: typeof m.content === "string" ? m.content : "",
+    } as ChatCompletionMessageParam;
+  });
+}
 
 // streamAgent is now model-agnostic: caller passes the resolved OpenAI model
 // string (from resolveModelId(internalId)) and the plan's maxOutputTokens.
@@ -35,7 +52,7 @@ export async function* streamAgent({
         max_completion_tokens: maxOutputTokens,
         stream: true,
         stream_options: { include_usage: true },
-        messages,
+        messages: toChatParams(messages),
       },
       { signal },
     );

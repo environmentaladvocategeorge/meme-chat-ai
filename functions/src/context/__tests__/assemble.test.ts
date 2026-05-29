@@ -1,6 +1,30 @@
 import type { ChatMessage } from "../../agent/types";
-import { assembleFromInputs } from "../assemble";
-import { countTokens } from "../tokens";
+import type { MessageImage } from "../../messages/messageImage";
+import {
+  assembleFromInputs,
+  buildCurrentUserContent,
+  type OpenAIContentPart,
+  type OpenAIImagePart,
+} from "../assemble";
+import { countTokens, IMAGE_TOKENS_LOW } from "../tokens";
+
+const PREVIEW_URL = "https://static.klipy.com/ii/abc/20/90/preview.webp";
+const FULL_URL = "https://static.klipy.com/ii/abc/40/90/full.webp";
+
+function mkImage(overrides: Partial<MessageImage> = {}): MessageImage {
+  return {
+    id: "img-1",
+    source: "klipy",
+    url: FULL_URL,
+    previewUrl: PREVIEW_URL,
+    ...overrides,
+  };
+}
+
+function imageParts(content: string | OpenAIContentPart[]): OpenAIImagePart[] {
+  if (typeof content === "string") return [];
+  return content.filter((p): p is OpenAIImagePart => p.type === "image_url");
+}
 
 describe("countTokens", () => {
   it("returns 0 for empty string", () => {
@@ -121,5 +145,160 @@ describe("assembleFromInputs", () => {
     });
     const roles = result.messages.map((m) => m.role);
     expect(roles).toEqual(["system", "user", "assistant", "user"]);
+  });
+});
+
+describe("buildCurrentUserContent", () => {
+  it("returns a plain trimmed string when there are no images", () => {
+    expect(buildCurrentUserContent("  hello  ", [])).toBe("hello");
+    expect(buildCurrentUserContent("hello")).toBe("hello");
+  });
+
+  it("returns image content parts for an image-only turn", () => {
+    const content = buildCurrentUserContent("", [mkImage()]);
+    expect(Array.isArray(content)).toBe(true);
+    const parts = content as OpenAIContentPart[];
+    expect(parts).toHaveLength(1);
+    expect(parts[0]).toEqual({
+      type: "image_url",
+      image_url: { url: PREVIEW_URL, detail: "low" },
+    });
+  });
+
+  it("returns text part + image parts for text + image", () => {
+    const content = buildCurrentUserContent("look at this", [
+      mkImage(),
+      mkImage({ id: "img-2" }),
+    ]) as OpenAIContentPart[];
+    expect(content[0]).toEqual({ type: "text", text: "look at this" });
+    expect(imageParts(content)).toHaveLength(2);
+  });
+
+  it("omits the text part when text is empty/whitespace", () => {
+    const content = buildCurrentUserContent("   ", [mkImage()]) as OpenAIContentPart[];
+    expect(content.every((p) => p.type === "image_url")).toBe(true);
+  });
+
+  it("always sets detail:'low' on image parts", () => {
+    const content = buildCurrentUserContent("hi", [mkImage()]);
+    for (const part of imageParts(content)) {
+      expect(part.image_url.detail).toBe("low");
+    }
+  });
+
+  it("sends previewUrl to the model, never the full url", () => {
+    const content = buildCurrentUserContent("hi", [mkImage()]);
+    const urls = imageParts(content).map((p) => p.image_url.url);
+    expect(urls).toContain(PREVIEW_URL);
+    expect(urls).not.toContain(FULL_URL);
+  });
+});
+
+describe("assembleFromInputs with images", () => {
+  it("keeps the current text-only turn as a string", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "just text",
+      currentImages: [],
+      maxInputTokens: 10_000,
+    });
+    const last = result.messages[result.messages.length - 1];
+    expect(last.content).toBe("just text");
+  });
+
+  it("builds image parts for the current turn", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "caption",
+      currentImages: [mkImage()],
+      maxInputTokens: 10_000,
+    });
+    const last = result.messages[result.messages.length - 1];
+    expect(imageParts(last.content)).toHaveLength(1);
+  });
+
+  it("collapses a prior image-only user message to a placeholder (no image_url)", () => {
+    const recent: ChatMessage[] = [
+      { role: "user", text: "", images: [mkImage()] },
+      { role: "agent", text: "haha nice" },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "and now?",
+      maxInputTokens: 10_000,
+    });
+    const priorUser = result.messages[1];
+    expect(priorUser.content).toBe("[User sent a Klipy meme image]");
+    // No image parts anywhere except the current turn (which has none here).
+    const allImageParts = result.messages.flatMap((m) => imageParts(m.content));
+    expect(allImageParts).toHaveLength(0);
+  });
+
+  it("appends a placeholder after prior text when the message had both", () => {
+    const recent: ChatMessage[] = [
+      { role: "user", text: "check this", images: [mkImage()] },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "ok",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe(
+      "check this\n\n[User sent a Klipy meme image]",
+    );
+  });
+
+  it("collapses multiple historical images to one cheap note", () => {
+    const recent: ChatMessage[] = [
+      {
+        role: "user",
+        text: "",
+        images: [mkImage(), mkImage({ id: "b" }), mkImage({ id: "c" })],
+      },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "ok",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe("[User sent 3 Klipy meme images]");
+  });
+
+  it("counts current-turn image tokens at IMAGE_TOKENS_LOW each", () => {
+    const noImages = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "caption",
+      currentImages: [],
+      maxInputTokens: 100_000,
+    });
+    const twoImages = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "caption",
+      currentImages: [mkImage(), mkImage({ id: "img-2" })],
+      maxInputTokens: 100_000,
+    });
+    expect(twoImages.inputTokens - noImages.inputTokens).toBe(2 * IMAGE_TOKENS_LOW);
+  });
+
+  it("does not count collapsed historical images as image tokens", () => {
+    // A historical image turn is just a short text placeholder, so it must not
+    // add ~250 tokens per image.
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [{ role: "user", text: "", images: [mkImage(), mkImage({ id: "b" })] }],
+      currentText: "ok",
+      maxInputTokens: 100_000,
+    });
+    const placeholderTokens = countTokens("[User sent 2 Klipy meme images]");
+    // The whole assembly should be far below even a single image's token cost
+    // beyond the placeholder text.
+    expect(placeholderTokens).toBeLessThan(IMAGE_TOKENS_LOW);
   });
 });
