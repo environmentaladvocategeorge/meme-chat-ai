@@ -21,7 +21,6 @@ type StreamAgentAnswerParams = {
   conversationId?: string | null;
   clientMessageId?: string;
   personaId?: string | null;
-  advanced?: boolean;
   signal?: AbortSignal;
 };
 
@@ -185,7 +184,6 @@ export async function* streamAgentAnswer({
   conversationId,
   clientMessageId,
   personaId,
-  advanced,
   signal,
 }: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
   const firebase = getFirebaseServices();
@@ -202,7 +200,6 @@ export async function* streamAgentAnswer({
     conversationId: conversationId ?? undefined,
     clientMessageId,
     personaId: personaId ?? undefined,
-    advanced: advanced ?? false,
   });
   let buffer = "";
   let seenLength = 0;

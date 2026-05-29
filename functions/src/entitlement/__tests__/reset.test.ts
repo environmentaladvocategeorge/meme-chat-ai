@@ -18,7 +18,6 @@ function makeBilling(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcEntitlementExpiresAt: null,
     creditsRemaining: 5,
     creditsResetAt: Timestamp.fromMillis(T0 + MONTHLY_WINDOW_MS),
-    advancedCreditsUsed: 0,
     dailyCreditsUsed: 7,
     dailyResetAt: Timestamp.fromMillis(T0 + DAILY_WINDOW_MS),
     ...overrides,
@@ -34,17 +33,15 @@ describe("computeResets", () => {
     expect(next.dailyCreditsUsed).toBe(7);
   });
 
-  it("monthly reset refills credits to plan.monthlyCredits and zeros advanced", () => {
+  it("monthly reset refills credits to plan.monthlyCredits", () => {
     const state = makeBilling({
       plan: "plus",
       creditsRemaining: 3,
-      advancedCreditsUsed: 250,
       creditsResetAt: Timestamp.fromMillis(T0 - 1),
     });
     const { monthlyReset, next } = computeResets(state, T0);
     expect(monthlyReset).toBe(true);
     expect(next.creditsRemaining).toBe(PLANS.plus.monthlyCredits);
-    expect(next.advancedCreditsUsed).toBe(0);
   });
 
   it("monthly reset advances the anchor in window-sized hops (no stacking for dormant users)", () => {

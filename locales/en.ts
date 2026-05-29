@@ -119,16 +119,10 @@ const en = {
       generic: "The reply stopped. Please try again.",
       signedOut: "Sign in again to keep chatting.",
     },
-    advanced: {
-      toggle: "Smart answer",
-      hint: "Uses the most capable model.",
-    },
     quota: {
       title: "You're out of meme-power!",
       monthly: "You've used up this month's allowance. Resets {{date}}.",
       daily: "You've hit today's limit. Resets {{date}}.",
-      advanced: "Your smart-answer allowance for the month is used up. Resets {{date}}.",
-      advanced_disabled: "Smart answers aren't included on your plan.",
       upgradePlan: "Upgrade Plan",
       seeLimits: "See limits",
       dismiss: "Not now",

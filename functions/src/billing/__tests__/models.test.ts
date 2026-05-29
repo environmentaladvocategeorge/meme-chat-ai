@@ -1,45 +1,37 @@
 import {
-  MODEL_CREDIT_MULTIPLIER,
   MODEL_IDS,
   MODEL_PRICING,
-  MODEL_RANK,
-  isMiniFamily,
+  UTILITY_MODEL,
   resolveModelId,
 } from "../models";
 
 describe("model registry", () => {
-  it("MODEL_IDS lists every model the registries cover", () => {
+  it("MODEL_IDS covers pricing and resolves to a gpt-5.4 model", () => {
     for (const id of MODEL_IDS) {
       expect(MODEL_PRICING[id]).toBeDefined();
-      expect(MODEL_CREDIT_MULTIPLIER[id]).toBeDefined();
-      expect(MODEL_RANK[id]).toBeDefined();
-      expect(resolveModelId(id)).toBe("gpt-4o-mini");
+      expect(resolveModelId(id)).toMatch(/^gpt-5\.4-/);
     }
   });
 
-  it("MODEL_RANK is a strict total order matching nano < smart-nano < mini < smart-mini", () => {
-    expect(MODEL_RANK.nano).toBeLessThan(MODEL_RANK["smart-nano"]);
-    expect(MODEL_RANK["smart-nano"]).toBeLessThan(MODEL_RANK.mini);
-    expect(MODEL_RANK.mini).toBeLessThan(MODEL_RANK["smart-mini"]);
+  it("maps nano → gpt-5.4-nano and mini → gpt-5.4-mini", () => {
+    expect(resolveModelId("nano")).toBe("gpt-5.4-nano");
+    expect(resolveModelId("mini")).toBe("gpt-5.4-mini");
   });
 
-  it("MODEL_CREDIT_MULTIPLIER is monotonic with MODEL_RANK", () => {
-    const ordered = [...MODEL_IDS].sort((a, b) => MODEL_RANK[a] - MODEL_RANK[b]);
-    for (let i = 1; i < ordered.length; i++) {
-      expect(MODEL_CREDIT_MULTIPLIER[ordered[i]]).toBeGreaterThanOrEqual(
-        MODEL_CREDIT_MULTIPLIER[ordered[i - 1]],
-      );
-    }
+  it("mini is pricier than nano on input and output", () => {
+    expect(MODEL_PRICING.mini.inputPerToken).toBeGreaterThan(
+      MODEL_PRICING.nano.inputPerToken,
+    );
+    expect(MODEL_PRICING.mini.outputPerToken).toBeGreaterThan(
+      MODEL_PRICING.nano.outputPerToken,
+    );
   });
 
-  it("isMiniFamily flags only mini and smart-mini", () => {
-    expect(isMiniFamily("nano")).toBe(false);
-    expect(isMiniFamily("smart-nano")).toBe(false);
-    expect(isMiniFamily("mini")).toBe(true);
-    expect(isMiniFamily("smart-mini")).toBe(true);
+  it("utility model is gpt-5-nano (system-billed, never user-facing)", () => {
+    expect(UTILITY_MODEL).toBe("gpt-5-nano");
   });
 
-  it("all pricing fields are positive", () => {
+  it("all pricing fields are positive and cached <= input", () => {
     for (const id of MODEL_IDS) {
       const p = MODEL_PRICING[id];
       expect(p.inputPerToken).toBeGreaterThan(0);

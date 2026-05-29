@@ -3,7 +3,6 @@ import { AppHeader } from "@/components/AppHeader";
 import { ChatInput } from "@/components/ChatInput";
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
-import { planAllowsAdvanced } from "@/domain/billing";
 import {
   computeUsageState,
   formatResetMoment,
@@ -28,7 +27,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Switch,
   View,
 } from "react-native";
 import Animated, {
@@ -115,10 +113,6 @@ export default function ChatScreen() {
   const currentPlan = useDisplayPlan();
   const openPlan = useOpenPlan();
   const router = useRouter();
-  const [advanced, setAdvanced] = useState(false);
-  const advancedAllowed = entitlement
-    ? planAllowsAdvanced(entitlement.plan)
-    : false;
 
   // Collapse the monthly + daily windows into one picture so we can nudge at
   // 90% and hard-block the composer at 100% of whichever is binding.
@@ -239,20 +233,18 @@ export default function ChatScreen() {
     const text = draft.trim();
     if (text.length === 0) return;
     setDraft("");
-    void sendMessage(text, { advanced: advancedAllowed && advanced });
+    void sendMessage(text);
   };
 
   const handleStarterPress = (text: string) => {
     if (atLimit) return;
     setDraft("");
-    void sendMessage(text, { advanced: advancedAllowed && advanced });
+    void sendMessage(text);
   };
 
   const handleRetry = () => {
     if (!lastUserMessage) return;
-    void sendMessage(lastUserMessage.text, {
-      advanced: advancedAllowed && advanced,
-    });
+    void sendMessage(lastUserMessage.text);
   };
 
   // Drives the cross-fade when starting a new chat: fade the current thread
@@ -392,38 +384,6 @@ export default function ChatScreen() {
                 isTopTier={isTopTier}
                 onUpgrade={openPlan}
               />
-            ) : null}
-            {advancedAllowed ? (
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  paddingBottom: 8,
-                }}
-              >
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Typography
-                    variant="caption"
-                    style={{
-                      color: theme["--color-foreground"],
-                      fontWeight: "600",
-                    }}
-                  >
-                    {t("chat.advanced.toggle")}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    style={{
-                      color: theme["--color-foreground-muted"],
-                      marginTop: 2,
-                    }}
-                  >
-                    {t("chat.advanced.hint")}
-                  </Typography>
-                </View>
-                <Switch value={advanced} onValueChange={setAdvanced} />
-              </View>
             ) : null}
             <ChatInput
               value={draft}
@@ -894,10 +854,6 @@ function QuotaModal({
     switch (quota?.reason) {
       case "daily":
         return t("chat.quota.daily", { date: dateLabel });
-      case "advanced":
-        return t("chat.quota.advanced", { date: dateLabel });
-      case "advanced_disabled":
-        return t("chat.quota.advanced_disabled");
       default:
         return t("chat.quota.monthly", { date: dateLabel });
     }

@@ -9,7 +9,6 @@ describe("initialBilling", () => {
     expect(b.plan).toBe("free");
     expect(b.planSource).toBe("stub");
     expect(b.creditsRemaining).toBe(PLANS.free.monthlyCredits);
-    expect(b.advancedCreditsUsed).toBe(0);
     expect(b.dailyCreditsUsed).toBe(0);
     expect(b.rcAppUserId).toBeNull();
     expect(b.rcActiveProductId).toBeNull();
@@ -42,7 +41,6 @@ describe("readProfileBilling", () => {
       rcEntitlementExpiresAt: Timestamp.fromMillis(now + 86_400_000),
       creditsRemaining: 4321,
       creditsResetAt: Timestamp.fromMillis(now + 86_400_000),
-      advancedCreditsUsed: 100,
       dailyCreditsUsed: 50,
       dailyResetAt: Timestamp.fromMillis(now + 3600_000),
     };

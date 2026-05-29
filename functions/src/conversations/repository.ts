@@ -44,7 +44,11 @@ export async function createConversation(
 
   await conversationRef.set({
     uid,
+    // Truncated fallback title shown immediately; the generateConversationTitle
+    // trigger replaces it with a meme title once gpt-5-nano responds.
     title: firstUserMessageText.slice(0, 60),
+    firstUserMessage: firstUserMessageText.slice(0, 500),
+    titleGenerated: false,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     lastMessagePreview: "",

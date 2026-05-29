@@ -4,7 +4,7 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
-import { isMiniFamily, type ModelId } from "./models";
+import { type ModelId } from "./models";
 import { PLANS, type PlanId } from "./plans";
 import { computeResets } from "../entitlement/reset";
 import {
@@ -13,7 +13,7 @@ import {
   type ProfileBilling,
 } from "../entitlement/schema";
 
-export type QuotaReason = "monthly" | "daily" | "advanced" | "advanced_disabled";
+export type QuotaReason = "monthly" | "daily";
 
 export class QuotaExceededError extends Error {
   readonly code = "quota_exceeded";
@@ -28,7 +28,6 @@ export class QuotaExceededError extends Error {
 
 export type ReservationDoc = {
   model: ModelId;
-  advanced: boolean;
   reservedCredits: number;
   state: "open" | "settled" | "released";
   createdAt: Timestamp;
@@ -56,8 +55,6 @@ export type SettlementInput = {
 export type ReserveEvalInput = {
   state: ProfileBilling;
   plan: PlanId;
-  model: ModelId;
-  advanced: boolean;
   reservedCredits: number;
 };
 
@@ -68,23 +65,9 @@ export type ReserveEvalResult =
 // Returns the post-reserve billing state OR a rejection reason. No I/O, no
 // transaction — caller composes with computeResets and Firestore writes.
 export function evaluateReserve(input: ReserveEvalInput): ReserveEvalResult {
-  const { state, plan, model, advanced, reservedCredits } = input;
+  const { state, plan, reservedCredits } = input;
   const planCfg = PLANS[plan];
-  const wantsAdvanced = advanced && isMiniFamily(model);
 
-  if (wantsAdvanced && !planCfg.advancedMode) {
-    return { ok: false, reason: "advanced_disabled", resetAt: null };
-  }
-  if (
-    wantsAdvanced &&
-    state.advancedCreditsUsed + reservedCredits > planCfg.advancedMonthlyCreditCap
-  ) {
-    return {
-      ok: false,
-      reason: "advanced",
-      resetAt: state.creditsResetAt.toDate(),
-    };
-  }
   if (state.dailyCreditsUsed + reservedCredits > planCfg.softDailyCredits) {
     return {
       ok: false,
@@ -104,9 +87,6 @@ export function evaluateReserve(input: ReserveEvalInput): ReserveEvalResult {
     ...state,
     creditsRemaining: state.creditsRemaining - reservedCredits,
     dailyCreditsUsed: state.dailyCreditsUsed + reservedCredits,
-    advancedCreditsUsed: wantsAdvanced
-      ? state.advancedCreditsUsed + reservedCredits
-      : state.advancedCreditsUsed,
   };
   return { ok: true, next };
 }
@@ -119,36 +99,27 @@ export type SettleEvalInput = {
 
 // Computes the post-settlement billing state, given an open reservation and
 // the actual credits used. delta = reserved - actual.
-//   delta > 0 → refund: creditsRemaining += delta, dailyCreditsUsed -= delta,
-//                       advancedCreditsUsed -= delta (if advanced).
+//   delta > 0 → refund: creditsRemaining += delta, dailyCreditsUsed -= delta.
 //   delta < 0 → top-up: opposite direction. Caller is allowed to overshoot
 //                       slightly (we paid OpenAI either way) so we don't
 //                       reject — just charge the user.
 export function evaluateSettle(input: SettleEvalInput): ProfileBilling {
   const { state, reservation, actualCredits } = input;
   const delta = reservation.reservedCredits - actualCredits;
-  const wasAdvanced = reservation.advanced && isMiniFamily(reservation.model);
 
   return {
     ...state,
     creditsRemaining: Math.max(0, state.creditsRemaining + delta),
     dailyCreditsUsed: Math.max(0, state.dailyCreditsUsed - delta),
-    advancedCreditsUsed: wasAdvanced
-      ? Math.max(0, state.advancedCreditsUsed - delta)
-      : state.advancedCreditsUsed,
   };
 }
 
 export function evaluateRelease(state: ProfileBilling, reservation: ReservationDoc): ProfileBilling {
   const refund = reservation.reservedCredits;
-  const wasAdvanced = reservation.advanced && isMiniFamily(reservation.model);
   return {
     ...state,
     creditsRemaining: state.creditsRemaining + refund,
     dailyCreditsUsed: Math.max(0, state.dailyCreditsUsed - refund),
-    advancedCreditsUsed: wasAdvanced
-      ? Math.max(0, state.advancedCreditsUsed - refund)
-      : state.advancedCreditsUsed,
   };
 }
 
@@ -158,7 +129,6 @@ export async function reserveCredits(
   uid: string,
   plan: PlanId,
   model: ModelId,
-  advanced: boolean,
   reservedCredits: number,
 ): Promise<ReservationResult> {
   if (reservedCredits <= 0) {
@@ -186,8 +156,6 @@ export async function reserveCredits(
     const evaluation = evaluateReserve({
       state: resetState,
       plan,
-      model,
-      advanced,
       reservedCredits,
     });
     if (!evaluation.ok) {
@@ -196,7 +164,6 @@ export async function reserveCredits(
 
     const reservation: ReservationDoc = {
       model,
-      advanced,
       reservedCredits,
       state: "open",
       createdAt: Timestamp.fromMillis(now.getTime()),
@@ -259,7 +226,6 @@ export async function settleCredits(
       reasoningTokens: settlement.reasoningTokens,
       costUsd: settlement.costUsd,
       credits: settlement.credits,
-      advanced: reservation.advanced && isMiniFamily(reservation.model),
       reservedCredits: reservation.reservedCredits,
       reservationId,
       createdAt: FieldValue.serverTimestamp(),
@@ -272,7 +238,6 @@ export async function settleCredits(
     uid,
     plan,
     reservationId,
-    advanced: settlement.credits > 0 ? undefined : undefined, // placeholder; advanced flag mirrored in usageEvents doc
     inputTokens: settlement.inputTokens,
     cachedInputTokens: settlement.cachedInputTokens,
     outputTokens: settlement.outputTokens,

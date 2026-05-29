@@ -55,7 +55,7 @@ type ChatState = {
   status: ChatStatus;
   abortController: AbortController | null;
   error: string | null;
-  sendMessage: (text: string, options?: { advanced?: boolean }) => Promise<void>;
+  sendMessage: (text: string) => Promise<void>;
   loadConversation: (id: string) => void;
   startNewConversation: () => void;
   cancelStreaming: () => void;
@@ -138,7 +138,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   abortController: null,
   error: null,
 
-  sendMessage: async (text, options) => {
+  sendMessage: async (text) => {
     const trimmed = text.trim();
     if (trimmed.length === 0 || get().status === "streaming") return;
 
@@ -171,7 +171,6 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         message: trimmed,
         conversationId: get().conversationId,
         clientMessageId,
-        advanced: options?.advanced,
         signal: controller.signal,
       })) {
         if (event.type === "conversation") {

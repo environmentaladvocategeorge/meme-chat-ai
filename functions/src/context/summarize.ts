@@ -3,18 +3,23 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import OpenAI from "openai";
-import { resolveModelId } from "../billing/models";
+import { UTILITY_MODEL } from "../billing/models";
 import { countTokens } from "./tokens";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
+// Compaction trigger is a turns+tokens combination: only summarize once a
+// conversation is genuinely long (MESSAGES_BEFORE_SUMMARIZE total), then fire
+// when the unsummarized tail has grown either by enough turns OR enough tokens
+// — whichever comes first. Token-heavy turns (long pastes) trip it early;
+// many short turns trip it on count.
 const MESSAGES_BEFORE_SUMMARIZE = 12;
-const UNSUMMARIZED_THRESHOLD = 6;
+const UNSUMMARIZED_MSG_THRESHOLD = 6;
+const UNSUMMARIZED_TOKEN_THRESHOLD = 1500;
 
-// Background summarizer. Fires on every message write inside a conversation,
-// short-circuits unless the unsummarized tail has grown past
-// UNSUMMARIZED_THRESHOLD AND total messages > MESSAGES_BEFORE_SUMMARIZE.
-// Uses the cheapest model — summary quality is a margin lever, not UX.
+// Background summarizer. Fires on every message write inside a conversation and
+// short-circuits unless the trigger above is met. Cost is absorbed by us (never
+// billed to the user), so it runs on the cheap UTILITY_MODEL (gpt-5-nano).
 export const summarizeConversation = onDocumentWritten(
   {
     document: "conversations/{cid}/messages/{mid}",
@@ -43,7 +48,18 @@ export const summarizeConversation = onDocumentWritten(
       ? allSnap.docs.findIndex((d) => d.id === lastSummarizedId)
       : -1;
     const unsummarized = allSnap.docs.slice(cutoffIdx + 1);
-    if (unsummarized.length < UNSUMMARIZED_THRESHOLD) return;
+
+    // turns + tokens: summarize once the tail crosses either threshold.
+    const unsummarizedTokens = unsummarized.reduce((sum, d) => {
+      const text = (d.data() as { text?: string }).text;
+      return sum + (typeof text === "string" ? countTokens(text) : 0);
+    }, 0);
+    if (
+      unsummarized.length < UNSUMMARIZED_MSG_THRESHOLD &&
+      unsummarizedTokens < UNSUMMARIZED_TOKEN_THRESHOLD
+    ) {
+      return;
+    }
 
     // Build a compact transcript from EVERY message up to and including the
     // tail we're about to absorb, plus the existing summary as preamble.
@@ -66,7 +82,7 @@ export const summarizeConversation = onDocumentWritten(
     try {
       const client = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
       const completion = await client.chat.completions.create({
-        model: resolveModelId("nano"),
+        model: UTILITY_MODEL,
         max_tokens: 400,
         messages: [
           {
@@ -84,6 +100,7 @@ export const summarizeConversation = onDocumentWritten(
       await conversationRef.set(
         {
           summary,
+          summarized: true,
           summaryUpToMessageId: newestId,
           summaryTokens: countTokens(summary),
           summaryUpdatedAt: FieldValue.serverTimestamp(),

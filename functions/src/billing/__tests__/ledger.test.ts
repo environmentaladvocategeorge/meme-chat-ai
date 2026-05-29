@@ -23,7 +23,6 @@ function billing(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcEntitlementExpiresAt: null,
     creditsRemaining: PLANS.plus.monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(T0 + MONTHLY_WINDOW_MS),
-    advancedCreditsUsed: 0,
     dailyCreditsUsed: 0,
     dailyResetAt: Timestamp.fromMillis(T0 + DAILY_WINDOW_MS),
     ...overrides,
@@ -31,36 +30,10 @@ function billing(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
 }
 
 describe("evaluateReserve", () => {
-  it("rejects advanced on free plan (advancedMode=false)", () => {
-    const r = evaluateReserve({
-      state: billing({ plan: "free", creditsRemaining: 100 }),
-      plan: "free",
-      model: "mini",
-      advanced: true,
-      reservedCredits: 5,
-    });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe("advanced_disabled");
-  });
-
-  it("rejects advanced when advanced cap exhausted", () => {
-    const r = evaluateReserve({
-      state: billing({ advancedCreditsUsed: PLANS.plus.advancedMonthlyCreditCap }),
-      plan: "plus",
-      model: "smart-mini",
-      advanced: true,
-      reservedCredits: 5,
-    });
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe("advanced");
-  });
-
   it("rejects when daily cap would be exceeded", () => {
     const r = evaluateReserve({
       state: billing({ dailyCreditsUsed: PLANS.plus.softDailyCredits }),
       plan: "plus",
-      model: "smart-nano",
-      advanced: false,
       reservedCredits: 1,
     });
     expect(r.ok).toBe(false);
@@ -71,64 +44,30 @@ describe("evaluateReserve", () => {
     const r = evaluateReserve({
       state: billing({ creditsRemaining: 2 }),
       plan: "plus",
-      model: "smart-nano",
-      advanced: false,
       reservedCredits: 5,
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("monthly");
   });
 
-  it("approves and decrements credits + dailyUsed on a non-advanced reserve", () => {
+  it("approves and decrements credits + dailyUsed", () => {
     const start = billing({ creditsRemaining: 100, dailyCreditsUsed: 5 });
     const r = evaluateReserve({
       state: start,
       plan: "plus",
-      model: "smart-nano",
-      advanced: false,
       reservedCredits: 10,
     });
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.next.creditsRemaining).toBe(90);
       expect(r.next.dailyCreditsUsed).toBe(15);
-      expect(r.next.advancedCreditsUsed).toBe(0);
     }
   });
 
-  it("advanced reserve on plus increments advancedCreditsUsed too", () => {
-    const r = evaluateReserve({
-      state: billing(),
-      plan: "plus",
-      model: "smart-mini",
-      advanced: true,
-      reservedCredits: 50,
-    });
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.next.advancedCreditsUsed).toBe(50);
-      expect(r.next.creditsRemaining).toBe(PLANS.plus.monthlyCredits - 50);
-    }
-  });
-
-  it("non-mini model with advanced=true does NOT count toward advanced cap", () => {
-    const r = evaluateReserve({
-      state: billing(),
-      plan: "plus",
-      model: "smart-nano",
-      advanced: true,
-      reservedCredits: 50,
-    });
-    expect(r.ok).toBe(true);
-    if (r.ok) expect(r.next.advancedCreditsUsed).toBe(0);
-  });
-
-  it("free user can spend non-advanced credits", () => {
+  it("free user can spend credits", () => {
     const r = evaluateReserve({
       state: billing({ plan: "free", creditsRemaining: 50 }),
       plan: "free",
-      model: "nano",
-      advanced: false,
       reservedCredits: 3,
     });
     expect(r.ok).toBe(true);
@@ -138,8 +77,7 @@ describe("evaluateReserve", () => {
 describe("evaluateSettle", () => {
   function reservation(overrides: Partial<ReservationDoc> = {}): ReservationDoc {
     return {
-      model: "smart-nano",
-      advanced: false,
+      model: "nano",
       reservedCredits: 10,
       state: "open",
       createdAt: Timestamp.fromMillis(T0),
@@ -175,25 +113,6 @@ describe("evaluateSettle", () => {
     expect(next.dailyCreditsUsed).toBe(15);
   });
 
-  it("decrements advancedCreditsUsed proportionally on advanced reservation refund", () => {
-    const state = billing({
-      advancedCreditsUsed: 50,
-      creditsRemaining: PLANS.plus.monthlyCredits - 50,
-      dailyCreditsUsed: 50,
-    });
-    const next = evaluateSettle({
-      state,
-      reservation: reservation({
-        model: "smart-mini",
-        advanced: true,
-        reservedCredits: 50,
-      }),
-      actualCredits: 30,
-    });
-    expect(next.advancedCreditsUsed).toBe(30);
-    expect(next.creditsRemaining).toBe(PLANS.plus.monthlyCredits - 30);
-  });
-
   it("clamps creditsRemaining at 0 instead of going negative", () => {
     const state = billing({ creditsRemaining: 0 });
     const next = evaluateSettle({
@@ -212,30 +131,13 @@ describe("evaluateRelease", () => {
       dailyCreditsUsed: 25,
     });
     const next = evaluateRelease(state, {
-      model: "smart-nano",
-      advanced: false,
+      model: "mini",
       reservedCredits: 25,
       state: "open",
       createdAt: Timestamp.fromMillis(T0),
     });
     expect(next.creditsRemaining).toBe(PLANS.plus.monthlyCredits);
     expect(next.dailyCreditsUsed).toBe(0);
-  });
-
-  it("refunds advancedCreditsUsed when the reservation was advanced", () => {
-    const state = billing({
-      advancedCreditsUsed: 25,
-      creditsRemaining: PLANS.plus.monthlyCredits - 25,
-      dailyCreditsUsed: 25,
-    });
-    const next = evaluateRelease(state, {
-      model: "smart-mini",
-      advanced: true,
-      reservedCredits: 25,
-      state: "open",
-      createdAt: Timestamp.fromMillis(T0),
-    });
-    expect(next.advancedCreditsUsed).toBe(0);
   });
 });
 
@@ -244,12 +146,15 @@ describe("sequential reserve/settle simulation", () => {
   // reserve→settle pairs through the pure logic. Final creditsRemaining must
   // equal initial minus sum of actualCredits, never less than 0.
   it("totals reconcile across many cycles", () => {
+    // Cumulative daily usage stays under plus.softDailyCredits so no cycle is
+    // rejected by the daily cap — this test exercises credit reconciliation,
+    // not the cap itself.
     let state = billing({ creditsRemaining: 1000, dailyCreditsUsed: 0 });
     const cycles = [
       { reserved: 50, actual: 47 },
-      { reserved: 80, actual: 80 },
+      { reserved: 30, actual: 30 },
       { reserved: 10, actual: 5 },
-      { reserved: 100, actual: 102 },
+      { reserved: 40, actual: 42 },
       { reserved: 20, actual: 0 },
     ];
 
@@ -258,8 +163,6 @@ describe("sequential reserve/settle simulation", () => {
       const reserveResult = evaluateReserve({
         state,
         plan: "plus",
-        model: "smart-nano",
-        advanced: false,
         reservedCredits: c.reserved,
       });
       expect(reserveResult.ok).toBe(true);
@@ -269,8 +172,7 @@ describe("sequential reserve/settle simulation", () => {
       state = evaluateSettle({
         state,
         reservation: {
-          model: "smart-nano",
-          advanced: false,
+          model: "nano",
           reservedCredits: c.reserved,
           state: "open",
           createdAt: Timestamp.fromMillis(T0),

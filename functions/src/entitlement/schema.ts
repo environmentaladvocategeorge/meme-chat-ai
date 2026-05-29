@@ -16,7 +16,6 @@ export type ProfileBilling = {
   rcEntitlementExpiresAt: Timestamp | null;
   creditsRemaining: number;
   creditsResetAt: Timestamp; // monthly rolling window
-  advancedCreditsUsed: number;
   dailyCreditsUsed: number;
   dailyResetAt: Timestamp; // 24-hour rolling window
 };
@@ -35,7 +34,6 @@ export function initialBilling(now: Date): ProfileBilling {
     rcEntitlementExpiresAt: null,
     creditsRemaining: PLANS[plan].monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
-    advancedCreditsUsed: 0,
     dailyCreditsUsed: 0,
     dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
   };
@@ -59,7 +57,6 @@ export function readProfileBilling(data: unknown): ProfileBilling | null {
     rcEntitlementExpiresAt: (d.rcEntitlementExpiresAt as Timestamp | null) ?? null,
     creditsRemaining: d.creditsRemaining as number,
     creditsResetAt: d.creditsResetAt as Timestamp,
-    advancedCreditsUsed: (d.advancedCreditsUsed as number) ?? 0,
     dailyCreditsUsed: (d.dailyCreditsUsed as number) ?? 0,
     dailyResetAt: d.dailyResetAt as Timestamp,
   };

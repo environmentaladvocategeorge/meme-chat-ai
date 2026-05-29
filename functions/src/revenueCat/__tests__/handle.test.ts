@@ -20,7 +20,6 @@ function billing(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcEntitlementExpiresAt: null,
     creditsRemaining: PLANS.free.monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(T0 + MONTHLY_WINDOW_MS),
-    advancedCreditsUsed: 0,
     dailyCreditsUsed: 0,
     dailyResetAt: Timestamp.fromMillis(T0 + DAILY_WINDOW_MS),
     ...overrides,
@@ -42,7 +41,6 @@ describe("handleRcEvent", () => {
       expect(d.next.plan).toBe("basic");
       expect(d.next.planSource).toBe("revenuecat");
       expect(d.next.creditsRemaining).toBe(PLANS.basic.monthlyCredits);
-      expect(d.next.advancedCreditsUsed).toBe(0);
       expect(d.next.dailyCreditsUsed).toBe(0);
     }
   });

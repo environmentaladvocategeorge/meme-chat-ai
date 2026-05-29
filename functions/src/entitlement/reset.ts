@@ -38,7 +38,6 @@ export function computeResets(state: ProfileBilling, nowMs: number): ResetDecisi
     next = {
       ...next,
       creditsRemaining: planCfg.monthlyCredits,
-      advancedCreditsUsed: 0,
       creditsResetAt: Timestamp.fromMillis(resetMs),
     };
   }

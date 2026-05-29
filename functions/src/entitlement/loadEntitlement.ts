@@ -4,7 +4,6 @@ import { computeResets } from "./reset";
 import { initialBilling, readProfileBilling, type ProfileBilling } from "./schema";
 
 export type Entitlement = ProfileBilling & {
-  advancedMonthlyCreditCap: number;
   softDailyCredits: number;
   monthlyCredits: number;
   maxInputTokens: number;
@@ -59,7 +58,6 @@ export async function loadEntitlement(uid: string): Promise<Entitlement> {
   const planCfg = PLANS[result.plan];
   return {
     ...result,
-    advancedMonthlyCreditCap: planCfg.advancedMonthlyCreditCap,
     softDailyCredits: planCfg.softDailyCredits,
     monthlyCredits: planCfg.monthlyCredits,
     maxInputTokens: planCfg.maxInputTokens,

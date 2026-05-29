@@ -52,7 +52,6 @@ export function handleRcEvent(
             : null,
         creditsRemaining: planCfg.monthlyCredits,
         creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
-        advancedCreditsUsed: 0,
         dailyCreditsUsed: 0,
         dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
       };

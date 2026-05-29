@@ -12,57 +12,48 @@ export const PLAN_RANK: Record<PlanId, number> = {
 };
 
 export type PlanConfig = {
-  defaultModel: ModelId;
-  // Universe of models the router may pick for this plan. The mini-family
-  // (mini, smart-mini) is additionally gated by the per-request `advanced`
-  // flag and the monthly advanced credit cap.
-  allowedModels: ModelId[];
-  advancedMode: boolean;
-  advancedMonthlyCreditCap: number;
+  // The single model every request on this plan routes to (no per-request
+  // classification or advanced toggle — selection is purely plan-based).
+  model: ModelId;
   monthlyCredits: number;
   softDailyCredits: number;
   maxInputTokens: number;
   maxOutputTokens: number;
 };
 
+// Credits map to AI cost at 1 credit = $0.001 (see credits.ts USD_PER_CREDIT),
+// so monthlyCredits is the MAX monthly AI spend per user; unused reservations
+// are refunded to real cost on settle. Allocations are sized so worst-case AI
+// cost stays well under net subscription revenue even at a 30% app-store fee:
+//   Basic $3.99 → ~$2.79 net, $1.20 max cost
+//   Plus  $6.99 → ~$4.89 net, $2.00 max cost
+//   Power $12.99 → ~$9.09 net, $4.00 max cost
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
-    defaultModel: "nano",
-    allowedModels: ["nano"],
-    advancedMode: false,
-    advancedMonthlyCreditCap: 0,
+    model: "nano",
     monthlyCredits: 200,
     softDailyCredits: 20,
     maxInputTokens: 4000,
     maxOutputTokens: 512,
   },
   basic: {
-    defaultModel: "smart-nano",
-    allowedModels: ["nano", "smart-nano"],
-    advancedMode: false,
-    advancedMonthlyCreditCap: 0,
-    monthlyCredits: 1000,
-    softDailyCredits: 100,
+    model: "nano",
+    monthlyCredits: 1200,
+    softDailyCredits: 120,
     maxInputTokens: 8000,
     maxOutputTokens: 1024,
   },
   plus: {
-    defaultModel: "smart-nano",
-    allowedModels: ["nano", "smart-nano", "mini", "smart-mini"],
-    advancedMode: true,
-    advancedMonthlyCreditCap: 500,
-    monthlyCredits: 5000,
-    softDailyCredits: 400,
+    model: "mini",
+    monthlyCredits: 2000,
+    softDailyCredits: 200,
     maxInputTokens: 16_000,
     maxOutputTokens: 2048,
   },
   power: {
-    defaultModel: "smart-nano",
-    allowedModels: ["nano", "smart-nano", "mini", "smart-mini"],
-    advancedMode: true,
-    advancedMonthlyCreditCap: 2000,
-    monthlyCredits: 10_000,
-    softDailyCredits: 1000,
+    model: "mini",
+    monthlyCredits: 4000,
+    softDailyCredits: 400,
     maxInputTokens: 32_000,
     maxOutputTokens: 4096,
   },

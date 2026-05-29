@@ -1,6 +1,8 @@
-import { MODEL_CREDIT_MULTIPLIER, MODEL_PRICING, type ModelId } from "./models";
+import { MODEL_PRICING, type ModelId } from "./models";
 
-// 1 internal credit = USD 0.001. A $0.0001 call rounds up to 1 credit.
+// 1 internal credit = USD 0.001 of real AI cost. Credits are charged on the
+// full OpenAI usage — input (system prompt + assembled context + the user's
+// message) plus output — not on turns. A $0.0001 call rounds up to 1 credit.
 export const USD_PER_CREDIT = 0.001;
 
 export type TokenUsage = {
@@ -25,11 +27,12 @@ export function calculateCostUsd(model: ModelId, usage: TokenUsage): number {
 }
 
 // Any positive cost yields at least 1 credit (floor) so a free tier can't
-// drain unbilled traffic through micro-requests.
-export function calculateCredits(model: ModelId, costUsd: number): number {
+// drain unbilled traffic through micro-requests. Credits map 1:1 to real AI
+// cost at USD_PER_CREDIT — no per-model multiplier; the model's own pricing
+// already differentiates plans.
+export function calculateCredits(costUsd: number): number {
   if (costUsd <= 0) return 0;
-  const multiplier = MODEL_CREDIT_MULTIPLIER[model];
-  return Math.max(1, Math.ceil((costUsd * multiplier) / USD_PER_CREDIT));
+  return Math.max(1, Math.ceil(costUsd / USD_PER_CREDIT));
 }
 
 // Pre-call reservation. Assumes a worst-case full-context request at
@@ -44,5 +47,5 @@ export function estimateReservationCredits(
     inputTokens: estimatedInputTokens,
     outputTokens: maxOutputTokens,
   });
-  return calculateCredits(model, costUsd);
+  return calculateCredits(costUsd);
 }

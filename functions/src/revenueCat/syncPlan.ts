@@ -61,7 +61,6 @@ export const syncRevenueCatPlan = onCall({ region: "us-central1" }, async (req) 
         productId && isKnownRcProduct(productId) ? productId : null,
       creditsRemaining: planCfg.monthlyCredits,
       creditsResetAt: Timestamp.fromMillis(now + MONTHLY_WINDOW_MS),
-      advancedCreditsUsed: 0,
       dailyCreditsUsed: 0,
       dailyResetAt: Timestamp.fromMillis(now + DAILY_WINDOW_MS),
     };

@@ -18,7 +18,7 @@ import {
 } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
-import { chooseModel, classifyRequest } from "./billing/router";
+import { chooseModel } from "./billing/router";
 import { assembleContext } from "./context/assemble";
 import {
   appendMessage,
@@ -35,7 +35,6 @@ const requestSchema = z.object({
   conversationId: z.string().min(1).optional(),
   clientMessageId: z.string().trim().min(1).max(128).optional(),
   personaId: z.string().trim().min(1).max(128).optional(),
-  advanced: z.boolean().optional().default(false),
 });
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -123,7 +122,6 @@ export const streamAgentAnswer = onRequest(
     }
 
     const userText = parsed.data.message;
-    const advanced = parsed.data.advanced;
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
 
@@ -152,13 +150,7 @@ export const streamAgentAnswer = onRequest(
     let reservedCredits = 0;
     try {
       entitlement = await loadEntitlement(uid);
-      const classification = classifyRequest(userText);
-      internalModel = chooseModel({
-        plan: entitlement.plan,
-        classification,
-        advanced,
-        advancedCreditsUsed: entitlement.advancedCreditsUsed,
-      });
+      internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId);
       resolvedPersona = promptResult.persona;
       assembleResult = await assembleContext({
@@ -185,7 +177,6 @@ export const streamAgentAnswer = onRequest(
         uid,
         entitlement.plan,
         internalModel,
-        advanced,
         reservedCredits,
       );
     } catch (err) {
@@ -226,7 +217,7 @@ export const streamAgentAnswer = onRequest(
         }
         if (lastUsage) {
           const costUsd = calculateCostUsd(internalModel, lastUsage);
-          const credits = calculateCredits(internalModel, costUsd);
+          const credits = calculateCredits(costUsd);
           await settleCredits(
             uid,
             reservation.reservationId,

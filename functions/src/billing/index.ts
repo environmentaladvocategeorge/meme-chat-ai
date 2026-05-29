@@ -1,9 +1,7 @@
 export {
-  MODEL_CREDIT_MULTIPLIER,
   MODEL_IDS,
   MODEL_PRICING,
-  MODEL_RANK,
-  isMiniFamily,
+  UTILITY_MODEL,
   resolveModelId,
 } from "./models";
 export type { ModelId, ModelPricing } from "./models";
@@ -19,8 +17,7 @@ export {
 } from "./credits";
 export type { TokenUsage } from "./credits";
 
-export { chooseModel, classifyRequest } from "./router";
-export type { ChooseModelArgs, Classification } from "./router";
+export { chooseModel } from "./router";
 
 export {
   REVENUECAT_PRODUCT_TO_PLAN,

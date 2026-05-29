@@ -12,8 +12,6 @@ export type Entitlement = {
   planSource: "revenuecat" | "stub" | "unknown";
   creditsRemaining: number;
   monthlyCredits: number;
-  advancedCreditsUsed: number;
-  advancedMonthlyCreditCap: number;
   creditsResetAt: Date | null;
   // Daily soft cap. Distinct from the monthly budget: a user can have most of
   // the month left yet still be blocked because they've burned through the
@@ -23,16 +21,17 @@ export type Entitlement = {
   dailyResetAt: Date | null;
 };
 
-// Plan-derived caps the server side also keeps in PLANS. Kept here so the UI
-// can show "X of Y" without an extra round-trip.
+// Plan-derived caps the server side also keeps in PLANS (functions/src/billing/
+// plans.ts). Mirrored here so the UI can show "X of Y" without a round-trip —
+// keep the two in sync.
 const PLAN_CAPS: Record<
   PlanId,
-  { monthlyCredits: number; advancedCap: number; softDailyCredits: number }
+  { monthlyCredits: number; softDailyCredits: number }
 > = {
-  free: { monthlyCredits: 200, advancedCap: 0, softDailyCredits: 20 },
-  basic: { monthlyCredits: 1000, advancedCap: 0, softDailyCredits: 100 },
-  plus: { monthlyCredits: 5000, advancedCap: 500, softDailyCredits: 400 },
-  power: { monthlyCredits: 10000, advancedCap: 2000, softDailyCredits: 1000 },
+  free: { monthlyCredits: 200, softDailyCredits: 20 },
+  basic: { monthlyCredits: 1200, softDailyCredits: 120 },
+  plus: { monthlyCredits: 2000, softDailyCredits: 200 },
+  power: { monthlyCredits: 4000, softDailyCredits: 400 },
 };
 
 function isPlanId(value: unknown): value is PlanId {
@@ -72,9 +71,6 @@ function mapEntitlement(data: DocumentData | undefined): Entitlement {
     creditsRemaining:
       typeof data?.creditsRemaining === "number" ? data.creditsRemaining : caps.monthlyCredits,
     monthlyCredits: caps.monthlyCredits,
-    advancedCreditsUsed:
-      typeof data?.advancedCreditsUsed === "number" ? data.advancedCreditsUsed : 0,
-    advancedMonthlyCreditCap: caps.advancedCap,
     creditsResetAt: asDate(data?.creditsResetAt),
     dailyCreditsUsed: dailyWindowElapsed ? 0 : rawDailyUsed,
     softDailyCredits: caps.softDailyCredits,

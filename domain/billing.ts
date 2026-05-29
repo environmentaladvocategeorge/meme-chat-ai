@@ -33,8 +33,3 @@ export function resolvePlanFromRcProductIds(activeProductIds: string[]): PlanId 
   }
   return best;
 }
-
-// The advanced toggle is only shown to plus/power users — gated by this.
-export function planAllowsAdvanced(plan: PlanId): boolean {
-  return plan === "plus" || plan === "power";
-}

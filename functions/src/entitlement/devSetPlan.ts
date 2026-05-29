@@ -41,7 +41,6 @@ export async function devSetPlanImpl(uid: string | undefined, plan: unknown) {
     planSource: "stub",
     creditsRemaining: planCfg.monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(now + MONTHLY_WINDOW_MS),
-    advancedCreditsUsed: 0,
     dailyCreditsUsed: 0,
     dailyResetAt: Timestamp.fromMillis(now + DAILY_WINDOW_MS),
   };

@@ -119,16 +119,10 @@ const es = {
       generic: "La respuesta se detuvo. Inténtalo de nuevo.",
       signedOut: "Inicia sesión de nuevo para seguir chateando.",
     },
-    advanced: {
-      toggle: "Respuesta avanzada",
-      hint: "Usa el modelo más capaz.",
-    },
     quota: {
       title: "¡Te quedaste sin meme-power!",
       monthly: "Has gastado tu mensualidad. Se renueva {{date}}.",
       daily: "Llegaste al límite diario. Se renueva {{date}}.",
-      advanced: "Tu cupo de respuestas avanzadas se agotó. Se renueva {{date}}.",
-      advanced_disabled: "Las respuestas avanzadas no están incluidas en tu plan.",
       upgradePlan: "Mejorar plan",
       seeLimits: "Ver límites",
       dismiss: "Ahora no",
