@@ -57,6 +57,33 @@ export async function syncRevenueCatPlanCallable(args: {
   return result.data;
 }
 
+export type MessageReaction = "up" | "down";
+
+// Records (or clears, when reaction is null) the caller's thumbs rating on a
+// message. Client writes to messages are blocked by firestore.rules, so this
+// goes through the Admin SDK callable.
+export async function rateMessageCallable(args: {
+  conversationId: string;
+  messageId: string;
+  reaction: MessageReaction | null;
+}): Promise<{ success: true; reaction: MessageReaction | null }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    {
+      conversationId: string;
+      messageId: string;
+      reaction: MessageReaction | null;
+    },
+    { success: true; reaction: MessageReaction | null }
+  >(firebase.services.functions, "rateMessage");
+  const result = await callable(args);
+  return result.data;
+}
+
 export type TrendingMemesParams = {
   page?: number;
   perPage?: number;

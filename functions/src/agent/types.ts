@@ -20,6 +20,10 @@ export type AgentUsage = {
 
 export type AgentDelta =
   | { type: "delta"; text: string }
+  // A meme attachment the agent chose via the get_meme tool. Surfaced once,
+  // mid-stream, so the orchestrator can persist it on the agent turn and emit
+  // it to the client.
+  | { type: "meme"; image: MessageImage }
   | { type: "usage"; usage: AgentUsage }
   | { type: "done" }
   | { type: "error"; message: string };

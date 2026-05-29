@@ -5,6 +5,7 @@ initializeApp();
 export { onUserCreated } from "./onUserCreated";
 export { deleteMyAccount } from "./deleteMyAccount";
 export { deleteConversations } from "./conversations/deleteConversations";
+export { rateMessage } from "./conversations/rateMessage";
 export { streamAgentAnswer } from "./streamAgentAnswer";
 export { devSetPlan } from "./entitlement/devSetPlan";
 export { revenueCatWebhook } from "./revenueCat/webhook";

@@ -145,6 +145,7 @@ const es = {
     send: "Enviar",
     cancel: "Cancelar",
     newConversation: "Chat nuevo",
+    scrollToBottom: "Ir a lo más reciente",
     loading: "Calentando a Me-Me…",
     expand: "Expandir mensaje",
     collapse: "Colapsar",
@@ -196,6 +197,31 @@ const es = {
       // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
       searchPlaceholder: "Search KLIPY",
     },
+    rot: {
+      button: "Nivel de Rot",
+      title: "Nivel de Rot",
+      subtitle: "Desliza para elegir qué tan rotted serán las respuestas que recibes",
+      done: "Listo",
+      defaultBadge: "por defecto",
+      a11yValue: "Nivel {{level}}, {{name}}",
+      levels: {
+        level1: {
+          name: "Apenas Cocinado",
+          description:
+            "poquito memeado, casi todo serio. no sabe a asistente genérico.",
+        },
+        level2: {
+          name: "Rotted",
+          description:
+            "full energía me-me. chistes y slang pero igual te resuelvo.",
+        },
+        level3: {
+          name: "Modo Goblin Total",
+          description:
+            "brainrot al máximo. metáforas cursed, reacciones dramáticas, cringe peak. sigo siendo útil, solo que feral 🦝",
+        },
+      },
+    },
     attachments: {
       // Se muestra brevemente al intentar adjuntar un cuarto meme.
       maxReached: "Puedes adjuntar hasta {{count}} memes",
@@ -204,6 +230,12 @@ const es = {
       // Etiqueta localizada para un mensaje solo con imagen, donde aplique.
       sentMeme: "Envió un meme",
       invalid: "No se pudo adjuntar ese meme",
+    },
+    actions: {
+      copy: "Copiar",
+      copied: "Copiado",
+      thumbsUp: "Buena respuesta",
+      thumbsDown: "Mala respuesta",
     },
   },
   history: {
@@ -273,21 +305,21 @@ const es = {
       priceLoading: "—",
       features: {
         chats: "Chats",
-        smart: "Respuestas inteligentes",
+        smart: "Me-Me listo",
         memory: "Memoria",
       },
       featureValues: {
         chats: {
           free: "1×",
-          basic: "5×",
+          basic: "9×",
           plus: "25×",
           power: "50×",
         },
         smart: {
-          free: "—",
-          basic: "—",
+          free: "✓",
+          basic: "✓",
           plus: "✓",
-          power: "✓✓",
+          power: "✓",
         },
         memory: {
           free: "S",
@@ -311,21 +343,21 @@ const es = {
         power: "MVP",
       },
       planTaglines: {
-        free: "Probando",
+        free: "El Me-Me completo, gratis",
         basic: "Más memeo",
-        plus: "Memes inteligentes desbloqueados",
+        plus: "Más chats, más memoria",
         power: "Vibes al máximo",
       },
       planBullets: {
-        free: ["Un sabor de Me-Me", "Respuestas rápidas"],
-        basic: ["5× más chats", "Respuestas rápidas"],
-        plus: ["25× más chats", "Respuestas avanzadas", "Mejor memoria"],
-        power: ["50× más chats", "Muchas más avanzadas", "Memoria al tope"],
+        free: ["El Me-Me real, con toda su personalidad", "Un poco cada día"],
+        basic: ["9× más chats", "El mismo Me-Me listo"],
+        plus: ["25× más chats", "Recuerda más de tus chats", "El más equilibrado"],
+        power: ["50× más chats", "Memoria al tope", "Máximo meme-power"],
       },
       planHeadlineFeature: {
-        free: "Solo una probada",
-        basic: "5× chats",
-        plus: "Respuestas avanzadas",
+        free: "Me-Me completo",
+        basic: "9× chats",
+        plus: "25× + memoria",
         power: "Todo el poder",
       },
       pricePeriod: "/mes",

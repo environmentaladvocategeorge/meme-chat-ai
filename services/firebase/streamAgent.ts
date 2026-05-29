@@ -13,6 +13,8 @@ export type StreamEvent =
   | { type: "model"; id: string }
   | { type: "persona"; id: string; name: string; displayName: string }
   | { type: "delta"; text: string }
+  // A meme the agent attached to its reply (via the backend get_meme tool).
+  | { type: "meme"; image: MessageImage }
   | { type: "done" }
   | { type: "quota_exceeded"; reason: string; resetAt: string | null }
   | { type: "error"; code: string };
@@ -23,6 +25,9 @@ type StreamAgentAnswerParams = {
   conversationId?: string | null;
   clientMessageId?: string;
   personaId?: string | null;
+  // Brainrot intensity dial (1–3). Sent to the backend, which stores it on the
+  // user turn. Omitted falls back to the backend default (2).
+  levelOfRot?: number;
   signal?: AbortSignal;
 };
 
@@ -30,6 +35,33 @@ type ParsedFrame = {
   event: string;
   data: string;
 };
+
+// Defensive shaping of a meme attachment off the wire. The backend validated
+// it on the way out (it's the source of truth); this just confirms the fields
+// the UI needs and drops anything malformed.
+function parseMessageImage(value: unknown): MessageImage | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  if (
+    data.source !== "klipy" ||
+    typeof data.id !== "string" ||
+    typeof data.url !== "string" ||
+    typeof data.previewUrl !== "string"
+  ) {
+    return null;
+  }
+  const image: MessageImage = {
+    id: data.id,
+    source: "klipy",
+    url: data.url,
+    previewUrl: data.previewUrl,
+  };
+  if (typeof data.width === "number") image.width = data.width;
+  if (typeof data.height === "number") image.height = data.height;
+  if (typeof data.attribution === "string") image.attribution = data.attribution;
+  if (typeof data.memeId === "string") image.memeId = data.memeId;
+  return image;
+}
 
 function parseSSEFrame(frame: string): StreamEvent | null {
   const lines = frame.replace(/\r\n/g, "\n").split("\n");
@@ -93,6 +125,11 @@ function parseSSEFrame(frame: string): StreamEvent | null {
 
     if (parsed.event === "delta" && typeof data.text === "string") {
       return { type: "delta", text: data.text };
+    }
+
+    if (parsed.event === "meme") {
+      const image = parseMessageImage(data.image);
+      if (image) return { type: "meme", image };
     }
 
     if (parsed.event === "done") {
@@ -187,6 +224,7 @@ export async function* streamAgentAnswer({
   conversationId,
   clientMessageId,
   personaId,
+  levelOfRot,
   signal,
 }: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
   const firebase = getFirebaseServices();
@@ -206,6 +244,7 @@ export async function* streamAgentAnswer({
     conversationId: conversationId ?? undefined,
     clientMessageId,
     personaId: personaId ?? undefined,
+    levelOfRot,
   });
   let buffer = "";
   let seenLength = 0;

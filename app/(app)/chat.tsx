@@ -2,7 +2,12 @@ import { AgentAvatar } from "@/components/AgentAvatar";
 import { AppHeader } from "@/components/AppHeader";
 import { ChatInput } from "@/components/ChatInput";
 import { MemeAvatar } from "@/components/MemeAvatar";
+import {
+  MessageActions,
+  type MessageReaction,
+} from "@/components/MessageActions";
 import { MessageImageAttachments } from "@/components/MessageImageAttachments";
+import { RotLevelSheet, type RotLevelSheetRef } from "@/components/RotLevelSheet";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import { Typography } from "@/components/Typography";
 import {
@@ -257,6 +262,85 @@ function MemeToggleButton({
   );
 }
 
+// Emoji shown on the Rot Level chip per tier — mirrors RotLevelSheet's set so
+// the chip previews the vibe that's currently dialed in.
+const ROT_EMOJI = ["🤓", "😤", "💀"];
+
+// The "Rot Level" affordance that sits beside the meme chip. Same chunky
+// sticker-chip language as MemeToggleButton, but instead of a toggle it opens
+// the rot-level bottom sheet. The icon badge wears the current level's emoji.
+function RotLevelButton({
+  label,
+  level,
+  onPress,
+}: {
+  label: string;
+  level: number;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}, ${level}`}
+      hitSlop={8}
+      style={({ pressed }) => ({
+        alignSelf: "flex-start",
+        borderRadius: 16,
+        overflow: "hidden",
+        transform: [
+          { scale: pressed ? 0.95 : 1 },
+          { translateY: pressed ? 1 : 0 },
+        ],
+        shadowColor: "#000000",
+        shadowOpacity: 0.08,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
+      })}
+    >
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          paddingLeft: 7,
+          paddingRight: 14,
+          paddingVertical: 7,
+          borderRadius: 16,
+          borderWidth: 1,
+          borderColor: theme["--color-border"],
+          backgroundColor: theme["--color-card"],
+        }}
+      >
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 9,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: theme["--color-primary-subtle"],
+          }}
+        >
+          <Typography variant="body" style={{ fontSize: 16 }}>
+            {ROT_EMOJI[Math.min(Math.max(level, 1), 3) - 1]}
+          </Typography>
+        </View>
+        <Typography
+          variant="body-sm"
+          weight="bold"
+          style={{ color: theme["--color-foreground"], letterSpacing: 0.2 }}
+        >
+          {label}
+        </Typography>
+      </View>
+    </Pressable>
+  );
+}
+
 // Staged attachment tray: the row of meme thumbnails above the composer that a
 // user has picked but not yet sent. Each thumbnail keeps the KLIPY watermark
 // (attribution) and a remove button. Shows a brief localized notice when the
@@ -364,6 +448,7 @@ export default function ChatScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const [draft, setDraft] = useState("");
   const [memesOpen, setMemesOpen] = useState(false);
+  const rotSheetRef = useRef<RotLevelSheetRef>(null);
   // Memes the user has staged but not yet sent. Sent as multimodal image
   // inputs; capped at MAX_MESSAGE_IMAGES (the backend re-enforces the cap).
   const [stagedImages, setStagedImages] = useState<MessageImage[]>([]);
@@ -375,14 +460,21 @@ export default function ChatScreen() {
   // defers the first network call until the strip is actually opened.
   const klipy = useKlipy({ perPage: 24, enabled: memesOpen });
   const conversationId = useChatStore((s) => s.conversationId);
+  // Brainrot intensity dial. Sticky and persisted in the chat store, applied to
+  // every turn; defaults to "Rotted". Edited via the RotLevelSheet below.
+  const rotLevel = useChatStore((s) => s.rotLevel);
+  const setRotLevel = useChatStore((s) => s.setRotLevel);
+  const hydrateSession = useChatStore((s) => s.hydrateSession);
   const messages = useChatStore((s) => s.messages);
   const streamingText = useChatStore((s) => s.streamingText);
+  const streamingMeme = useChatStore((s) => s.streamingMeme);
   const activeReplyClientId = useChatStore((s) => s.activeReplyClientId);
   const settledReply = useChatStore((s) => s.settledReply);
   const status = useChatStore((s) => s.status);
   const error = useChatStore((s) => s.error);
   const quota = useChatStore((s) => s.quota);
   const sendMessage = useChatStore((s) => s.sendMessage);
+  const rateMessage = useChatStore((s) => s.rateMessage);
   const loadConversation = useChatStore((s) => s.loadConversation);
   const startNewConversation = useChatStore((s) => s.startNewConversation);
   const cancelStreaming = useChatStore((s) => s.cancelStreaming);
@@ -436,6 +528,20 @@ export default function ChatScreen() {
     }
   }, [conversationId, loadConversation, params.conversationId]);
 
+  // On app open, restore the sticky rot level and re-open the last session.
+  // Runs once: a deep-linked conversation (route param) takes precedence, so in
+  // that case we only restore the rot level and let the effect above load the
+  // requested conversation.
+  const sessionHydrated = useRef(false);
+  useEffect(() => {
+    if (sessionHydrated.current) return;
+    sessionHydrated.current = true;
+    const routeId = Array.isArray(params.conversationId)
+      ? params.conversationId[0]
+      : params.conversationId;
+    void hydrateSession({ autoLoadConversation: !routeId });
+  }, [hydrateSession, params.conversationId]);
+
   const lastUserMessage = useMemo(
     () => [...messages].reverse().find((message) => message.role === "user"),
     [messages],
@@ -484,9 +590,11 @@ export default function ChatScreen() {
         role: "agent",
         inReplyToClientMessageId: activeReplyClientId,
         text: streamingText,
+        images: streamingMeme ? [streamingMeme] : undefined,
         status: "streaming",
         createdAt: null,
-        thinking: streamingText.length === 0,
+        // Still "thinking" only when there's neither text nor a meme yet.
+        thinking: streamingText.length === 0 && !streamingMeme,
       });
     } else if (settledReply) {
       // Bridge: the stream is done but the finalized Firestore message
@@ -496,7 +604,7 @@ export default function ChatScreen() {
         (message) =>
           message.role === "agent" &&
           message.inReplyToClientMessageId === settledReply.clientMessageId &&
-          message.text.length > 0,
+          (message.text.length > 0 || (message.images?.length ?? 0) > 0),
       );
       if (!alreadyStored) {
         base.push({
@@ -504,6 +612,7 @@ export default function ChatScreen() {
           role: "agent",
           inReplyToClientMessageId: settledReply.clientMessageId,
           text: settledReply.text,
+          images: settledReply.images,
           status: "complete",
           createdAt: null,
         });
@@ -541,6 +650,7 @@ export default function ChatScreen() {
     settledReply,
     status,
     streamingText,
+    streamingMeme,
   ]);
 
   const handleSubmit = () => {
@@ -554,19 +664,25 @@ export default function ChatScreen() {
     // card's retry resends them, so a failed send never loses them.
     setDraft("");
     setStagedImages([]);
-    void sendMessage(text, images);
+    void sendMessage(text, images, rotLevel);
   };
 
   const handleStarterPress = (text: string) => {
     if (atLimit) return;
     setDraft("");
-    void sendMessage(text);
+    void sendMessage(text, undefined, rotLevel);
   };
 
   const handleRetry = () => {
     if (!lastUserMessage) return;
-    // Resend the failed turn's attachments too, so a meme isn't dropped on retry.
-    void sendMessage(lastUserMessage.text, lastUserMessage.images);
+    // Resend the failed turn's attachments too, so a meme isn't dropped on
+    // retry. Reuse the level the original turn carried, falling back to the
+    // current dial if it predates the feature.
+    void sendMessage(
+      lastUserMessage.text,
+      lastUserMessage.images,
+      lastUserMessage.levelOfRot ?? rotLevel,
+    );
   };
 
   // Toggle the meme strip. The hook's `enabled` flag (wired to memesOpen) is
@@ -708,6 +824,7 @@ export default function ChatScreen() {
               errorLabel={t("chat.errors.generic")}
               thinkingLabel={thinkingLabel}
               onRetry={handleRetry}
+              onRate={rateMessage}
             />
           )}
         />
@@ -796,11 +913,23 @@ export default function ChatScreen() {
               expandAccessibilityLabel={t("chat.expand")}
               collapseAccessibilityLabel={t("chat.collapse")}
             />
-            <View style={{ marginTop: 8 }}>
+            <View
+              style={{
+                marginTop: 8,
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
               <MemeToggleButton
                 label={t("chat.memes.button")}
                 open={memesOpen}
                 onPress={handleToggleMemes}
+              />
+              <RotLevelButton
+                label={t("chat.rot.button")}
+                level={rotLevel}
+                onPress={() => rotSheetRef.current?.present()}
               />
             </View>
           </Animated.View>
@@ -813,6 +942,8 @@ export default function ChatScreen() {
         onUpgrade={openPlan}
         onDismiss={dismissQuota}
       />
+
+      <RotLevelSheet ref={rotSheetRef} level={rotLevel} onChange={setRotLevel} />
     </KeyboardAvoidingView>
   );
 }
@@ -1547,12 +1678,14 @@ function MessageBubble({
   errorLabel,
   thinkingLabel,
   onRetry,
+  onRate,
 }: {
   message: RenderMessage;
   retryLabel: string;
   errorLabel: string;
   thinkingLabel: string;
   onRetry: () => void;
+  onRate: (serverId: string, reaction: MessageReaction) => void;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -1575,6 +1708,17 @@ function MessageBubble({
   const messageImages = message.images ?? [];
   const hasImages = messageImages.length > 0;
   const hasTextBubble = message.thinking === true || messageText.length > 0;
+
+  // The copy/thumbs action row shows only on a finalized agent reply (one
+  // that's persisted, so it has a serverId to rate) — never while streaming,
+  // on the error card, or on user turns.
+  const showActions =
+    message.role === "agent" &&
+    !errored &&
+    !thinking &&
+    message.status === "complete" &&
+    typeof message.serverId === "string" &&
+    messageText.length > 0;
 
   const messageColor = mine
     ? theme["--color-primary-foreground"]
@@ -2050,6 +2194,20 @@ function MessageBubble({
                 </Typography>
               )}
             </Pressable>
+          ) : null}
+
+          {showActions && message.serverId ? (
+            <MessageActions
+              text={messageText}
+              reaction={message.reaction}
+              onRate={(reaction) => onRate(message.serverId!, reaction)}
+              labels={{
+                copy: t("chat.actions.copy"),
+                copied: t("chat.actions.copied"),
+                up: t("chat.actions.thumbsUp"),
+                down: t("chat.actions.thumbsDown"),
+              }}
+            />
           ) : null}
         </View>
       </View>

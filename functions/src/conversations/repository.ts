@@ -98,6 +98,9 @@ export async function appendMessage(
     inReplyToClientMessageId?: string;
     persona?: MessagePersonaMetadata;
     images?: MessageImage[];
+    // Brainrot intensity selected for this turn (1–3). Stored as-is on the
+    // message; nothing downstream consumes it yet.
+    levelOfRot?: number;
   },
 ): Promise<{ messageId: string }> {
   const db = getFirestore();
@@ -119,6 +122,10 @@ export async function appendMessage(
 
   if (hasImages) {
     messageData.images = message.images;
+  }
+
+  if (typeof message.levelOfRot === "number") {
+    messageData.levelOfRot = message.levelOfRot;
   }
 
   if (message.persona) {
@@ -162,23 +169,33 @@ export async function finalizeAgentMessage(
   conversationId: string,
   messageId: string,
   finalText: string,
+  // Image attachments the agent chose for this turn (e.g. a get_meme result).
+  // Omitted for plain text replies.
+  images?: MessageImage[],
 ): Promise<void> {
   const db = getFirestore();
+
+  const messageUpdate: Record<string, unknown> = {
+    text: finalText,
+    status: "complete",
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+  if (images && images.length > 0) {
+    messageUpdate.images = images;
+  }
 
   await db
     .collection("conversations")
     .doc(conversationId)
     .collection("messages")
     .doc(messageId)
-    .update({
-      text: finalText,
-      status: "complete",
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    .update(messageUpdate);
 
+  const hasImages = Boolean(images && images.length > 0);
   await db.collection("conversations").doc(conversationId).update({
     updatedAt: FieldValue.serverTimestamp(),
-    lastMessagePreview: finalText.slice(0, 160),
+    lastMessagePreview:
+      finalText.length > 0 ? finalText.slice(0, 160) : hasImages ? "Sent a meme" : "",
   });
 }
 

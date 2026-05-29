@@ -8,9 +8,9 @@ describe("chooseModel", () => {
     }
   });
 
-  it("routes free + basic to nano, plus + power to mini", () => {
-    expect(chooseModel("free")).toBe("nano");
-    expect(chooseModel("basic")).toBe("nano");
+  it("routes every user-facing tier to mini (uniform model)", () => {
+    expect(chooseModel("free")).toBe("mini");
+    expect(chooseModel("basic")).toBe("mini");
     expect(chooseModel("plus")).toBe("mini");
     expect(chooseModel("power")).toBe("mini");
   });

@@ -7,9 +7,6 @@ import { UTILITY_MODEL } from "../billing/models";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
-// Me-Me is a playful meme-flavored chat companion. Give the title model just
-// enough product context to land titles that are punchy and a little meme-y,
-// but still genuinely describe what the chat is about.
 const TITLE_SYSTEM_PROMPT =
   "You name chat conversations for Me-Me, a playful, meme-loving AI chat app. " +
   "Given the user's first message, write ONE short title (3-6 words) that is " +
@@ -17,10 +14,16 @@ const TITLE_SYSTEM_PROMPT =
   "Title Case. No quotes, no emojis, no trailing punctuation. " +
   "If the message is empty or nonsense, return a generic playful title.";
 
-// Generates a fixed, meme-flavored conversation title once, when the
-// conversation is created. Uses only the first user message + app context.
-// Runs on the cheap UTILITY_MODEL (gpt-5-nano); cost is absorbed by us, never
-// billed to the user.
+function cleanTitle(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/[.!?]+$/g, "")
+    .replace(/\s+/g, " ")
+    .slice(0, 60)
+    .trim();
+}
+
 export const generateConversationTitle = onDocumentCreated(
   {
     document: "conversations/{cid}",
@@ -37,31 +40,52 @@ export const generateConversationTitle = onDocumentCreated(
       firstUserMessage?: string;
       titleGenerated?: boolean;
     };
-    if (data.titleGenerated) return; // idempotent guard
+
+    if (data.titleGenerated) return;
 
     const firstMessage = (data.firstUserMessage ?? "").trim();
     if (!firstMessage) return;
 
     try {
-      const client = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
+      const client = new OpenAI({
+        apiKey: OPENAI_API_KEY.value(),
+      });
+
       const completion = await client.chat.completions.create({
         model: UTILITY_MODEL,
-        // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s.
-        max_completion_tokens: 24,
+        reasoning_effort: "low",
+        max_completion_tokens: 80,
         messages: [
-          { role: "system", content: TITLE_SYSTEM_PROMPT },
-          { role: "user", content: firstMessage },
+          {
+            role: "system",
+            content: TITLE_SYSTEM_PROMPT,
+          },
+          {
+            role: "user",
+            content: firstMessage,
+          },
         ],
       });
 
-      const raw = completion.choices[0]?.message?.content?.trim() ?? "";
-      // Strip stray wrapping quotes / trailing punctuation, cap length.
-      const title = raw
-        .replace(/^["'`]+|["'`]+$/g, "")
-        .replace(/[.!?]+$/g, "")
-        .slice(0, 60)
-        .trim();
-      if (!title) return;
+      const raw = completion.choices[0]?.message?.content ?? "";
+      const title = cleanTitle(raw);
+
+      logger.info("[generateConversationTitle] OpenAI response", {
+        cid: event.params.cid,
+        finishReason: completion.choices[0]?.finish_reason,
+        raw,
+        title,
+        usage: completion.usage,
+      });
+
+      if (!title) {
+        logger.warn("[generateConversationTitle] empty title generated", {
+          cid: event.params.cid,
+          finishReason: completion.choices[0]?.finish_reason,
+          usage: completion.usage,
+        });
+        return;
+      }
 
       await snap.ref.set(
         {

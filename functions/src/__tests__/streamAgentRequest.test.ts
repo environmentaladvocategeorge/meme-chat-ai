@@ -89,4 +89,23 @@ describe("streamAgentRequestSchema", () => {
       expect(result.data.images).toEqual([]);
     }
   });
+
+  it("defaults levelOfRot to 2 when omitted", () => {
+    const result = streamAgentRequestSchema.safeParse({ message: "hi" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.levelOfRot).toBe(2);
+    }
+  });
+
+  it("accepts levelOfRot 1–3 and rejects out-of-range / non-integer", () => {
+    for (const level of [1, 2, 3]) {
+      const result = streamAgentRequestSchema.safeParse({ message: "hi", levelOfRot: level });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.levelOfRot).toBe(level);
+    }
+    expect(streamAgentRequestSchema.safeParse({ message: "hi", levelOfRot: 0 }).success).toBe(false);
+    expect(streamAgentRequestSchema.safeParse({ message: "hi", levelOfRot: 4 }).success).toBe(false);
+    expect(streamAgentRequestSchema.safeParse({ message: "hi", levelOfRot: 1.5 }).success).toBe(false);
+  });
 });

@@ -4,6 +4,12 @@ import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
+import {
+  GET_MEME_TOOL,
+  MEME_TOOL_GUIDANCE,
+  runGetMeme,
+} from "./memes/getMemeTool";
+import type { MessageImage } from "./messages/messageImage";
 import { chargeCredits, evaluateQuota } from "./billing/ledger";
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
@@ -24,6 +30,9 @@ import { buildSystemPromptForStream } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+// The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
+// configured the tool is simply not offered and the agent replies text-only.
+const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
 
 type SseResponse = {
   write: (chunk: string) => unknown;
@@ -58,7 +67,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
 // abuse protection.
 export const streamAgentAnswer = onRequest(
   {
-    secrets: [OPENAI_API_KEY],
+    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
     timeoutSeconds: 540,
     memory: "512MiB",
     cors: false,
@@ -111,6 +120,7 @@ export const streamAgentAnswer = onRequest(
     const images = parsed.data.images;
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
+    const levelOfRot = parsed.data.levelOfRot;
 
     // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
     // Never log full image URLs.
@@ -175,16 +185,23 @@ export const streamAgentAnswer = onRequest(
     let resolvedPersona:
       | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
       | null = null;
+    const klipyApiKey = KLIPY_APP_KEY.value();
+    const memeToolEnabled = klipyApiKey.length > 0;
     try {
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId);
       resolvedPersona = promptResult.persona;
+      // Teach the persona about the get_meme capability only when it's actually
+      // available, so a text-only deployment doesn't promise memes it can't send.
+      const systemPrompt = memeToolEnabled
+        ? `${promptResult.systemPrompt}\n\n${MEME_TOOL_GUIDANCE}`
+        : promptResult.systemPrompt;
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
         currentUserMessage: userText,
         currentImages: images,
-        systemPrompt: promptResult.systemPrompt,
+        systemPrompt,
       });
     } catch (err) {
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
@@ -198,6 +215,9 @@ export const streamAgentAnswer = onRequest(
     let clientClosed = false;
     let sawDelta = false;
     let lastUsage: AgentUsage | null = null;
+    // The meme the agent attached via get_meme this turn, if any. Persisted on
+    // the agent message at finalize and emitted to the client over SSE.
+    let agentMeme: MessageImage | null = null;
     const abortController = new AbortController();
 
     // Charge the turn's real cost once the stream's final usage is known.
@@ -265,6 +285,7 @@ export const streamAgentAnswer = onRequest(
         status: "complete",
         clientMessageId,
         images: images.length > 0 ? images : undefined,
+        levelOfRot,
       });
 
       if (newConversation) {
@@ -315,6 +336,21 @@ export const streamAgentAnswer = onRequest(
         apiKey: OPENAI_API_KEY.value(),
         model: resolveModelId(internalModel),
         maxOutputTokens: entitlement.maxOutputTokens,
+        // Offer the get_meme tool only when Klipy is configured. The runner
+        // resolves Klipy internally and never throws, so a meme miss/outage
+        // still yields a normal text reply.
+        tools: memeToolEnabled ? [GET_MEME_TOOL] : undefined,
+        runTool: memeToolEnabled
+          ? (call) =>
+              call.name === "get_meme"
+                ? runGetMeme(call.arguments, {
+                    apiKey: klipyApiKey,
+                    customerId: uid,
+                  })
+                : Promise.resolve({
+                    content: JSON.stringify({ error: "unknown_tool" }),
+                  })
+          : undefined,
         signal: abortController.signal,
       })) {
         if (clientClosed) {
@@ -328,6 +364,15 @@ export const streamAgentAnswer = onRequest(
           sawDelta = true;
           fullText += delta.text;
           writeSse(res, "delta", { text: delta.text });
+          continue;
+        }
+
+        if (delta.type === "meme") {
+          // Keep the latest meme (the tool is capped to one round, so this fires
+          // at most once) and stream it so the client can show it immediately,
+          // before the finalized Firestore message lands.
+          agentMeme = delta.image;
+          writeSse(res, "meme", { image: agentMeme });
           continue;
         }
 
@@ -357,7 +402,12 @@ export const streamAgentAnswer = onRequest(
       res.end();
 
       try {
-        await finalizeAgentMessage(conversationId, agentMessageId, fullText);
+        await finalizeAgentMessage(
+          conversationId,
+          agentMessageId,
+          fullText,
+          agentMeme ? [agentMeme] : undefined,
+        );
       } catch (err) {
         logger.error("[streamAgentAnswer] failed to finalize agent message", {
           conversationId,

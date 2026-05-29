@@ -12,6 +12,10 @@ export const streamAgentRequestSchema = z
     conversationId: z.string().min(1).optional(),
     clientMessageId: z.string().trim().min(1).max(128).optional(),
     personaId: z.string().trim().min(1).max(128).optional(),
+    // Brainrot intensity dial (1 = Lightly Cooked, 2 = Rotted, 3 = Goblin Mode).
+    // Stored on the user turn for now; the agent prompt is unaffected. Defaults
+    // to 2 ("Rotted") to match the client's default selection.
+    levelOfRot: z.number().int().min(1).max(3).optional().default(2),
   })
   .refine((body) => body.message.trim().length > 0 || body.images.length > 0, {
     message: "Message text or at least one image is required",

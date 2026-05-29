@@ -97,6 +97,33 @@ describe("appendMessage persistence", () => {
     expect(recorded.messageData).not.toHaveProperty("images");
   });
 
+  it("stores levelOfRot on a user message when provided", async () => {
+    const { db, recorded } = makeDb();
+    mockedGetFirestore.mockReturnValue(db);
+
+    await appendMessage("conv-1", {
+      role: "user",
+      text: "look",
+      status: "complete",
+      levelOfRot: 3,
+    });
+
+    expect(recorded.messageData?.levelOfRot).toBe(3);
+  });
+
+  it("does not write a levelOfRot field when omitted", async () => {
+    const { db, recorded } = makeDb();
+    mockedGetFirestore.mockReturnValue(db);
+
+    await appendMessage("conv-1", {
+      role: "agent",
+      text: "reply",
+      status: "streaming",
+    });
+
+    expect(recorded.messageData).not.toHaveProperty("levelOfRot");
+  });
+
   it("persists an image-only message (empty text) with a fallback preview", async () => {
     const { db, recorded } = makeDb();
     mockedGetFirestore.mockReturnValue(db);

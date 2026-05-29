@@ -120,10 +120,90 @@ export const OnboardingStorage = {
   },
 };
 
+// Sticky chat preferences/session. We remember the conversation the user had
+// open and the brainrot dial they last picked, so reopening the app drops them
+// back where they were instead of a blank chat. Server-side data (the messages
+// themselves) still lives in Firestore — this only persists which session to
+// re-open and the local rot-level preference.
+export interface PersistedChatSession {
+  conversationId: string | null;
+  rotLevel: number;
+}
+
+const CHAT_SESSION_KEY = "app.chatSession";
+
+export const MIN_ROT_LEVEL = 1;
+export const MAX_ROT_LEVEL = 3;
+export const DEFAULT_ROT_LEVEL = 2;
+
+export const DEFAULT_CHAT_SESSION: PersistedChatSession = {
+  conversationId: null,
+  rotLevel: DEFAULT_ROT_LEVEL,
+};
+
+function clampRotLevel(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return DEFAULT_ROT_LEVEL;
+  }
+  return Math.min(Math.max(Math.round(value), MIN_ROT_LEVEL), MAX_ROT_LEVEL);
+}
+
+function normalizeChatSession(value: unknown): PersistedChatSession {
+  if (!isRecord(value)) return DEFAULT_CHAT_SESSION;
+
+  return {
+    conversationId:
+      typeof value.conversationId === "string" && value.conversationId.length > 0
+        ? value.conversationId
+        : null,
+    rotLevel: clampRotLevel(value.rotLevel),
+  };
+}
+
+let pendingChatSessionWrite = Promise.resolve();
+
+export const ChatSessionStorage = {
+  async read(): Promise<PersistedChatSession> {
+    try {
+      const raw = await AsyncStorage.getItem(CHAT_SESSION_KEY);
+      if (!raw) return DEFAULT_CHAT_SESSION;
+      return normalizeChatSession(JSON.parse(raw));
+    } catch {
+      return DEFAULT_CHAT_SESSION;
+    }
+  },
+
+  async write(patch: Partial<PersistedChatSession>): Promise<void> {
+    pendingChatSessionWrite = pendingChatSessionWrite
+      .then(async () => {
+        const current = await ChatSessionStorage.read();
+        await AsyncStorage.setItem(
+          CHAT_SESSION_KEY,
+          JSON.stringify({ ...current, ...patch }),
+        );
+      })
+      .catch(() => {});
+
+    await pendingChatSessionWrite;
+  },
+
+  async reset(): Promise<void> {
+    pendingChatSessionWrite = pendingChatSessionWrite
+      .then(() => AsyncStorage.removeItem(CHAT_SESSION_KEY))
+      .catch(() => {});
+
+    await pendingChatSessionWrite;
+  },
+};
+
 // One call clears every AsyncStorage key the template controls. Wired into
 // the Settings "Delete data" action AFTER the account deletion callable
 // succeeds, so a partial failure on the backend doesn't strand the user
 // in a half-wiped local state.
 export async function wipeLocalAppData(): Promise<void> {
-  await Promise.all([SettingsStorage.reset(), OnboardingStorage.reset()]);
+  await Promise.all([
+    SettingsStorage.reset(),
+    OnboardingStorage.reset(),
+    ChatSessionStorage.reset(),
+  ]);
 }

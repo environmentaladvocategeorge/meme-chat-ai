@@ -145,6 +145,7 @@ const en = {
     send: "Send",
     cancel: "Cancel",
     newConversation: "New chat",
+    scrollToBottom: "Scroll to latest",
     loading: "Warming up Me-Me…",
     expand: "Expand message",
     collapse: "Collapse",
@@ -196,6 +197,32 @@ const en = {
       // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
       searchPlaceholder: "Search KLIPY",
     },
+    rot: {
+      button: "Rot Level",
+      title: "Rot Level",
+      subtitle: "Drag to set how rotted the answers you get will be",
+      done: "Done",
+      defaultBadge: "default",
+      // Spoken to screen readers as the slider value, e.g. "Level 2, Rotted".
+      a11yValue: "Level {{level}}, {{name}}",
+      levels: {
+        level1: {
+          name: "Lightly Cooked",
+          description:
+            "lightly meme'd, mostly business. won't taste like default assistant.",
+        },
+        level2: {
+          name: "Rotted",
+          description:
+            "full me-me energy. jokes and slang but i still get there.",
+        },
+        level3: {
+          name: "Absolute Goblin Mode",
+          description:
+            "maximum brainrot. cursed metaphors, dramatic overreactions, peak cringe. still useful, just feral about it 🦝",
+        },
+      },
+    },
     attachments: {
       // Shown briefly when a user tries to stage a 4th meme.
       maxReached: "You can attach up to {{count}} memes",
@@ -204,6 +231,12 @@ const en = {
       // Client-side localized label for an image-only message, where surfaced.
       sentMeme: "Sent a meme",
       invalid: "Couldn't attach that meme",
+    },
+    actions: {
+      copy: "Copy",
+      copied: "Copied",
+      thumbsUp: "Good response",
+      thumbsDown: "Bad response",
     },
   },
   history: {
@@ -273,21 +306,21 @@ const en = {
       priceLoading: "—",
       features: {
         chats: "Chats",
-        smart: "Smart answers",
+        smart: "Smart Me-Me",
         memory: "Memory",
       },
       featureValues: {
         chats: {
           free: "1×",
-          basic: "5×",
+          basic: "9×",
           plus: "25×",
           power: "50×",
         },
         smart: {
-          free: "—",
-          basic: "—",
+          free: "✓",
+          basic: "✓",
           plus: "✓",
-          power: "✓✓",
+          power: "✓",
         },
         memory: {
           free: "S",
@@ -311,21 +344,21 @@ const en = {
         power: "MVP",
       },
       planTaglines: {
-        free: "Just dipping in",
+        free: "The full Me-Me, free",
         basic: "More memeing",
-        plus: "Smart memes unlocked",
+        plus: "More chats, longer memory",
         power: "Maximum vibes",
       },
       planBullets: {
-        free: ["A taste of Me-Me", "Quick replies"],
-        basic: ["5× more chats", "Quick replies"],
-        plus: ["25× more chats", "Smart answers unlock", "Bigger memory"],
-        power: ["50× more chats", "Way more smart answers", "Biggest memory"],
+        free: ["The real, full-personality Me-Me", "A taste each day"],
+        basic: ["9× more chats", "Same smart Me-Me"],
+        plus: ["25× more chats", "Remembers more of your chats", "Great all-rounder"],
+        power: ["50× more chats", "Longest memory", "Most meme-power"],
       },
       planHeadlineFeature: {
-        free: "Just a taste",
-        basic: "5× chats",
-        plus: "Smart answers",
+        free: "Full Me-Me",
+        basic: "9× chats",
+        plus: "25× + memory",
         power: "All the power",
       },
       pricePeriod: "/mo",

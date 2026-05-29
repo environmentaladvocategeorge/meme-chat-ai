@@ -78,6 +78,9 @@ export type StoredChatMessage = {
   role: "user" | "agent";
   text: string;
   images?: MessageImage[];
+  reaction?: "up" | "down";
+  // Brainrot intensity stored on a user turn (1–3).
+  levelOfRot?: number;
   status: "complete" | "streaming" | "error";
   createdAt: Date | null;
   clientMessageId?: string;
@@ -155,11 +158,19 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
         }
       : undefined;
 
+  const reaction =
+    data.reaction === "up" || data.reaction === "down" ? data.reaction : undefined;
+
+  const levelOfRot =
+    typeof data.levelOfRot === "number" ? data.levelOfRot : undefined;
+
   return {
     id,
     role,
     text,
     images,
+    reaction,
+    levelOfRot,
     status,
     createdAt: asDate(data.createdAt),
     clientMessageId:

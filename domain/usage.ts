@@ -84,8 +84,8 @@ export type UsageInput = {
 export type UsageState = {
   monthlyRatioUsed: number; // 0..1
   dailyRatioUsed: number; // 0..1
-  monthlyPercentLeft: number; // 0..100, rounded
-  dailyPercentLeft: number; // 0..100, rounded
+  monthlyPercentLeft: number; // 0..100, rounded UP (never 0 while any credit remains)
+  dailyPercentLeft: number; // 0..100, rounded UP
   // The binding constraint — whichever allowance has the least headroom.
   limitKind: "monthly" | "daily";
   // Percent left on the binding constraint. This is what actually gates the
@@ -99,6 +99,13 @@ export type UsageState = {
 function clampRatio(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.max(0, Math.min(1, value));
+}
+
+// Credits are fractional internally, but the UI shows a whole-number percent.
+// We round UP so a user with a sliver of usable credit never sees "0% left"
+// (0.4% → 1%), and clamp to [0, 100]. Only a truly exhausted balance shows 0%.
+function displayPercentLeft(ratioUsed: number): number {
+  return Math.min(100, Math.max(0, Math.ceil((1 - ratioUsed) * 100)));
 }
 
 // Free tier carries a *daily* soft cap (e.g. 20/day) well below the monthly
@@ -122,10 +129,10 @@ export function computeUsageState(input: UsageInput): UsageState {
   return {
     monthlyRatioUsed,
     dailyRatioUsed,
-    monthlyPercentLeft: Math.round((1 - monthlyRatioUsed) * 100),
-    dailyPercentLeft: Math.round((1 - dailyRatioUsed) * 100),
+    monthlyPercentLeft: displayPercentLeft(monthlyRatioUsed),
+    dailyPercentLeft: displayPercentLeft(dailyRatioUsed),
     limitKind: dailyBinds ? "daily" : "monthly",
-    bindingPercentLeft: Math.round((1 - bindingRatio) * 100),
+    bindingPercentLeft: displayPercentLeft(bindingRatio),
     bindingResetAt: dailyBinds ? input.dailyResetAt : input.creditsResetAt,
     nearLimit: bindingRatio >= NEAR_LIMIT_RATIO,
     atLimit: bindingRatio >= 1,

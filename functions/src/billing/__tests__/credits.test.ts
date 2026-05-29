@@ -43,8 +43,9 @@ describe("calculateCredits", () => {
     expect(calculateCredits(0)).toBe(0);
   });
 
-  it("returns at least 1 for any positive cost", () => {
-    expect(calculateCredits(0.0000001)).toBeGreaterThanOrEqual(1);
+  it("floors any positive cost at the micro-request minimum (0.1)", () => {
+    expect(calculateCredits(0.0000001)).toBe(0.1);
+    expect(calculateCredits(0.00005)).toBe(0.1); // 0.05 → 0.1 floor
   });
 
   it("maps cost to credits 1:1 at $0.001 per credit (no multiplier)", () => {
@@ -53,9 +54,10 @@ describe("calculateCredits", () => {
     expect(calculateCredits(0.01)).toBe(10);
   });
 
-  it("ceils fractional credits", () => {
-    expect(calculateCredits(0.00075)).toBe(1); // 0.75 → 1
-    expect(calculateCredits(0.0012)).toBe(2); // 1.2 → 2
+  it("keeps credits fractional (no rounding to whole credits)", () => {
+    expect(calculateCredits(0.0005)).toBeCloseTo(0.5, 10); // $0.0005 → 0.5
+    expect(calculateCredits(0.0013)).toBeCloseTo(1.3, 10); // $0.0013 → 1.3
+    expect(calculateCredits(0.00252)).toBeCloseTo(2.52, 10); // avg msg → 2.52
   });
 
   it("USD_PER_CREDIT is 0.001", () => {
