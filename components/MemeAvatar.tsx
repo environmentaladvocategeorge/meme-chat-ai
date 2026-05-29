@@ -1,6 +1,6 @@
 // MemeAvatar
 //
-// Circular avatar for the expressive Me-Me "face" art (sunglasses / worried
+// Circular avatar for the expressive Brainrot Bot "face" art (sunglasses / worried
 // speech-bubble). Same circular framing + optional brand-glow pulse as
 // AgentAvatar, but driven by a named variant so screens can pick the mood:
 //   - "cool"    → plan & usage page hero ("level up your meme-power")

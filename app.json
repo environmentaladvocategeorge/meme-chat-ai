@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MeMe Chat AI",
+    "name": "Meme Chat AI",
     "slug": "meme-chat-ai",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -53,8 +53,8 @@
       "expo-localization"
     ],
     "locales": {
-      "en": { "ios": { "CFBundleDisplayName": "MeMe Chat AI" } },
-      "es": { "ios": { "CFBundleDisplayName": "MeMe Chat AI" } }
+      "en": { "ios": { "CFBundleDisplayName": "Meme Chat AI" } },
+      "es": { "ios": { "CFBundleDisplayName": "Meme Chat AI" } }
     },
     "experiments": {
       "typedRoutes": true,

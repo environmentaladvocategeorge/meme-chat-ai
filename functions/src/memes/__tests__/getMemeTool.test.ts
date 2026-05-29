@@ -62,10 +62,10 @@ describe("runGetMeme", () => {
       url: KLIPY_URL,
       attribution: "Powered by Klipy",
     });
-    expect(JSON.parse(result.content)).toEqual({
-      found: true,
-      title: "Celebration Dance",
-    });
+    // The tool result must NOT leak the meme's title/URL back to the model —
+    // it only needs to know the attach succeeded (see runGetMeme). Returning
+    // the title used to tempt the model into echoing it into its text reply.
+    expect(JSON.parse(result.content)).toEqual({ found: true });
   });
 
   it("searches the /search endpoint with the model's query", async () => {

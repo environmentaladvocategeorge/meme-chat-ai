@@ -5,7 +5,7 @@ import type { MessageImage } from "../messages/messageImage";
 import { countMessagesTokens } from "./tokens";
 
 const DEFAULT_SYSTEM_PROMPT =
-  "You are Me-Me, a friendly and concise chat assistant. Reply in the user's language. Keep answers focused; offer detail only when the user asks for it.";
+  "You are Brainrot Bot, a friendly and concise chat assistant. Reply in the user's language. Keep answers focused; offer detail only when the user asks for it.";
 
 // Chat Completions multimodal content parts. Assistant/system content stays a
 // plain string; only the current user turn may become an array of parts.

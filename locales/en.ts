@@ -1,6 +1,6 @@
 const en = {
   common: {
-    appName: "MeMe Chat AI",
+    appName: "Meme Chat AI",
     appLoading: "Loading…",
     retry: "Try again",
     continue: "Continue",
@@ -24,7 +24,7 @@ const en = {
     },
   },
   landing: {
-    title: "MeMe Chat AI",
+    title: "Meme Chat AI",
     subtitle: "Welcome — sign in to continue.",
     signIn: "Sign in",
     signUp: "Create an account",
@@ -60,7 +60,7 @@ const en = {
     },
   },
   onboarding: {
-    welcomeTitle: "Welcome to MeMe Chat AI",
+    welcomeTitle: "Welcome to Meme Chat AI",
     welcomeBody:
       "This is a placeholder onboarding step. Replace it with whatever your app needs to collect before the user lands on the home screen.",
     continue: "Get started",
@@ -79,7 +79,7 @@ const en = {
       // state mounts (new conversation / fresh load).
       intros: [
         {
-          title: "Me-Me is awake",
+          title: "Brainrot Bot is awake",
           subtitle: "say anything. the lore can’t start itself.",
         },
         {
@@ -87,7 +87,7 @@ const en = {
           subtitle: "pick a starter or drop the situation.",
         },
         {
-          title: "Me-Me loaded in",
+          title: "Brainrot Bot loaded in",
           subtitle: "give me the lore, the problem, or the questionable idea.",
         },
         {
@@ -95,7 +95,7 @@ const en = {
           subtitle: "type something before it starts doomscrolling.",
         },
         {
-          title: "Me-Me has entered the chat",
+          title: "Brainrot Bot has entered the chat",
           subtitle: "pick a starter or send whatever’s currently cooked.",
         },
         {
@@ -103,7 +103,7 @@ const en = {
           subtitle: "bring a thought, a draft, a problem, or pure chaos.",
         },
         {
-          title: "Me-Me is online",
+          title: "Brainrot Bot is online",
           subtitle: "starter prompts below. random lore also accepted.",
         },
         {
@@ -111,7 +111,7 @@ const en = {
           subtitle: "send a message and we’ll make it less chopped.",
         },
       ],
-      atTitle: "Me-Me's out of meme-power",
+      atTitle: "Brainrot Bot's out of meme-power",
       atSubtitle:
         "You've used up your allowance for now — your reset time and upgrade options are right below.",
     },
@@ -140,13 +140,13 @@ const en = {
       ],
     },
     input: {
-      placeholder: "Message Me-Me",
+      placeholder: "Message Brainrot Bot",
     },
     send: "Send",
     cancel: "Cancel",
     newConversation: "New chat",
     scrollToBottom: "Scroll to latest",
-    loading: "Warming up Me-Me…",
+    loading: "Warming up Brainrot Bot…",
     expand: "Expand message",
     collapse: "Collapse",
     thinking: "Memeing…",
@@ -214,7 +214,7 @@ const en = {
         level2: {
           name: "Rotted",
           description:
-            "full me-me energy. jokes and slang but i still get there.",
+            "full brainrot bot energy. jokes and slang but i still get there.",
         },
         level3: {
           name: "Absolute Goblin Mode",
@@ -241,7 +241,7 @@ const en = {
   },
   history: {
     title: "Chat history",
-    empty: "No chats yet. Say hi to Me-Me!",
+    empty: "No chats yet. Say hi to Brainrot Bot!",
     emptyTitle: "Your chat shelf is empty",
     untitled: "Untitled chat",
     search: {
@@ -306,7 +306,6 @@ const en = {
       priceLoading: "—",
       features: {
         chats: "Chats",
-        smart: "Smart Me-Me",
         memory: "Memory",
       },
       featureValues: {
@@ -315,12 +314,6 @@ const en = {
           basic: "9×",
           plus: "25×",
           power: "50×",
-        },
-        smart: {
-          free: "✓",
-          basic: "✓",
-          plus: "✓",
-          power: "✓",
         },
         memory: {
           free: "S",
@@ -344,19 +337,19 @@ const en = {
         power: "MVP",
       },
       planTaglines: {
-        free: "The full Me-Me, free",
+        free: "The full Brainrot Bot, free",
         basic: "More memeing",
         plus: "More chats, longer memory",
         power: "Maximum vibes",
       },
       planBullets: {
-        free: ["The real, full-personality Me-Me", "A taste each day"],
-        basic: ["9× more chats", "Same smart Me-Me"],
+        free: ["The real, full-personality Brainrot Bot", "A taste each day"],
+        basic: ["9× more chats", "Same smart Brainrot Bot"],
         plus: ["25× more chats", "Remembers more of your chats", "Great all-rounder"],
         power: ["50× more chats", "Longest memory", "Most meme-power"],
       },
       planHeadlineFeature: {
-        free: "Full Me-Me",
+        free: "Full Brainrot Bot",
         basic: "9× chats",
         plus: "25× + memory",
         power: "All the power",

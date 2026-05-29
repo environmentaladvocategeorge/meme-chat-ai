@@ -52,7 +52,14 @@ export async function deleteUserData(uid: string, db: Firestore): Promise<void> 
 // orphaned records can only be reached for the brief window until existing
 // ID tokens expire. The reverse ordering risked leaving a usable Auth
 // account pointing at no data, a much worse failure mode.
-export const deleteMyAccount = onCall(async (request) => {
+export const deleteMyAccount = onCall(
+  // `invoker: "public"` makes the Firebase CLI re-assert the allUsers
+  // run.invoker binding on every deploy. Callables authenticate inside the
+  // function (request.auth below), so the platform must allow the invoke —
+  // without this, a redeploy can drop the binding and Cloud Run starts
+  // rejecting every call with a 401 before this code ever runs.
+  { region: "us-central1", invoker: "public" },
+  async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign-in required");
 
@@ -87,3 +94,4 @@ export const deleteMyAccount = onCall(async (request) => {
 
   return { success: true };
 });
+

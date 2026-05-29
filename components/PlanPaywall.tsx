@@ -34,11 +34,7 @@ type PaidPlanId = Exclude<PlanId, "free">;
 
 const PAID_TIERS: readonly PaidPlanId[] = ["basic", "plus", "power"] as const;
 const RECOMMENDED: PaidPlanId = "plus";
-const FEATURE_KEYS: readonly ["chats", "smart", "memory"] = [
-  "chats",
-  "smart",
-  "memory",
-] as const;
+const FEATURE_KEYS: readonly ["chats", "memory"] = ["chats", "memory"] as const;
 const MATRIX_PLANS: readonly PlanId[] = ["free", "basic", "plus", "power"] as const;
 
 const PLAN_EMOJI: Record<PlanId, string> = {

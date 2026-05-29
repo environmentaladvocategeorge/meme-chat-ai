@@ -1,4 +1,4 @@
-// MeMe Chat AI theme
+// Meme Chat AI theme
 //
 // Direction: playful, glossy, meme-native, but still clean enough for chat UI.
 // Inspired by the app icon: electric blue, purple, hot pink, soft white mascot,

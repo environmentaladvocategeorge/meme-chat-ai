@@ -135,7 +135,13 @@ describe("persona prompt resolution", () => {
     const result = await buildSystemPromptForStream();
 
     expect(result.persona.id).toBe(DEFAULT_PERSONA_ID);
-    expect(result.systemPrompt).toBe("PLATFORM\n\nActive persona prompt:\nME-ME");
+    // Platform guardrails first, then the persona prompt, then the active
+    // rot-level block (level 2 by default, appended when the persona prompt
+    // has no {{ROT_LEVEL_BLOCK}} placeholder).
+    expect(result.systemPrompt).toContain(
+      "PLATFORM\n\nActive persona prompt:\nME-ME",
+    );
+    expect(result.systemPrompt).toContain("ROT LEVEL: 2 of 3 — ROTTED");
   });
 
   it("resolves a valid enabled personaId", async () => {

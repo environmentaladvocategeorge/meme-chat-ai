@@ -10,6 +10,7 @@ import { MessageImageAttachments } from "@/components/MessageImageAttachments";
 import { RotLevelSheet, type RotLevelSheetRef } from "@/components/RotLevelSheet";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import { Typography } from "@/components/Typography";
+import { stripMemeArtifacts } from "@/domain/agentText";
 import {
   MAX_MESSAGE_IMAGES,
   trendingMemeToMessageImage,
@@ -621,7 +622,7 @@ export default function ChatScreen() {
 
     // A failed turn surfaces as a single agent-side error card answering the
     // last user message — carrying both the explanation and the retry action,
-    // so the failure reads as one coherent reply from Me-Me. Skipped if the
+    // so the failure reads as one coherent reply from Brainrot Bot. Skipped if the
     // backend already persisted an agent error reply for this turn.
     if (status === "error" && lastUserMessage) {
       const alreadyErrored = base.some(
@@ -1151,7 +1152,7 @@ function EmptyChatState({
   }, [t, atLimit]);
 
   // Entrance for the whole empty state. Plays once when this mounts — i.e. the
-  // moment the loader clears and Me-Me "wakes up". A soft opacity fade paired
+  // moment the loader clears and Brainrot Bot "wakes up". A soft opacity fade paired
   // with a gentle spring scale so it eases in instead of hard-blinking. The
   // animated transform lives on an inner view so it doesn't disturb the
   // outer scaleY:-1 counter-flip the inverted FlatList requires.
@@ -1699,8 +1700,12 @@ function MessageBubble({
   const timestampLabel = formatMessageTimestamp(message.createdAt);
   const [showTimestamp, setShowTimestamp] = useState(false);
 
-  const messageText =
+  // Agent replies may carry meme markdown/attachment artifacts (stripped on the
+  // backend now, but older stored messages and the live stream still need it).
+  const rawText =
     errored && message.text.length === 0 ? errorLabel : message.text;
+  const messageText =
+    message.role === "agent" ? stripMemeArtifacts(rawText) : rawText;
 
   // A user turn may carry staged/persisted Klipy memes. Render the images, and
   // only render the text bubble when there's actual text (or the streaming

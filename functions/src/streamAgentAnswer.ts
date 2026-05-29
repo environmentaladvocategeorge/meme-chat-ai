@@ -10,6 +10,7 @@ import {
   runGetMeme,
 } from "./memes/getMemeTool";
 import type { MessageImage } from "./messages/messageImage";
+import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
 import { chargeCredits, evaluateQuota } from "./billing/ledger";
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
@@ -189,7 +190,7 @@ export const streamAgentAnswer = onRequest(
     const memeToolEnabled = klipyApiKey.length > 0;
     try {
       internalModel = chooseModel(entitlement.plan);
-      const promptResult = await buildSystemPromptForStream(personaId);
+      const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
       // Teach the persona about the get_meme capability only when it's actually
       // available, so a text-only deployment doesn't promise memes it can't send.
@@ -405,7 +406,9 @@ export const streamAgentAnswer = onRequest(
         await finalizeAgentMessage(
           conversationId,
           agentMessageId,
-          fullText,
+          // Scrub any meme markdown/attachment artifacts the model may have
+          // written; the meme is persisted + shown as its own image below.
+          stripMemeArtifacts(fullText),
           agentMeme ? [agentMeme] : undefined,
         );
       } catch (err) {

@@ -1,6 +1,7 @@
 import { logger } from "firebase-functions";
 import { getFirestore, type DocumentData } from "firebase-admin/firestore";
 import {
+  applyRotLevel,
   DEFAULT_PERSONA_ID,
   ME_ME_PERSONA_PROMPT_FALLBACK,
   PLATFORM_GUARDRAILS_FALLBACK,
@@ -21,7 +22,7 @@ export type BuiltSystemPromptForStream = {
 function fallbackPersona(): Persona {
   return {
     id: DEFAULT_PERSONA_ID,
-    name: "Me-Me",
+    name: "Brainrot Bot",
     slug: "me-me",
     description:
       "A funny, meme-aware conversational agent that gives real answers with natural internet humor.",
@@ -29,7 +30,7 @@ function fallbackPersona(): Persona {
     isEnabled: true,
     addedBy: "backend_fallback",
     publicConfig: {
-      displayName: "Me-Me",
+      displayName: "Brainrot Bot",
       shortDescription: "Helpful answers with meme timing.",
       avatarKey: "me_me",
       toneTags: ["funny", "meme", "casual", "concise"],
@@ -41,7 +42,7 @@ function fallbackPersonaPrompt(personaId = DEFAULT_PERSONA_ID): PersonaPrompt {
   return {
     id: `${personaId}_fallback`,
     personaId,
-    name: "Me-Me Fallback Prompt",
+    name: "Brainrot Bot Fallback Prompt",
     version: "fallback",
     content: ME_ME_PERSONA_PROMPT_FALLBACK,
     isActive: true,
@@ -202,6 +203,9 @@ export async function resolvePersonaForStream(
 
 export async function buildSystemPromptForStream(
   inputPersonaId?: string,
+  // The user's Rot Level dial (1–3); substituted into the persona prompt's
+  // {{ROT_LEVEL_BLOCK}} placeholder. Defaults to 2 ("Rotted").
+  levelOfRot = 2,
 ): Promise<BuiltSystemPromptForStream> {
   let platformPrompt: PlatformPrompt | null = null;
   try {
@@ -214,9 +218,10 @@ export async function buildSystemPromptForStream(
 
   const { persona, personaPrompt } = await resolvePersonaForStream(inputPersonaId);
   const platformContent = platformPrompt?.content ?? fallbackPlatformPrompt().content;
+  const personaContent = applyRotLevel(personaPrompt.content, levelOfRot);
 
   return {
-    systemPrompt: `${platformContent}\n\nActive persona prompt:\n${personaPrompt.content}`,
+    systemPrompt: `${platformContent}\n\nActive persona prompt:\n${personaContent}`,
     persona: {
       id: persona.id,
       name: persona.name,

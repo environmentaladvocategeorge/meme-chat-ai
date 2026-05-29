@@ -687,7 +687,7 @@ function HistoryCard({
 // ----- EmptyState -----
 //
 // Carries information: there's nothing here yet AND here's what to do next.
-// The pulsing avatar provides identity (this is Me-Me's screen) which is a
+// The pulsing avatar provides identity (this is Brainrot Bot's screen) which is a
 // real signal in a new app where the user may not recognize the mascot yet.
 
 function EmptyState() {

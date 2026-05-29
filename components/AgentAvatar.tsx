@@ -1,6 +1,6 @@
 // AgentAvatar
 //
-// Circular avatar for the Me-Me agent, using the app icon. Has an optional
+// Circular avatar for the Brainrot Bot agent, using the app icon. Has an optional
 // `pulse` mode that runs a gentle continuous scale + ring-glow animation
 // — used while a reply is being streamed to signal "the agent is thinking."
 // When `pulse` is false it's a static circle.

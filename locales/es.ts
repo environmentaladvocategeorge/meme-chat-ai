@@ -1,6 +1,6 @@
 const es = {
   common: {
-    appName: "MeMe Chat AI",
+    appName: "Meme Chat AI",
     appLoading: "Cargando…",
     retry: "Reintentar",
     continue: "Continuar",
@@ -24,7 +24,7 @@ const es = {
     },
   },
   landing: {
-    title: "MeMe Chat AI",
+    title: "Meme Chat AI",
     subtitle: "Bienvenido — inicia sesión para continuar.",
     signIn: "Iniciar sesión",
     signUp: "Crear una cuenta",
@@ -60,7 +60,7 @@ const es = {
     },
   },
   onboarding: {
-    welcomeTitle: "Bienvenido a MeMe Chat AI",
+    welcomeTitle: "Bienvenido a Meme Chat AI",
     welcomeBody:
       "Este es un paso de onboarding de ejemplo. Reemplázalo con lo que tu app necesite recopilar antes de mostrar la pantalla principal.",
     continue: "Empezar",
@@ -79,7 +79,7 @@ const es = {
       // el estado vacío (chat nuevo / carga inicial).
       intros: [
         {
-          title: "Me-Me está despierto",
+          title: "Brainrot Bot está despierto",
           subtitle: "di algo. el lore no empieza solo.",
         },
         {
@@ -87,7 +87,7 @@ const es = {
           subtitle: "elige una idea o suelta la situación.",
         },
         {
-          title: "Me-Me ya entró",
+          title: "Brainrot Bot ya entró",
           subtitle: "dame el lore, el problema o la idea dudosa.",
         },
         {
@@ -95,7 +95,7 @@ const es = {
           subtitle: "escribe algo antes de que se ponga a doomscrollear.",
         },
         {
-          title: "Me-Me entró al chat",
+          title: "Brainrot Bot entró al chat",
           subtitle: "elige una idea o manda lo que esté medio quemado.",
         },
         {
@@ -103,7 +103,7 @@ const es = {
           subtitle: "trae una idea, un borrador, un problema o puro caos.",
         },
         {
-          title: "Me-Me está en línea",
+          title: "Brainrot Bot está en línea",
           subtitle: "ideas abajo. lore aleatorio también se acepta.",
         },
         {
@@ -111,7 +111,7 @@ const es = {
           subtitle: "manda un mensaje y lo dejamos menos hecho un lío.",
         },
       ],
-      atTitle: "Me-Me se quedó sin meme-power",
+      atTitle: "Brainrot Bot se quedó sin meme-power",
       atSubtitle:
         "Has gastado tu cupo por ahora — tu tiempo de renovación y opciones para mejorar están justo abajo.",
     },
@@ -140,13 +140,13 @@ const es = {
       ],
     },
     input: {
-      placeholder: "Mensaje para Me-Me",
+      placeholder: "Mensaje para Brainrot Bot",
     },
     send: "Enviar",
     cancel: "Cancelar",
     newConversation: "Chat nuevo",
     scrollToBottom: "Ir a lo más reciente",
-    loading: "Calentando a Me-Me…",
+    loading: "Calentando a Brainrot Bot…",
     expand: "Expandir mensaje",
     collapse: "Colapsar",
     thinking: "Memeando…",
@@ -213,7 +213,7 @@ const es = {
         level2: {
           name: "Rotted",
           description:
-            "full energía me-me. chistes y slang pero igual te resuelvo.",
+            "full energía brainrot bot. chistes y slang pero igual te resuelvo.",
         },
         level3: {
           name: "Modo Goblin Total",
@@ -240,7 +240,7 @@ const es = {
   },
   history: {
     title: "Historial",
-    empty: "Aún no hay chats. ¡Saluda a Me-Me!",
+    empty: "Aún no hay chats. ¡Saluda a Brainrot Bot!",
     emptyTitle: "Tu repisa de chats está vacía",
     untitled: "Chat sin título",
     search: {
@@ -305,7 +305,6 @@ const es = {
       priceLoading: "—",
       features: {
         chats: "Chats",
-        smart: "Me-Me listo",
         memory: "Memoria",
       },
       featureValues: {
@@ -314,12 +313,6 @@ const es = {
           basic: "9×",
           plus: "25×",
           power: "50×",
-        },
-        smart: {
-          free: "✓",
-          basic: "✓",
-          plus: "✓",
-          power: "✓",
         },
         memory: {
           free: "S",
@@ -343,19 +336,19 @@ const es = {
         power: "MVP",
       },
       planTaglines: {
-        free: "El Me-Me completo, gratis",
+        free: "El Brainrot Bot completo, gratis",
         basic: "Más memeo",
         plus: "Más chats, más memoria",
         power: "Vibes al máximo",
       },
       planBullets: {
-        free: ["El Me-Me real, con toda su personalidad", "Un poco cada día"],
-        basic: ["9× más chats", "El mismo Me-Me listo"],
+        free: ["El Brainrot Bot real, con toda su personalidad", "Un poco cada día"],
+        basic: ["9× más chats", "El mismo Brainrot Bot listo"],
         plus: ["25× más chats", "Recuerda más de tus chats", "El más equilibrado"],
         power: ["50× más chats", "Memoria al tope", "Máximo meme-power"],
       },
       planHeadlineFeature: {
-        free: "Me-Me completo",
+        free: "Brainrot Bot completo",
         basic: "9× chats",
         plus: "25× + memoria",
         power: "Todo el poder",

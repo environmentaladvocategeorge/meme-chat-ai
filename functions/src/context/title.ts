@@ -8,7 +8,7 @@ import { UTILITY_MODEL } from "../billing/models";
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 const TITLE_SYSTEM_PROMPT =
-  "You name chat conversations for Me-Me, a playful, meme-loving AI chat app. " +
+  "You name chat conversations for Brainrot Bot, a playful, meme-loving AI chat app." +
   "Given the user's first message, write ONE short title (3-6 words) that is " +
   "fun and a little meme-y but still clearly describes the topic. " +
   "Title Case. No quotes, no emojis, no trailing punctuation. " +
