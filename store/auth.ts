@@ -353,6 +353,12 @@ async function finalizeAccountDeletion(
   { success: true } | { success: false; error: DeleteAccountError }
 > {
   try {
+    // Reauth bumps auth_time server-side but does NOT refresh the cached ID
+    // token the callable attaches. If that cached token is already expired
+    // (e.g. signed in over an hour ago) the function sees no valid auth and
+    // rejects with `unauthenticated`. Force a fresh token first — same guard
+    // refreshEmailVerified uses after reload.
+    await auth.currentUser?.getIdToken(true);
     await deleteMyAccountCallable();
   } catch (e) {
     console.warn("[deleteAccount] callable failed:", e);
