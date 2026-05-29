@@ -1,3 +1,4 @@
+import type { MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
 
 export type StreamEvent =
@@ -18,6 +19,7 @@ export type StreamEvent =
 
 type StreamAgentAnswerParams = {
   message: string;
+  images?: MessageImage[];
   conversationId?: string | null;
   clientMessageId?: string;
   personaId?: string | null;
@@ -181,6 +183,7 @@ function makeStreamQueue() {
 
 export async function* streamAgentAnswer({
   message,
+  images,
   conversationId,
   clientMessageId,
   personaId,
@@ -197,6 +200,9 @@ export async function* streamAgentAnswer({
   const xhr = new XMLHttpRequest();
   const body = JSON.stringify({
     message,
+    // Only include `images` when there are attachments, so text-only payloads
+    // stay byte-identical to the pre-image format (backend defaults to []).
+    images: images && images.length > 0 ? images : undefined,
     conversationId: conversationId ?? undefined,
     clientMessageId,
     personaId: personaId ?? undefined,

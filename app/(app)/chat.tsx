@@ -2,9 +2,15 @@ import { AgentAvatar } from "@/components/AgentAvatar";
 import { AppHeader } from "@/components/AppHeader";
 import { ChatInput } from "@/components/ChatInput";
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { MessageImageAttachments } from "@/components/MessageImageAttachments";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import { Typography } from "@/components/Typography";
-import type { TrendingMeme } from "@/domain/memes";
+import {
+  MAX_MESSAGE_IMAGES,
+  trendingMemeToMessageImage,
+  type MessageImage,
+  type TrendingMeme,
+} from "@/domain/memes";
 import { useKlipy } from "@/hooks/useKlipy";
 import {
   computeUsageState,
@@ -39,6 +45,7 @@ import {
 import { useTranslation } from "react-i18next";
 import Markdown from "react-native-markdown-display";
 import {
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -107,6 +114,12 @@ function messageKey(item: RenderMessage): string {
     return `agent:${item.inReplyToClientMessageId}`;
   }
   return item.id;
+}
+
+function shouldRenderMarkdown(text: string): boolean {
+  return /```|`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*|^#{1,6}\s|^\s*[-*]\s|^\s*\d+\.\s|^\s*>/m.test(
+    text,
+  );
 }
 
 // Right-hand header action on the chat screen: starts a fresh conversation.
@@ -244,6 +257,106 @@ function MemeToggleButton({
   );
 }
 
+// Staged attachment tray: the row of meme thumbnails above the composer that a
+// user has picked but not yet sent. Each thumbnail keeps the KLIPY watermark
+// (attribution) and a remove button. Shows a brief localized notice when the
+// user tries to exceed MAX_MESSAGE_IMAGES.
+function StagedAttachmentTray({
+  images,
+  showMaxNotice,
+  onRemove,
+}: {
+  images: MessageImage[];
+  showMaxNotice: boolean;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+
+  if (images.length === 0 && !showMaxNotice) return null;
+
+  return (
+    <Animated.View entering={FadeIn.duration(180)} style={{ marginBottom: 8 }}>
+      {images.length > 0 ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {images.map((image) => (
+            <View key={image.id} style={{ width: 64, height: 64 }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 12,
+                  overflow: "hidden",
+                  backgroundColor: theme["--color-card-muted"],
+                  borderWidth: 1,
+                  borderColor: theme["--color-border"],
+                }}
+              >
+                <Image
+                  source={{ uri: image.url }}
+                  resizeMode="cover"
+                  style={{ width: "100%", height: "100%" }}
+                />
+                {image.source === "klipy" ? (
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: 16,
+                    }}
+                  >
+                    <LinearGradient
+                      colors={["transparent", "rgba(0,0,0,0.45)"]}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </View>
+                ) : null}
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("chat.attachments.remove")}
+                onPress={() => onRemove(image.id)}
+                hitSlop={8}
+                style={{
+                  position: "absolute",
+                  top: -6,
+                  right: -6,
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: theme["--color-foreground"],
+                }}
+              >
+                <X
+                  size={12}
+                  color={theme["--color-background"]}
+                  weight="bold"
+                />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      ) : null}
+      {showMaxNotice ? (
+        <Typography
+          variant="caption"
+          style={{
+            color: theme["--color-foreground-muted"],
+            marginTop: images.length > 0 ? 6 : 0,
+          }}
+        >
+          {t("chat.attachments.maxReached", { count: MAX_MESSAGE_IMAGES })}
+        </Typography>
+      ) : null}
+    </Animated.View>
+  );
+}
+
 export default function ChatScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -251,6 +364,12 @@ export default function ChatScreen() {
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const [draft, setDraft] = useState("");
   const [memesOpen, setMemesOpen] = useState(false);
+  // Memes the user has staged but not yet sent. Sent as multimodal image
+  // inputs; capped at MAX_MESSAGE_IMAGES (the backend re-enforces the cap).
+  const [stagedImages, setStagedImages] = useState<MessageImage[]>([]);
+  // Brief "you can only attach N" notice, shown when a 4th meme is tapped.
+  const [maxNotice, setMaxNotice] = useState(false);
+  const maxNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Memes for the composer strip (trending + debounced KLIPY search). Modular —
   // the same hook can power a meme picker anywhere else in the app. `enabled`
   // defers the first network call until the strip is actually opened.
@@ -348,6 +467,7 @@ export default function ChatScreen() {
       .filter(
         (message) =>
           message.text.length > 0 ||
+          (message.images?.length ?? 0) > 0 ||
           (message.role === "agent" && message.status === "error"),
       )
       .map((message) => ({ ...message }));
@@ -396,8 +516,7 @@ export default function ChatScreen() {
     // backend already persisted an agent error reply for this turn.
     if (status === "error" && lastUserMessage) {
       const alreadyErrored = base.some(
-        (message) =>
-          message.role === "agent" && message.status === "error",
+        (message) => message.role === "agent" && message.status === "error",
       );
       if (!alreadyErrored) {
         base.push({
@@ -427,9 +546,15 @@ export default function ChatScreen() {
   const handleSubmit = () => {
     if (atLimit) return;
     const text = draft.trim();
-    if (text.length === 0) return;
+    const images = stagedImages;
+    // Allow text-only, image-only, or text + images.
+    if (text.length === 0 && images.length === 0) return;
+    // Clear the composer optimistically (mirrors text-draft behavior). The
+    // attachments ride along on the optimistic user bubble, and the error
+    // card's retry resends them, so a failed send never loses them.
     setDraft("");
-    void sendMessage(text);
+    setStagedImages([]);
+    void sendMessage(text, images);
   };
 
   const handleStarterPress = (text: string) => {
@@ -440,7 +565,8 @@ export default function ChatScreen() {
 
   const handleRetry = () => {
     if (!lastUserMessage) return;
-    void sendMessage(lastUserMessage.text);
+    // Resend the failed turn's attachments too, so a meme isn't dropped on retry.
+    void sendMessage(lastUserMessage.text, lastUserMessage.images);
   };
 
   // Toggle the meme strip. The hook's `enabled` flag (wired to memesOpen) is
@@ -449,11 +575,34 @@ export default function ChatScreen() {
     setMemesOpen((open) => !open);
   };
 
-  // Tapping a meme drops its image URL into the draft so the user can send it.
+  const flashMaxNotice = useCallback(() => {
+    setMaxNotice(true);
+    if (maxNoticeTimer.current) clearTimeout(maxNoticeTimer.current);
+    maxNoticeTimer.current = setTimeout(() => setMaxNotice(false), 2400);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (maxNoticeTimer.current) clearTimeout(maxNoticeTimer.current);
+    },
+    [],
+  );
+
+  // Tapping a meme stages it as an attachment (no URL is inserted into the
+  // draft). Deduped by id; capped at MAX_MESSAGE_IMAGES with localized feedback.
   const handleSelectMeme = (meme: TrendingMeme) => {
-    setDraft((current) =>
-      current.trim().length > 0 ? `${current} ${meme.url}` : meme.url,
-    );
+    setStagedImages((current) => {
+      if (current.some((image) => image.id === meme.id)) return current;
+      if (current.length >= MAX_MESSAGE_IMAGES) {
+        flashMaxNotice();
+        return current;
+      }
+      return [...current, trendingMemeToMessageImage(meme)];
+    });
+  };
+
+  const handleRemoveStagedImage = (id: string) => {
+    setStagedImages((current) => current.filter((image) => image.id !== id));
   };
 
   // Drives the cross-fade when starting a new chat: fade the current thread
@@ -483,6 +632,7 @@ export default function ChatScreen() {
   const handleNewConversation = () => {
     const reset = () => {
       startNewConversation();
+      setStagedImages([]);
       // Clear any conversationId route param so the load effect doesn't
       // immediately re-hydrate the conversation we just cleared.
       if (params.conversationId) {
@@ -518,49 +668,49 @@ export default function ChatScreen() {
       />
 
       <BubbleGradientContext.Provider value={bubbleGradient}>
-      <Animated.FlatList
-        style={contentFadeStyle}
-        inverted
-        data={visibleMessages}
-        keyExtractor={messageKey}
-        keyboardShouldPersistTaps="handled"
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        onContentSizeChange={bumpGradient}
-        onMomentumScrollEnd={bumpGradient}
-        contentContainerStyle={{
-          flexGrow: 1,
-          justifyContent:
-            visibleMessages.length === 0 ? "center" : "flex-start",
-          paddingHorizontal: 18,
-          paddingTop: 16,
-          paddingBottom: 18,
-          gap: 10,
-        }}
-        ListEmptyComponent={
-          // The FlatList is `inverted`, which applies a vertical flip to ALL
-          // its content — including this empty component. We counter it with
-          // the inverse transform so it reads right-side up. While loading we
-          // show the playful loader instead of the (premature) empty state.
-          areaLoading ? (
-            <ChatLoading label={t("chat.loading")} />
-          ) : (
-            <EmptyChatState
-              onStarterPress={handleStarterPress}
-              atLimit={atLimit}
+        <Animated.FlatList
+          style={contentFadeStyle}
+          inverted
+          data={visibleMessages}
+          keyExtractor={messageKey}
+          keyboardShouldPersistTaps="handled"
+          onScroll={scrollHandler}
+          scrollEventThrottle={16}
+          onContentSizeChange={bumpGradient}
+          onMomentumScrollEnd={bumpGradient}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent:
+              visibleMessages.length === 0 ? "center" : "flex-start",
+            paddingHorizontal: 18,
+            paddingTop: 16,
+            paddingBottom: 18,
+            gap: 10,
+          }}
+          ListEmptyComponent={
+            // The FlatList is `inverted`, which applies a vertical flip to ALL
+            // its content — including this empty component. We counter it with
+            // the inverse transform so it reads right-side up. While loading we
+            // show the playful loader instead of the (premature) empty state.
+            areaLoading ? (
+              <ChatLoading label={t("chat.loading")} />
+            ) : (
+              <EmptyChatState
+                onStarterPress={handleStarterPress}
+                atLimit={atLimit}
+              />
+            )
+          }
+          renderItem={({ item }) => (
+            <MessageBubble
+              message={item}
+              retryLabel={t("common.retry")}
+              errorLabel={t("chat.errors.generic")}
+              thinkingLabel={thinkingLabel}
+              onRetry={handleRetry}
             />
-          )
-        }
-        renderItem={({ item }) => (
-          <MessageBubble
-            message={item}
-            retryLabel={t("common.retry")}
-            errorLabel={t("chat.errors.generic")}
-            thinkingLabel={thinkingLabel}
-            onRetry={handleRetry}
-          />
-        )}
-      />
+          )}
+        />
       </BubbleGradientContext.Provider>
 
       <View
@@ -628,12 +778,18 @@ export default function ChatScreen() {
                 />
               </View>
             ) : null}
+            <StagedAttachmentTray
+              images={stagedImages}
+              showMaxNotice={maxNotice}
+              onRemove={handleRemoveStagedImage}
+            />
             <ChatInput
               value={draft}
               onChangeText={setDraft}
               onSend={handleSubmit}
               onCancel={cancelStreaming}
               streaming={status === "streaming"}
+              hasAttachments={stagedImages.length > 0}
               placeholder={t("chat.input.placeholder")}
               sendAccessibilityLabel={t("chat.send")}
               cancelAccessibilityLabel={t("chat.cancel")}
@@ -812,7 +968,7 @@ function ThinkingText({
   );
 }
 
-const STARTER_COUNT = 4;
+const STARTER_COUNT = 3;
 
 // Fisher–Yates pick of n distinct items. Copies first so the source list
 // isn't mutated.
@@ -843,6 +999,25 @@ function EmptyChatState({
     if (!Array.isArray(pool)) return [];
     return pickRandom(pool as string[], STARTER_COUNT);
   }, [t]);
+
+  // Pick a fresh title/subtitle pair each mount. The at-limit state has its
+  // own fixed copy; the normal state draws one of the playful intros at random.
+  const intro = useMemo<{ title: string; subtitle: string }>(() => {
+    if (atLimit) {
+      return {
+        title: t("chat.empty.atTitle"),
+        subtitle: t("chat.empty.atSubtitle"),
+      };
+    }
+    const pool = t("chat.empty.intros", { returnObjects: true });
+    if (!Array.isArray(pool) || pool.length === 0) {
+      return { title: "", subtitle: "" };
+    }
+    return pool[Math.floor(Math.random() * pool.length)] as {
+      title: string;
+      subtitle: string;
+    };
+  }, [t, atLimit]);
 
   // Entrance for the whole empty state. Plays once when this mounts — i.e. the
   // moment the loader clears and Me-Me "wakes up". A soft opacity fade paired
@@ -904,7 +1079,7 @@ function EmptyChatState({
             variant="title-xl"
             style={{ color: theme["--color-foreground"], textAlign: "center" }}
           >
-            {t(atLimit ? "chat.empty.atTitle" : "chat.empty.title")}
+            {intro.title}
           </Typography>
           <Typography
             variant="body"
@@ -914,16 +1089,14 @@ function EmptyChatState({
               maxWidth: 330,
             }}
           >
-            {t(atLimit ? "chat.empty.atSubtitle" : "chat.empty.subtitle")}
+            {intro.subtitle}
           </Typography>
         </View>
 
         {!atLimit ? (
           <View
             style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              justifyContent: "center",
+              width: "100%",
               gap: 10,
               marginTop: 8,
             }}
@@ -993,16 +1166,16 @@ function StarterPrompt({
   };
 
   return (
-    <Animated.View style={[{ width: "47%", maxWidth: 196 }, animatedStyle]}>
+    <Animated.View style={[{ width: "100%" }, animatedStyle]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={text}
         onPress={handlePress}
         style={({ pressed: isPressed }) => ({
-          minHeight: 68,
+          minHeight: 52,
           borderRadius: 16,
-          paddingHorizontal: 13,
-          paddingVertical: 12,
+          paddingHorizontal: 16,
+          paddingVertical: 14,
           justifyContent: "center",
           backgroundColor: isPressed
             ? theme["--color-card-pressed"]
@@ -1396,6 +1569,13 @@ function MessageBubble({
   const messageText =
     errored && message.text.length === 0 ? errorLabel : message.text;
 
+  // A user turn may carry staged/persisted Klipy memes. Render the images, and
+  // only render the text bubble when there's actual text (or the streaming
+  // "thinking" placeholder) — so an image-only turn shows just the image.
+  const messageImages = message.images ?? [];
+  const hasImages = messageImages.length > 0;
+  const hasTextBubble = message.thinking === true || messageText.length > 0;
+
   const messageColor = mine
     ? theme["--color-primary-foreground"]
     : errored
@@ -1425,7 +1605,7 @@ function MessageBubble({
         },
         paragraph: {
           marginTop: 0,
-          marginBottom: 0,
+          marginBottom: 8,
         },
         strong: {
           color: messageColor,
@@ -1780,66 +1960,98 @@ function MessageBubble({
           </View>
         ) : null}
 
-        <Pressable
-          ref={bubbleRef}
-          onLayout={useGradient ? remeasureGradient : undefined}
-          accessibilityRole="button"
-          accessibilityLabel={
-            timestampLabel ? `${messageText}. ${timestampLabel}` : messageText
-          }
-          onLongPress={() => {
-            if (timestampLabel) setShowTimestamp((current) => !current);
-          }}
-          onPress={() => {
-            if (showTimestamp) setShowTimestamp(false);
-          }}
-          delayLongPress={260}
-          style={({ pressed }) => ({
+        <View
+          style={{
+            flexShrink: 1,
             maxWidth: "100%",
-            borderRadius: BUBBLE_RADIUS,
-            ...cornerStyle,
-            paddingHorizontal: 14,
-            paddingVertical: 10,
-            overflow: "hidden",
-            backgroundColor: bubbleBg,
-            opacity: pressed && timestampLabel ? 0.88 : 1,
-          })}
+            alignItems: mine ? "flex-end" : "flex-start",
+            gap: 6,
+          }}
         >
-          {useGradient ? (
-            // One screen-tall gradient, slid so the slice behind this bubble
-            // matches its place on the page. `overflow: hidden` on the
-            // Pressable masks it to the bubble shape.
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                {
-                  position: "absolute",
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  height: windowHeight,
-                },
-                pageGradientStyle,
-              ]}
-            >
-              <LinearGradient
-                colors={primaryGradient.colors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0, y: 1 }}
-                style={{ width: "100%", height: windowHeight }}
-              />
-            </Animated.View>
-          ) : null}
-          {thinking ? (
-            <ThinkingText
-              label={thinkingLabel}
-              baseColor={theme["--color-foreground-muted"]}
-              gradient={primaryGradient.colors}
+          {hasImages ? (
+            <MessageImageAttachments
+              images={messageImages}
+              align={mine ? "end" : "start"}
+              imageLabel={t("chat.attachments.imageLabel")}
             />
-          ) : (
-            <Markdown style={markdownStyles}>{messageText}</Markdown>
-          )}
-        </Pressable>
+          ) : null}
+
+          {hasTextBubble ? (
+            <Pressable
+              ref={bubbleRef}
+              onLayout={useGradient ? remeasureGradient : undefined}
+              accessibilityRole="button"
+              accessibilityLabel={
+                timestampLabel
+                  ? `${messageText}. ${timestampLabel}`
+                  : messageText
+              }
+              onLongPress={() => {
+                if (timestampLabel) setShowTimestamp((current) => !current);
+              }}
+              onPress={() => {
+                if (showTimestamp) setShowTimestamp(false);
+              }}
+              delayLongPress={260}
+              style={({ pressed }) => ({
+                maxWidth: "100%",
+                borderRadius: BUBBLE_RADIUS,
+                ...cornerStyle,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                overflow: "hidden",
+                backgroundColor: bubbleBg,
+                opacity: pressed && timestampLabel ? 0.88 : 1,
+              })}
+            >
+              {useGradient ? (
+                // One screen-tall gradient, slid so the slice behind this bubble
+                // matches its place on the page. `overflow: hidden` on the
+                // Pressable masks it to the bubble shape.
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      top: 0,
+                      height: windowHeight,
+                    },
+                    pageGradientStyle,
+                  ]}
+                >
+                  <LinearGradient
+                    colors={primaryGradient.colors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={{ width: "100%", height: windowHeight }}
+                  />
+                </Animated.View>
+              ) : null}
+              {thinking ? (
+                <ThinkingText
+                  label={thinkingLabel}
+                  baseColor={theme["--color-foreground-muted"]}
+                  gradient={primaryGradient.colors}
+                />
+              ) : shouldRenderMarkdown(messageText) ? (
+                <Markdown style={markdownStyles}>{messageText}</Markdown>
+              ) : (
+                <Typography
+                  variant="body"
+                  style={{
+                    color: messageColor,
+                    fontSize: 17,
+                    lineHeight: 24,
+                  }}
+                >
+                  {messageText}
+                </Typography>
+              )}
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {showTimestamp && timestampLabel ? (

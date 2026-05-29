@@ -75,8 +75,42 @@ const es = {
   chat: {
     title: "Chat",
     empty: {
-      title: "Me-Me esta despierto",
-      subtitle: "Elige una idea o escribe algo. Empieza el lore.",
+      // Pares de título/subtítulo — se elige uno al azar cada vez que aparece
+      // el estado vacío (chat nuevo / carga inicial).
+      intros: [
+        {
+          title: "Me-Me está despierto",
+          subtitle: "di algo. el lore no empieza solo.",
+        },
+        {
+          title: "chat creado",
+          subtitle: "elige una idea o suelta la situación.",
+        },
+        {
+          title: "Me-Me ya entró",
+          subtitle: "dame el lore, el problema o la idea dudosa.",
+        },
+        {
+          title: "el chat está respirando",
+          subtitle: "escribe algo antes de que se ponga a doomscrollear.",
+        },
+        {
+          title: "Me-Me entró al chat",
+          subtitle: "elige una idea o manda lo que esté medio quemado.",
+        },
+        {
+          title: "la cámara de aura está abierta",
+          subtitle: "trae una idea, un borrador, un problema o puro caos.",
+        },
+        {
+          title: "Me-Me está en línea",
+          subtitle: "ideas abajo. lore aleatorio también se acepta.",
+        },
+        {
+          title: "sopa de cerebro va aquí",
+          subtitle: "manda un mensaje y lo dejamos menos hecho un lío.",
+        },
+      ],
       atTitle: "Me-Me se quedó sin meme-power",
       atSubtitle:
         "Has gastado tu cupo por ahora — tu tiempo de renovación y opciones para mejorar están justo abajo.",
@@ -161,6 +195,15 @@ const es = {
       retry: "Reintentar",
       // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
       searchPlaceholder: "Search KLIPY",
+    },
+    attachments: {
+      // Se muestra brevemente al intentar adjuntar un cuarto meme.
+      maxReached: "Puedes adjuntar hasta {{count}} memes",
+      remove: "Quitar meme",
+      imageLabel: "Meme adjunto",
+      // Etiqueta localizada para un mensaje solo con imagen, donde aplique.
+      sentMeme: "Envió un meme",
+      invalid: "No se pudo adjuntar ese meme",
     },
   },
   history: {

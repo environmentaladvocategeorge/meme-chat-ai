@@ -75,8 +75,42 @@ const en = {
   chat: {
     title: "Chat",
     empty: {
-      title: "Me-Me is awake",
-      subtitle: "Pick a starter or type anything. The chat lore begins now.",
+      // Title/subtitle pairs — one is picked at random each time the empty
+      // state mounts (new conversation / fresh load).
+      intros: [
+        {
+          title: "Me-Me is awake",
+          subtitle: "say anything. the lore can’t start itself.",
+        },
+        {
+          title: "chat spawned",
+          subtitle: "pick a starter or drop the situation.",
+        },
+        {
+          title: "Me-Me loaded in",
+          subtitle: "give me the lore, the problem, or the questionable idea.",
+        },
+        {
+          title: "the chat is breathing",
+          subtitle: "type something before it starts doomscrolling.",
+        },
+        {
+          title: "Me-Me has entered the chat",
+          subtitle: "pick a starter or send whatever’s currently cooked.",
+        },
+        {
+          title: "the aura chamber is open",
+          subtitle: "bring a thought, a draft, a problem, or pure chaos.",
+        },
+        {
+          title: "Me-Me is online",
+          subtitle: "starter prompts below. random lore also accepted.",
+        },
+        {
+          title: "brain soup goes here",
+          subtitle: "send a message and we’ll make it less chopped.",
+        },
+      ],
       atTitle: "Me-Me's out of meme-power",
       atSubtitle:
         "You've used up your allowance for now — your reset time and upgrade options are right below.",
@@ -161,6 +195,15 @@ const en = {
       retry: "Retry",
       // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
       searchPlaceholder: "Search KLIPY",
+    },
+    attachments: {
+      // Shown briefly when a user tries to stage a 4th meme.
+      maxReached: "You can attach up to {{count}} memes",
+      remove: "Remove meme",
+      imageLabel: "Meme attachment",
+      // Client-side localized label for an image-only message, where surfaced.
+      sentMeme: "Sent a meme",
+      invalid: "Couldn't attach that meme",
     },
   },
   history: {

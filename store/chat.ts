@@ -1,3 +1,4 @@
+import type { MessageImage } from "@/domain/memes";
 import {
   subscribeToMessages,
   type StoredChatMessage,
@@ -12,6 +13,9 @@ export type ChatMessage = {
   inReplyToClientMessageId?: string;
   role: "user" | "agent";
   text: string;
+  // Image attachments on a user turn (Klipy memes). Empty/absent for agent
+  // turns and text-only user turns.
+  images?: MessageImage[];
   status: "complete" | "streaming" | "error";
   createdAt?: Date | null;
   optimistic?: boolean;
@@ -55,7 +59,7 @@ type ChatState = {
   status: ChatStatus;
   abortController: AbortController | null;
   error: string | null;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, images?: MessageImage[]) => Promise<void>;
   loadConversation: (id: string) => void;
   startNewConversation: () => void;
   cancelStreaming: () => void;
@@ -138,9 +142,12 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   abortController: null,
   error: null,
 
-  sendMessage: async (text) => {
+  sendMessage: async (text, images = []) => {
     const trimmed = text.trim();
-    if (trimmed.length === 0 || get().status === "streaming") return;
+    // Image-only turns are allowed: require text OR at least one attachment.
+    if ((trimmed.length === 0 && images.length === 0) || get().status === "streaming") {
+      return;
+    }
 
     const controller = new AbortController();
     const clientMessageId = createClientMessageId();
@@ -149,6 +156,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       clientMessageId,
       role: "user",
       text: trimmed,
+      images: images.length > 0 ? images : undefined,
       status: "complete",
       createdAt: new Date(),
       optimistic: true,
@@ -169,6 +177,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     try {
       for await (const event of streamAgentAnswer({
         message: trimmed,
+        images,
         conversationId: get().conversationId,
         clientMessageId,
         signal: controller.signal,

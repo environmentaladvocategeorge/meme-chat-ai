@@ -80,6 +80,8 @@ interface ChatInputProps {
   onSend: () => void;
   onCancel: () => void;
   streaming: boolean;
+  // When true, send is enabled even with an empty text draft (image-only turn).
+  hasAttachments?: boolean;
   placeholder?: string;
   sendAccessibilityLabel: string;
   cancelAccessibilityLabel: string;
@@ -93,6 +95,7 @@ export function ChatInput({
   onSend,
   onCancel,
   streaming,
+  hasAttachments = false,
   placeholder,
   sendAccessibilityLabel,
   cancelAccessibilityLabel,
@@ -123,7 +126,8 @@ export function ChatInput({
   const snapPoints = useMemo(() => ["80%"], []);
 
   const hasContent = value.trim().length > 0;
-  const canSend = hasContent && !streaming;
+  // Image-only turns are valid, so attachments alone can enable send.
+  const canSend = (hasContent || hasAttachments) && !streaming;
   const showStop = streaming;
   // +1 tolerance for subpixel jitter so a perfectly-4-line draft doesn't
   // false-positive.
