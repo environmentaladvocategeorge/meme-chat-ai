@@ -13,8 +13,8 @@
 
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
-import type { TrendingMeme } from "@/domain/memes";
 import { LinearGradient } from "expo-linear-gradient";
+import { Image as ExpoImage } from "expo-image";
 import { useColorScheme } from "nativewind";
 import { ArrowClockwise, Gif, MagnifyingGlass, X } from "phosphor-react-native";
 import { useEffect, type ReactNode } from "react";
@@ -53,8 +53,20 @@ type MemeStripLabels = {
   retry: string;
 };
 
-type TrendingMemeStripProps = {
-  memes: TrendingMeme[];
+// Minimal shape the strip needs to render a card. Both TrendingMeme and
+// TrendingGif satisfy it, so the strip powers memes and GIFs alike.
+export type StripMedia = {
+  id: string;
+  slug: string;
+  title: string;
+  url: string;
+  width: number;
+  height: number;
+  blurPreview: string | null;
+};
+
+type TrendingMemeStripProps<T extends StripMedia> = {
+  items: T[];
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
@@ -66,15 +78,18 @@ type TrendingMemeStripProps = {
   onClearSearch: () => void;
   onEndReached?: () => void;
   onRetry?: () => void;
-  onSelectMeme?: (meme: TrendingMeme) => void;
+  onSelectItem?: (item: T) => void;
+  // When true, cards render the animated asset (GIFs) via expo-image instead of
+  // a static still.
+  animated?: boolean;
   labels: MemeStripLabels;
 };
 
-// Scale each meme to a fixed strip height, preserving aspect ratio, clamped to
-// sane bounds so a freak-shaped meme can't blow out the row.
-function cardWidth(meme: TrendingMeme): number {
-  if (!meme.width || !meme.height) return STRIP_HEIGHT;
-  const ratio = meme.width / meme.height;
+// Scale each item to a fixed strip height, preserving aspect ratio, clamped to
+// sane bounds so a freak-shaped item can't blow out the row.
+function cardWidth(item: StripMedia): number {
+  if (!item.width || !item.height) return STRIP_HEIGHT;
+  const ratio = item.width / item.height;
   const w = STRIP_HEIGHT * ratio;
   return Math.max(MIN_CARD_WIDTH, Math.min(MAX_CARD_WIDTH, w));
 }
@@ -184,14 +199,16 @@ function CardWatermark() {
   );
 }
 
-function MemeCard({
+function MemeCard<T extends StripMedia>({
   meme,
   index,
+  animated,
   onSelect,
 }: {
-  meme: TrendingMeme;
+  meme: T;
   index: number;
-  onSelect?: (meme: TrendingMeme) => void;
+  animated?: boolean;
+  onSelect?: (meme: T) => void;
 }) {
   const theme = useTheme();
   const width = cardWidth(meme);
@@ -231,16 +248,27 @@ function MemeCard({
           opacity: pressed ? 0.82 : 1,
         })}
       >
-        <Image
-          // blurPreview is a tiny inline base64 placeholder shown while the CDN
-          // asset streams in.
-          source={{ uri: meme.url }}
-          defaultSource={
-            meme.blurPreview ? { uri: meme.blurPreview } : undefined
-          }
-          resizeMode="cover"
-          style={{ width: "100%", height: "100%" }}
-        />
+        {animated ? (
+          // GIFs: expo-image plays animated webp/gif and shows the tiny base64
+          // placeholder while the CDN asset streams in.
+          <ExpoImage
+            source={{ uri: meme.url }}
+            placeholder={meme.blurPreview ? { uri: meme.blurPreview } : undefined}
+            contentFit="cover"
+            style={{ width: "100%", height: "100%" }}
+          />
+        ) : (
+          <Image
+            // blurPreview is a tiny inline base64 placeholder shown while the
+            // CDN asset streams in.
+            source={{ uri: meme.url }}
+            defaultSource={
+              meme.blurPreview ? { uri: meme.blurPreview } : undefined
+            }
+            resizeMode="cover"
+            style={{ width: "100%", height: "100%" }}
+          />
+        )}
         <CardWatermark />
       </Pressable>
     </Animated.View>
@@ -311,8 +339,8 @@ function SearchBox({
   );
 }
 
-export function TrendingMemeStrip({
-  memes,
+export function TrendingMemeStrip<T extends StripMedia>({
+  items,
   loading,
   loadingMore,
   error,
@@ -324,9 +352,10 @@ export function TrendingMemeStrip({
   onClearSearch,
   onEndReached,
   onRetry,
-  onSelectMeme,
+  onSelectItem,
+  animated,
   labels,
-}: TrendingMemeStripProps) {
+}: TrendingMemeStripProps<T>) {
   const theme = useTheme();
 
   const centered = {
@@ -341,7 +370,7 @@ export function TrendingMemeStrip({
     // Fresh load (initial open or a new query) → shimmer skeletons. This also
     // gives searching a clean "swap" instead of stale results hanging around.
     body = <SkeletonRow />;
-  } else if (error && memes.length === 0) {
+  } else if (error && items.length === 0) {
     body = (
       <View style={[centered, { flexDirection: "row", gap: 10 }]}>
         <Typography
@@ -382,7 +411,7 @@ export function TrendingMemeStrip({
         ) : null}
       </View>
     );
-  } else if (memes.length === 0) {
+  } else if (items.length === 0) {
     body = (
       <View style={[centered, { flexDirection: "row", gap: 8 }]}>
         <Gif size={18} color={theme["--color-foreground-muted"]} />
@@ -398,15 +427,20 @@ export function TrendingMemeStrip({
     body = (
       <FlatList
         horizontal
-        data={memes}
-        keyExtractor={(meme) => meme.id}
+        data={items}
+        keyExtractor={(item) => item.id}
         showsHorizontalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         // Keep mounted cards alive so their entrance doesn't replay on scroll.
         removeClippedSubviews={false}
         contentContainerStyle={{ gap: CARD_GAP, paddingHorizontal: 2 }}
         renderItem={({ item, index }) => (
-          <MemeCard meme={item} index={index} onSelect={onSelectMeme} />
+          <MemeCard
+            meme={item}
+            index={index}
+            animated={animated}
+            onSelect={onSelectItem}
+          />
         )}
         onEndReached={hasNext ? onEndReached : undefined}
         onEndReachedThreshold={0.5}

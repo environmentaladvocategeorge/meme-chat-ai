@@ -11,6 +11,7 @@ type EntitlementState = {
   entitlement: Entitlement | null;
   uid: string | null;
   bindUid: (uid: string | null) => void;
+  rebind: () => void;
 };
 
 // Display plan — the single source of truth for everything the user SEES
@@ -57,5 +58,23 @@ export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
         set({ entitlement });
       });
     }
+  },
+
+  // Re-attach the profiles/{uid} listener for the currently-bound uid. The
+  // initial listener is attached at sign-in, but a brand-new account's token
+  // still carries email_verified=false, so the Firestore rule denies the read
+  // and the snapshot dies on permission-denied. onAuthStateChanged does NOT
+  // refire on a token refresh, so once the user verifies their email there is
+  // nothing to re-establish the (now-permitted) listener — leaving the chat
+  // stuck on the loader. refreshEmailVerified calls this after the verified
+  // token lands so the snapshot re-attaches and the entitlement finally arrives.
+  rebind: () => {
+    const { uid } = get();
+    if (!uid) return;
+
+    unsubscribe?.();
+    unsubscribe = subscribeToEntitlement(uid, (entitlement) => {
+      set({ entitlement });
+    });
   },
 }));

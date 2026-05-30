@@ -1,12 +1,11 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS, type PlanId } from "../billing/plans";
+import { PLANS, computeDailyCap, type PlanId } from "../billing/plans";
 import {
   REVENUECAT_PRODUCT_TO_PLAN,
   isKnownRcProduct,
 } from "../billing/revenuecat";
 import {
-  DAILY_WINDOW_MS,
-  MONTHLY_WINDOW_MS,
+  planActivationFields,
   type ProfileBilling,
 } from "../entitlement/schema";
 import type { RcEvent } from "./types";
@@ -34,13 +33,12 @@ export function handleRcEvent(
         return { kind: "skip", reason: "unknown-product" };
       }
       const plan: PlanId = REVENUECAT_PRODUCT_TO_PLAN[productId];
-      const planCfg = PLANS[plan];
 
       // Upgrade-immediate semantics: hand the user the full new monthly
-      // budget right now, reset the rolling window anchor, and zero any
-      // advanced spend so the new cap is fully available. Per the exec
-      // summary, downgrades take effect through RC's natural cycle —
-      // PRODUCT_CHANGE fires before the next RENEWAL.
+      // budget AND the new daily cap right now, reset the rolling window
+      // anchors, and zero any daily spend so the new caps are fully available.
+      // Per the exec summary, downgrades take effect through RC's natural
+      // cycle — PRODUCT_CHANGE fires before the next RENEWAL.
       const next: Partial<ProfileBilling> = {
         plan,
         planSource: "revenuecat",
@@ -50,10 +48,7 @@ export function handleRcEvent(
           typeof event.expiration_at_ms === "number"
             ? Timestamp.fromMillis(event.expiration_at_ms)
             : null,
-        creditsRemaining: planCfg.monthlyCredits,
-        creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
-        dailyCreditsUsed: 0,
-        dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
+        ...planActivationFields(plan, now),
       };
       return { kind: "apply", next };
     }
@@ -62,12 +57,15 @@ export function handleRcEvent(
     case "CANCELLATION": {
       // Drop to free immediately on expiration. Per spec: do NOT zero
       // remaining credits — the user paid for the cycle, let them spend
-      // what's left until the next monthly reset.
+      // what's left until the next monthly reset. The displayed/ enforced caps
+      // do move to free now (the daily gate already computes off the free plan).
       const next: Partial<ProfileBilling> = {
         plan: "free",
         planSource: "revenuecat",
         rcActiveProductId: null,
         rcEntitlementExpiresAt: null,
+        monthlyCredits: PLANS.free.monthlyCredits,
+        softDailyCredits: computeDailyCap(PLANS.free.monthlyCredits, now),
       };
       return { kind: "apply", next };
     }

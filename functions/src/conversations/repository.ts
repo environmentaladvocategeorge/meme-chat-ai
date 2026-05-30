@@ -4,6 +4,7 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 import type { ChatMessage, ChatRole } from "../agent/types";
+import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
 
 type MessageStatus = "complete" | "streaming" | "error";
@@ -13,6 +14,7 @@ type StoredMessage = {
   text?: string;
   status?: MessageStatus;
   images?: MessageImage[];
+  gifs?: MessageGif[];
 };
 
 // Title shown for image-only conversations (no first-message text for the
@@ -36,10 +38,15 @@ function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
 
   const text = typeof data.text === "string" ? data.text : "";
   const images = Array.isArray(data.images) ? data.images : undefined;
+  const gifs = Array.isArray(data.gifs) ? data.gifs : undefined;
   const hasImages = Boolean(images && images.length > 0);
-  if (text.length === 0 && !hasImages) return null;
+  const hasGifs = Boolean(gifs && gifs.length > 0);
+  if (text.length === 0 && !hasImages && !hasGifs) return null;
 
-  return hasImages ? { role: data.role, text, images } : { role: data.role, text };
+  const message: ChatMessage = { role: data.role, text };
+  if (hasImages) message.images = images;
+  if (hasGifs) message.gifs = gifs;
+  return message;
 }
 
 export async function createConversation(
@@ -98,6 +105,7 @@ export async function appendMessage(
     inReplyToClientMessageId?: string;
     persona?: MessagePersonaMetadata;
     images?: MessageImage[];
+    gifs?: MessageGif[];
     // Brainrot intensity selected for this turn (1–3). Stored as-is on the
     // message; nothing downstream consumes it yet.
     levelOfRot?: number;
@@ -111,6 +119,7 @@ export async function appendMessage(
     .doc();
 
   const hasImages = Boolean(message.images && message.images.length > 0);
+  const hasGifs = Boolean(message.gifs && message.gifs.length > 0);
 
   const messageData: Record<string, unknown> = {
     role: message.role,
@@ -122,6 +131,10 @@ export async function appendMessage(
 
   if (hasImages) {
     messageData.images = message.images;
+  }
+
+  if (hasGifs) {
+    messageData.gifs = message.gifs;
   }
 
   if (typeof message.levelOfRot === "number") {
@@ -154,9 +167,10 @@ export async function appendMessage(
 
   if (message.text.length > 0) {
     conversationUpdate.lastMessagePreview = message.text.slice(0, 160);
-  } else if (hasImages) {
-    // Image-only turn: keep the list preview non-blank. The client renders the
-    // thumbnail itself; this is just the fallback label for the history list.
+  } else if (hasImages || hasGifs) {
+    // Attachment-only turn: keep the list preview non-blank. The client renders
+    // the thumbnail itself; this is just the fallback label for the history
+    // list.
     conversationUpdate.lastMessagePreview = IMAGE_ONLY_TITLE_FALLBACK;
   }
 
@@ -172,6 +186,9 @@ export async function finalizeAgentMessage(
   // Image attachments the agent chose for this turn (e.g. a get_meme result).
   // Omitted for plain text replies.
   images?: MessageImage[],
+  // GIF attachment the agent chose for this turn (a get_gif result). Omitted
+  // for plain text replies.
+  gifs?: MessageGif[],
 ): Promise<void> {
   const db = getFirestore();
 
@@ -183,6 +200,9 @@ export async function finalizeAgentMessage(
   if (images && images.length > 0) {
     messageUpdate.images = images;
   }
+  if (gifs && gifs.length > 0) {
+    messageUpdate.gifs = gifs;
+  }
 
   await db
     .collection("conversations")
@@ -191,11 +211,16 @@ export async function finalizeAgentMessage(
     .doc(messageId)
     .update(messageUpdate);
 
-  const hasImages = Boolean(images && images.length > 0);
+  const hasAttachment =
+    Boolean(images && images.length > 0) || Boolean(gifs && gifs.length > 0);
   await db.collection("conversations").doc(conversationId).update({
     updatedAt: FieldValue.serverTimestamp(),
     lastMessagePreview:
-      finalText.length > 0 ? finalText.slice(0, 160) : hasImages ? "Sent a meme" : "",
+      finalText.length > 0
+        ? finalText.slice(0, 160)
+        : hasAttachment
+          ? "Sent a meme"
+          : "",
   });
 }
 

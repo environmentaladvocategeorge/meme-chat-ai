@@ -10,8 +10,8 @@ jest.mock("firebase-admin/firestore", () => ({
 
 import { getFirestore } from "firebase-admin/firestore";
 import {
+  BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
   DEFAULT_PERSONA_ID,
-  ME_ME_PERSONA_PROMPT_FALLBACK,
   PLATFORM_GUARDRAILS_FALLBACK,
 } from "../content";
 import { buildSystemPromptForStream } from "../prompts";
@@ -70,14 +70,14 @@ function makeQuery(collections: Collections, name: string) {
 function persona(id: string, overrides: Partial<Doc> = {}): Doc {
   return {
     id,
-    name: id === DEFAULT_PERSONA_ID ? "Me-Me" : "Other",
+    name: id === DEFAULT_PERSONA_ID ? "Brainrot Bot" : "Other",
     slug: id,
     description: "Persona description",
     isDefault: id === DEFAULT_PERSONA_ID,
     isEnabled: true,
     addedBy: "test",
     publicConfig: {
-      displayName: id === DEFAULT_PERSONA_ID ? "Me-Me" : "Other",
+      displayName: id === DEFAULT_PERSONA_ID ? "Brainrot Bot" : "Other",
       shortDescription: "Short",
       avatarKey: id,
       toneTags: ["test"],
@@ -123,12 +123,12 @@ describe("persona prompt resolution", () => {
     jest.clearAllMocks();
   });
 
-  it("uses Me-Me default when no personaId is provided", async () => {
+  it("uses Brainrot Bot default when no personaId is provided", async () => {
     setDb({
       platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
       persona_prompts: {
-        me_me_default_v1: personaPrompt("me_me_default_v1", DEFAULT_PERSONA_ID, "ME-ME"),
+        brainrot_bot_default_v1: personaPrompt("brainrot_bot_default_v1", DEFAULT_PERSONA_ID, "BRAINROT"),
       },
     });
 
@@ -139,7 +139,7 @@ describe("persona prompt resolution", () => {
     // rot-level block (level 2 by default, appended when the persona prompt
     // has no {{ROT_LEVEL_BLOCK}} placeholder).
     expect(result.systemPrompt).toContain(
-      "PLATFORM\n\nActive persona prompt:\nME-ME",
+      "PLATFORM\n\nActive persona prompt:\nBRAINROT",
     );
     expect(result.systemPrompt).toContain("ROT LEVEL: 2 of 3 — ROTTED");
   });
@@ -153,7 +153,7 @@ describe("persona prompt resolution", () => {
       },
       persona_prompts: {
         other_v1: personaPrompt("other_v1", "other", "OTHER"),
-        me_me_default_v1: personaPrompt("me_me_default_v1", DEFAULT_PERSONA_ID, "ME-ME"),
+        brainrot_bot_default_v1: personaPrompt("brainrot_bot_default_v1", DEFAULT_PERSONA_ID, "BRAINROT"),
       },
     });
 
@@ -168,14 +168,14 @@ describe("persona prompt resolution", () => {
       platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
       persona_prompts: {
-        me_me_default_v1: personaPrompt("me_me_default_v1", DEFAULT_PERSONA_ID, "ME-ME"),
+        brainrot_bot_default_v1: personaPrompt("brainrot_bot_default_v1", DEFAULT_PERSONA_ID, "BRAINROT"),
       },
     });
 
     const result = await buildSystemPromptForStream("missing");
 
     expect(result.persona.id).toBe(DEFAULT_PERSONA_ID);
-    expect(result.systemPrompt).toContain("ME-ME");
+    expect(result.systemPrompt).toContain("BRAINROT");
   });
 
   it("falls back to default for a disabled personaId", async () => {
@@ -187,7 +187,7 @@ describe("persona prompt resolution", () => {
       },
       persona_prompts: {
         disabled_v1: personaPrompt("disabled_v1", "disabled", "DISABLED"),
-        me_me_default_v1: personaPrompt("me_me_default_v1", DEFAULT_PERSONA_ID, "ME-ME"),
+        brainrot_bot_default_v1: personaPrompt("brainrot_bot_default_v1", DEFAULT_PERSONA_ID, "BRAINROT"),
       },
     });
 
@@ -202,7 +202,7 @@ describe("persona prompt resolution", () => {
       platform_prompts: {},
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
       persona_prompts: {
-        me_me_default_v1: personaPrompt("me_me_default_v1", DEFAULT_PERSONA_ID, "ME-ME"),
+        brainrot_bot_default_v1: personaPrompt("brainrot_bot_default_v1", DEFAULT_PERSONA_ID, "BRAINROT"),
       },
     });
 
@@ -220,7 +220,7 @@ describe("persona prompt resolution", () => {
 
     const result = await buildSystemPromptForStream();
 
-    expect(result.systemPrompt).toContain(ME_ME_PERSONA_PROMPT_FALLBACK);
+    expect(result.systemPrompt).toContain(BRAINROT_BOT_PERSONA_PROMPT_FALLBACK);
   });
 
   it("composes platform guardrails before persona prompt", async () => {
@@ -249,8 +249,8 @@ describe("persona prompt resolution", () => {
       platform_prompts: { platform_guardrails_v1: platformPrompt("SECRET PLATFORM") },
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
       persona_prompts: {
-        me_me_default_v1: personaPrompt(
-          "me_me_default_v1",
+        brainrot_bot_default_v1: personaPrompt(
+          "brainrot_bot_default_v1",
           DEFAULT_PERSONA_ID,
           "SECRET PERSONA",
         ),

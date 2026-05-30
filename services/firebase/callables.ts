@@ -4,6 +4,7 @@ import {
   type ContentFilter,
   type TrendingMemesResult,
 } from "@/domain/memes";
+import { type TrendingGifsResult } from "@/domain/gifs";
 import { getFirebaseServices } from "./app";
 
 export async function deleteMyAccountCallable(): Promise<{ success: true }> {
@@ -53,6 +54,38 @@ export async function syncRevenueCatPlanCallable(args: {
     { activeProductId: string | null },
     { plan: PlanId }
   >(firebase.services.functions, "syncRevenueCatPlan");
+  const result = await callable(args);
+  return result.data;
+}
+
+// Persists onboarding personalization to profiles/{uid} (Admin SDK, server-
+// side — client writes to profiles are blocked by firestore.rules) and stamps
+// the profile complete. Best-effort: callers should not block onboarding on a
+// failure here, since the local copy + onboarding flag already advance the user.
+export async function updateProfileCallable(args: {
+  alias?: string;
+  displayName?: string;
+  onboardingCompleted?: boolean;
+}): Promise<{
+  success: true;
+  alias: string | null;
+  displayName: string | null;
+  onboardingCompleted: boolean;
+}> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    { alias?: string; displayName?: string; onboardingCompleted?: boolean },
+    {
+      success: true;
+      alias: string | null;
+      displayName: string | null;
+      onboardingCompleted: boolean;
+    }
+  >(firebase.services.functions, "updateProfile");
   const result = await callable(args);
   return result.data;
 }
@@ -130,5 +163,68 @@ export async function searchMemesCallable(
     "searchMemes",
   );
   const result = await callable(params);
+  return result.data;
+}
+
+export type TrendingGifsParams = TrendingMemesParams;
+export type SearchGifsParams = SearchMemesParams;
+
+// Fetches a page of trending GIFs from Klipy via the backend. Mirrors
+// getTrendingMemesCallable; the backend holds the (shared) app key.
+export async function getTrendingGifsCallable(
+  params: TrendingGifsParams = {},
+): Promise<TrendingGifsResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<TrendingGifsParams, TrendingGifsResult>(
+    firebase.services.functions,
+    "getTrendingGifs",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+// Searches Klipy GIFs by keyword via the backend.
+export async function searchGifsCallable(
+  params: SearchGifsParams,
+): Promise<TrendingGifsResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<SearchGifsParams, TrendingGifsResult>(
+    firebase.services.functions,
+    "searchGifs",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+export type WatermarkResult = {
+  // Base64-encoded PNG (KLIPY watermark composited) to decode + save.
+  dataBase64: string;
+  mimeType: "image/png";
+};
+
+// Returns a watermarked PNG (base64) for a KLIPY asset url, so a downloaded
+// chat attachment carries the required KLIPY attribution. GIFs pass their still
+// poster url — downloads are a static watermarked frame by design.
+export async function watermarkAttachmentCallable(
+  url: string,
+): Promise<WatermarkResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<{ url: string }, WatermarkResult>(
+    firebase.services.functions,
+    "watermarkAttachment",
+  );
+  const result = await callable({ url });
   return result.data;
 }

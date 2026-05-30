@@ -7,7 +7,7 @@
 import type { MessageImage } from "@/domain/memes";
 import { useTheme } from "@/hooks/useTheme";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
 
 // 376×103 source wordmark — same asset the meme strip uses.
 const KLIPY_LOGO = require("../assets/images/klipy-logo-light.png");
@@ -70,10 +70,13 @@ export function MessageImageAttachments({
   images,
   align,
   imageLabel,
+  onPressImage,
 }: {
   images: MessageImage[];
   align: "start" | "end";
   imageLabel: string;
+  // Tapping an attachment opens it full-screen (chat thread only).
+  onPressImage?: (image: MessageImage) => void;
 }) {
   const theme = useTheme();
   if (images.length === 0) return null;
@@ -85,11 +88,12 @@ export function MessageImageAttachments({
       {images.map((image) => {
         const { width, height } = displaySize(image);
         return (
-          <View
+          <Pressable
             key={image.id}
-            accessibilityRole="image"
+            accessibilityRole={onPressImage ? "imagebutton" : "image"}
             accessibilityLabel={image.attribution ? `${imageLabel}. ${image.attribution}` : imageLabel}
-            style={{
+            onPress={onPressImage ? () => onPressImage(image) : undefined}
+            style={({ pressed }) => ({
               width,
               height,
               borderRadius: RADIUS,
@@ -97,7 +101,8 @@ export function MessageImageAttachments({
               backgroundColor: theme["--color-card-muted"],
               borderWidth: 1,
               borderColor: theme["--color-border"],
-            }}
+              opacity: pressed && onPressImage ? 0.9 : 1,
+            })}
           >
             <Image
               source={{ uri: image.url }}
@@ -105,7 +110,7 @@ export function MessageImageAttachments({
               style={{ width: "100%", height: "100%" }}
             />
             {image.source === "klipy" ? <Watermark /> : null}
-          </View>
+          </Pressable>
         );
       })}
     </View>

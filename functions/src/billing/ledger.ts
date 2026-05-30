@@ -1,7 +1,7 @@
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { type ModelId } from "./models";
-import { PLANS, type PlanId } from "./plans";
+import { PLANS, computeDailyCap, type PlanId } from "./plans";
 import { computeResets } from "../entitlement/reset";
 import {
   initialBilling,
@@ -39,11 +39,16 @@ export type QuotaEvalResult =
 export function evaluateQuota(input: {
   state: ProfileBilling;
   plan: PlanId;
+  now?: Date;
 }): QuotaEvalResult {
   const { state, plan } = input;
   const planCfg = PLANS[plan];
 
-  if (state.dailyCreditsUsed >= planCfg.softDailyCredits) {
+  // Compute the daily cap live from the plan + current month rather than
+  // trusting the stored softDailyCredits — this is the authoritative gate, so
+  // it always reflects the user's current plan even mid-day after an upgrade.
+  const dailyCap = computeDailyCap(planCfg.monthlyCredits, input.now ?? new Date());
+  if (state.dailyCreditsUsed >= dailyCap) {
     return { ok: false, reason: "daily", resetAt: state.dailyResetAt.toDate() };
   }
   if (state.creditsRemaining <= 0) {

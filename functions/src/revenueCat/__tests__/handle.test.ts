@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS } from "../../billing/plans";
+import { PLANS, computeDailyCap } from "../../billing/plans";
 import {
   DAILY_WINDOW_MS,
   MONTHLY_WINDOW_MS,
@@ -18,6 +18,8 @@ function billing(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcAppUserId: null,
     rcActiveProductId: null,
     rcEntitlementExpiresAt: null,
+    monthlyCredits: PLANS.free.monthlyCredits,
+    softDailyCredits: computeDailyCap(PLANS.free.monthlyCredits, NOW),
     creditsRemaining: PLANS.free.monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(T0 + MONTHLY_WINDOW_MS),
     dailyCreditsUsed: 0,
@@ -62,6 +64,16 @@ describe("handleRcEvent", () => {
     if (d.kind === "apply") {
       expect(d.next.plan).toBe("power");
       expect(d.next.creditsRemaining).toBe(PLANS.power.monthlyCredits);
+      // The daily cap must rise with the upgrade — this is the core bug fix.
+      expect(d.next.monthlyCredits).toBe(PLANS.power.monthlyCredits);
+      expect(d.next.softDailyCredits).toBe(
+        computeDailyCap(PLANS.power.monthlyCredits, NOW),
+      );
+      // ...and it must be strictly higher than the basic tier it replaced.
+      expect(d.next.monthlyCredits!).toBeGreaterThan(PLANS.basic.monthlyCredits);
+      expect(d.next.softDailyCredits!).toBeGreaterThan(
+        computeDailyCap(PLANS.basic.monthlyCredits, NOW),
+      );
     }
   });
 

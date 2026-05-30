@@ -1,3 +1,4 @@
+import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
 
 export type ChatRole = "user" | "agent";
@@ -9,6 +10,10 @@ export type ChatMessage = {
   // messages that carried memes; used to collapse them to cheap text
   // placeholders during context assembly (never re-sent as images).
   images?: MessageImage[];
+  // GIF attachment on a user turn (max one). On the current turn it's decoded
+  // into sampled frames for the model; historical turns collapse to a text
+  // placeholder, same as images.
+  gifs?: MessageGif[];
 };
 
 export type AgentUsage = {
@@ -24,6 +29,9 @@ export type AgentDelta =
   // mid-stream, so the orchestrator can persist it on the agent turn and emit
   // it to the client.
   | { type: "meme"; image: MessageImage }
+  // A GIF attachment the agent chose via the get_gif tool. Surfaced once,
+  // mid-stream, like a meme.
+  | { type: "gif"; gif: MessageGif }
   | { type: "usage"; usage: AgentUsage }
   | { type: "done" }
   | { type: "error"; message: string };

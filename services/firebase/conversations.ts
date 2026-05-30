@@ -11,6 +11,7 @@ import {
   type Query,
   type Unsubscribe,
 } from "firebase/firestore";
+import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
 
@@ -53,6 +54,37 @@ function mapImages(value: unknown): MessageImage[] | undefined {
   return images.length > 0 ? images : undefined;
 }
 
+// Defensive read-back of persisted GIF attachments. Mirrors mapImages.
+function mapGifs(value: unknown): MessageGif[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const gifs = value.flatMap((raw): MessageGif[] => {
+    if (!raw || typeof raw !== "object") return [];
+    const data = raw as Record<string, unknown>;
+    if (
+      data.source !== "klipy-gif" ||
+      typeof data.id !== "string" ||
+      typeof data.url !== "string" ||
+      typeof data.previewUrl !== "string" ||
+      typeof data.frameSourceUrl !== "string"
+    ) {
+      return [];
+    }
+    const gif: MessageGif = {
+      id: data.id,
+      source: "klipy-gif",
+      url: data.url,
+      previewUrl: data.previewUrl,
+      frameSourceUrl: data.frameSourceUrl,
+    };
+    if (typeof data.width === "number") gif.width = data.width;
+    if (typeof data.height === "number") gif.height = data.height;
+    if (typeof data.attribution === "string") gif.attribution = data.attribution;
+    if (typeof data.gifId === "string") gif.gifId = data.gifId;
+    return [gif];
+  });
+  return gifs.length > 0 ? gifs : undefined;
+}
+
 // A snapshot listener fires `permission-denied` when its query stops being
 // readable while still attached — most commonly in the brief window during
 // account deletion (the auth user is removed server-side first) or on sign-out
@@ -78,6 +110,7 @@ export type StoredChatMessage = {
   role: "user" | "agent";
   text: string;
   images?: MessageImage[];
+  gifs?: MessageGif[];
   reaction?: "up" | "down";
   // Brainrot intensity stored on a user turn (1–3).
   levelOfRot?: number;
@@ -138,9 +171,10 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
 
   const text = typeof data.text === "string" ? data.text : "";
   const images = mapImages(data.images);
-  // Drop only empty *streaming* placeholders; an image-only complete message
-  // legitimately has empty text but real attachments.
-  if (status === "streaming" && text.length === 0 && !images) return null;
+  const gifs = mapGifs(data.gifs);
+  // Drop only empty *streaming* placeholders; an attachment-only complete
+  // message legitimately has empty text but real attachments.
+  if (status === "streaming" && text.length === 0 && !images && !gifs) return null;
   const persona =
     data.persona &&
     typeof data.persona === "object" &&
@@ -169,6 +203,7 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
     role,
     text,
     images,
+    gifs,
     reaction,
     levelOfRot,
     status,

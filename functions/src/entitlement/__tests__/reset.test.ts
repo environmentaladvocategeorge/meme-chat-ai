@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS } from "../../billing/plans";
+import { PLANS, computeDailyCap } from "../../billing/plans";
 import { computeResets } from "../reset";
 import {
   DAILY_WINDOW_MS,
@@ -16,6 +16,8 @@ function makeBilling(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcAppUserId: "uid-1",
     rcActiveProductId: "monthly",
     rcEntitlementExpiresAt: null,
+    monthlyCredits: PLANS.basic.monthlyCredits,
+    softDailyCredits: computeDailyCap(PLANS.basic.monthlyCredits, new Date(T0)),
     creditsRemaining: 5,
     creditsResetAt: Timestamp.fromMillis(T0 + MONTHLY_WINDOW_MS),
     dailyCreditsUsed: 7,
@@ -56,7 +58,7 @@ describe("computeResets", () => {
     expect(next.creditsResetAt.toMillis()).toBeGreaterThan(T0);
   });
 
-  it("daily reset zeros dailyCreditsUsed and advances anchor", () => {
+  it("daily reset zeros dailyCreditsUsed, advances anchor, and refreshes the cap", () => {
     const state = makeBilling({
       dailyCreditsUsed: 88,
       dailyResetAt: Timestamp.fromMillis(T0 - 1),
@@ -65,6 +67,9 @@ describe("computeResets", () => {
     expect(dailyReset).toBe(true);
     expect(next.dailyCreditsUsed).toBe(0);
     expect(next.dailyResetAt.toMillis()).toBeGreaterThan(T0);
+    expect(next.softDailyCredits).toBe(
+      computeDailyCap(PLANS.basic.monthlyCredits, new Date(T0)),
+    );
   });
 
   it("both windows can reset in a single pass", () => {

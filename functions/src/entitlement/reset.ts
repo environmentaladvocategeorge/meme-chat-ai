@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS } from "../billing/plans";
+import { PLANS, computeDailyCap } from "../billing/plans";
 import {
   DAILY_WINDOW_MS,
   MONTHLY_WINDOW_MS,
@@ -37,6 +37,7 @@ export function computeResets(state: ProfileBilling, nowMs: number): ResetDecisi
     while (resetMs <= nowMs) resetMs += MONTHLY_WINDOW_MS;
     next = {
       ...next,
+      monthlyCredits: planCfg.monthlyCredits,
       creditsRemaining: planCfg.monthlyCredits,
       creditsResetAt: Timestamp.fromMillis(resetMs),
     };
@@ -48,6 +49,9 @@ export function computeResets(state: ProfileBilling, nowMs: number): ResetDecisi
     while (resetMs <= nowMs) resetMs += DAILY_WINDOW_MS;
     next = {
       ...next,
+      // Refresh the stored daily cap each day so it tracks the current month's
+      // length (28–31 days) and any plan change since the last reset.
+      softDailyCredits: computeDailyCap(PLANS[next.plan].monthlyCredits, new Date(nowMs)),
       dailyCreditsUsed: 0,
       dailyResetAt: Timestamp.fromMillis(resetMs),
     };

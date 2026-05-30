@@ -16,7 +16,10 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleLocalizations": ["en", "es"],
+        "CFBundleLocalizations": [
+          "en",
+          "es"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -50,11 +53,28 @@
           }
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Allow Meme Chat AI to save memes and GIFs you download to your photo library.",
+          "photosPermission": "Allow Meme Chat AI to save memes and GIFs you download to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "locales": {
-      "en": { "ios": { "CFBundleDisplayName": "Meme Chat AI" } },
-      "es": { "ios": { "CFBundleDisplayName": "Meme Chat AI" } }
+      "en": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "es": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      }
     },
     "experiments": {
       "typedRoutes": true,

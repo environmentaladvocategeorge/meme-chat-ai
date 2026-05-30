@@ -1,5 +1,5 @@
 import { getFirestore } from "firebase-admin/firestore";
-import { PLANS } from "../billing/plans";
+import { PLANS, computeDailyCap } from "../billing/plans";
 import { computeResets } from "./reset";
 import { initialBilling, readProfileBilling, type ProfileBilling } from "./schema";
 
@@ -34,13 +34,24 @@ export async function loadEntitlement(uid: string): Promise<Entitlement> {
       return billing;
     }
 
-    const existing = readProfileBilling(snap.data());
+    const data = snap.data();
+    const existing = readProfileBilling(data);
     if (!existing) {
       // Legacy profile: has identity fields but no billing fields yet.
       billing = initialBilling(now);
       needsWrite = true;
     } else {
       billing = existing;
+      // Docs written before the caps were denormalized lack these fields.
+      // readProfileBilling backfills them in-memory; persist that backfill so
+      // the client mirror (which reads the raw doc) shows the correct caps
+      // instead of falling back to free-tier numbers.
+      if (
+        typeof data?.monthlyCredits !== "number" ||
+        typeof data?.softDailyCredits !== "number"
+      ) {
+        needsWrite = true;
+      }
     }
 
     const { monthlyReset, dailyReset, next } = computeResets(billing, now.getTime());
@@ -58,7 +69,9 @@ export async function loadEntitlement(uid: string): Promise<Entitlement> {
   const planCfg = PLANS[result.plan];
   return {
     ...result,
-    softDailyCredits: planCfg.softDailyCredits,
+    // Resolve the caps live off the plan so routing always sees the current
+    // tier's allowance, regardless of what's denormalized on the doc.
+    softDailyCredits: computeDailyCap(planCfg.monthlyCredits, new Date()),
     monthlyCredits: planCfg.monthlyCredits,
     maxInputTokens: planCfg.maxInputTokens,
     maxOutputTokens: planCfg.maxOutputTokens,

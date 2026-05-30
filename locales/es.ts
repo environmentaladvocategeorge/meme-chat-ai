@@ -10,6 +10,7 @@ const es = {
     delete: "Eliminar",
     back: "Atrás",
     done: "Listo",
+    close: "Cerrar",
     error: "Algo salió mal.",
     reset: {
       soon: "pronto",
@@ -26,13 +27,26 @@ const es = {
   landing: {
     title: "Meme Chat AI",
     subtitle: "Bienvenido — inicia sesión para continuar.",
+    badge: "Meme Chat AI",
+    headlineLine1: "Chatea. Roastea.",
+    headlinePrefix: "Activa el ",
+    headlineHighlight: "Brainrot.",
+    tagline:
+      "La IA que habla tu idioma. Memes, sarcasmo y cero filtro. Vamos a desquiciarnos. 😎",
+    demoUser1: "Oye Brainrot Bot, roastea mi grupo de chat 💀",
+    demoBot:
+      "Bro tu grupo está tan muerto que hasta los bots lo dejaron en visto 😂",
+    demoUser2: "Brutal. Otra vez 🔥",
     signIn: "Iniciar sesión",
     signUp: "Crear una cuenta",
+    signInLong: "Inicia sesión con tu cuenta",
     continueWithApple: "Continuar con Apple",
   },
   auth: {
-    signInTitle: "Iniciar sesión",
+    signInTitle: "Qué bueno verte",
     signUpTitle: "Crea tu cuenta",
+    welcomeBack: "Inicia sesión y vuelve al caos.",
+    signUpSubtitle: "Una cuenta. Roasts sin fin.",
     email: "Correo electrónico",
     password: "Contraseña",
     emailPlaceholder: "tu@ejemplo.com",
@@ -59,11 +73,138 @@ const es = {
       signOut: "Cerrar sesión",
     },
   },
+  ageGate: {
+    title: "rapidito, ¿qué edad tenemos?",
+    body: "Brainrot Bot dice cosas desquiciadas. tienes que ser 16+ para entrar. sin excepciones, sin “es que mi primo”, sin negociar con el de la entrada.",
+    dobPlaceholder: "toca para elegir tu cumpleaños",
+    cta: "continuar",
+    blockedTitle: "nos vemos en unos años",
+    blocked:
+      "nel, esto es un no rotundo. vuelve cuando tengas 16, el rot te va a esperar 🫡",
+  },
   onboarding: {
+    // Claves genéricas / heredadas (para el fallback de la ruta).
     welcomeTitle: "Bienvenido a Meme Chat AI",
-    welcomeBody:
-      "Este es un paso de onboarding de ejemplo. Reemplázalo con lo que tu app necesite recopilar antes de mostrar la pantalla principal.",
-    continue: "Empezar",
+    welcomeBody: "Vamos a dejarte listo.",
+    continue: "continuar",
+    skip: "saltar",
+    back: "Atrás",
+    progress: "Paso {{current}} de {{total}}",
+
+    // Paso 1 — ¿Qué es esto?
+    value: {
+      title: "habla con una IA que de verdad habla como internet",
+      body: "haz preguntas reales, recibe respuestas reales. en vez de sopa de robot corporativo, Brainrot Bot responde como ese amigo terminalmente online que de algún modo también hizo la tarea.",
+      cta: "va",
+      userMsg: "critica mi grupo de chat 💀",
+      botMsg:
+        "hermano este grupo tiene la energía de un microondas a las 3am. técnicamente vivo, espiritualmente derrotado.",
+      memeCaption: "¿este eres tú? 😭",
+    },
+
+    // Paso 2 — Respuestas reales, voz de meme
+    useful: {
+      title: "gracioso, pero no inútil",
+      body: "Brainrot Bot te ayuda con escritura, ideas, explicaciones, críticas, respuestas y momentos random de “¿estoy cocinado?”, todo manteniendo el aura intacta.",
+      cta: "ok espera esto puede cocinar",
+      prompts: [
+        "explícame mi tarea",
+        "escribe un correo arriesgado-pero-no-despido",
+        "ayúdame a responder este mensaje",
+        "resume esta captura de pantalla",
+        "critica esta idea pero hazla útil",
+        "descifra lo que de verdad quisieron decir",
+      ],
+      botPreview: "ok aquí va la versión sin tanto bla bla 👇",
+    },
+
+    // Paso 3 — Soporte de memes / GIF
+    memes: {
+      title: "manda memes. recibe memes. empeora.",
+      body: "Suelta memes en el chat, o deja que Brainrot Bot saque la imagen de reacción perfecta cuando las palabras simplemente no alcanzan.",
+      cta: "derechos de meme desbloqueados",
+      userMsg: "explica esta energía",
+      botMsg:
+        "esto es energía de “tengo un plan”, pero el plan se armó en el estacionamiento de un Waffle House.",
+    },
+
+    // Paso 4 — Vista previa del Nivel de Rot
+    rot: {
+      title: "elige tu nivel de rot",
+      body: "Mantenlo tranquilo, conviértete en la amenaza del grupo, o entra en Modo Goblin cuando la vida exija daño emocional con una pizca de consejo práctico.",
+      cta: "estoy rotted",
+      prompt: "explica por qué procrastino",
+      levels: {
+        lightlyCooked: {
+          label: "Ligeramente Cocido",
+          emoji: "🤓",
+          answer:
+            "tu cerebro mira la tarea grande y aterradora y dice “nah.” no es flojera, es que te abruma. redúcela a un paso diminuto y empieza por ahí.",
+        },
+        rotted: {
+          label: "Rotted",
+          emoji: "😤",
+          answer:
+            "tu cerebro vio una tarea y de inmediato se declaró en bancarrota emocional. empieza con el paso más diminuto posible.",
+        },
+        goblin: {
+          label: "Modo Goblin",
+          emoji: "💀",
+          answer:
+            "tu función ejecutiva fue empacada, enviada a Ohio y marcada como “devolver al remitente”. abre el documento. escribe una frase maldita. el impulso es una misión secundaria que empiezas sin querer.",
+        },
+      },
+    },
+
+    // Paso 5 — Captura opcional del nombre
+    name: {
+      title: "¿cómo quieres que Brainrot Bot te llame?",
+      placeholder: "gng, amenaza, Jorge, lo que sea",
+      microcopy: "Solo para la vibra del chat. Nada de comportamiento de LinkedIn aquí.",
+      cta: "fijar el nombre",
+      skip: "saltar, sigo siendo un misterio",
+    },
+
+    // Paso 6 — Pantalla de recompensa “agente listo”
+    ready: {
+      loading: [
+        "calibrando el sarcasmo…",
+        "importando energía de meme prohibida…",
+        "haciendo aura farming…",
+        "ajustando el nivel de rot a “preocupante”…",
+        "enseñándole a Brainrot Bot a ser útil a pesar de todo…",
+      ],
+      title: "Brainrot Bot entró al chat",
+      subtitle: "Tu gremlin de grupo de chat con IA viene cargado con:",
+      bullets: [
+        "respuestas reales",
+        "respuestas con memes",
+        "nivel de rot ajustable",
+        "chat con imágenes + memes",
+        "cero energía de NPC corporativo",
+      ],
+      cta: "entrar al caos",
+    },
+
+    // Paso 7 — Pre-aviso de notificaciones
+    notifications: {
+      title: "¿quieres que Brainrot Bot hable cuando importe?",
+      body: "Recibe un aviso cuando tus respuestas estén listas o tu dosis diaria de brainrot esté peligrosamente disponible.",
+      examples: [
+        "“tu respuesta está lista y un poco desquiciada”",
+        "“chequeo de rot diario: ven a decepcionar tus responsabilidades”",
+      ],
+      allow: "sí, háblame",
+      decline: "nah, déjame pudrirme en silencio",
+    },
+
+    // Paso 8 — Marco del paywall (envuelve el PlanPaywall real)
+    paywall: {
+      title: "desbloquea brainrot casi-ilimitado",
+      subtitle:
+        "Gratis te da una probada. Premium le da a Brainrot Bot mucho más espacio para hablar, criticar, explicar, memear y espiralear responsablemente. Cada plan usa al Brainrot Bot real. Sin goblin gratis aguado.",
+      continueFree: "continuar gratis",
+    },
   },
   menu: {
     open: "Abrir menú",
@@ -139,6 +280,23 @@ const es = {
         "resume esto como una sección de comentarios de TikTok",
       ],
     },
+    // Primer chat sembrado, mostrado una vez justo después del onboarding para
+    // que el campo de texto nunca esté vacío el primer día. El estado vacío
+    // prefiere esto sobre un intro/starters al azar cuando el onboarding acaba
+    // de completarse.
+    firstChat: {
+      title: "ey, estoy vivo. preocupante para todos los involucrados.",
+      subtitle:
+        "mándame una pregunta, un meme, una captura, o un mensaje que necesites responder. o solo di “critícame con cariño” si te sientes emocionalmente valiente.",
+      chips: [
+        "critica mi grupo de chat",
+        "ayúdame a responder este mensaje",
+        "explícame algo sin tanto bla bla",
+        "mándame un meme maldito",
+        "haz que esto suene menos cringe",
+        "¿estoy cocinado?",
+      ],
+    },
     input: {
       placeholder: "Mensaje para Brainrot Bot",
     },
@@ -189,10 +347,22 @@ const es = {
     },
     memes: {
       button: "Memes",
+      keyboard: "Teclado",
       close: "Ocultar memes",
       empty: "No hay memes ahora mismo",
       noResults: "No hay memes para eso",
       error: "No se pudieron cargar los memes",
+      retry: "Reintentar",
+      // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
+      searchPlaceholder: "Search KLIPY",
+    },
+    gifs: {
+      button: "GIFs",
+      keyboard: "Teclado",
+      close: "Ocultar GIFs",
+      empty: "No hay GIFs ahora mismo",
+      noResults: "No hay GIFs para eso",
+      error: "No se pudieron cargar los GIFs",
       retry: "Reintentar",
       // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
       searchPlaceholder: "Search KLIPY",
@@ -227,9 +397,18 @@ const es = {
       maxReached: "Puedes adjuntar hasta {{count}} memes",
       remove: "Quitar meme",
       imageLabel: "Meme adjunto",
+      gifLabel: "GIF adjunto",
       // Etiqueta localizada para un mensaje solo con imagen, donde aplique.
       sentMeme: "Envió un meme",
       invalid: "No se pudo adjuntar ese meme",
+      // Acción de descarga del visor a pantalla completa (adjuntos del chat).
+      download: {
+        button: "Descargar",
+        saving: "Guardando…",
+        saved: "¡Guardado!",
+        failed: "No se pudo guardar. Inténtalo de nuevo.",
+        permission: "Permite el acceso a fotos para guardar descargas.",
+      },
     },
     actions: {
       copy: "Copiar",
@@ -285,6 +464,22 @@ const es = {
   },
   settings: {
     title: "Ajustes",
+    account: {
+      label: "Cuenta",
+      description: "Correo, contraseña, cerrar sesión y eliminar cuenta.",
+    },
+    notifications: {
+      label: "Notificaciones",
+      description:
+        "Recibe un aviso cuando tus respuestas, rachas y cupo diario estén listos.",
+      blockedTitle: "Activar notificaciones",
+      blockedBody:
+        "Las notificaciones están desactivadas para Meme Chat AI en los ajustes de tu dispositivo. Abre Ajustes para permitirlas.",
+      disableTitle: "Desactivar notificaciones",
+      disableBody:
+        "Los permisos de notificación se gestionan en los ajustes de tu dispositivo. Abre Ajustes para desactivarlas.",
+      openSettings: "Abrir Ajustes",
+    },
     plan: {
       heading: "Plan y uso",
       rowDescription: "Mira tu meme-power del mes y elige un plan.",
@@ -293,6 +488,7 @@ const es = {
       headline: "Sube tu meme-power",
       subhead: "Elige un plan y sigue memeando.",
       bestBadge: "MEJOR",
+      popularBadge: "Popular",
       currentBadge: "Actual",
       currentInline: "Tuyo",
       upgradeTo: "Pasar a {{name}}",
@@ -306,6 +502,7 @@ const es = {
       features: {
         chats: "Chats",
         memory: "Memoria",
+        customization: "Temas",
       },
       featureValues: {
         chats: {
@@ -319,6 +516,12 @@ const es = {
           basic: "M",
           plus: "L",
           power: "XL",
+        },
+        customization: {
+          free: "—",
+          basic: "✓",
+          plus: "✓",
+          power: "✓",
         },
       },
       usageHeading: "Tu meme-power",
@@ -343,9 +546,9 @@ const es = {
       },
       planBullets: {
         free: ["El Brainrot Bot real, con toda su personalidad", "Un poco cada día"],
-        basic: ["9× más chats", "El mismo Brainrot Bot listo"],
-        plus: ["25× más chats", "Recuerda más de tus chats", "El más equilibrado"],
-        power: ["50× más chats", "Memoria al tope", "Máximo meme-power"],
+        basic: ["9× más chats", "El mismo Brainrot Bot listo", "Personalización de la app"],
+        plus: ["25× más chats", "Recuerda más de tus chats", "Personalización de la app", "El más equilibrado"],
+        power: ["50× más chats", "Memoria al tope", "Personalización de la app", "Máximo meme-power"],
       },
       planHeadlineFeature: {
         free: "Brainrot Bot completo",
@@ -358,6 +561,17 @@ const es = {
       currentCta: "Estás aquí",
       paywallNote: "Cancela cuando quieras desde la App Store.",
       avatarSpeech: "¿Quieres memear más?",
+    },
+    customization: {
+      title: "Personaliza el chat",
+      unlock: "Desbloquear",
+      unlockCta: "Desbloquear personalización del chat",
+      reset: "Restablecer",
+      messageStyle: "Estilo de mensajes",
+      background: "Fondo del chat",
+      preview: "Vista previa",
+      previewAgent: "así se ve tu chat 👀",
+      previewUser: "okay esto está increíble 🔥",
     },
     appearance: {
       label: "Apariencia",
@@ -390,6 +604,124 @@ const es = {
       openFailed: "No pudimos abrir ese enlace.",
     },
     signOut: "Cerrar sesión",
+  },
+  account: {
+    title: "Cuenta",
+    status: {
+      methodLabel: "Método de inicio de sesión",
+      methodApple: "Apple",
+      methodPassword: "Correo y contraseña",
+      emailLabel: "Correo electrónico",
+      appleEmailLabel: "ID de Apple",
+      emailHidden: "Oculto por Apple",
+      verified: "Verificado",
+      pending: "Sin verificar",
+      appleManaged: "Tu cuenta se gestiona a través de Iniciar sesión con Apple.",
+    },
+    sections: {
+      loginSecurity: "Inicio de sesión y seguridad",
+      session: "Sesión",
+      dangerZone: "Zona de peligro",
+    },
+    changeEmail: {
+      rowLabel: "Cambiar correo",
+      title: "Cambiar correo",
+      subtitle:
+        "Ingresa tu contraseña actual y un correo nuevo. Enviaremos un enlace de verificación a la nueva dirección; el cambio se aplica al confirmarlo.",
+      currentPasswordLabel: "Contraseña actual",
+      currentPasswordPlaceholder: "Tu contraseña",
+      newEmailLabel: "Correo nuevo",
+      newEmailPlaceholder: "tu@ejemplo.com",
+      submit: "Actualizar correo",
+      submitting: "Actualizando…",
+      successTitle: "Revisa tu bandeja",
+      successBody:
+        "Enviamos un enlace de verificación a tu nuevo correo. Tu dirección se actualiza en cuanto lo confirmes.",
+      errors: {
+        invalidCredential: "Esa contraseña es incorrecta.",
+        emailAlreadyInUse: "Ese correo ya está registrado.",
+        invalidEmail: "Ese correo electrónico no es válido.",
+        tooManyRequests: "Demasiados intentos. Espera un momento.",
+        generic: "No pudimos actualizar tu correo. Inténtalo de nuevo.",
+      },
+    },
+    changePassword: {
+      rowLabel: "Cambiar contraseña",
+      title: "Cambiar contraseña",
+      subtitle: "Ingresa tu contraseña actual y elige una nueva.",
+      currentLabel: "Contraseña actual",
+      currentPlaceholder: "Tu contraseña actual",
+      newLabel: "Nueva contraseña",
+      newPlaceholder: "Mínimo 8 caracteres",
+      confirmLabel: "Confirmar nueva contraseña",
+      confirmPlaceholder: "Repite la nueva contraseña",
+      submit: "Actualizar contraseña",
+      submitting: "Actualizando…",
+      successTitle: "Contraseña actualizada",
+      successBody: "Usa tu nueva contraseña la próxima vez que inicies sesión.",
+      errors: {
+        invalidCredential: "Tu contraseña actual es incorrecta.",
+        weakPassword: "Usa al menos 8 caracteres.",
+        passwordMismatch: "Esas contraseñas no coinciden.",
+        tooManyRequests: "Demasiados intentos. Espera un momento.",
+        generic: "No pudimos actualizar tu contraseña. Inténtalo de nuevo.",
+      },
+    },
+    resetPassword: {
+      rowLabel: "Enviar correo para restablecer contraseña",
+      title: "Restablecer contraseña",
+      body: "Te enviaremos un enlace para restablecer tu contraseña.",
+      emailLabel: "Correo electrónico",
+      emailPlaceholder: "tu@ejemplo.com",
+      sendButton: "Enviar enlace",
+      sending: "Enviando…",
+      resend: "Reenviar enlace",
+      resendIn: "Reenviar en {{seconds}}s",
+      sentTitle: "Enlace enviado",
+      sentBody:
+        "Toca el enlace del correo para elegir una nueva contraseña y vuelve a iniciar sesión.",
+      spamHint: "¿No lo ves? Revisa tu carpeta de spam.",
+      errorTitle: "No se pudo enviar",
+      errors: {
+        invalidEmail: "Ese correo electrónico no es válido.",
+        tooManyRequests: "Demasiados intentos. Espera un momento.",
+        generic: "No pudimos enviar el correo. Inténtalo de nuevo.",
+      },
+    },
+    signOut: {
+      rowLabel: "Cerrar sesión",
+      confirmTitle: "¿Cerrar sesión?",
+      confirmMessage:
+        "Tendrás que iniciar sesión de nuevo para volver a tus chats.",
+      confirmButton: "Cerrar sesión",
+    },
+    deleteAccount: {
+      rowLabel: "Eliminar cuenta",
+      title: "Eliminar cuenta",
+      subtitle:
+        "Esto elimina permanentemente tu cuenta, tus chats y todo lo guardado en este dispositivo. No se puede deshacer.",
+      passwordLabel: "Contraseña actual",
+      passwordPlaceholder: "Tu contraseña",
+      appleReauthBody:
+        "Se te pedirá confirmar con Apple antes de eliminar tu cuenta.",
+      confirmTitle: "¿Eliminar tu cuenta?",
+      confirmMessage:
+        "Esto borra tu cuenta permanentemente. No se puede deshacer.",
+      confirmButton: "Eliminar",
+      submit: "Eliminar mi cuenta",
+      submitting: "Eliminando…",
+      errors: {
+        invalidCredential: "Esa contraseña es incorrecta.",
+        tooManyRequests: "Demasiados intentos. Espera un momento.",
+        firestoreDeleteFailed:
+          "No pudimos terminar de eliminar tu cuenta. Inténtalo de nuevo.",
+        appleCancelled: "Se canceló la confirmación con Apple.",
+        appleUnavailable: "Iniciar sesión con Apple no está disponible ahora.",
+        appleUserMismatch: "Ese ID de Apple no coincide con esta cuenta.",
+        reauthFailed: "No pudimos confirmar tu identidad. Inténtalo de nuevo.",
+        generic: "No pudimos eliminar tu cuenta. Inténtalo de nuevo.",
+      },
+    },
   },
 };
 

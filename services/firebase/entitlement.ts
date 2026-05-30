@@ -15,24 +15,27 @@ export type Entitlement = {
   creditsResetAt: Date | null;
   // Daily soft cap. Distinct from the monthly budget: a user can have most of
   // the month left yet still be blocked because they've burned through the
-  // day's allowance (e.g. free tier = 20/day inside a 200/mo budget).
+  // day's allowance (e.g. free tier ≈ 13/day inside a 200/mo budget).
   dailyCreditsUsed: number;
   softDailyCredits: number;
   dailyResetAt: Date | null;
 };
 
-// Plan-derived caps the server side also keeps in PLANS (functions/src/billing/
-// plans.ts). Mirrored here so the UI can show "X of Y" without a round-trip —
-// keep the two in sync.
-const PLAN_CAPS: Record<
-  PlanId,
-  { monthlyCredits: number; softDailyCredits: number }
-> = {
-  free: { monthlyCredits: 200, softDailyCredits: 20 },
-  basic: { monthlyCredits: 1200, softDailyCredits: 120 },
-  plus: { monthlyCredits: 2000, softDailyCredits: 200 },
-  power: { monthlyCredits: 4000, softDailyCredits: 400 },
-};
+// The caps are computed and denormalized onto profiles/{uid} by the server
+// (functions/src/billing/plans.ts is the single source of truth). The client
+// only ever READS them off the doc — it deliberately keeps no plan credit table
+// of its own, which is what previously drifted out of sync. The constants below
+// are a last-resort fallback for the brief window before a legacy doc is
+// backfilled on its next load; a real subscriber's doc always carries the
+// fields. FALLBACK_BURST_FACTOR mirrors DAILY_BURST_FACTOR on the server.
+const FALLBACK_MONTHLY_CREDITS = 200; // free tier
+const FALLBACK_BURST_FACTOR = 2;
+
+function fallbackDailyCap(monthlyCredits: number): number {
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  return Math.round((monthlyCredits / daysInMonth) * FALLBACK_BURST_FACTOR);
+}
 
 function isPlanId(value: unknown): value is PlanId {
   return value === "free" || value === "basic" || value === "plus" || value === "power";
@@ -52,7 +55,14 @@ function asDate(value: unknown): Date | null {
 
 function mapEntitlement(data: DocumentData | undefined): Entitlement {
   const plan: PlanId = isPlanId(data?.plan) ? data.plan : "free";
-  const caps = PLAN_CAPS[plan];
+  const monthlyCredits =
+    typeof data?.monthlyCredits === "number"
+      ? data.monthlyCredits
+      : FALLBACK_MONTHLY_CREDITS;
+  const softDailyCredits =
+    typeof data?.softDailyCredits === "number"
+      ? data.softDailyCredits
+      : fallbackDailyCap(monthlyCredits);
   const dailyResetAt = asDate(data?.dailyResetAt);
   // The server only rolls the daily window forward lazily (on the next
   // loadEntitlement/reserve). If the stored window has already elapsed, the
@@ -69,11 +79,11 @@ function mapEntitlement(data: DocumentData | undefined): Entitlement {
         ? data.planSource
         : "unknown",
     creditsRemaining:
-      typeof data?.creditsRemaining === "number" ? data.creditsRemaining : caps.monthlyCredits,
-    monthlyCredits: caps.monthlyCredits,
+      typeof data?.creditsRemaining === "number" ? data.creditsRemaining : monthlyCredits,
+    monthlyCredits,
     creditsResetAt: asDate(data?.creditsResetAt),
     dailyCreditsUsed: dailyWindowElapsed ? 0 : rawDailyUsed,
-    softDailyCredits: caps.softDailyCredits,
+    softDailyCredits,
     dailyResetAt,
   };
 }
@@ -87,7 +97,18 @@ export function subscribeToEntitlement(
     cb(mapEntitlement(undefined));
     return () => {};
   }
-  return onSnapshot(doc(firebase.services.firestore, "profiles", uid), (snap) => {
-    cb(mapEntitlement(snap.data()));
-  });
+  return onSnapshot(
+    doc(firebase.services.firestore, "profiles", uid),
+    (snap) => {
+      cb(mapEntitlement(snap.data()));
+    },
+    (error) => {
+      // A `permission-denied` here is expected, not a failure: it fires in the
+      // brief window when the auth user/profile doc is removed (sign-out or
+      // account deletion) while this listener is still attached. Swallow it so
+      // it doesn't surface as an uncaught Firestore error; log anything else.
+      if (error.code === "permission-denied") return;
+      console.warn("[entitlement] snapshot error:", error);
+    },
+  );
 }

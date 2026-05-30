@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS, type PlanId } from "../billing/plans";
+import { PLANS, computeDailyCap, type PlanId } from "../billing/plans";
 
 export type PlanSource = "revenuecat" | "stub";
 
@@ -14,6 +14,13 @@ export type ProfileBilling = {
   rcAppUserId: string | null;
   rcActiveProductId: RevenueCatProductIdStored;
   rcEntitlementExpiresAt: Timestamp | null;
+  // The plan's resolved caps, denormalized onto the profile so the client can
+  // render "X of Y" by reading the doc — it never recomputes them. monthlyCredits
+  // mirrors PLANS[plan].monthlyCredits; softDailyCredits is computeDailyCap()
+  // for the plan and the month the value was last written in (refreshed on every
+  // daily reset and whenever the plan changes — see reset.ts / handleRcEvent).
+  monthlyCredits: number;
+  softDailyCredits: number;
   creditsRemaining: number;
   creditsResetAt: Timestamp; // monthly rolling window
   dailyCreditsUsed: number;
@@ -32,7 +39,38 @@ export function initialBilling(now: Date): ProfileBilling {
     rcAppUserId: null,
     rcActiveProductId: null,
     rcEntitlementExpiresAt: null,
+    monthlyCredits: PLANS[plan].monthlyCredits,
+    softDailyCredits: computeDailyCap(PLANS[plan].monthlyCredits, now),
     creditsRemaining: PLANS[plan].monthlyCredits,
+    creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
+    dailyCreditsUsed: 0,
+    dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
+  };
+}
+
+// The credit/cap/window fields that every "activate this plan now" path writes
+// — RC purchases (handleRcEvent), the optimistic client sync (syncRevenueCatPlan),
+// and the dev plan switcher (devSetPlan). Centralizing it guarantees the three
+// can't drift: a plan change ALWAYS hands the user the new tier's full monthly
+// budget AND the new (higher) daily cap, with both rolling windows reset. This
+// is what makes an upgrade's limit increase immediately. Callers spread the
+// result into their own patch alongside plan/source/RC-identity fields.
+export type PlanActivationFields = Pick<
+  ProfileBilling,
+  | "monthlyCredits"
+  | "softDailyCredits"
+  | "creditsRemaining"
+  | "creditsResetAt"
+  | "dailyCreditsUsed"
+  | "dailyResetAt"
+>;
+
+export function planActivationFields(plan: PlanId, now: Date): PlanActivationFields {
+  const monthlyCredits = PLANS[plan].monthlyCredits;
+  return {
+    monthlyCredits,
+    softDailyCredits: computeDailyCap(monthlyCredits, now),
+    creditsRemaining: monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
     dailyCreditsUsed: 0,
     dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
@@ -49,12 +87,24 @@ export function readProfileBilling(data: unknown): ProfileBilling | null {
   if (typeof d.creditsRemaining !== "number") return null;
   if (!(d.creditsResetAt instanceof Timestamp)) return null;
   if (!(d.dailyResetAt instanceof Timestamp)) return null;
+  // Docs written before these caps were denormalized won't carry them — derive
+  // from the plan so the record is always complete; the next reset/plan write
+  // persists the resolved values.
+  const plan = d.plan as PlanId;
+  const monthlyCredits =
+    typeof d.monthlyCredits === "number" ? d.monthlyCredits : PLANS[plan].monthlyCredits;
+  const softDailyCredits =
+    typeof d.softDailyCredits === "number"
+      ? d.softDailyCredits
+      : computeDailyCap(PLANS[plan].monthlyCredits, new Date());
   return {
-    plan: d.plan as PlanId,
+    plan,
     planSource: (d.planSource as PlanSource) ?? "stub",
     rcAppUserId: (d.rcAppUserId as string | null) ?? null,
     rcActiveProductId: (d.rcActiveProductId as RevenueCatProductIdStored) ?? null,
     rcEntitlementExpiresAt: (d.rcEntitlementExpiresAt as Timestamp | null) ?? null,
+    monthlyCredits,
+    softDailyCredits,
     creditsRemaining: d.creditsRemaining as number,
     creditsResetAt: d.creditsResetAt as Timestamp,
     dailyCreditsUsed: (d.dailyCreditsUsed as number) ?? 0,

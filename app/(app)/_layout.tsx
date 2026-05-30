@@ -19,6 +19,11 @@ export default function AppLayout() {
         <Stack.Screen name="history" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="plan" />
+        <Stack.Screen name="account/index" />
+        <Stack.Screen name="account/change-email" />
+        <Stack.Screen name="account/change-password" />
+        <Stack.Screen name="account/reset-password" />
+        <Stack.Screen name="account/delete-account" />
       </Stack>
 
       <PlayfulMenu />

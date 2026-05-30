@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS } from "../../billing/plans";
+import { PLANS, computeDailyCap } from "../../billing/plans";
 import { initialBilling, readProfileBilling } from "../schema";
 
 describe("initialBilling", () => {
@@ -9,6 +9,10 @@ describe("initialBilling", () => {
     expect(b.plan).toBe("free");
     expect(b.planSource).toBe("stub");
     expect(b.creditsRemaining).toBe(PLANS.free.monthlyCredits);
+    expect(b.monthlyCredits).toBe(PLANS.free.monthlyCredits);
+    expect(b.softDailyCredits).toBe(
+      computeDailyCap(PLANS.free.monthlyCredits, now),
+    );
     expect(b.dailyCreditsUsed).toBe(0);
     expect(b.rcAppUserId).toBeNull();
     expect(b.rcActiveProductId).toBeNull();

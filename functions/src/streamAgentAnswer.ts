@@ -5,10 +5,16 @@ import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
 import {
+  GET_GIF_TOOL,
+  GIF_TOOL_GUIDANCE,
+  runGetGif,
+} from "./gifs/getGifTool";
+import {
   GET_MEME_TOOL,
   MEME_TOOL_GUIDANCE,
   runGetMeme,
 } from "./memes/getMemeTool";
+import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
 import { chargeCredits, evaluateQuota } from "./billing/ledger";
@@ -27,6 +33,7 @@ import {
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
 import { summarizeImagesForLog } from "./messages/messageImage";
+import { summarizeGifsForLog } from "./messages/messageGif";
 import { buildSystemPromptForStream } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 
@@ -119,15 +126,22 @@ export const streamAgentAnswer = onRequest(
 
     const userText = parsed.data.message.trim();
     const images = parsed.data.images;
+    const gifs = parsed.data.gifs;
+    const currentGif = gifs[0];
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
 
     // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
-    // Never log full image URLs.
+    // Never log full asset URLs.
     if (images.length > 0) {
       logger.info("[streamAgentAnswer] received image attachments", {
         ...summarizeImagesForLog(images),
+      });
+    }
+    if (gifs.length > 0) {
+      logger.info("[streamAgentAnswer] received gif attachment", {
+        ...summarizeGifsForLog(gifs),
       });
     }
 
@@ -139,7 +153,7 @@ export const streamAgentAnswer = onRequest(
         await assertConversationOwner(conversationId, uid);
       } else {
         const created = await createConversation(uid, userText, {
-          hasImages: images.length > 0,
+          hasImages: images.length > 0 || gifs.length > 0,
         });
         conversationId = created.conversationId;
       }
@@ -192,16 +206,20 @@ export const streamAgentAnswer = onRequest(
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
-      // Teach the persona about the get_meme capability only when it's actually
-      // available, so a text-only deployment doesn't promise memes it can't send.
+      // Teach the persona about the get_meme / get_gif capabilities only when
+      // they're actually available, so a text-only deployment doesn't promise
+      // attachments it can't send. Both tools share the KLIPY app key.
+      // GIF guidance leads so the model treats animated GIFs as the default
+      // visual reaction and only falls back to the still-meme tool.
       const systemPrompt = memeToolEnabled
-        ? `${promptResult.systemPrompt}\n\n${MEME_TOOL_GUIDANCE}`
+        ? `${promptResult.systemPrompt}\n\n${GIF_TOOL_GUIDANCE}\n\n${MEME_TOOL_GUIDANCE}`
         : promptResult.systemPrompt;
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
         currentUserMessage: userText,
         currentImages: images,
+        currentGif,
         systemPrompt,
       });
     } catch (err) {
@@ -216,9 +234,11 @@ export const streamAgentAnswer = onRequest(
     let clientClosed = false;
     let sawDelta = false;
     let lastUsage: AgentUsage | null = null;
-    // The meme the agent attached via get_meme this turn, if any. Persisted on
-    // the agent message at finalize and emitted to the client over SSE.
+    // The meme / GIF the agent attached via get_meme / get_gif this turn, if
+    // any. Persisted on the agent message at finalize and emitted to the client
+    // over SSE. At most one is set (the guidance says pick one).
     let agentMeme: MessageImage | null = null;
+    let agentGif: MessageGif | null = null;
     const abortController = new AbortController();
 
     // Charge the turn's real cost once the stream's final usage is known.
@@ -286,6 +306,7 @@ export const streamAgentAnswer = onRequest(
         status: "complete",
         clientMessageId,
         images: images.length > 0 ? images : undefined,
+        gifs: gifs.length > 0 ? gifs : undefined,
         levelOfRot,
       });
 
@@ -340,17 +361,20 @@ export const streamAgentAnswer = onRequest(
         // Offer the get_meme tool only when Klipy is configured. The runner
         // resolves Klipy internally and never throws, so a meme miss/outage
         // still yields a normal text reply.
-        tools: memeToolEnabled ? [GET_MEME_TOOL] : undefined,
+        tools: memeToolEnabled ? [GET_GIF_TOOL, GET_MEME_TOOL] : undefined,
         runTool: memeToolEnabled
-          ? (call) =>
-              call.name === "get_meme"
-                ? runGetMeme(call.arguments, {
-                    apiKey: klipyApiKey,
-                    customerId: uid,
-                  })
-                : Promise.resolve({
-                    content: JSON.stringify({ error: "unknown_tool" }),
-                  })
+          ? (call) => {
+              const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+              if (call.name === "get_meme") {
+                return runGetMeme(call.arguments, klipyDeps);
+              }
+              if (call.name === "get_gif") {
+                return runGetGif(call.arguments, klipyDeps);
+              }
+              return Promise.resolve({
+                content: JSON.stringify({ error: "unknown_tool" }),
+              });
+            }
           : undefined,
         signal: abortController.signal,
       })) {
@@ -374,6 +398,13 @@ export const streamAgentAnswer = onRequest(
           // before the finalized Firestore message lands.
           agentMeme = delta.image;
           writeSse(res, "meme", { image: agentMeme });
+          continue;
+        }
+
+        if (delta.type === "gif") {
+          // Same as the meme path, for an agent-attached GIF.
+          agentGif = delta.gif;
+          writeSse(res, "gif", { gif: agentGif });
           continue;
         }
 
@@ -407,9 +438,10 @@ export const streamAgentAnswer = onRequest(
           conversationId,
           agentMessageId,
           // Scrub any meme markdown/attachment artifacts the model may have
-          // written; the meme is persisted + shown as its own image below.
+          // written; the meme/gif is persisted + shown as its own image below.
           stripMemeArtifacts(fullText),
           agentMeme ? [agentMeme] : undefined,
+          agentGif ? [agentGif] : undefined,
         );
       } catch (err) {
         logger.error("[streamAgentAnswer] failed to finalize agent message", {

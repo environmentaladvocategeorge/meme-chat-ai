@@ -1,11 +1,7 @@
-import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { PLANS, type PlanId } from "../billing/plans";
-import {
-  DAILY_WINDOW_MS,
-  MONTHLY_WINDOW_MS,
-  type ProfileBilling,
-} from "./schema";
+import { type PlanId } from "../billing/plans";
+import { planActivationFields, type ProfileBilling } from "./schema";
 
 const VALID_PLANS: readonly PlanId[] = ["free", "basic", "plus", "power"];
 
@@ -34,19 +30,15 @@ export async function devSetPlanImpl(uid: string | undefined, plan: unknown) {
   }
 
   const planId = plan as PlanId;
-  const planCfg = PLANS[planId];
-  const now = Date.now();
+  const activation = planActivationFields(planId, new Date());
   const update: Partial<ProfileBilling> = {
     plan: planId,
     planSource: "stub",
-    creditsRemaining: planCfg.monthlyCredits,
-    creditsResetAt: Timestamp.fromMillis(now + MONTHLY_WINDOW_MS),
-    dailyCreditsUsed: 0,
-    dailyResetAt: Timestamp.fromMillis(now + DAILY_WINDOW_MS),
+    ...activation,
   };
 
   await getFirestore().doc(`profiles/${uid}`).set(update, { merge: true });
-  return { plan: planId, creditsRemaining: planCfg.monthlyCredits };
+  return { plan: planId, creditsRemaining: activation.creditsRemaining };
 }
 
 export const devSetPlan = onCall({ region: "us-central1" }, async (req) => {

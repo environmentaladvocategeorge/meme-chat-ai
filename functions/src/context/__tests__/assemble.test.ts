@@ -302,3 +302,92 @@ describe("assembleFromInputs with images", () => {
     expect(placeholderTokens).toBeLessThan(IMAGE_TOKENS_LOW);
   });
 });
+
+describe("buildCurrentUserContent with a GIF", () => {
+  const dataUrl = (n: number) => `data:image/jpeg;base64,FRAME${n}`;
+  const threeFrames = {
+    frames: [dataUrl(0), dataUrl(1), dataUrl(2)],
+    frameCount: 12,
+    degraded: false,
+  };
+
+  function textParts(content: string | OpenAIContentPart[]) {
+    if (typeof content === "string") return [];
+    return content.filter((p) => p.type === "text") as { type: "text"; text: string }[];
+  }
+
+  it("appends a one-gif note plus a frame image part per frame", () => {
+    const content = buildCurrentUserContent("lol", undefined, threeFrames);
+    const parts = content as OpenAIContentPart[];
+    // text reply + gif note + 3 frame images
+    expect(imageParts(content)).toHaveLength(3);
+    const notes = textParts(content);
+    expect(parts[0]).toEqual({ type: "text", text: "lol" });
+    expect(notes.some((p) => /ONE animated GIF/.test(p.text))).toBe(true);
+    expect(notes.some((p) => /3 separate images/.test(p.text))).toBe(true);
+  });
+
+  it("sends the base64 frame data URLs, detail low", () => {
+    const content = buildCurrentUserContent("", undefined, threeFrames);
+    const urls = imageParts(content).map((p) => p.image_url.url);
+    expect(urls).toEqual([dataUrl(0), dataUrl(1), dataUrl(2)]);
+    imageParts(content).forEach((p) => expect(p.image_url.detail).toBe("low"));
+  });
+
+  it("phrases the note for a single degraded frame", () => {
+    const content = buildCurrentUserContent("", undefined, {
+      frames: [dataUrl(0)],
+      frameCount: 1,
+      degraded: true,
+    });
+    const notes = textParts(content);
+    expect(notes.some((p) => /single still frame/.test(p.text))).toBe(true);
+    expect(imageParts(content)).toHaveLength(1);
+  });
+
+  it("still notes the GIF when no frames could be extracted", () => {
+    const content = buildCurrentUserContent("hey", undefined, {
+      frames: [],
+      frameCount: 0,
+      degraded: true,
+    });
+    expect(imageParts(content)).toHaveLength(0);
+    const notes = textParts(content);
+    expect(notes.some((p) => /could not be processed/.test(p.text))).toBe(true);
+  });
+
+  it("carries both memes and a GIF on the same turn", () => {
+    const content = buildCurrentUserContent("combo", [mkImage()], threeFrames);
+    // 1 meme image + 3 gif frames
+    expect(imageParts(content)).toHaveLength(4);
+  });
+});
+
+describe("assembleFromInputs collapses historical GIFs", () => {
+  it("collapses a prior GIF-only turn to a placeholder (no image parts)", () => {
+    const recent: ChatMessage[] = [
+      {
+        role: "user",
+        text: "",
+        gifs: [
+          {
+            id: "g1",
+            source: "klipy-gif",
+            url: "https://static.klipy.com/g.webp",
+            previewUrl: "https://static.klipy.com/g.jpg",
+            frameSourceUrl: "https://static.klipy.com/sm.webp",
+          },
+        ],
+      },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "and now?",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe("[User sent an animated GIF]");
+    const allImageParts = result.messages.flatMap((m) => imageParts(m.content));
+    expect(allImageParts).toHaveLength(0);
+  });
+});

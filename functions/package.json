@@ -15,10 +15,13 @@
     "test": "jest"
   },
   "dependencies": {
+    "expo-file-system": "~19.0.23",
+    "expo-media-library": "~18.2.1",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.1.0",
     "js-tiktoken": "^1.0.21",
     "openai": "^4.104.0",
+    "sharp": "^0.33.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {

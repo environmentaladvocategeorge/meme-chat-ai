@@ -5,6 +5,7 @@ import type {
   ChatCompletionTool,
 } from "openai/resources/chat/completions";
 import type { OpenAIMessage } from "../context/assemble";
+import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
 import type { AgentDelta, AgentUsage } from "./types";
 
@@ -30,6 +31,7 @@ function toChatParams(messages: OpenAIMessage[]): ChatCompletionMessageParam[] {
 export type ToolRunResult = {
   content: string;
   meme?: MessageImage;
+  gif?: MessageGif;
 };
 
 // Runs a single tool call the model requested. Implementations should never
@@ -184,6 +186,9 @@ export async function* streamAgent({
 
           if (result.meme) {
             yield { type: "meme", image: result.meme };
+          }
+          if (result.gif) {
+            yield { type: "gif", gif: result.gif };
           }
 
           convo.push({

@@ -5,8 +5,11 @@
 //      cards instead of a vertically stacked list.
 //   2. Current plan is unmistakable: an inline "Yours" ribbon on the tier
 //      card AND a tinted column in the comparison matrix.
-//   3. The "BEST" recommendation lives on Wingman (Plus) so the user has
-//      a clear default suggestion when they're on free.
+//   3. Recommendation badges only show while the user can still move up
+//      (free or Sidekick): MVP (Power) is flagged "Best" since it's genuinely
+//      the top tier, and Wingman (Plus) is flagged "Popular" as the crowd
+//      favorite. On Wingman/MVP both are hidden — nudging an already-high tier
+//      elsewhere is counter-intuitive.
 //   4. Live prices fetched from RevenueCat Offerings on mount and shown
 //      directly on each tier card.
 //   5. A single dominant CTA whose copy adapts to selection vs current
@@ -34,7 +37,11 @@ type PaidPlanId = Exclude<PlanId, "free">;
 
 const PAID_TIERS: readonly PaidPlanId[] = ["basic", "plus", "power"] as const;
 const RECOMMENDED: PaidPlanId = "plus";
-const FEATURE_KEYS: readonly ["chats", "memory"] = ["chats", "memory"] as const;
+const FEATURE_KEYS: readonly ["chats", "memory", "customization"] = [
+  "chats",
+  "memory",
+  "customization",
+] as const;
 const MATRIX_PLANS: readonly PlanId[] = ["free", "basic", "plus", "power"] as const;
 
 const PLAN_EMOJI: Record<PlanId, string> = {
@@ -53,11 +60,7 @@ const PLAN_TO_RC_PRODUCT: Record<PaidPlanId, string> = {
 type Theme = (typeof themes)[keyof typeof themes];
 type PrimaryGradient = (typeof gradients)[keyof typeof gradients]["primary"];
 
-interface PlanPaywallProps {
-  currentPlan: PlanId;
-}
-
-export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
+export function PlanPaywall() {
   const { t } = useTranslation();
   const theme = useTheme();
   const { colorScheme } = useColorScheme();
@@ -65,26 +68,37 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
   const subscriptionStatus = useSubscriptionStore((s) => s.status);
   const refresh = useSubscriptionStore((s) => s.refresh);
   const openManagement = useSubscriptionStore((s) => s.openManagement);
-  // Plan-change vs first-purchase routing: existing subscribers can't reliably
+  // The paywall reads the EFFECTIVE plan (RC-live ∪ backend mirror) for both
+  // its payment routing and its display. RC's client state flips the instant a
+  // purchase completes, whereas the backend mirror only catches up after
+  // syncRevenueCatPlan writes the profile and the Firestore listener round-
+  // trips — so binding the "you're on X" pill, the current-plan badge, and the
+  // matrix highlight to the mirror left them stuck on the old tier while the
+  // CTA (which already used effectivePlan) had moved on. Using effectivePlan
+  // everywhere keeps the whole sheet consistent and updates immediately.
+  //
+  // Payment routing also depends on this: existing subscribers can't reliably
   // switch tiers via Purchases.purchasePackage() — Apple/Google want plan
   // changes to flow through their subscription-management UI so proration,
-  // refunds, and downgrade timing all behave correctly. We only call
-  // purchasePackage() when the user is on `free`.
-  //
-  // This is PAYMENT-CRITICAL, so it uses the effective plan (RC-live ∪ mirror)
-  // rather than the display-only `currentPlan` prop: RC is the real-time truth
-  // of "do you already have an active subscription", and routing a current
-  // subscriber into purchasePackage() risks a double charge. The `currentPlan`
-  // prop drives only the display (badges, labels, selection default).
+  // refunds, and downgrade timing behave correctly — so we only call
+  // purchasePackage() when the user is effectively on `free`.
   const effectivePlan = useEffectivePlan();
   const hasActiveSubscription = effectivePlan !== "free";
 
   // Default selection prefers the user's current paid plan so the page opens
   // showing what they already have; otherwise the recommended tier.
   const [selected, setSelected] = useState<PaidPlanId>(() => {
-    if (currentPlan !== "free") return currentPlan;
+    if (effectivePlan !== "free") return effectivePlan;
     return RECOMMENDED;
   });
+
+  // The useState initializer only runs on mount, so a purchase made while the
+  // sheet is open wouldn't move the selection onto the acquired tier. Re-center
+  // it whenever the effective plan becomes a paid tier. This only fires on an
+  // actual plan transition, so it never fights a user tapping tiers to compare.
+  useEffect(() => {
+    if (effectivePlan !== "free") setSelected(effectivePlan);
+  }, [effectivePlan]);
   const [busy, setBusy] = useState(false);
   const [priceByProduct, setPriceByProduct] = useState<Record<string, string>>({});
 
@@ -153,11 +167,25 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
     }
   };
 
-  const isCurrentSelected = selected === currentPlan;
-  const isUpgrade = PLAN_RANK[selected] > PLAN_RANK[currentPlan];
+  const isCurrentSelected = selected === effectivePlan;
+  const isUpgrade = PLAN_RANK[selected] > PLAN_RANK[effectivePlan];
+
+  // Recommendation badges only make sense while the user still has room to move
+  // up. Once they're on Wingman or MVP, nudging them toward another tier reads
+  // as counter-intuitive, so we hide Best/Popular and let only the "Yours"
+  // badge stand. MVP is genuinely the top tier (Best); Wingman is the crowd
+  // favorite (Popular).
+  const showRecommendations =
+    effectivePlan === "free" || effectivePlan === "basic";
+  const recommendFor = (tier: PaidPlanId): "best" | "popular" | null => {
+    if (!showRecommendations) return null;
+    if (tier === "power") return "best";
+    if (tier === "plus") return "popular";
+    return null;
+  };
 
   const selectedName = t(`settings.plan.planNames.${selected}`);
-  const currentName = t(`settings.plan.planNames.${currentPlan}`);
+  const currentName = t(`settings.plan.planNames.${effectivePlan}`);
 
   // CTA copy is keyed off whether this is a first-purchase or a subscriber
   // plan change, so the user knows up-front that tapping will hand them off
@@ -194,7 +222,7 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
               style={{ color: theme["--color-foreground"], fontWeight: "700" }}
             >
               {t("settings.plan.youreOn", {
-                name: `${PLAN_EMOJI[currentPlan]} ${currentName}`,
+                name: `${PLAN_EMOJI[effectivePlan]} ${currentName}`,
               })}
             </Typography>
           </View>
@@ -223,8 +251,8 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
             key={tier}
             tier={tier}
             selected={selected === tier}
-            current={currentPlan === tier}
-            recommended={tier === RECOMMENDED}
+            current={effectivePlan === tier}
+            recommend={recommendFor(tier)}
             priceString={priceByProduct[PLAN_TO_RC_PRODUCT[tier]] ?? null}
             onPress={() => setSelected(tier)}
             theme={theme}
@@ -233,17 +261,8 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
         ))}
       </View>
 
-      {/* Selected tier details */}
-      <SelectedDetails selected={selected} theme={theme} />
-
-      {/* Comparison matrix */}
-      <ComparisonMatrix
-        currentPlan={currentPlan}
-        selectedPlan={selected}
-        theme={theme}
-      />
-
-      {/* CTA */}
+      {/* CTA — placed directly under the tier cards so the primary action is
+          visible without scrolling past the details + comparison matrix. */}
       <BottomSheetTouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={ctaLabel}
@@ -305,6 +324,16 @@ export function PlanPaywall({ currentPlan }: PlanPaywallProps) {
           ? t("settings.plan.manageNote")
           : t("settings.plan.paywallNote")}
       </Typography>
+
+      {/* Selected tier details */}
+      <SelectedDetails selected={selected} theme={theme} />
+
+      {/* Comparison matrix */}
+      <ComparisonMatrix
+        currentPlan={effectivePlan}
+        selectedPlan={selected}
+        theme={theme}
+      />
     </View>
   );
 }
@@ -315,7 +344,7 @@ interface TierCardProps {
   tier: PaidPlanId;
   selected: boolean;
   current: boolean;
-  recommended: boolean;
+  recommend: "best" | "popular" | null;
   priceString: string | null;
   onPress: () => void;
   theme: Theme;
@@ -326,7 +355,7 @@ function TierCard({
   tier,
   selected,
   current,
-  recommended,
+  recommend,
   priceString,
   onPress,
   theme,
@@ -337,12 +366,14 @@ function TierCard({
   const period = t("settings.plan.pricePeriod");
   const emoji = PLAN_EMOJI[tier];
 
-  // Badge priority: CURRENT > BEST. Only one badge per card.
+  // Badge priority: CURRENT > BEST > POPULAR. Only one badge per card.
   const badge = current
     ? { text: t("settings.plan.currentInline"), tint: "primary" as const }
-    : recommended
+    : recommend === "best"
       ? { text: t("settings.plan.bestBadge"), tint: "secondary" as const }
-      : null;
+      : recommend === "popular"
+        ? { text: t("settings.plan.popularBadge"), tint: "info" as const }
+        : null;
 
   // Badge sits inside the flex flow (not absolute) so the parent's
   // overflow-hidden — required for the gradient-stroke clipping — doesn't
@@ -401,7 +432,9 @@ function TierCard({
                 backgroundColor:
                   badge.tint === "primary"
                     ? theme["--color-primary"]
-                    : theme["--color-secondary"],
+                    : badge.tint === "info"
+                      ? theme["--color-info"]
+                      : theme["--color-secondary"],
               }}
             >
               <Typography

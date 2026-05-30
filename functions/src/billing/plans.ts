@@ -16,10 +16,37 @@ export type PlanConfig = {
   // classification or advanced toggle — selection is purely plan-based).
   model: ModelId;
   monthlyCredits: number;
-  softDailyCredits: number;
   maxInputTokens: number;
   maxOutputTokens: number;
 };
+
+// The daily soft cap is NOT a per-plan constant — it's derived from the plan's
+// monthly budget and the length of the current month:
+//
+//   evenPace   = monthlyCredits / daysInMonth        (the sustainable rate)
+//   dailyCap   = round(evenPace * DAILY_BURST_FACTOR)
+//
+// A burst factor of 2 lets a user spend up to two average days' worth in any
+// single day (so a heavy day never feels walled off) while guaranteeing the
+// monthly budget still lasts at least half the month even if they max the cap
+// out every day. It scales automatically by plan (via monthlyCredits) and by
+// month length (28–31 days), and it rises the moment a user upgrades because
+// monthlyCredits rises.
+//
+// This is the SINGLE definition of the daily cap. The server computes it and
+// writes the resolved number onto profiles/{uid} (softDailyCredits); the client
+// only ever reads that stored value — it must never keep its own copy of this
+// formula or the plan credit table.
+export const DAILY_BURST_FACTOR = 2;
+
+export function daysInMonth(date: Date): number {
+  // Day 0 of the next month is the last day of `date`'s month.
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+}
+
+export function computeDailyCap(monthlyCredits: number, date: Date): number {
+  return Math.round((monthlyCredits / daysInMonth(date)) * DAILY_BURST_FACTOR);
+}
 
 // Every user-facing chat tier runs the SAME model (`mini` → gpt-5.4-mini).
 // Personality/tone is the product, so we never show a weaker agent — not even
@@ -43,28 +70,24 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
     monthlyCredits: 200,
-    softDailyCredits: 20,
     maxInputTokens: 4000,
     maxOutputTokens: 512,
   },
   basic: {
     model: "mini",
     monthlyCredits: 1800,
-    softDailyCredits: 180,
     maxInputTokens: 8000,
     maxOutputTokens: 1024,
   },
   plus: {
     model: "mini",
     monthlyCredits: 4900,
-    softDailyCredits: 490,
     maxInputTokens: 16_000,
     maxOutputTokens: 2048,
   },
   power: {
     model: "mini",
     monthlyCredits: 10_500,
-    softDailyCredits: 1050,
     maxInputTokens: 32_000,
     maxOutputTokens: 4096,
   },

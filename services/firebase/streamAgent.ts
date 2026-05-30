@@ -1,3 +1,4 @@
+import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
 
@@ -15,6 +16,8 @@ export type StreamEvent =
   | { type: "delta"; text: string }
   // A meme the agent attached to its reply (via the backend get_meme tool).
   | { type: "meme"; image: MessageImage }
+  // A GIF the agent attached to its reply (via the backend get_gif tool).
+  | { type: "gif"; gif: MessageGif }
   | { type: "done" }
   | { type: "quota_exceeded"; reason: string; resetAt: string | null }
   | { type: "error"; code: string };
@@ -22,6 +25,8 @@ export type StreamEvent =
 type StreamAgentAnswerParams = {
   message: string;
   images?: MessageImage[];
+  // The single GIF attached to this turn, if any (separate from images).
+  gif?: MessageGif | null;
   conversationId?: string | null;
   clientMessageId?: string;
   personaId?: string | null;
@@ -61,6 +66,33 @@ function parseMessageImage(value: unknown): MessageImage | null {
   if (typeof data.attribution === "string") image.attribution = data.attribution;
   if (typeof data.memeId === "string") image.memeId = data.memeId;
   return image;
+}
+
+// Defensive shaping of a GIF attachment off the wire. Mirrors parseMessageImage.
+function parseMessageGif(value: unknown): MessageGif | null {
+  if (!value || typeof value !== "object") return null;
+  const data = value as Record<string, unknown>;
+  if (
+    data.source !== "klipy-gif" ||
+    typeof data.id !== "string" ||
+    typeof data.url !== "string" ||
+    typeof data.previewUrl !== "string" ||
+    typeof data.frameSourceUrl !== "string"
+  ) {
+    return null;
+  }
+  const gif: MessageGif = {
+    id: data.id,
+    source: "klipy-gif",
+    url: data.url,
+    previewUrl: data.previewUrl,
+    frameSourceUrl: data.frameSourceUrl,
+  };
+  if (typeof data.width === "number") gif.width = data.width;
+  if (typeof data.height === "number") gif.height = data.height;
+  if (typeof data.attribution === "string") gif.attribution = data.attribution;
+  if (typeof data.gifId === "string") gif.gifId = data.gifId;
+  return gif;
 }
 
 function parseSSEFrame(frame: string): StreamEvent | null {
@@ -130,6 +162,11 @@ function parseSSEFrame(frame: string): StreamEvent | null {
     if (parsed.event === "meme") {
       const image = parseMessageImage(data.image);
       if (image) return { type: "meme", image };
+    }
+
+    if (parsed.event === "gif") {
+      const gif = parseMessageGif(data.gif);
+      if (gif) return { type: "gif", gif };
     }
 
     if (parsed.event === "done") {
@@ -221,6 +258,7 @@ function makeStreamQueue() {
 export async function* streamAgentAnswer({
   message,
   images,
+  gif,
   conversationId,
   clientMessageId,
   personaId,
@@ -238,9 +276,10 @@ export async function* streamAgentAnswer({
   const xhr = new XMLHttpRequest();
   const body = JSON.stringify({
     message,
-    // Only include `images` when there are attachments, so text-only payloads
-    // stay byte-identical to the pre-image format (backend defaults to []).
+    // Only include `images` / `gifs` when present, so text-only payloads stay
+    // byte-identical to the pre-attachment format (backend defaults to []).
     images: images && images.length > 0 ? images : undefined,
+    gifs: gif ? [gif] : undefined,
     conversationId: conversationId ?? undefined,
     clientMessageId,
     personaId: personaId ?? undefined,

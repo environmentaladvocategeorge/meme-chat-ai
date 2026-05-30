@@ -32,7 +32,15 @@ import {
   ArrowsOutSimple,
   Stop,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   type LayoutChangeEvent,
   Platform,
@@ -74,6 +82,12 @@ const centeredAbsolute = {
   justifyContent: "center",
 } as const;
 
+// Imperative handle so the parent can pull focus back to the composer — used
+// when swapping out of the meme picker back to the keyboard.
+export type ChatInputRef = {
+  focus: () => void;
+};
+
 interface ChatInputProps {
   value: string;
   onChangeText: (text: string) => void;
@@ -82,6 +96,10 @@ interface ChatInputProps {
   streaming: boolean;
   // When true, send is enabled even with an empty text draft (image-only turn).
   hasAttachments?: boolean;
+  // Fired when the composer gains focus. The parent uses this to collapse the
+  // meme strip so the keyboard and the picker never share the screen (they
+  // occupy the same conceptual slot — see chat.tsx).
+  onFocus?: () => void;
   placeholder?: string;
   sendAccessibilityLabel: string;
   cancelAccessibilityLabel: string;
@@ -89,19 +107,24 @@ interface ChatInputProps {
   collapseAccessibilityLabel: string;
 }
 
-export function ChatInput({
-  value,
-  onChangeText,
-  onSend,
-  onCancel,
-  streaming,
-  hasAttachments = false,
-  placeholder,
-  sendAccessibilityLabel,
-  cancelAccessibilityLabel,
-  expandAccessibilityLabel,
-  collapseAccessibilityLabel,
-}: ChatInputProps) {
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
+  function ChatInput(
+    {
+      value,
+      onChangeText,
+      onSend,
+      onCancel,
+      streaming,
+      hasAttachments = false,
+      onFocus,
+      placeholder,
+      sendAccessibilityLabel,
+      cancelAccessibilityLabel,
+      expandAccessibilityLabel,
+      collapseAccessibilityLabel,
+    },
+    ref,
+  ) {
   const theme = useTheme();
   const { colorScheme } = useColorScheme();
   const gradient = gradients[colorScheme ?? "light"].primary;
@@ -123,7 +146,14 @@ export function ChatInput({
   // the ring gently hovers between ~75% and 100% intensity while focused.
   const pulse = useSharedValue(0);
   const sheetRef = useRef<BottomSheetModal>(null);
+  const inputRef = useRef<TextInput>(null);
   const snapPoints = useMemo(() => ["80%"], []);
+
+  useImperativeHandle(
+    ref,
+    () => ({ focus: () => inputRef.current?.focus() }),
+    [],
+  );
 
   const hasContent = value.trim().length > 0;
   // Image-only turns are valid, so attachments alone can enable send.
@@ -301,9 +331,13 @@ export function ChatInput({
               </Text>
             ) : null}
             <TextInput
+              ref={inputRef}
               value={value}
               onChangeText={onChangeText}
-              onFocus={() => setFocused(true)}
+              onFocus={() => {
+                setFocused(true);
+                onFocus?.();
+              }}
               onBlur={() => setFocused(false)}
               placeholder={placeholder}
               placeholderTextColor={theme["--color-foreground-muted"]}
@@ -585,4 +619,5 @@ export function ChatInput({
       </BottomSheetModal>
     </>
   );
-}
+  },
+);

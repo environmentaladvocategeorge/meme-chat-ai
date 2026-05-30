@@ -2,8 +2,8 @@ import { logger } from "firebase-functions";
 import { getFirestore, type DocumentData } from "firebase-admin/firestore";
 import {
   applyRotLevel,
+  BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
   DEFAULT_PERSONA_ID,
-  ME_ME_PERSONA_PROMPT_FALLBACK,
   PLATFORM_GUARDRAILS_FALLBACK,
   PLATFORM_GUARDRAILS_KEY,
 } from "./content";
@@ -23,7 +23,7 @@ function fallbackPersona(): Persona {
   return {
     id: DEFAULT_PERSONA_ID,
     name: "Brainrot Bot",
-    slug: "me-me",
+    slug: "brainrot-bot",
     description:
       "A funny, meme-aware conversational agent that gives real answers with natural internet humor.",
     isDefault: true,
@@ -32,7 +32,7 @@ function fallbackPersona(): Persona {
     publicConfig: {
       displayName: "Brainrot Bot",
       shortDescription: "Helpful answers with meme timing.",
-      avatarKey: "me_me",
+      avatarKey: "brainrot_bot",
       toneTags: ["funny", "meme", "casual", "concise"],
     },
   };
@@ -44,7 +44,7 @@ function fallbackPersonaPrompt(personaId = DEFAULT_PERSONA_ID): PersonaPrompt {
     personaId,
     name: "Brainrot Bot Fallback Prompt",
     version: "fallback",
-    content: ME_ME_PERSONA_PROMPT_FALLBACK,
+    content: BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
     isActive: true,
     addedBy: "backend_fallback",
     notes: "Backend-only fallback used when Firestore persona prompts are unavailable.",

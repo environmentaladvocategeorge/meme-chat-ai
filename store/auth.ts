@@ -6,12 +6,16 @@ import {
 } from "@/services/firebase/appleAuth";
 import { deleteMyAccountCallable } from "@/services/firebase/callables";
 import {
+  changeUserEmail,
+  changeUserPassword,
   reauthenticateWithPassword,
   reloadEmailVerification,
   registerWithEmail,
   resendVerificationEmail,
   sendPasswordReset,
   signInWithEmail,
+  type ChangeEmailResult,
+  type ChangePasswordResult,
   type DeleteAccountError,
   type PasswordResetResult,
   type RegisterEmailResult,
@@ -63,6 +67,14 @@ type AuthSessionState = {
   signInEmail: (email: string, password: string) => Promise<SignInEmailResult>;
   signInApple: () => Promise<SignInAppleResult>;
   signOut: () => Promise<void>;
+  changeEmail: (
+    currentPassword: string,
+    newEmail: string,
+  ) => Promise<ChangeEmailResult>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<ChangePasswordResult>;
   sendPasswordResetEmail: (email: string) => Promise<PasswordResetResult>;
   resendVerificationEmail: () => Promise<ResendVerificationResult>;
   refreshEmailVerified: () => Promise<boolean>;
@@ -283,6 +295,13 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
       return;
     }
 
+    // Tear down the chat messages listener and clear the in-memory + persisted
+    // chat session before the token is revoked, so the next signed-in user
+    // starts clean and the previous user's conversation never bleeds across.
+    // The entitlement listener and RevenueCat identity are cleared by the
+    // onAuthStateChanged handler once firebaseSignOut fires.
+    useChatStore.getState().startNewConversation();
+
     try {
       await firebaseSignOut(firebase.services.auth);
     } catch {}
@@ -290,13 +309,30 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
     set({ status: "signedOut", ...SIGNED_OUT_STATE });
   },
 
+  changeEmail: async (currentPassword, newEmail) =>
+    changeUserEmail(currentPassword, newEmail),
+
+  changePassword: async (currentPassword, newPassword) =>
+    changeUserPassword(currentPassword, newPassword),
+
   sendPasswordResetEmail: async (email) => sendPasswordReset(email),
 
   resendVerificationEmail: async () => resendVerificationEmail(),
 
   refreshEmailVerified: async () => {
+    const wasVerified = useAuthStore.getState().emailVerified;
     const verified = await reloadEmailVerification();
-    if (verified) set({ emailVerified: true });
+    if (verified) {
+      set({ emailVerified: true });
+      // On the first transition to verified, the entitlement listener attached
+      // at sign-in is dead — it hit permission-denied while the token still
+      // said email_verified=false. reloadEmailVerification has just forced a
+      // fresh token carrying the claim, so re-attach the listener now; without
+      // this the chat sits on "Warming up" until a hard reload.
+      if (!wasVerified) {
+        useEntitlementStore.getState().rebind();
+      }
+    }
     return verified;
   },
 
@@ -374,6 +410,14 @@ async function finalizeAccountDeletion(
   }
 
   set({ status: "deleting" });
+
+  // The `deleting` guard in onAuthStateChanged below skips the usual cleanup,
+  // so do it explicitly: tear down the entitlement (profiles/{uid}) listener
+  // and drop the RevenueCat identity. Without this the entitlement listener
+  // leaks past deletion (firing permission-denied as the token is revoked) and
+  // the subscription store keeps showing the deleted account's plan.
+  useEntitlementStore.getState().bindUid(null);
+  void useSubscriptionStore.getState().setRcUser(null);
 
   await firebaseSignOut(auth).catch(() => {});
 

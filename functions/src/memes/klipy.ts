@@ -1,18 +1,21 @@
+import {
+  asNumber,
+  asString,
+  type KlipyAsset,
+  KlipyError,
+  type KlipyRequestParams,
+  requestKlipyList,
+} from "../klipy/client";
 import type {
   ContentFilter,
   TrendingMeme,
   TrendingMemesResult,
 } from "./types";
 
-const KLIPY_BASE_URL = "https://api.klipy.com/api/v1";
+// Re-export so existing importers (getMemeTool, getTrendingMemes) keep working.
+export { KlipyError };
 
-// ---- Raw Klipy response shapes (only the fields we read) ----
-
-type KlipyAsset = {
-  url?: unknown;
-  width?: unknown;
-  height?: unknown;
-};
+// ---- Raw Klipy meme response shapes (only the fields we read) ----
 
 type KlipyFileFormat = {
   png?: KlipyAsset;
@@ -34,16 +37,6 @@ type KlipyMeme = {
   blur_preview?: unknown;
 };
 
-type KlipyTrendingResponse = {
-  result?: unknown;
-  data?: {
-    data?: unknown;
-    current_page?: unknown;
-    per_page?: unknown;
-    has_next?: unknown;
-  };
-};
-
 export type FetchTrendingMemesParams = {
   apiKey: string;
   page: number;
@@ -54,24 +47,6 @@ export type FetchTrendingMemesParams = {
   locale?: string;
   contentFilter?: ContentFilter;
 };
-
-export class KlipyError extends Error {
-  constructor(
-    message: string,
-    readonly status?: number,
-  ) {
-    super(message);
-    this.name = "KlipyError";
-  }
-}
-
-function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function asNumber(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
 
 // Picks the first present asset url across the candidate formats, preferring
 // webp (smaller) then png. Returns the asset (url + dims) or null.
@@ -125,85 +100,34 @@ export function normalizeMeme(raw: KlipyMeme): TrendingMeme | null {
   };
 }
 
-function normalizeResponse(
-  body: KlipyTrendingResponse,
-  fallbackPage: number,
-  fallbackPerPage: number,
-): TrendingMemesResult {
-  const data = body.data ?? {};
-  const rawList = Array.isArray(data.data) ? (data.data as KlipyMeme[]) : [];
-
-  const memes: TrendingMeme[] = [];
-  for (const entry of rawList) {
-    const normalized = normalizeMeme(entry ?? {});
-    if (normalized) memes.push(normalized);
-  }
-
-  const page = asNumber(data.current_page) || fallbackPage;
-  const perPage = asNumber(data.per_page) || fallbackPerPage;
-
-  return {
-    memes,
-    page,
-    perPage,
-    hasNext: data.has_next === true,
-  };
-}
-
 export type SearchMemesParams = FetchTrendingMemesParams & {
   // The search keyword. Required for the search endpoint.
   query: string;
 };
 
-// Klipy's two static-meme list endpoints share the same path shape, query
-// params, and response envelope — only the trailing segment and the extra
-// `q` differ. This core does the request + normalization for both.
-async function requestMemes(
-  endpoint: "trending" | "search",
+function toBaseParams(
   params: SearchMemesParams | FetchTrendingMemesParams,
-): Promise<TrendingMemesResult> {
-  const { apiKey, page, perPage, customerId, locale, contentFilter } = params;
-  const query = "query" in params ? params.query : undefined;
+): KlipyRequestParams {
+  return {
+    apiKey: params.apiKey,
+    page: params.page,
+    perPage: params.perPage,
+    customerId: params.customerId,
+    query: "query" in params ? params.query : undefined,
+    locale: params.locale,
+    contentFilter: params.contentFilter,
+  };
+}
 
-  // app_key is a path param; everything else is a query param.
-  const url = new URL(
-    `${KLIPY_BASE_URL}/${encodeURIComponent(apiKey)}/static-memes/${endpoint}`,
-  );
-  url.searchParams.set("page", String(page));
-  url.searchParams.set("per_page", String(perPage));
-  url.searchParams.set("customer_id", customerId);
-  if (endpoint === "search" && query) url.searchParams.set("q", query);
-  if (locale) url.searchParams.set("locale", locale);
-  if (contentFilter) url.searchParams.set("content_filter", contentFilter);
-
-  let response: Response;
-  try {
-    response = await fetch(url.toString(), {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    throw new KlipyError(
-      `klipy request failed: ${err instanceof Error ? err.message : "unknown"}`,
-    );
-  }
-
-  if (!response.ok) {
-    throw new KlipyError(`klipy responded ${response.status}`, response.status);
-  }
-
-  let body: KlipyTrendingResponse;
-  try {
-    body = (await response.json()) as KlipyTrendingResponse;
-  } catch {
-    throw new KlipyError("klipy returned non-JSON body", response.status);
-  }
-
-  if (body.result !== true || !body.data) {
-    throw new KlipyError("klipy returned an unsuccessful result", response.status);
-  }
-
-  return normalizeResponse(body, page, perPage);
+function toResult(
+  list: { items: TrendingMeme[]; page: number; perPage: number; hasNext: boolean },
+): TrendingMemesResult {
+  return {
+    memes: list.items,
+    page: list.page,
+    perPage: list.perPage,
+    hasNext: list.hasNext,
+  };
 }
 
 // Calls Klipy's static-memes/trending endpoint and returns a normalized,
@@ -212,7 +136,13 @@ async function requestMemes(
 export async function fetchTrendingMemes(
   params: FetchTrendingMemesParams,
 ): Promise<TrendingMemesResult> {
-  return requestMemes("trending", params);
+  const list = await requestKlipyList(
+    "static-memes",
+    "trending",
+    toBaseParams(params),
+    (raw) => normalizeMeme((raw ?? {}) as KlipyMeme),
+  );
+  return toResult(list);
 }
 
 // Calls Klipy's static-memes/search endpoint for a keyword query. Same
@@ -220,5 +150,11 @@ export async function fetchTrendingMemes(
 export async function searchMemes(
   params: SearchMemesParams,
 ): Promise<TrendingMemesResult> {
-  return requestMemes("search", params);
+  const list = await requestKlipyList(
+    "static-memes",
+    "search",
+    toBaseParams(params),
+    (raw) => normalizeMeme((raw ?? {}) as KlipyMeme),
+  );
+  return toResult(list);
 }

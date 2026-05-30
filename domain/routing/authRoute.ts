@@ -17,6 +17,10 @@
 
 export type AuthRouteFacts = {
   appReady: boolean;
+  // Device-level age gate. Until it passes, the user can't reach landing/auth/
+  // app at all — it runs before account creation and survives account deletion.
+  ageGatePassed: boolean;
+  atAgeGate: boolean;
   isAuthenticated: boolean;
   onboardingCompleted: boolean;
   needsEmailVerification: boolean;
@@ -31,6 +35,8 @@ export type AuthRouteTarget = { kind: "path"; href: string };
 export function decideAuthRoute(facts: AuthRouteFacts): AuthRouteTarget | null {
   const {
     appReady,
+    ageGatePassed,
+    atAgeGate,
     isAuthenticated,
     onboardingCompleted,
     needsEmailVerification,
@@ -41,6 +47,13 @@ export function decideAuthRoute(facts: AuthRouteFacts): AuthRouteTarget | null {
   } = facts;
 
   if (!appReady) return null;
+
+  // The age gate outranks everything: nobody reaches landing/auth/app until it
+  // passes. Once it passes, the user falls through to the normal flow below,
+  // which moves them off /age-gate (it's neither landing nor an auth route).
+  if (!ageGatePassed) {
+    return atAgeGate ? null : { kind: "path", href: "/age-gate" };
+  }
 
   if (!isAuthenticated) {
     if (!atLanding && !inAuth) {

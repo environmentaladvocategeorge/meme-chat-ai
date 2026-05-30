@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PLANS } from "../plans";
+import { PLANS, computeDailyCap } from "../plans";
 import { evaluateCharge, evaluateQuota } from "../ledger";
 import {
   DAILY_WINDOW_MS,
@@ -16,6 +16,8 @@ function billing(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcAppUserId: "uid-1",
     rcActiveProductId: "monthly_2",
     rcEntitlementExpiresAt: null,
+    monthlyCredits: PLANS.plus.monthlyCredits,
+    softDailyCredits: computeDailyCap(PLANS.plus.monthlyCredits, new Date(T0)),
     creditsRemaining: PLANS.plus.monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(T0 + MONTHLY_WINDOW_MS),
     dailyCreditsUsed: 0,
@@ -34,12 +36,38 @@ describe("evaluateQuota", () => {
   });
 
   it("rejects when the daily soft cap is already reached", () => {
+    const now = new Date(T0);
+    const cap = computeDailyCap(PLANS.plus.monthlyCredits, now);
     const r = evaluateQuota({
-      state: billing({ dailyCreditsUsed: PLANS.plus.softDailyCredits }),
+      state: billing({ dailyCreditsUsed: cap }),
       plan: "plus",
+      now,
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe("daily");
+  });
+
+  it("computes the daily cap from the current plan, so an upgrade lifts it", () => {
+    const now = new Date(T0);
+    // A usage level that exceeds basic's cap but sits under power's cap must be
+    // blocked on basic and allowed once the plan is power — the cap is never a
+    // stored constant, it tracks the plan.
+    const usage = computeDailyCap(PLANS.basic.monthlyCredits, now) + 1;
+    expect(usage).toBeLessThan(computeDailyCap(PLANS.power.monthlyCredits, now));
+
+    const onBasic = evaluateQuota({
+      state: billing({ plan: "basic", dailyCreditsUsed: usage }),
+      plan: "basic",
+      now,
+    });
+    expect(onBasic.ok).toBe(false);
+
+    const onPower = evaluateQuota({
+      state: billing({ plan: "power", dailyCreditsUsed: usage }),
+      plan: "power",
+      now,
+    });
+    expect(onPower.ok).toBe(true);
   });
 
   it("rejects when monthly credits are exhausted", () => {

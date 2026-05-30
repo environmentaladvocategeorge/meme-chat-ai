@@ -17,6 +17,17 @@ function images(n: number) {
   return Array.from({ length: n }, (_, i) => image({ id: `img-${i}` }));
 }
 
+function gif(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "gif-1",
+    source: "klipy-gif",
+    url: VALID_URL,
+    previewUrl: VALID_URL,
+    frameSourceUrl: VALID_URL,
+    ...overrides,
+  };
+}
+
 describe("streamAgentRequestSchema", () => {
   it("accepts text-only", () => {
     expect(streamAgentRequestSchema.safeParse({ message: "hi" }).success).toBe(true);
@@ -47,6 +58,45 @@ describe("streamAgentRequestSchema", () => {
   it("accepts exactly 3 images and rejects 4", () => {
     expect(streamAgentRequestSchema.safeParse({ images: images(3) }).success).toBe(true);
     expect(streamAgentRequestSchema.safeParse({ images: images(4) }).success).toBe(false);
+  });
+
+  it("accepts gif-only (no text)", () => {
+    expect(streamAgentRequestSchema.safeParse({ gifs: [gif()] }).success).toBe(true);
+  });
+
+  it("accepts memes AND a gif on the same turn (independent caps)", () => {
+    const result = streamAgentRequestSchema.safeParse({
+      message: "combo",
+      images: images(3),
+      gifs: [gif()],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts exactly 1 gif and rejects 2", () => {
+    expect(streamAgentRequestSchema.safeParse({ gifs: [gif()] }).success).toBe(true);
+    expect(
+      streamAgentRequestSchema.safeParse({ gifs: [gif(), gif({ id: "gif-2" })] }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a gif missing frameSourceUrl", () => {
+    const bad = gif();
+    delete (bad as Record<string, unknown>).frameSourceUrl;
+    expect(streamAgentRequestSchema.safeParse({ gifs: [bad] }).success).toBe(false);
+  });
+
+  it("rejects a gif on a non-allowlisted host", () => {
+    const result = streamAgentRequestSchema.safeParse({
+      gifs: [gif({ frameSourceUrl: "https://evil.example.com/a.webp" })],
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("defaults gifs to [] when omitted", () => {
+    const result = streamAgentRequestSchema.safeParse({ message: "hi" });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.gifs).toEqual([]);
   });
 
   it("rejects a non-klipy source", () => {

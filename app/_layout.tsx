@@ -1,8 +1,10 @@
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
 import { PlanSheet } from "@/components/PlanSheet";
 import { Typography } from "@/components/Typography";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
+import { useAgeGateStore } from "@/store/ageGate";
 import { useAuthStore } from "@/store/auth";
 import { useOnboardingStore } from "@/store/onboarding";
 import { useSettingsStore } from "@/store/settings";
@@ -72,6 +74,8 @@ export default function RootLayout() {
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
   const hydrateOnboarding = useOnboardingStore((s) => s.hydrate);
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
+  const hydrateAgeGate = useAgeGateStore((s) => s.hydrate);
+  const ageGatePassed = useAgeGateStore((s) => s.status === "passed");
   const initializeAuthSession = useAuthStore((s) => s.initializeAuthSession);
   const authStatus = useAuthStore((s) => s.status);
   const authEmailVerified = useAuthStore((s) => s.emailVerified);
@@ -84,10 +88,12 @@ export default function RootLayout() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    Promise.all([hydrateSettings(), hydrateOnboarding()]).finally(() =>
-      setHydrated(true),
-    );
-  }, [hydrateOnboarding, hydrateSettings]);
+    Promise.all([
+      hydrateSettings(),
+      hydrateOnboarding(),
+      hydrateAgeGate(),
+    ]).finally(() => setHydrated(true));
+  }, [hydrateAgeGate, hydrateOnboarding, hydrateSettings]);
 
   useEffect(() => {
     if (hydrated) {
@@ -117,6 +123,7 @@ export default function RootLayout() {
   const appReady = fontsLoaded && hydrated && authResolved;
   const segs = segments as readonly string[];
   const inOnboarding = segs[0] === "onboarding";
+  const atAgeGate = segs[0] === "age-gate";
   const atLanding = segs[0] === undefined;
   const inAuth = segs[0] === "auth";
   const authRoute: string | undefined =
@@ -132,6 +139,8 @@ export default function RootLayout() {
     () =>
       decideAuthRoute({
         appReady,
+        ageGatePassed,
+        atAgeGate,
         isAuthenticated,
         onboardingCompleted,
         needsEmailVerification,
@@ -142,6 +151,8 @@ export default function RootLayout() {
       }),
     [
       appReady,
+      ageGatePassed,
+      atAgeGate,
       atLanding,
       atVerifyEmail,
       inAuth,
@@ -190,6 +201,7 @@ export default function RootLayout() {
                   },
                 }}
               >
+                <Stack.Screen name="age-gate" />
                 <Stack.Screen name="index" />
                 <Stack.Screen name="auth/sign-in" />
                 <Stack.Screen name="auth/email" />
@@ -200,6 +212,7 @@ export default function RootLayout() {
             </View>
 
             <PlanSheet />
+            <ChatCustomizationSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

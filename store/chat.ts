@@ -1,3 +1,4 @@
+import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
 import { rateMessageCallable } from "@/services/firebase/callables";
 import {
@@ -20,6 +21,9 @@ export type ChatMessage = {
   // Image attachments on a user turn (Klipy memes). Empty/absent for agent
   // turns and text-only user turns.
   images?: MessageImage[];
+  // GIF attachment on a turn (max one). On a user turn it's a sent GIF; on an
+  // agent turn it's a get_gif result.
+  gifs?: MessageGif[];
   // Thumbs rating on an agent reply (persisted server-side).
   reaction?: MessageReaction;
   // Brainrot intensity selected for a user turn (1–3). Absent on agent turns.
@@ -44,6 +48,8 @@ type SettledReply = {
   // A meme the agent attached, carried through the settle window so it stays
   // visible until the finalized Firestore message (which also has it) lands.
   images?: MessageImage[];
+  // A GIF the agent attached, carried through the same settle window.
+  gifs?: MessageGif[];
 };
 
 type ChatState = {
@@ -56,6 +62,9 @@ type ChatState = {
   // A meme the agent attached to the in-flight reply (via the backend get_meme
   // tool), shown on the streaming bubble until the reply settles.
   streamingMeme: MessageImage | null;
+  // A GIF the agent attached to the in-flight reply (via get_gif), same role as
+  // streamingMeme.
+  streamingGif: MessageGif | null;
   // clientMessageId of the user turn whose agent reply is currently
   // streaming. Used to give the in-flight agent bubble a STABLE identity
   // (`agent:<clientMessageId>`) that matches the stored Firestore message
@@ -79,6 +88,7 @@ type ChatState = {
   sendMessage: (
     text: string,
     images?: MessageImage[],
+    gif?: MessageGif | null,
     levelOfRot?: number,
   ) => Promise<void>;
   // Optimistically set/toggle a thumbs rating on an agent message, then persist
@@ -165,6 +175,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   messages: [],
   streamingText: "",
   streamingMeme: null,
+  streamingGif: null,
   activeReplyClientId: null,
   settledReply: null,
   currentModel: null,
@@ -173,10 +184,13 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   abortController: null,
   error: null,
 
-  sendMessage: async (text, images = [], levelOfRot) => {
+  sendMessage: async (text, images = [], gif = null, levelOfRot) => {
     const trimmed = text.trim();
-    // Image-only turns are allowed: require text OR at least one attachment.
-    if ((trimmed.length === 0 && images.length === 0) || get().status === "streaming") {
+    // Attachment-only turns are allowed: require text OR a meme OR a gif.
+    if (
+      (trimmed.length === 0 && images.length === 0 && !gif) ||
+      get().status === "streaming"
+    ) {
       return;
     }
 
@@ -188,6 +202,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       role: "user",
       text: trimmed,
       images: images.length > 0 ? images : undefined,
+      gifs: gif ? [gif] : undefined,
       levelOfRot,
       status: "complete",
       createdAt: new Date(),
@@ -198,6 +213,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       messages: [...state.messages, localUserMessage],
       streamingText: "",
       streamingMeme: null,
+      streamingGif: null,
       activeReplyClientId: clientMessageId,
       settledReply: null,
       currentModel: null,
@@ -211,6 +227,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       for await (const event of streamAgentAnswer({
         message: trimmed,
         images,
+        gif,
         conversationId: get().conversationId,
         clientMessageId,
         levelOfRot,
@@ -258,6 +275,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           continue;
         }
 
+        if (event.type === "gif") {
+          set({ streamingGif: event.gif });
+          continue;
+        }
+
         if (event.type === "quota_exceeded") {
           // Backend rejected before any tokens were streamed. Surface the
           // modal data and bail; no error state, no message rendered.
@@ -268,6 +290,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             quota: { reason: event.reason, resetAt: event.resetAt },
             streamingText: "",
             streamingMeme: null,
+            streamingGif: null,
             activeReplyClientId: null,
             settledReply: null,
             status: "idle",
@@ -285,21 +308,25 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
       const finalText = get().streamingText;
       const finalMeme = get().streamingMeme;
+      const finalGif = get().streamingGif;
       if (unsubscribeMessages) {
-        // Live conversation: hand the final text + meme to the settled-reply
-        // bridge, keyed by this turn, so the bubble stays put until the
-        // finalized Firestore message arrives and clears it.
-        const hasReply = finalText.length > 0 || finalMeme !== null;
+        // Live conversation: hand the final text + meme/gif to the
+        // settled-reply bridge, keyed by this turn, so the bubble stays put
+        // until the finalized Firestore message arrives and clears it.
+        const hasReply =
+          finalText.length > 0 || finalMeme !== null || finalGif !== null;
         set({
           settledReply: hasReply
             ? {
                 clientMessageId,
                 text: finalText,
                 images: finalMeme ? [finalMeme] : undefined,
+                gifs: finalGif ? [finalGif] : undefined,
               }
             : null,
           streamingText: "",
           streamingMeme: null,
+          streamingGif: null,
           activeReplyClientId: null,
           currentModel: null,
           status: "idle",
@@ -311,7 +338,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         // message directly since no snapshot will ever arrive.
         set((state) => ({
           messages:
-            finalText.length > 0 || finalMeme !== null
+            finalText.length > 0 || finalMeme !== null || finalGif !== null
               ? [
                   ...state.messages,
                   {
@@ -319,6 +346,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
                     role: "agent",
                     text: finalText,
                     images: finalMeme ? [finalMeme] : undefined,
+                    gifs: finalGif ? [finalGif] : undefined,
                     status: "complete",
                     createdAt: new Date(),
                     optimistic: true,
@@ -328,6 +356,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           settledReply: null,
           streamingText: "",
           streamingMeme: null,
+          streamingGif: null,
           activeReplyClientId: null,
           currentModel: null,
           status: "idle",
@@ -340,6 +369,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         set({
           streamingText: "",
           streamingMeme: null,
+          streamingGif: null,
           activeReplyClientId: null,
           settledReply: null,
           status: "idle",
@@ -351,6 +381,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
 
       set({
         streamingMeme: null,
+        streamingGif: null,
         activeReplyClientId: null,
         settledReply: null,
         status: "error",
@@ -402,6 +433,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       messages: [],
       streamingText: "",
       streamingMeme: null,
+      streamingGif: null,
       activeReplyClientId: null,
       settledReply: null,
       status: "idle",
@@ -423,6 +455,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       messages: [],
       streamingText: "",
       streamingMeme: null,
+      streamingGif: null,
       activeReplyClientId: null,
       settledReply: null,
       status: "idle",
@@ -438,6 +471,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       status: "idle",
       streamingText: "",
       streamingMeme: null,
+      streamingGif: null,
       activeReplyClientId: null,
       settledReply: null,
       currentModel: null,

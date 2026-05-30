@@ -16,7 +16,7 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
   function: {
     name: "get_meme",
     description:
-      "Attach ONE real meme image to your reply by searching Klipy. This is a casual, meme-fluent chat app, so reaching for a meme image is on-brand — call this when a meme would genuinely land: the user is joking, hyped, celebrating, reacting, being playful, or venting about something low-stakes. Skip it on serious, sensitive, technical, or emotionally heavy turns, or when the user just wants a straight answer (apply the same serious-topic restraint your persona instructions already define). At most one meme per reply, and only when it actually adds something. This attaches an IMAGE, which is separate from your normal meme-y wording — the image is shown to the user automatically on its own, so you must still write a normal text reply and must never title, describe, link, or embed it yourself.",
+      "Attach ONE real STILL meme image to your reply by searching Klipy. This is the SECONDARY visual option — for animated reactions prefer get_gif, which is richer and returns more relevant results. Only use get_meme when a specific still caption/format genuinely says it better than motion could (a classic captioned reaction image the user is clearly invoking). Otherwise reach for get_gif. Like get_gif, this is on-brand on casual turns when the user is joking, hyped, celebrating, reacting, being playful, or venting about something low-stakes. Skip it on serious, sensitive, technical, or emotionally heavy turns, or when the user just wants a straight answer (apply the same serious-topic restraint your persona instructions already define). At most ONE image per reply total — either a GIF (get_gif) OR a meme (get_meme), never both, and default to the GIF. This attaches an IMAGE, which is separate from your normal meme-y wording — the image is shown to the user automatically on its own, so you must still write a normal text reply and must never title, describe, link, or embed it yourself. Keep the search query specific and relevant to THIS moment.",
     parameters: {
       type: "object",
       properties: {
@@ -32,9 +32,9 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
   },
 };
 
-export const MEME_TOOL_GUIDANCE = `═══ MEME IMAGES, get_meme TOOL ═══
+export const MEME_TOOL_GUIDANCE = `═══ STILL MEME IMAGES, get_meme TOOL (secondary — prefer get_gif) ═══
 
-You are in MeMe Chat AI, a meme-first chat app. get_meme attaches ONE real meme image under your text reply. Use it when a reaction image would make the moment funnier, more expressive, or more group-chat coded.
+You are in MeMe Chat AI, a casual chat app. get_meme attaches ONE real STILL meme image under your text reply. It is the SECONDARY visual option: animated GIFs (get_gif) are richer and have better search results, so default to a GIF and only reach for get_meme when a specific still caption/format clearly lands the moment better than motion could (a classic captioned reaction image the user is clearly invoking).
 
 Always write a real text reply first. The meme image is a bonus reaction, not the answer.
 
@@ -47,18 +47,12 @@ Output rules:
 * Call get_meme at most once per reply.
 * Do not attach a meme every turn.
 
-Use get_meme fairly often for casual, funny, playful, hype, confused, shocked, celebratory, roasting, venting, "am I cooked," "sus," "we're cooked," or brainrot moments.
-
-Strongly consider get_meme when:
-
-* the user asks for a meme, GIF, reaction, image, roast, caption, or vibe check
-* the user sends an image and wants a reaction, roast, caption, or vibe check
-* your reply naturally has reaction energy like "AYOOOOO so sus," "we're cooked," "ts buns," "ate," "zero aura," "not beating the allegations," or "let him cook"
+For casual, funny, playful, hype, confused, shocked, celebratory, roasting, venting, "am I cooked," "sus," "we're cooked," or brainrot moments, a visual reaction fits — but reach for get_gif first. Only pick get_meme over a GIF when a specific still captioned format is exactly what the moment calls for. If the user explicitly asks for a meme (not a GIF), use get_meme.
 
 Skip get_meme for serious, sensitive, legal, medical, financial, safety, grief, crisis, discrimination, harassment, or emotionally heavy topics. Also skip it when an image would distract from exact code, factual precision, or professional help.
 
-Query rules:
-Use one short, specific, varied query, usually 2 to 6 words. Capture the vibe, not the whole message. Avoid generic queries like "funny meme," "reaction meme," "lol meme," or "meme."
+Query rules — make it RELEVANT:
+Use one short, specific query, usually 2 to 6 words, that matches THIS exact moment — the reaction or the concrete subject — not a generic vibe. Avoid generic queries like "funny meme," "reaction meme," "lol meme," or "meme."
 
 Good queries:
 "we are cooked", "shocked side eye", "suspicious reaction", "this is fine", "let him cook", "big W reaction", "zero aura moment", "dogwater moment", "confused cat", "crying laughing", "npc behavior", "brainrot detected", "villain arc", "ate no crumbs"

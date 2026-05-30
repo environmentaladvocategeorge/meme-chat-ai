@@ -1,6 +1,11 @@
 import { getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
 import type { ChatMessage } from "../agent/types";
 import { PLANS, type PlanId } from "../billing/plans";
+import {
+  extractGifFrames,
+  type ExtractedGifFrames,
+} from "../gifs/extractFrames";
+import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
 import { countMessagesTokens } from "./tokens";
 
@@ -34,40 +39,71 @@ export type AssembleArgs = {
   recent: ChatMessage[]; // ordered oldest → newest, already filtered to status: complete
   currentText: string;
   currentImages?: MessageImage[];
+  // Pre-extracted frames for the current turn's GIF (if any). Frame extraction
+  // is async (fetch + decode), so the caller does it before this pure
+  // assembler runs and hands the result in here.
+  currentGifFrames?: ExtractedGifFrames;
   maxInputTokens: number;
 };
 
 const RECENT_TARGET = 10;
 
-// Historical user turns that carried images are collapsed to a cheap text note
-// rather than re-sending the image_url parts. This is essential for token
-// conservation: a meme costs ~250 prompt tokens every turn it stays attached.
+// Builds the note that tells the model the supplied frames are slices of ONE
+// animated GIF — never separate images — so it doesn't narrate "three images."
+function buildGifNote(frames: ExtractedGifFrames): string {
+  if (frames.frames.length === 0) {
+    return "[The user sent ONE animated GIF, but its frames could not be processed. Acknowledge the GIF without describing specific contents.]";
+  }
+  if (frames.frames.length === 1) {
+    return "[The user sent ONE animated GIF. The following image is a single still frame sampled from it (the full animation could not be processed). Treat it as one GIF, not a standalone image.]";
+  }
+  return `[The user sent ONE animated GIF. The following ${frames.frames.length} images are still frames sampled from that single GIF, in order (start → middle → end). Treat them together as one GIF, not as ${frames.frames.length} separate images.]`;
+}
+
+// Historical user turns that carried attachments are collapsed to a cheap text
+// note rather than re-sending image parts. Essential for token conservation: a
+// meme costs ~250 prompt tokens every turn it stays attached, and a GIF would
+// cost several times that.
 function collapseHistoricalUserContent(
   text: string,
   images?: MessageImage[],
+  gifs?: MessageGif[],
 ): string {
   const trimmed = text.trim();
-  if (!images || images.length === 0) return trimmed;
+  const notes: string[] = [];
 
-  const placeholder =
-    images.length === 1
-      ? "[User sent a Klipy meme image]"
-      : `[User sent ${images.length} Klipy meme images]`;
+  if (images && images.length > 0) {
+    notes.push(
+      images.length === 1
+        ? "[User sent a Klipy meme image]"
+        : `[User sent ${images.length} Klipy meme images]`,
+    );
+  }
+  if (gifs && gifs.length > 0) {
+    notes.push("[User sent an animated GIF]");
+  }
 
-  return trimmed.length > 0 ? `${trimmed}\n\n${placeholder}` : placeholder;
+  if (notes.length === 0) return trimmed;
+  const joined = notes.join("\n");
+  return trimmed.length > 0 ? `${trimmed}\n\n${joined}` : joined;
 }
 
 // The current user turn is the only message allowed to carry real image parts.
-// Text-only → plain string (unchanged behavior). With images → an array of
-// content parts: optional text part (only when non-empty) + one image_url part
-// per attachment, always with explicit detail:"low" and the previewUrl.
+// Text-only with no GIF → plain string (unchanged behavior). Otherwise → an
+// array of content parts: optional text part, one image_url part per meme
+// (previewUrl, detail:"low"), then — if a GIF was attached — a note part
+// explaining the GIF followed by one image_url part per extracted frame (each a
+// base64 data URL, detail:"low").
 export function buildCurrentUserContent(
   text: string,
   images?: MessageImage[],
+  gifFrames?: ExtractedGifFrames,
 ): string | OpenAIContentPart[] {
   const trimmed = text.trim();
+  const hasImages = Boolean(images && images.length > 0);
+  const hasGif = Boolean(gifFrames);
 
-  if (!images || images.length === 0) {
+  if (!hasImages && !hasGif) {
     return trimmed;
   }
 
@@ -75,11 +111,19 @@ export function buildCurrentUserContent(
   if (trimmed.length > 0) {
     parts.push({ type: "text", text: trimmed });
   }
-  for (const image of images) {
-    parts.push({
-      type: "image_url",
-      image_url: { url: image.previewUrl, detail: "low" },
-    });
+  if (images) {
+    for (const image of images) {
+      parts.push({
+        type: "image_url",
+        image_url: { url: image.previewUrl, detail: "low" },
+      });
+    }
+  }
+  if (gifFrames) {
+    parts.push({ type: "text", text: buildGifNote(gifFrames) });
+    for (const frame of gifFrames.frames) {
+      parts.push({ type: "image_url", image_url: { url: frame, detail: "low" } });
+    }
   }
   return parts;
 }
@@ -105,12 +149,19 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
       out.push(
         m.role === "agent"
           ? { role: "assistant", content: m.text }
-          : { role: "user", content: collapseHistoricalUserContent(m.text, m.images) },
+          : {
+              role: "user",
+              content: collapseHistoricalUserContent(m.text, m.images, m.gifs),
+            },
       );
     }
     out.push({
       role: "user",
-      content: buildCurrentUserContent(args.currentText, args.currentImages),
+      content: buildCurrentUserContent(
+        args.currentText,
+        args.currentImages,
+        args.currentGifFrames,
+      ),
     });
     return out;
   };
@@ -142,6 +193,7 @@ type MessageDoc = {
   text?: string;
   status?: "complete" | "streaming" | "error";
   images?: MessageImage[];
+  gifs?: MessageGif[];
 };
 
 type ConversationDoc = {
@@ -156,13 +208,18 @@ function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
 
   const text = typeof data.text === "string" ? data.text : "";
   const images = Array.isArray(data.images) ? data.images : undefined;
+  const gifs = Array.isArray(data.gifs) ? data.gifs : undefined;
   const hasImages = Boolean(images && images.length > 0);
+  const hasGifs = Boolean(gifs && gifs.length > 0);
 
-  // Keep image-only user messages (empty text) so their attachments can be
-  // collapsed to placeholders; otherwise require non-empty text as before.
-  if (text.length === 0 && !hasImages) return null;
+  // Keep attachment-only user messages (empty text) so they can be collapsed to
+  // placeholders; otherwise require non-empty text as before.
+  if (text.length === 0 && !hasImages && !hasGifs) return null;
 
-  return hasImages ? { role: data.role, text, images } : { role: data.role, text };
+  const message: ChatMessage = { role: data.role, text };
+  if (hasImages) message.images = images;
+  if (hasGifs) message.gifs = gifs;
+  return message;
 }
 
 export type AssembleContextArgs = {
@@ -170,6 +227,9 @@ export type AssembleContextArgs = {
   plan: PlanId;
   currentUserMessage: string;
   currentImages?: MessageImage[];
+  // The GIF attached to the current turn (max one). Decoded into sampled frames
+  // for the model before assembly.
+  currentGif?: MessageGif;
   systemPrompt?: string;
 };
 
@@ -217,6 +277,12 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     }
   }
 
+  // Decode the current turn's GIF into sampled still frames for the model. Done
+  // here (async) so the pure assembler can stay synchronous. Never throws.
+  const currentGifFrames = args.currentGif
+    ? await extractGifFrames(args.currentGif)
+    : undefined;
+
   const planCfg = PLANS[args.plan];
   return assembleFromInputs({
     systemPrompt: args.systemPrompt,
@@ -224,6 +290,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     recent,
     currentText: args.currentUserMessage,
     currentImages: args.currentImages,
+    currentGifFrames,
     maxInputTokens: planCfg.maxInputTokens,
   });
 }

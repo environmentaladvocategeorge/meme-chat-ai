@@ -27,6 +27,10 @@ export const onUserCreated = auth.user().onCreate(async (user) => {
         emailVerified,
         providers,
         createdAt: FieldValue.serverTimestamp(),
+        // Personalization captured during onboarding (filled in by the
+        // updateProfile callable). Seeded empty so the doc shape is stable.
+        alias: "",
+        onboardingCompleted: false,
         ...billing,
       },
       { merge: true },

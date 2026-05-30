@@ -1,13 +1,13 @@
-import { Timestamp, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
+import { logger } from "firebase-functions";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { PLAN_RANK, PLANS, type PlanId } from "../billing/plans";
+import { PLAN_RANK, type PlanId } from "../billing/plans";
 import {
   REVENUECAT_PRODUCT_TO_PLAN,
   isKnownRcProduct,
 } from "../billing/revenuecat";
 import {
-  DAILY_WINDOW_MS,
-  MONTHLY_WINDOW_MS,
+  planActivationFields,
   readProfileBilling,
   type ProfileBilling,
 } from "../entitlement/schema";
@@ -29,15 +29,27 @@ export const syncRevenueCatPlan = onCall({ region: "us-central1" }, async (req) 
     throw new HttpsError("invalid-argument", "invalid-product-id");
   }
 
+  const known = typeof productId === "string" && isKnownRcProduct(productId);
   let proposedPlan: PlanId = "free";
   if (productId && isKnownRcProduct(productId)) {
     proposedPlan = REVENUECAT_PRODUCT_TO_PLAN[productId];
   }
 
+  // Diagnostic: the optimistic path was silent (no logging), so a call that
+  // resolved an unrecognized productId to "free" looked identical to never
+  // being called. Log the raw productId, whether we recognized it, and the
+  // resolved plan so we can tell those two failure modes apart in the logs.
+  if (!known) {
+    logger.warn("[syncRevenueCatPlan] unrecognized productId → resolving free", {
+      uid,
+      productId: productId ?? null,
+    });
+  }
+
   const db = getFirestore();
   const ref = db.doc(`profiles/${uid}`);
 
-  await db.runTransaction(async (tx) => {
+  const outcome = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     const current = snap.exists ? readProfileBilling(snap.data()) : null;
 
@@ -48,23 +60,27 @@ export const syncRevenueCatPlan = onCall({ region: "us-central1" }, async (req) 
       current.planSource === "revenuecat" &&
       PLAN_RANK[current.plan] >= PLAN_RANK[proposedPlan]
     ) {
-      return;
+      return { applied: false, fromPlan: current.plan } as const;
     }
 
-    const planCfg = PLANS[proposedPlan];
-    const now = Date.now();
     const next: Partial<ProfileBilling> = {
       plan: proposedPlan,
       planSource: "revenuecat",
       rcAppUserId: uid,
       rcActiveProductId:
         productId && isKnownRcProduct(productId) ? productId : null,
-      creditsRemaining: planCfg.monthlyCredits,
-      creditsResetAt: Timestamp.fromMillis(now + MONTHLY_WINDOW_MS),
-      dailyCreditsUsed: 0,
-      dailyResetAt: Timestamp.fromMillis(now + DAILY_WINDOW_MS),
+      ...planActivationFields(proposedPlan, new Date()),
     };
     tx.set(ref, next, { merge: true });
+    return { applied: true, fromPlan: current?.plan ?? null } as const;
+  });
+
+  logger.info("[syncRevenueCatPlan] processed", {
+    uid,
+    productId: productId ?? null,
+    known,
+    proposedPlan,
+    ...outcome,
   });
 
   return { plan: proposedPlan };
