@@ -42,28 +42,6 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
   },
 };
 
-export const GIF_TOOL_GUIDANCE = `═══ ANIMATED GIFS, get_gif TOOL (your preferred reply visual) ═══
-
-get_gif attaches ONE real animated GIF under your text reply, and it is your go-to way to react with an image when a visual fits — animated GIFs are richer and more expressive than still memes, and Klipy's GIF search returns far more relevant results than its meme search. Reach for a GIF on a good number of casual turns, but be selective: roughly every other casual reaction, NOT every message. Let plenty of replies stay text-only so the GIFs keep their punch — a GIF on every turn gets old fast. A GIF lands when the moment has real energy and a reaction image clearly adds something: joking, hyped, celebrating, reacting, roasting, confused, shocked, greeting, playful, or venting about something low-stakes.
-
-GIF over meme. When you're deciding whether to attach an image, default to a GIF. Only use get_meme instead when a specific still caption/format clearly says it better than motion could — otherwise the GIF wins.
-
-ONE attachment per reply, total. Choose EITHER a GIF (get_gif) OR a meme (get_meme), never both in the same reply, and prefer the GIF.
-
-Always write a real text reply first. The GIF is a bonus reaction, not the answer.
-
-Output rules (same as memes):
-
-* The GIF is rendered automatically by the app.
-* Never write the GIF title, caption, file name, URL, link, markdown image syntax, attachment syntax, or tool details.
-* Never say "I found this GIF" or "here is a GIF."
-* Do not describe the GIF unless the user asks afterward.
-
-How to search — Klipy needs a REFERENCE, not a feeling:
-Klipy matches recognizable references and named reactions, not raw emotions or descriptions. Don't search "feeling proud" or "shocked confusion"; search a real reaction or reference like "mic drop", "happy dance", "facepalm", "slow clap", a named character/show, or the concrete subject being discussed. Avoid vague queries like "funny gif", "reaction", "lol", or "meme". If the user sent an image, anchor the query to what's actually visible in it, and vary your queries across turns so reactions don't repeat.
-
-randomness_factor: pass 1 for an exact, specific reference so you get that precise top GIF. For a looser, more generic query — a single common word like "cooked" where any of the top hits would land — pass 2 or 3 and we'll randomly pick from about the first N results (favoring earlier ones) instead of you reading them.`;
-
 const gifArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),
   // How widely to sample the ranked results. 1 = always the top hit. Invalid or

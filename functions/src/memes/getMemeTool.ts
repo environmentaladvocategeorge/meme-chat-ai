@@ -14,7 +14,9 @@ import type { ContentFilter, TrendingMeme } from "./types";
 // free-form emotions or descriptions — searching "shocked confusion" returns
 // junk, but searching the exact title "Blinking Guy Meme Reaction" returns the
 // meme. So the model maps the moment to one of these vibes and searches the
-// title verbatim (with randomness_factor 1). Rendered into the guidance below.
+// title verbatim (with randomness_factor 1). Retained as reference data: the
+// persona prompt now carries its own (trimmed) meme bank, so this fuller list
+// is no longer injected into the system prompt — keep it for future reuse.
 export const MEME_REFERENCE_LIBRARY: ReadonlyArray<{
   name: string;
   vibe: string;
@@ -38,10 +40,6 @@ export const MEME_REFERENCE_LIBRARY: ReadonlyArray<{
   { name: "side eye cat meme", vibe: "quiet judgment" },
 ];
 
-// Render the bank as "vibe → exact search" lines for the prompt.
-const MEME_REFERENCE_LINES = MEME_REFERENCE_LIBRARY.map(
-  ({ name, vibe }) => `• ${vibe} → search exactly: "${name}"`,
-).join("\n");
 
 // The OpenAI tool the agent may call to attach a single meme to its reply.
 // The description carries the *when to use it* policy so the decision lives
@@ -73,35 +71,6 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
     },
   },
 };
-
-export const MEME_TOOL_GUIDANCE = `═══ STILL MEME IMAGES, get_meme TOOL (secondary — prefer get_gif) ═══
-
-You are in MeMe Chat AI, a casual chat app. get_meme attaches ONE real STILL meme image under your text reply. It is the SECONDARY visual option: animated GIFs (get_gif) are richer and have better search results, so default to a GIF and only reach for get_meme when a specific still caption/format clearly lands the moment better than motion could (a classic captioned reaction image the user is clearly invoking).
-
-Always write a real text reply first. The meme image is a bonus reaction, not the answer.
-
-Output rules:
-
-* The image is rendered automatically by the app.
-* Never write the meme title, caption, file name, URL, link, markdown image syntax, attachment syntax, or tool details.
-* Never say "I found this meme" or "here is the meme."
-* Do not describe the meme image unless the user asks afterward.
-* Call get_meme at most once per reply.
-* Do not attach a meme every turn.
-
-For casual, funny, playful, hype, confused, shocked, celebratory, roasting, venting, "am I cooked," "sus," "we're cooked," or brainrot moments, a visual reaction fits — but reach for get_gif first. Only pick get_meme over a GIF when a specific still captioned format is exactly what the moment calls for. If the user explicitly asks for a meme (not a GIF), use get_meme.
-
-Skip get_meme for serious, sensitive, legal, medical, financial, safety, grief, crisis, discrimination, harassment, or emotionally heavy topics. Also skip it when an image would distract from exact code, factual precision, or professional help.
-
-How to search — Klipy needs an EXACT reference, not a feeling:
-Klipy does NOT understand general descriptions or emotions. Searching "shocked confusion" or "feeling defeated" returns junk. It matches the verbatim NAME of a meme. So don't generate literal descriptive text — map the moment to a known meme reference and search that exact name.
-
-Your meme bank (match the moment's vibe, then search the name verbatim with randomness_factor 1):
-${MEME_REFERENCE_LINES}
-
-These are your starting recommendations. If one of them fits the moment, use it. If NONE is a good match, you may improvise — but you still can't search a raw emotion or description; anchor your query to a real, recognizable meme reference (an actual named meme/format), then fall back toward the bank when in doubt.
-
-randomness_factor: pass 1 for an exact reference (a bank title or a specific named meme) so you get that precise meme. For a looser, more generic query — a single common word like "cooked" where any of the top hits would land — pass 2 or 3 and we'll randomly pick from about the first N results (favoring the earlier ones) instead of you reading them.`;
 
 const memeArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),

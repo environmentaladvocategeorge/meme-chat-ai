@@ -4,16 +4,8 @@ import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
-import {
-  GET_GIF_TOOL,
-  GIF_TOOL_GUIDANCE,
-  runGetGif,
-} from "./gifs/getGifTool";
-import {
-  GET_MEME_TOOL,
-  MEME_TOOL_GUIDANCE,
-  runGetMeme,
-} from "./memes/getMemeTool";
+import { GET_GIF_TOOL, runGetGif } from "./gifs/getGifTool";
+import { GET_MEME_TOOL, runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
@@ -255,14 +247,10 @@ export const streamAgentAnswer = onRequest(
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
-      // Teach the persona about the get_meme / get_gif capabilities only when
-      // they're actually available, so a text-only deployment doesn't promise
-      // attachments it can't send. Both tools share the KLIPY app key.
-      // GIF guidance leads so the model treats animated GIFs as the default
-      // visual reaction and only falls back to the still-meme tool.
-      const systemPrompt = memeToolEnabled
-        ? `${promptResult.systemPrompt}\n\n${GIF_TOOL_GUIDANCE}\n\n${MEME_TOOL_GUIDANCE}`
-        : promptResult.systemPrompt;
+      // The persona prompt itself carries the get_gif / get_meme usage rules,
+      // so no extra tool guidance is appended here. `memeToolEnabled` still
+      // gates whether the tools are actually registered below.
+      const systemPrompt = promptResult.systemPrompt;
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
