@@ -11,10 +11,10 @@
 // "auto" for free users so a downgrade gracefully reverts the look without us
 // having to mutate stored preferences.
 
-import { gradients, themes } from "@/nativewind-theme";
+import { gradients, type ThemeTokens } from "@/nativewind-theme";
 
 export type ColorScheme = "light" | "dark";
-type Theme = (typeof themes)[ColorScheme];
+type Theme = ThemeTokens;
 
 const AUTO_ID = "auto" as const;
 
@@ -29,38 +29,37 @@ type BubblePreset =
 const WHITE = "#FFFFFF";
 const INK = "#17131F";
 
-// Order here is the order shown in the picker (after the leading "Auto" swatch).
-// Gradients lead and outnumber the solids — they're the headline of the feature.
+// Order here is the order shown in the picker (after the leading "Auto" swatch):
+// gradients, then pastels (ink text), then basics (saturated, white text). Eight
+// of each — a curated, evenly-grouped set rather than a long similar-looking row.
 export const BUBBLE_PRESETS: readonly BubblePreset[] = [
-  // Gradients — chosen so white text stays legible across the whole sweep.
-  { id: "violet", kind: "gradient", colors: ["#7C3AED", "#FF4FB8"], textColor: WHITE },
-  { id: "ocean", kind: "gradient", colors: ["#2454FF", "#22C7F2"], textColor: WHITE },
-  { id: "sunset", kind: "gradient", colors: ["#FF7A59", "#FF4FB8"], textColor: WHITE },
-  { id: "aurora", kind: "gradient", colors: ["#7C3AED", "#22C7F2"], textColor: WHITE },
-  { id: "ember", kind: "gradient", colors: ["#E63757", "#FF7A59"], textColor: WHITE },
-  { id: "forest", kind: "gradient", colors: ["#0E8F63", "#21C48D"], textColor: WHITE },
-  { id: "midnight", kind: "gradient", colors: ["#3B2568", "#7C3AED"], textColor: WHITE },
-  { id: "candy", kind: "gradient", colors: ["#FF4FB8", "#A76BFF"], textColor: WHITE },
-  { id: "twilight", kind: "gradient", colors: ["#2454FF", "#7C3AED"], textColor: WHITE },
-  { id: "rose", kind: "gradient", colors: ["#E63757", "#FF4FB8"], textColor: WHITE },
-  { id: "deepsea", kind: "gradient", colors: ["#0E7490", "#2454FF"], textColor: WHITE },
-  { id: "mulberry", kind: "gradient", colors: ["#6D28D9", "#DB2777"], textColor: WHITE },
-  { id: "mint", kind: "gradient", colors: ["#0E8F8F", "#21C48D"], textColor: WHITE },
-  // Clean, popular gradients — tasteful rather than loud.
-  { id: "mauve", kind: "gradient", colors: ["#667EEA", "#764BA2"], textColor: WHITE }, // "Purple Love"
-  { id: "royal", kind: "gradient", colors: ["#4B6CB7", "#182848"], textColor: WHITE }, // "Royal Blue"
-  { id: "indigo", kind: "gradient", colors: ["#4F46E5", "#7C3AED"], textColor: WHITE },
-  { id: "skyline", kind: "gradient", colors: ["#0EA5E9", "#2563EB"], textColor: WHITE },
-  { id: "coral", kind: "gradient", colors: ["#FF5E62", "#FF9966"], textColor: WHITE },
-  { id: "slate", kind: "gradient", colors: ["#334155", "#1E293B"], textColor: WHITE }, // clean neutral
-  // Solids.
-  { id: "grape", kind: "solid", color: "#7C3AED", textColor: WHITE },
-  { id: "blueberry", kind: "solid", color: "#2454FF", textColor: WHITE },
-  { id: "bubblegum", kind: "solid", color: "#FF4FB8", textColor: WHITE },
-  { id: "teal", kind: "solid", color: "#0E8F8F", textColor: WHITE },
-  { id: "graphite", kind: "solid", color: "#2B2347", textColor: WHITE },
-  { id: "ink", kind: "solid", color: INK, textColor: WHITE },
-  { id: "cloud", kind: "solid", color: "#EFEAFF", textColor: INK },
+  // Gradients — white text stays legible across the whole sweep.
+  { id: "violetPink", kind: "gradient", colors: ["#7C3AED", "#DB2777"], textColor: WHITE },
+  { id: "blueCyan", kind: "gradient", colors: ["#2563EB", "#06B6D4"], textColor: WHITE },
+  { id: "sunset", kind: "gradient", colors: ["#F97316", "#EC4899"], textColor: WHITE },
+  { id: "purpleBlue", kind: "gradient", colors: ["#8B5CF6", "#2563EB"], textColor: WHITE },
+  { id: "greenTeal", kind: "gradient", colors: ["#16A34A", "#14B8A6"], textColor: WHITE },
+  { id: "roseRed", kind: "gradient", colors: ["#F43F5E", "#DC2626"], textColor: WHITE },
+  { id: "indigoViolet", kind: "gradient", colors: ["#4F46E5", "#7C3AED"], textColor: WHITE },
+  { id: "slateBlue", kind: "gradient", colors: ["#334155", "#2563EB"], textColor: WHITE },
+  // Pastels — soft fills, so they carry dark ink text.
+  { id: "lavender", kind: "solid", color: "#EDE9FE", textColor: INK },
+  { id: "sky", kind: "solid", color: "#DBEAFE", textColor: INK },
+  { id: "blush", kind: "solid", color: "#FCE7F3", textColor: INK },
+  { id: "mint", kind: "solid", color: "#CCFBF1", textColor: INK },
+  { id: "sage", kind: "solid", color: "#DCFCE7", textColor: INK },
+  { id: "peach", kind: "solid", color: "#FFEDD5", textColor: INK },
+  { id: "rose", kind: "solid", color: "#FFE4E6", textColor: INK },
+  { id: "sand", kind: "solid", color: "#FEF3C7", textColor: INK },
+  // Basics — saturated UI colors, white text.
+  { id: "violet", kind: "solid", color: "#7C3AED", textColor: WHITE },
+  { id: "blue", kind: "solid", color: "#2563EB", textColor: WHITE },
+  { id: "pink", kind: "solid", color: "#DB2777", textColor: WHITE },
+  { id: "teal", kind: "solid", color: "#0D9488", textColor: WHITE },
+  { id: "green", kind: "solid", color: "#16A34A", textColor: WHITE },
+  { id: "orange", kind: "solid", color: "#EA580C", textColor: WHITE },
+  { id: "red", kind: "solid", color: "#DC2626", textColor: WHITE },
+  { id: "graphite", kind: "solid", color: "#1F2937", textColor: WHITE },
 ];
 
 // ---- Chat backgrounds ----
@@ -73,34 +72,34 @@ type BackgroundPreset =
   | { id: string; kind: "gradient"; colors: GradientStops; tone: ColorScheme };
 
 export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
-  // Gradients (vertical, subtle — they sit behind the whole thread). Gradients
-  // lead and outnumber the solids.
-  { id: "dawn", kind: "gradient", colors: ["#FFF1E8", "#F4EEFF"], tone: "light" },
-  { id: "cotton", kind: "gradient", colors: ["#FDF2FF", "#EAF2FF"], tone: "light" },
-  { id: "sunrise", kind: "gradient", colors: ["#FFF1E8", "#FFE4F0"], tone: "light" },
-  { id: "seafoam", kind: "gradient", colors: ["#ECFBF4", "#EAF2FF"], tone: "light" },
-  // Brighter, fun light gradients.
-  { id: "candyfloss", kind: "gradient", colors: ["#FFD3E0", "#CFE0FF"], tone: "light" },
-  { id: "citrus", kind: "gradient", colors: ["#FFF1C9", "#FFD9E8"], tone: "light" },
-  { id: "aqua", kind: "gradient", colors: ["#CFF6EC", "#D7E6FF"], tone: "light" },
-  { id: "lilac", kind: "gradient", colors: ["#ECDBFF", "#FFDDF0"], tone: "light" },
-  // Dark gradients.
-  { id: "dusk", kind: "gradient", colors: ["#241B3F", "#0B0714"], tone: "dark" },
-  { id: "nebula", kind: "gradient", colors: ["#142C65", "#0B0714"], tone: "dark" },
-  { id: "abyss", kind: "gradient", colors: ["#0F2C2C", "#0B0714"], tone: "dark" },
-  { id: "berry", kind: "gradient", colors: ["#2D1B3D", "#0B0714"], tone: "dark" },
-  // Richer, fun dark gradients.
-  { id: "cosmos", kind: "gradient", colors: ["#2B0B4E", "#0B0714"], tone: "dark" },
-  { id: "royalnight", kind: "gradient", colors: ["#0B1F4D", "#0B0714"], tone: "dark" },
-  { id: "emerald", kind: "gradient", colors: ["#063D2E", "#0B0714"], tone: "dark" },
-  { id: "crimson", kind: "gradient", colors: ["#3A0A1B", "#0B0714"], tone: "dark" },
-  // Solids.
-  { id: "snow", kind: "solid", color: "#FFFFFF", tone: "light" },
-  { id: "lavender", kind: "solid", color: "#F3F0FF", tone: "light" },
-  { id: "mint", kind: "solid", color: "#ECFBF4", tone: "light" },
-  { id: "sky", kind: "solid", color: "#EAF2FF", tone: "light" },
-  { id: "plum", kind: "solid", color: "#1B1730", tone: "dark" },
-  { id: "midnight", kind: "solid", color: "#0B0714", tone: "dark" },
+  // Gradients (vertical, subtle — they sit behind the whole thread). Six light
+  // and two dark, ordered after the leading "Auto" swatch.
+  { id: "dawn", kind: "gradient", colors: ["#FFF7ED", "#EEF2FF"], tone: "light" },
+  { id: "cotton", kind: "gradient", colors: ["#FDF2F8", "#E0F2FE"], tone: "light" },
+  { id: "aurora", kind: "gradient", colors: ["#ECFDF5", "#EEF2FF"], tone: "light" },
+  { id: "lilac", kind: "gradient", colors: ["#F5F3FF", "#FCE7F3"], tone: "light" },
+  { id: "sunset", kind: "gradient", colors: ["#FFEDD5", "#FFE4E6"], tone: "light" },
+  { id: "ocean", kind: "gradient", colors: ["#E0F2FE", "#CCFBF1"], tone: "light" },
+  { id: "dusk", kind: "gradient", colors: ["#312E81", "#111827"], tone: "dark" },
+  { id: "midnight", kind: "gradient", colors: ["#0F172A", "#312E81"], tone: "dark" },
+  // Pastels — gentle full-surface tints (all light).
+  { id: "lavender", kind: "solid", color: "#F5F3FF", tone: "light" },
+  { id: "sky", kind: "solid", color: "#EFF6FF", tone: "light" },
+  { id: "blush", kind: "solid", color: "#FDF2F8", tone: "light" },
+  { id: "mint", kind: "solid", color: "#ECFDF5", tone: "light" },
+  { id: "sage", kind: "solid", color: "#F0FDF4", tone: "light" },
+  { id: "peach", kind: "solid", color: "#FFF7ED", tone: "light" },
+  { id: "butter", kind: "solid", color: "#FEFCE8", tone: "light" },
+  { id: "stone", kind: "solid", color: "#F8FAFC", tone: "light" },
+  // Basics — muted UI colors, soft enough to read as full backgrounds.
+  { id: "violet", kind: "solid", color: "#EDE9FE", tone: "light" },
+  { id: "blue", kind: "solid", color: "#DBEAFE", tone: "light" },
+  { id: "pink", kind: "solid", color: "#FCE7F3", tone: "light" },
+  { id: "teal", kind: "solid", color: "#CCFBF1", tone: "light" },
+  { id: "green", kind: "solid", color: "#DCFCE7", tone: "light" },
+  { id: "orange", kind: "solid", color: "#FFEDD5", tone: "light" },
+  { id: "red", kind: "solid", color: "#FFE4E6", tone: "light" },
+  { id: "graphite", kind: "solid", color: "#111827", tone: "dark" },
 ];
 
 // Valid ids (including "auto") for storage validation.
@@ -231,6 +230,73 @@ export function resolveBackground(
     gradientColors: null,
     tone: preset.tone,
   };
+}
+
+// ---- Per-background chat surfaces ----
+//
+// A custom background changes more than the backdrop. The "assistant surface"
+// family — agent bubble, chat bar, header card, upgrade card, composer chips —
+// must sit ON that background with good contrast instead of keeping the stock
+// dark-purple card (which only looks right because the default background is
+// dark purple). Each background declares the surface its chrome should adopt:
+//
+//   surface       — agent bubble / chat bar / cards / chips fill
+//   surfaceText   — text + solid glyphs on that surface
+//   surfaceBorder — hairline outline
+//   surfaceMuted  — secondary icons / placeholder / helper text
+//
+// Light backgrounds use a frosted translucent white for the iOS layered-card
+// look; dark backgrounds use a tint from their own family so dark mode isn't
+// forced to look purple. The user's own message bubble is deliberately NOT part
+// of this — it stays bright and personal (see ResolvedBubble). "auto" has no
+// entry and keeps the stock theme card, matching the default look that tracks
+// light/dark. Keys mirror BACKGROUND_PRESETS ids; this is the single place to
+// retune how chrome adapts to each background.
+export type ChatSurface = {
+  surface: string;
+  surfaceText: string;
+  surfaceBorder: string;
+  surfaceMuted: string;
+};
+
+// Frosted translucent white shared by every light background (CC ≈ 80% alpha,
+// so the chosen background tints through for the layered-card look).
+const FROSTED = "#FFFFFFCC";
+
+export const BACKGROUND_SURFACES: Readonly<Record<string, ChatSurface>> = {
+  // Gradients
+  dawn: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FED7AA66", surfaceMuted: "#7C6F64" },
+  cotton: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#C7D2FE66", surfaceMuted: "#6B7280" },
+  aurora: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#A7F3D066", surfaceMuted: "#64748B" },
+  lilac: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#DDD6FE80", surfaceMuted: "#75677E" },
+  sunset: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FDA4AF66", surfaceMuted: "#7C5E5E" },
+  ocean: { surface: "#F8FAFCCC", surfaceText: INK, surfaceBorder: "#BAE6FD66", surfaceMuted: "#52717A" },
+  dusk: { surface: "#19142ACC", surfaceText: WHITE, surfaceBorder: "#6D5DAA55", surfaceMuted: "#B8B0CC" },
+  midnight: { surface: "#151827CC", surfaceText: WHITE, surfaceBorder: "#4F46E555", surfaceMuted: "#B7BCE0" },
+  // Pastels
+  lavender: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#DDD6FE80", surfaceMuted: "#6D647A" },
+  sky: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#BFDBFE80", surfaceMuted: "#5D6F86" },
+  blush: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FBCFE880", surfaceMuted: "#806575" },
+  mint: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#A7F3D080", surfaceMuted: "#58776A" },
+  sage: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#BBF7D080", surfaceMuted: "#5F735F" },
+  peach: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FED7AA80", surfaceMuted: "#826A55" },
+  butter: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FEF08A80", surfaceMuted: "#766F4A" },
+  stone: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#CBD5E180", surfaceMuted: "#64748B" },
+  // Basics
+  violet: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#C4B5FD80", surfaceMuted: "#6D647A" },
+  blue: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#93C5FD80", surfaceMuted: "#526A88" },
+  pink: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#F9A8D480", surfaceMuted: "#806575" },
+  teal: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#99F6E480", surfaceMuted: "#50766F" },
+  green: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#86EFAC80", surfaceMuted: "#57745D" },
+  orange: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FDBA7480", surfaceMuted: "#826A55" },
+  red: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FDA4AF80", surfaceMuted: "#7C5E5E" },
+  graphite: { surface: "#1F2937CC", surfaceText: WHITE, surfaceBorder: "#47556966", surfaceMuted: "#CBD5E1" },
+};
+
+// The surface a given background id maps its chat chrome to, or null for "auto"
+// / unknown ids (keep the stock theme card that tracks light/dark).
+export function resolveBackgroundSurface(id: string): ChatSurface | null {
+  return BACKGROUND_SURFACES[id] ?? null;
 }
 
 // ---- Swatch helpers (for the settings picker) ----

@@ -98,7 +98,7 @@ export default function ChatScreen() {
   // element coheres with it), falling back to the global scheme when "auto".
   const {
     background: chatBackground,
-    tone: chatTone,
+    themeContext: chatThemeContext,
     chatTheme: theme,
   } = useChatAppearance();
   const insets = useSafeAreaInsets();
@@ -488,7 +488,7 @@ export default function ChatScreen() {
   };
 
   return (
-    <ChatToneContext.Provider value={chatTone}>
+    <ChatToneContext.Provider value={chatThemeContext}>
     <AttachmentViewerProvider>
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}

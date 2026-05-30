@@ -22,7 +22,7 @@ import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
 import { PLAN_RANK, type PlanId } from "@/domain/billing";
 import { useTheme } from "@/hooks/useTheme";
-import { gradients, themes } from "@/nativewind-theme";
+import { gradients, type ThemeTokens } from "@/nativewind-theme";
 import { useEffectivePlan } from "@/store/entitlement";
 import { useSubscriptionStore } from "@/store/subscription";
 import { TouchableOpacity as BottomSheetTouchableOpacity } from "@gorhom/bottom-sheet";
@@ -57,7 +57,7 @@ const PLAN_TO_RC_PRODUCT: Record<PaidPlanId, string> = {
   power: "monthly_3",
 };
 
-type Theme = (typeof themes)[keyof typeof themes];
+type Theme = ThemeTokens;
 type PrimaryGradient = (typeof gradients)[keyof typeof gradients]["primary"];
 
 export function PlanPaywall() {

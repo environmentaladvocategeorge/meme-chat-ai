@@ -104,6 +104,12 @@ export const themes = {
   },
 } as const;
 
+// A theme as a plain map of token → color string. `themes` is `as const` (each
+// token is a literal type), which is great for autocomplete but means you can't
+// build a theme with runtime-computed colors. This loose shape is what the chat
+// view uses once it merges per-background surface overrides over the base theme.
+export type ThemeTokens = Record<keyof (typeof themes)["light"], string>;
+
 // Gradients
 //
 // `expo-linear-gradient` consumes `colors`, `locations?`, `start`, `end`.
