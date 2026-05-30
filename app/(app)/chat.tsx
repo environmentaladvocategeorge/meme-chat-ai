@@ -18,6 +18,13 @@ import {
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { NewConversationButton } from "@/components/chat/NewConversationButton";
+import {
+  anyPickerOpen,
+  dismissPickers,
+  toggleGifs,
+  toggleMemes,
+  type PickerVisibility,
+} from "@/components/chat/pickerVisibility";
 import { QuotaModal } from "@/components/chat/QuotaModal";
 import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
@@ -64,6 +71,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   View,
 } from "react-native";
@@ -258,8 +266,7 @@ export default function ChatScreen() {
     // Collapse the pickers on send so they don't linger empty above a
     // freshly-cleared composer. The keyboard is intentionally left up (we
     // don't blur) so rapid follow-up messages stay frictionless.
-    setMemesOpen(false);
-    setGifsOpen(false);
+    applyPickers(dismissPickers());
     void sendMessage(text, images, gif, rotLevel);
   };
 
@@ -285,33 +292,33 @@ export default function ChatScreen() {
     );
   };
 
+  // Apply a computed picker-visibility transition to the two backing flags.
+  // The pure transitions in pickerVisibility.ts own the mutual-exclusion logic;
+  // this just commits their result to state.
+  const applyPickers = (next: PickerVisibility) => {
+    setMemesOpen(next.memesOpen);
+    setGifsOpen(next.gifsOpen);
+  };
+
   // Toggle the meme strip. The hook's `enabled` flag (wired to memesOpen) is
   // what triggers the first fetch. The picker and the system keyboard occupy
   // the same conceptual slot, so we keep them mutually exclusive: opening the
   // strip dismisses the keyboard; closing it hands focus back to the composer
   // (which raises the keyboard) — a clean keyboard ⇄ memes swap.
   const handleToggleMemes = () => {
-    if (memesOpen) {
-      setMemesOpen(false);
-      chatInputRef.current?.focus();
-    } else {
-      Keyboard.dismiss();
-      setGifsOpen(false);
-      setMemesOpen(true);
-    }
+    const wasOpen = memesOpen;
+    applyPickers(toggleMemes({ memesOpen, gifsOpen }));
+    if (wasOpen) chatInputRef.current?.focus();
+    else Keyboard.dismiss();
   };
 
   // Same keyboard ⇄ picker swap for the GIF drawer; opening it closes the meme
   // strip so only one picker is ever showing.
   const handleToggleGifs = () => {
-    if (gifsOpen) {
-      setGifsOpen(false);
-      chatInputRef.current?.focus();
-    } else {
-      Keyboard.dismiss();
-      setMemesOpen(false);
-      setGifsOpen(true);
-    }
+    const wasOpen = gifsOpen;
+    applyPickers(toggleGifs({ memesOpen, gifsOpen }));
+    if (wasOpen) chatInputRef.current?.focus();
+    else Keyboard.dismiss();
   };
 
   // Opening the Rot Level sheet: dismiss the keyboard first so the 46% sheet
@@ -319,8 +326,7 @@ export default function ChatScreen() {
   // pickers so only one bottom surface is ever showing.
   const handleOpenRot = () => {
     Keyboard.dismiss();
-    setMemesOpen(false);
-    setGifsOpen(false);
+    applyPickers(dismissPickers());
     rotSheetRef.current?.present();
   };
 
@@ -451,8 +457,9 @@ export default function ChatScreen() {
       />
 
       <BubbleGradientContext.Provider value={bubbleGradient}>
+        <View style={{ flex: 1 }}>
         <Animated.FlatList
-          style={contentFadeStyle}
+          style={[contentFadeStyle, { flex: 1 }]}
           inverted
           data={visibleMessages}
           keyExtractor={messageKey}
@@ -495,6 +502,19 @@ export default function ChatScreen() {
             />
           )}
         />
+        {/* While a picker is open, a transparent layer over the thread turns a
+            tap on the conversation into "dismiss the picker" — the same
+            tap-away gesture that closes a keyboard. Only mounted when open, so
+            it never intercepts normal scrolling or message taps otherwise. */}
+        {anyPickerOpen({ memesOpen, gifsOpen }) ? (
+          <Pressable
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            onPress={() => applyPickers(dismissPickers())}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+        </View>
       </BubbleGradientContext.Provider>
 
       <View
@@ -608,10 +628,7 @@ export default function ChatScreen() {
               onChangeText={setDraft}
               onSend={handleSubmit}
               onCancel={cancelStreaming}
-              onFocus={() => {
-                setMemesOpen(false);
-                setGifsOpen(false);
-              }}
+              onFocus={() => applyPickers(dismissPickers())}
               streaming={status === "streaming"}
               hasAttachments={stagedImages.length > 0 || stagedGif !== null}
               placeholder={t("chat.input.placeholder")}
