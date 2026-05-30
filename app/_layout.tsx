@@ -1,4 +1,5 @@
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { AccountSheet } from "@/components/AccountSheet";
 import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
 import { PlanSheet } from "@/components/PlanSheet";
 import { Typography } from "@/components/Typography";
@@ -213,6 +214,7 @@ export default function RootLayout() {
 
             <PlanSheet />
             <ChatCustomizationSheet />
+            <AccountSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

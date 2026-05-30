@@ -19,17 +19,21 @@ These are the calls that are easy to get wrong. The policy and both store forms 
    data is not declared. → Do **not** list DOB/age/“Sensitive info” as collected. (The age gate itself
    is still disclosed in the *policy* text, §4 — that's a feature disclosure, not a data-collection label.)
 
-2. **Saving memes/GIFs to the gallery = NOT "Photos and videos" collection.**
-   The media-library permission is **add/save only** (`MediaLibrary.requestPermissionsAsync(true)` in
-   `components/AttachmentViewer.tsx`). We write a file to the user's library; we never read, scan, or
-   upload the user's existing photos. Writing to the device is not "collecting" the user's photos. →
-   Do **not** declare "Photos and videos" as a collected data type. (Disclose the *permission* in the
-   store listing's permissions section + policy §12.)
+2. **Photos: the gallery *save* is not collection, but the chat photo *upload* IS.**
+   The media-library *save* permission is add/save only (`MediaLibrary.requestPermissionsAsync(true)` in
+   `components/AttachmentViewer.tsx`) — writing a downloaded meme/GIF to the user's gallery is not
+   "collecting" their photos. **However, the App now also lets the user take or pick a photo to attach
+   to a chat message** (`services/firebase/uploadMessageImage.ts`): that photo is compressed, uploaded
+   to Cloud Storage (`messageImages/{uid}/{conversationId}`), and sent to OpenAI. That upload **is**
+   collection. → **Declare "Photos and videos" / Photos as a collected data type** (User Content),
+   shared with OpenAI. Disclose the camera + photo-library permissions in §12.
 
-3. **Images sent to OpenAI are third-party meme/GIF media, not the user's photos.**
-   The only images sent to OpenAI are Klipy meme URLs and GIF frames the backend samples
-   (`functions/src/context/assemble.ts`, `functions/src/gifs/extractFrames.ts`). They are part of
-   **User content / Messages**, not "Photos and videos." The user uploads no photos/files/audio.
+3. **Images sent to OpenAI include third-party meme/GIF media AND user-uploaded photos.**
+   Meme URLs and sampled GIF frames (`functions/src/context/assemble.ts`,
+   `functions/src/gifs/extractFrames.ts`) are User content / Messages. **In addition, photos the user
+   uploads to a message** (`services/firebase/uploadMessageImage.ts` →
+   `functions/src/messages/resolveImageInputs.ts`) are sent to OpenAI as image data. The user still
+   uploads no other files or audio.
 
 4. **Locale/country ≠ Location.**
    We pass a locale/country code (device locale) to Klipy; we do not read device GPS/geolocation.
@@ -73,6 +77,7 @@ attribution SDKs in the dependency tree).
 | **Contact Info → Email Address** | Account email (Firebase Auth / Apple relay) | App Functionality; (Account Management*) |
 | **Identifiers → User ID** | Firebase UID, RevenueCat app user ID, Apple Sign In identifier | App Functionality |
 | **User Content → Other User Content** | Chat messages, AI replies, titles/summaries, meme/GIF attachment refs + image inputs, message ratings (thumbs), alias/nickname, persona/rot context | App Functionality |
+| **User Content → Photos or Videos** | Photos taken/picked and attached to a chat message (uploaded to Cloud Storage `messageImages/{uid}`, sent to OpenAI) | App Functionality |
 | **User Content → Customer Support** | Emails you send support | App Functionality / Customer Support |
 | **Search History** | Klipy meme/GIF search queries — typed **and** AI-generated from the conversation | App Functionality |
 | **Purchases → Purchase History** | Subscription status, product IDs, entitlement, transaction metadata (RevenueCat/Apple/Google) | App Functionality |
@@ -85,9 +90,10 @@ Advertising/Marketing, Third-Party Advertising, Other. We only use **App Functio
 
 ### Data Not Collected (do NOT declare)
 - **Health, Financial Info (beyond purchase history), Precise/Coarse Location, Sensitive Info,
-  Contacts, Browsing History, Photos or Videos, Audio Data, Device ID.**
+  Contacts, Browsing History, Audio Data, Device ID.**
 - **Date of birth / age** — on-device only (Scoping #1).
-- **Photos or Videos** — save-only permission, not collection (Scoping #2).
+- **Photos or Videos ARE collected** now via the chat photo-upload feature — declare them (see Scoping
+  #2/#3 and the Data Linked to You table). The gallery *save* alone would not count, but the upload does.
 
 ### Apple notes
 - Each provider with its own SDK in the app must be reflected: **RevenueCat** (purchases) is in-app;
@@ -122,6 +128,7 @@ downgrade to "not shared" per type only once processor status is confirmed. **[C
 | **App activity → In-app search history** | Yes | **Yes** (Klipy) | No | Optional | App functionality |
 | **App activity → App interactions** | Yes | No | No | Required | App functionality |
 | **App activity → Other user-generated content** | Yes | **Yes** (meme/GIF image inputs, titles/summaries to OpenAI) | No | Required | App functionality |
+| **Photos and videos → Photos** | Yes | **Yes** (uploaded chat photos sent to OpenAI) | No | Optional | App functionality |
 | **App info & performance → Crash logs** | Yes | No | No | Required | App functionality |
 | **App info & performance → Diagnostics** | Yes | No | No | Required | App functionality |
 
@@ -136,9 +143,10 @@ security (no analytics/location use). If raw IP persists in general diagnostic l
 is safer to declare it under **App info & performance → Diagnostics**. **[Confirm]** (ties to fix C1).
 
 ### Not collected (do NOT declare)
-- **Location (approximate/precise), Photos and videos, Audio files, Files and docs, Calendar,
+- **Location (approximate/precise), Audio files, Files and docs, Calendar,
   Contacts, Web browsing, Health & fitness, Device or other IDs.**
-- **DOB/age** (on-device only) and **gallery saves** (write-only) — see Scoping #1 & #2.
+- **DOB/age** (on-device only) — see Scoping #1. **Gallery saves** are write-only and not collection,
+  but the chat **photo upload IS** collected as Photos and videos — see Scoping #2/#3.
 
 ### Security practices section
 - **Is data encrypted in transit?** **Yes.** All backend, OpenAI, and Klipy traffic is HTTPS/TLS;
@@ -147,7 +155,7 @@ is safer to declare it under **App info & performance → Diagnostics**. **[Conf
   requires recent re-auth) plus deletion-by-email via support.
 - **Account-deletion URL:** Google requires a way to request deletion **including a web URL** for
   apps that allow account creation. **[Confirm]** publish a deletion-request/instructions page (e.g.
-  `https://%APP_DOMAIN%/delete-account` or document the in-app path on the support page).
+  `https://meme-chat-ai.com/delete-account` or document the in-app path on the support page).
 - **Committed to follow the Play Families Policy / is this a kids app?** **No** (16+, not directed to
   children). **[Confirm minimum age]**.
 - **Independent security review (MASA):** **[Confirm]** — likely "No" unless you've done one.
@@ -162,6 +170,7 @@ is safer to declare it under **App info & performance → Diagnostics**. **[Conf
 | Firebase UID / RC ID / Apple ID | §3, §10 | Identifiers → User ID | Personal info → User IDs |
 | Chat text + AI replies | §5, §7 | User Content → Other | Messages → Other in-app messages |
 | Meme/GIF image inputs + attachments | §6 | User Content → Other | App activity → Other UGC |
+| User-uploaded chat photos | §6, §9 | User Content → Photos or Videos | Photos and videos → Photos |
 | Message ratings (thumbs) | §7 | User Content → Other / Usage → Product Interaction | App activity → App interactions |
 | Alias / personalization | §7 | User Content → Other | App activity → Other UGC |
 | Klipy search (typed + AI-generated) | §8 | Search History | App activity → In-app search history |
@@ -170,12 +179,17 @@ is safer to declare it under **App info & performance → Diagnostics**. **[Conf
 | Logs / errors / IP | §13 | Diagnostics | App info & performance (or security exemption) |
 | DOB / age gate | §4 | — (on-device) | — (on-device) |
 | Gallery save permission | §12 | — (permission, not data) | — (permission, not data) |
+| Camera + photo-library (attach photo) | §12 | — (permission; data = Photos above) | — (permission; data = Photos above) |
 | Notifications | §12 | — (no token) | — (no token) |
 
 ---
 
 ## 4) Open confirmations specific to store labels
 
+- [ ] **Photo-upload feature** confirmed in scope for this release → Photos declared as collected
+      (Apple User Content → Photos or Videos; Google Photos and videos → Photos), and camera +
+      photo-library usage descriptions present in the native build config (iOS Info.plist
+      NSCameraUsageDescription / NSPhotoLibraryUsageDescription; Android permissions).
 - [ ] **Processor status** for OpenAI / Klipy / RevenueCat → sets every Google "Shared" toggle.
 - [ ] **Klipy `customer_id`** stays Firebase UID, or switch to pseudonymous ID (changes User IDs sharing rationale).
 - [ ] **Raw IP logging** kept or redacted → Diagnostics declaration vs. security exemption.

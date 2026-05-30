@@ -1,12 +1,10 @@
 import { type Swatch } from "@/domain/customization";
 import { useTheme } from "@/hooks/useTheme";
-import {
-  TouchableOpacity as BottomSheetTouchableOpacity,
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
+import { TouchableOpacity as BottomSheetTouchableOpacity } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { Check } from "phosphor-react-native";
 import { View } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 
 const SIZE = 52;
 // Outer swatch incl. its 2px selection ring + 4px breathing room.
@@ -39,8 +37,9 @@ export function SwatchPicker({
   const theme = useTheme();
 
   return (
-    <BottomSheetScrollView
+    <ScrollView
       horizontal
+      directionalLockEnabled
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingVertical: 2 }}
     >
@@ -118,6 +117,6 @@ export function SwatchPicker({
           );
         })}
       </View>
-    </BottomSheetScrollView>
+    </ScrollView>
   );
 }

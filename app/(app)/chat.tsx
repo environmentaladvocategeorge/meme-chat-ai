@@ -13,6 +13,7 @@ import { CollapsiblePicker } from "@/components/chat/CollapsiblePicker";
 import {
   GifToggleButton,
   MemeToggleButton,
+  PhotoButton,
   RotLevelButton,
 } from "@/components/chat/ComposerToggles";
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
@@ -68,13 +69,20 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Alert,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
+import {
+  captureAndUploadImage,
+  CaptureImageError,
+  type PickSource,
+} from "@/services/firebase/uploadMessageImage";
 import Animated, {
   FadeIn,
   useAnimatedScrollHandler,
@@ -106,6 +114,9 @@ export default function ChatScreen() {
   // The single GIF the user has staged but not yet sent. Independent of the
   // meme cap — a turn may carry memes AND one GIF.
   const [stagedGif, setStagedGif] = useState<MessageGif | null>(null);
+  // True while a captured/picked photo is being compressed + uploaded to
+  // Storage, so the photo button can show a spinner and block re-taps.
+  const [uploadingImage, setUploadingImage] = useState(false);
   // Brief "you can only attach N" notice, shown when a 4th meme is tapped.
   const [maxNotice, setMaxNotice] = useState(false);
   const maxNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -372,6 +383,66 @@ export default function ChatScreen() {
     setStagedGif(null);
   };
 
+  // Capture or pick a photo, compress + upload it, and stage it as an upload
+  // attachment. Deduped by the meme cap (uploads share MAX_MESSAGE_IMAGES with
+  // Klipy memes); the backend re-enforces the cap.
+  const stageUploadedPhoto = useCallback(
+    async (source: PickSource) => {
+      if (stagedImages.length >= MAX_MESSAGE_IMAGES) {
+        flashMaxNotice();
+        return;
+      }
+      setUploadingImage(true);
+      try {
+        const image = await captureAndUploadImage(source, conversationId);
+        if (image) {
+          setStagedImages((current) =>
+            current.length >= MAX_MESSAGE_IMAGES
+              ? current
+              : [...current, image],
+          );
+        }
+      } catch (err) {
+        const code =
+          err instanceof CaptureImageError ? err.code : "upload-failed";
+        Alert.alert(
+          t("chat.photo.errorTitle", { defaultValue: "Couldn't add photo" }),
+          code === "permission-denied"
+            ? t("chat.photo.permission", {
+                defaultValue:
+                  "Camera or photo access is required to add a photo.",
+              })
+            : t("chat.photo.failed", {
+                defaultValue:
+                  "Something went wrong adding your photo. Please try again.",
+              }),
+        );
+      } finally {
+        setUploadingImage(false);
+      }
+    },
+    [conversationId, stagedImages.length, flashMaxNotice, t],
+  );
+
+  // Photo button → choose camera or library, then upload. Dismiss the keyboard
+  // and any open picker first so the chooser/photo UI isn't fighting them.
+  const handleAddPhoto = useCallback(() => {
+    if (uploadingImage) return;
+    Keyboard.dismiss();
+    applyPickers(dismissPickers());
+    Alert.alert(t("chat.photo.title", { defaultValue: "Add a photo" }), undefined, [
+      {
+        text: t("chat.photo.camera", { defaultValue: "Take Photo" }),
+        onPress: () => void stageUploadedPhoto("camera"),
+      },
+      {
+        text: t("chat.photo.library", { defaultValue: "Choose from Library" }),
+        onPress: () => void stageUploadedPhoto("library"),
+      },
+      { text: t("common.cancel", { defaultValue: "Cancel" }), style: "cancel" },
+    ]);
+  }, [uploadingImage, stageUploadedPhoto, t]);
+
   // Drives the cross-fade when starting a new chat: fade the current thread
   // out, swap in the fresh empty state, then fade that back in.
   const contentOpacity = useSharedValue(1);
@@ -637,14 +708,27 @@ export default function ChatScreen() {
               expandAccessibilityLabel={t("chat.expand")}
               collapseAccessibilityLabel={t("chat.collapse")}
             />
-            <View
-              style={{
-                marginTop: 8,
+            {/* Composer accessory row. The chips grow to fill the width
+                evenly when they fit, and the row scrolls horizontally rather
+                than cropping a label when they don't (narrow screens / long
+                locales). */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              style={{ marginTop: 8 }}
+              contentContainerStyle={{
+                flexGrow: 1,
                 flexDirection: "row",
                 alignItems: "center",
                 gap: 8,
               }}
             >
+              <PhotoButton
+                label={t("chat.photo.button", { defaultValue: "Add a photo" })}
+                busy={uploadingImage}
+                onPress={handleAddPhoto}
+              />
               <GifToggleButton
                 label={gifsOpen ? t("chat.gifs.keyboard") : t("chat.gifs.button")}
                 open={gifsOpen}
@@ -662,7 +746,7 @@ export default function ChatScreen() {
                 level={rotLevel}
                 onPress={handleOpenRot}
               />
-            </View>
+            </ScrollView>
           </Animated.View>
         )}
       </View>

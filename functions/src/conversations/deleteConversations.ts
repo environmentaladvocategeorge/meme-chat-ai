@@ -2,6 +2,26 @@ import { getFirestore, type DocumentReference } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { z } from "zod";
+import { deleteUploadObjects } from "../messages/resolveImageInputs";
+
+// Collects the Storage object paths of any user-uploaded images attached to a
+// conversation's messages, so they can be deleted from Cloud Storage alongside
+// the Firestore docs. Path-based (exact) so it works regardless of how the
+// upload folder was named at capture time.
+async function collectUploadPaths(ref: DocumentReference): Promise<string[]> {
+  const messages = await ref.collection("messages").get();
+  const paths: string[] = [];
+  for (const doc of messages.docs) {
+    const images = doc.data().images;
+    if (!Array.isArray(images)) continue;
+    for (const image of images) {
+      if (image?.source === "upload" && typeof image.path === "string") {
+        paths.push(image.path);
+      }
+    }
+  }
+  return paths;
+}
 
 const schema = z.object({
   conversationIds: z.array(z.string().trim().min(1).max(128)).min(1).max(100),
@@ -41,6 +61,16 @@ export async function deleteConversationsForUser(
   }
 
   if (refs.length === 0) return 0;
+
+  // Delete any uploaded image objects from Cloud Storage before tearing down the
+  // message docs that reference them. Best-effort (never throws) so a Storage
+  // hiccup can't block the Firestore deletion the user asked for.
+  const uploadPaths = (
+    await Promise.all(refs.map((ref) => collectUploadPaths(ref)))
+  ).flat();
+  if (uploadPaths.length > 0) {
+    await deleteUploadObjects(uploadPaths);
+  }
 
   // Second pass: tear every conversation (doc + messages subcollection) down
   // through ONE shared BulkWriter so Firestore drains them all in a single

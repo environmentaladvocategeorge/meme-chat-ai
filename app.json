@@ -62,6 +62,13 @@
           "isAccessMediaLocationEnabled": false
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Meme Chat AI to attach photos from your library to the chat.",
+          "cameraPermission": "Allow Meme Chat AI to take a photo to send in the chat."
+        }
+      ],
       "@react-native-community/datetimepicker"
     ],
     "locales": {

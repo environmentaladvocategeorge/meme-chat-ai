@@ -367,27 +367,44 @@ const en = {
     },
     rot: {
       button: "Rot Level",
-      title: "Rot Level",
-      subtitle: "Drag to set how rotted the answers you get will be",
+      title: "How rotted should replies be?",
+      subtitle: "Pick the chaos level — you can change it anytime.",
       done: "Done",
       defaultBadge: "default",
-      // Spoken to screen readers as the slider value, e.g. "Level 2, Rotted".
-      a11yValue: "Level {{level}}, {{name}}",
+      // Spoken to screen readers as the selected tone card, e.g.
+      // "Level 2 of 3, Rotted".
+      a11yValue: "Level {{level}} of 3, {{name}}",
+      // Live "show, don't tell" preview under the cards: one fixed question,
+      // answered in the selected tone.
+      preview: {
+        eyebrow: "Here's the vibe",
+        prompt: "explain why I procrastinate",
+        you: "you",
+      },
       levels: {
         level1: {
           name: "Lightly Cooked",
           description:
             "lightly meme'd, mostly business. won't taste like default assistant.",
+          reply:
+            "your brain saw the big scary task and stalled. not lazy — overwhelmed. shrink it to one tiny step and start there.",
+          tags: ["mostly business", "lightly spiced"],
         },
         level2: {
           name: "Rotted",
           description:
             "full brainrot bot energy. jokes and slang but i still get there.",
+          reply:
+            "your brain saw one task and immediately filed for emotional bankruptcy 😤 start with the tiniest possible step.",
+          tags: ["jokes + slang", "still useful"],
         },
         level3: {
-          name: "Absolute Goblin Mode",
+          name: "Goblin Mode",
           description:
             "maximum brainrot. cursed metaphors, dramatic overreactions, peak cringe. still useful, just feral about it 🦝",
+          reply:
+            "your executive function got shipped to Ohio, marked return to sender 💀 open the doc, type one cursed sentence, let momentum happen by accident.",
+          tags: ["cursed metaphors", "feral"],
         },
       },
     },

@@ -1,6 +1,7 @@
 import { logger } from "firebase-functions";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { z } from "zod";
+import { pickIndexByRandomness } from "../klipy/pickByRandomness";
 import {
   messageGifSchema,
   type ValidatedMessageGif,
@@ -18,14 +19,21 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
   function: {
     name: "get_gif",
     description:
-      "Attach ONE real animated GIF to your reply by searching Klipy. This is your PREFERRED way to drop a visual reaction — animated GIFs are richer, more expressive, and have far better search hits than the still-meme library, so reach for get_gif first and reach for it OFTEN on casual turns: whenever the user is joking, hyped, celebrating, reacting, being playful, roasting, confused, shocked, or venting about something low-stakes, a GIF almost always lands. Only fall back to get_meme when a specific still caption/format genuinely beats motion. Skip a visual entirely on serious, sensitive, technical, or emotionally heavy turns, or when the user just wants a straight answer. Attach at most ONE image per reply total — either a GIF (get_gif) OR a meme (get_meme), never both; default to the GIF. This attaches an IMAGE that the app shows on its own, so you must still write a normal text reply and must never title, describe, link, or embed it yourself. Make the search query genuinely relevant to THIS moment so the GIF actually matches what you're reacting to.",
+      "Attach ONE real animated GIF to your reply by searching Klipy. When a visual reaction fits, this is your PREFERRED format — animated GIFs are richer, more expressive, and have far better search hits than the still-meme library, so reach for get_gif before get_meme. Use them on a good number of casual turns, but be selective: roughly every other casual reaction, NOT every message. Plenty of replies should stay text-only so the GIFs keep their punch — a GIF on every turn gets old fast. Attach one when the moment genuinely calls for it (the user is joking, hyped, celebrating, reacting, being playful, roasting, confused, shocked, greeting, or venting about something low-stakes AND a reaction image clearly adds something). Only fall back to get_meme when a specific still caption/format genuinely beats motion. Skip a visual entirely on serious, sensitive, technical, or emotionally heavy turns, or when the user just wants a straight answer. Attach at most ONE image per reply total — either a GIF (get_gif) OR a meme (get_meme), never both; when you do attach one, default to the GIF. This attaches an IMAGE that the app shows on its own, so you must still write a normal text reply and must never title, describe, link, or embed it yourself. Klipy matches references, not raw emotions — anchor the query to a recognizable reaction or named reference, not a description of a feeling.",
     parameters: {
       type: "object",
       properties: {
         query: {
           type: "string",
           description:
-            "A short, specific GIF search query (about 2–5 words) that matches THIS exact moment — the reaction or the actual subject being discussed, not a generic vibe. Anchor it to what's really happening, e.g. 'excited happy dance', 'dramatic mic drop', 'facepalm disappointed', 'mind blown explosion', or the concrete topic like 'cat knocking cup off table'. Avoid vague queries like 'funny gif' or 'reaction'.",
+            "A short GIF search query (about 2–5 words) anchored to a recognizable reaction or named reference, NOT a description of an emotion. Klipy matches references, so use 'mic drop', 'happy dance', 'facepalm', 'slow clap', a named character/show, or the concrete subject — not 'feeling proud' or 'shocked confusion'. Avoid vague queries like 'funny gif' or 'reaction'.",
+        },
+        randomness_factor: {
+          type: "integer",
+          minimum: 1,
+          maximum: 4,
+          description:
+            "How literal/exact your query is. Use 1 for an exact, specific reference — it returns that precise top GIF. Use 2–3 for a looser query where any of the top few hits would land (e.g. a generic word like 'cooked'); we then randomly pick from roughly the first N results, favoring earlier ones, instead of you reading them. Default 1.",
         },
       },
       required: ["query"],
@@ -34,9 +42,9 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
   },
 };
 
-export const GIF_TOOL_GUIDANCE = `═══ ANIMATED GIFS, get_gif TOOL (your DEFAULT visual reaction) ═══
+export const GIF_TOOL_GUIDANCE = `═══ ANIMATED GIFS, get_gif TOOL (your preferred reply visual) ═══
 
-get_gif attaches ONE real animated GIF under your text reply, and it is your go-to way to react with an image. Animated GIFs are richer and more expressive than still memes, and Klipy's GIF search returns far more relevant, on-point results than its meme search — so on casual turns, reach for get_gif FIRST and reach for it often. A GIF lands whenever the moment has any energy: joking, hyped, celebrating, reacting, roasting, confused, shocked, playful, or venting about something low-stakes.
+get_gif attaches ONE real animated GIF under your text reply, and it is your go-to way to react with an image when a visual fits — animated GIFs are richer and more expressive than still memes, and Klipy's GIF search returns far more relevant results than its meme search. Reach for a GIF on a good number of casual turns, but be selective: roughly every other casual reaction, NOT every message. Let plenty of replies stay text-only so the GIFs keep their punch — a GIF on every turn gets old fast. A GIF lands when the moment has real energy and a reaction image clearly adds something: joking, hyped, celebrating, reacting, roasting, confused, shocked, greeting, playful, or venting about something low-stakes.
 
 GIF over meme. When you're deciding whether to attach an image, default to a GIF. Only use get_meme instead when a specific still caption/format clearly says it better than motion could — otherwise the GIF wins.
 
@@ -51,14 +59,16 @@ Output rules (same as memes):
 * Never say "I found this GIF" or "here is a GIF."
 * Do not describe the GIF unless the user asks afterward.
 
-Query rules — make it RELEVANT:
-The search is only as good as the query, so make the query genuinely match THIS moment, not a generic vibe. Use one short, specific query, usually 2 to 5 words. Anchor it to the actual reaction AND/OR the concrete subject being discussed so the GIF clearly fits.
-* Good (specific, relevant): "excited happy dance", "dramatic mic drop", "disappointed facepalm", "slow clap sarcastic", "mind blown explosion", "victory celebration", and topic-anchored ones like "cat knocking cup off table", "buzzer beater game winner".
-* Bad (too vague): "funny gif", "reaction gif", "lol", "meme".
-If the user sent an image, match the query to what's actually visible in it. Vary your queries across turns so reactions don't repeat.`;
+How to search — Klipy needs a REFERENCE, not a feeling:
+Klipy matches recognizable references and named reactions, not raw emotions or descriptions. Don't search "feeling proud" or "shocked confusion"; search a real reaction or reference like "mic drop", "happy dance", "facepalm", "slow clap", a named character/show, or the concrete subject being discussed. Avoid vague queries like "funny gif", "reaction", "lol", or "meme". If the user sent an image, anchor the query to what's actually visible in it, and vary your queries across turns so reactions don't repeat.
+
+randomness_factor: pass 1 for an exact, specific reference so you get that precise top GIF. For a looser, more generic query — a single common word like "cooked" where any of the top hits would land — pass 2 or 3 and we'll randomly pick from about the first N results (favoring earlier ones) instead of you reading them.`;
 
 const gifArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),
+  // How widely to sample the ranked results. 1 = always the top hit. Invalid or
+  // missing values fall back to 1 (exact) rather than failing the tool.
+  randomness_factor: z.coerce.number().int().min(1).max(4).catch(1).default(1),
 });
 
 export type GetGifDeps = {
@@ -104,8 +114,11 @@ export async function runGetGif(
   deps: GetGifDeps,
 ): Promise<GetGifResult> {
   let query: string;
+  let randomnessFactor: number;
   try {
-    query = gifArgsSchema.parse(JSON.parse(rawArguments)).query;
+    const args = gifArgsSchema.parse(JSON.parse(rawArguments));
+    query = args.query;
+    randomnessFactor = args.randomness_factor;
   } catch {
     return {
       content: JSON.stringify({ found: false, reason: "invalid_query" }),
@@ -117,15 +130,24 @@ export async function runGetGif(
       apiKey: deps.apiKey,
       query,
       page: 1,
-      // Klipy's search endpoint requires per_page >= 8; we only use the top hit.
+      // Klipy's search endpoint requires per_page >= 8; the randomness factor
+      // may sample a few hits deep, so keep the full page available.
       perPage: 8,
       customerId: deps.customerId,
       locale: deps.locale,
       contentFilter: deps.contentFilter ?? "medium",
     });
 
-    const top = result.gifs[0];
-    const gif = top ? toMessageGif(top) : null;
+    // Validate every hit to the attachment shape first (drops off-host URLs),
+    // then let the randomness factor pick among the usable ones. With factor 1
+    // this is just the top hit; higher factors sample a few deep with a strong
+    // front bias — without us reading each result to choose (token waste).
+    const candidates = result.gifs
+      .map(toMessageGif)
+      .filter((g): g is ValidatedMessageGif => g !== null);
+    const gif =
+      candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
+      null;
     if (!gif) {
       return { content: JSON.stringify({ found: false }) };
     }

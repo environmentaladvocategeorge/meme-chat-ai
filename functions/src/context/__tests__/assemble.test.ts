@@ -8,6 +8,14 @@ import {
 } from "../assemble";
 import { countTokens, IMAGE_TOKENS_LOW } from "../tokens";
 
+// Current-turn images reach the assembler as already-resolved model-ready URLs
+// (a Klipy CDN previewUrl or a base64 data URL for an ingested upload), so the
+// current-turn helpers below use plain URL strings.
+const MODEL_URL = "https://static.klipy.com/ii/abc/20/90/preview.webp";
+const UPLOAD_DATA_URL = "data:image/jpeg;base64,UPLOADBYTES";
+
+// Historical turns persist full MessageImage objects (collapsed to text notes
+// during assembly), so the history cases still build those.
 const PREVIEW_URL = "https://static.klipy.com/ii/abc/20/90/preview.webp";
 const FULL_URL = "https://static.klipy.com/ii/abc/40/90/full.webp";
 
@@ -18,7 +26,7 @@ function mkImage(overrides: Partial<MessageImage> = {}): MessageImage {
     url: FULL_URL,
     previewUrl: PREVIEW_URL,
     ...overrides,
-  };
+  } as MessageImage;
 }
 
 function imageParts(content: string | OpenAIContentPart[]): OpenAIImagePart[] {
@@ -127,9 +135,10 @@ describe("assembleFromInputs", () => {
       currentText: "ok",
       maxInputTokens: 100_000,
     });
-    // Internal RECENT_TARGET is 10 — assembler should pick at most that many
-    // plus system + current = 12 entries (or +13 if summary).
-    expect(result.messages.length).toBeLessThanOrEqual(12);
+    // assembler caps the visible window: far fewer than the 25 recent we fed,
+    // i.e. the RECENT_TARGET ceiling + system + current.
+    expect(result.messages.length).toBeLessThanOrEqual(14);
+    expect(result.messages.length).toBeLessThan(25);
   });
 
   it("maps user → user and agent → assistant", () => {
@@ -155,42 +164,50 @@ describe("buildCurrentUserContent", () => {
   });
 
   it("returns image content parts for an image-only turn", () => {
-    const content = buildCurrentUserContent("", [mkImage()]);
+    const content = buildCurrentUserContent("", [MODEL_URL]);
     expect(Array.isArray(content)).toBe(true);
     const parts = content as OpenAIContentPart[];
     expect(parts).toHaveLength(1);
     expect(parts[0]).toEqual({
       type: "image_url",
-      image_url: { url: PREVIEW_URL, detail: "low" },
+      image_url: { url: MODEL_URL, detail: "low" },
     });
   });
 
   it("returns text part + image parts for text + image", () => {
     const content = buildCurrentUserContent("look at this", [
-      mkImage(),
-      mkImage({ id: "img-2" }),
+      MODEL_URL,
+      UPLOAD_DATA_URL,
     ]) as OpenAIContentPart[];
     expect(content[0]).toEqual({ type: "text", text: "look at this" });
     expect(imageParts(content)).toHaveLength(2);
   });
 
   it("omits the text part when text is empty/whitespace", () => {
-    const content = buildCurrentUserContent("   ", [mkImage()]) as OpenAIContentPart[];
+    const content = buildCurrentUserContent("   ", [MODEL_URL]) as OpenAIContentPart[];
     expect(content.every((p) => p.type === "image_url")).toBe(true);
   });
 
   it("always sets detail:'low' on image parts", () => {
-    const content = buildCurrentUserContent("hi", [mkImage()]);
+    const content = buildCurrentUserContent("hi", [MODEL_URL]);
     for (const part of imageParts(content)) {
       expect(part.image_url.detail).toBe("low");
     }
   });
 
-  it("sends previewUrl to the model, never the full url", () => {
-    const content = buildCurrentUserContent("hi", [mkImage()]);
+  it("passes each resolved url through verbatim, in order", () => {
+    const content = buildCurrentUserContent("hi", [MODEL_URL, UPLOAD_DATA_URL]);
     const urls = imageParts(content).map((p) => p.image_url.url);
-    expect(urls).toContain(PREVIEW_URL);
-    expect(urls).not.toContain(FULL_URL);
+    expect(urls).toEqual([MODEL_URL, UPLOAD_DATA_URL]);
+  });
+
+  it("treats an upload data url identically to a klipy url (source-agnostic)", () => {
+    const content = buildCurrentUserContent("", [UPLOAD_DATA_URL]);
+    const parts = content as OpenAIContentPart[];
+    expect(parts[0]).toEqual({
+      type: "image_url",
+      image_url: { url: UPLOAD_DATA_URL, detail: "low" },
+    });
   });
 });
 
@@ -200,7 +217,7 @@ describe("assembleFromInputs with images", () => {
       summary: null,
       recent: [],
       currentText: "just text",
-      currentImages: [],
+      currentImageUrls: [],
       maxInputTokens: 10_000,
     });
     const last = result.messages[result.messages.length - 1];
@@ -212,7 +229,7 @@ describe("assembleFromInputs with images", () => {
       summary: null,
       recent: [],
       currentText: "caption",
-      currentImages: [mkImage()],
+      currentImageUrls: [MODEL_URL],
       maxInputTokens: 10_000,
     });
     const last = result.messages[result.messages.length - 1];
@@ -231,7 +248,7 @@ describe("assembleFromInputs with images", () => {
       maxInputTokens: 10_000,
     });
     const priorUser = result.messages[1];
-    expect(priorUser.content).toBe("[User sent a Klipy meme image]");
+    expect(priorUser.content).toBe("[User sent an image]");
     // No image parts anywhere except the current turn (which has none here).
     const allImageParts = result.messages.flatMap((m) => imageParts(m.content));
     expect(allImageParts).toHaveLength(0);
@@ -248,7 +265,7 @@ describe("assembleFromInputs with images", () => {
       maxInputTokens: 10_000,
     });
     expect(result.messages[1].content).toBe(
-      "check this\n\n[User sent a Klipy meme image]",
+      "check this\n\n[User sent an image]",
     );
   });
 
@@ -266,7 +283,7 @@ describe("assembleFromInputs with images", () => {
       currentText: "ok",
       maxInputTokens: 10_000,
     });
-    expect(result.messages[1].content).toBe("[User sent 3 Klipy meme images]");
+    expect(result.messages[1].content).toBe("[User sent 3 images]");
   });
 
   it("counts current-turn image tokens at IMAGE_TOKENS_LOW each", () => {
@@ -274,14 +291,14 @@ describe("assembleFromInputs with images", () => {
       summary: null,
       recent: [],
       currentText: "caption",
-      currentImages: [],
+      currentImageUrls: [],
       maxInputTokens: 100_000,
     });
     const twoImages = assembleFromInputs({
       summary: null,
       recent: [],
       currentText: "caption",
-      currentImages: [mkImage(), mkImage({ id: "img-2" })],
+      currentImageUrls: [MODEL_URL, UPLOAD_DATA_URL],
       maxInputTokens: 100_000,
     });
     expect(twoImages.inputTokens - noImages.inputTokens).toBe(2 * IMAGE_TOKENS_LOW);
@@ -296,9 +313,9 @@ describe("assembleFromInputs with images", () => {
       currentText: "ok",
       maxInputTokens: 100_000,
     });
-    const placeholderTokens = countTokens("[User sent 2 Klipy meme images]");
-    // The whole assembly should be far below even a single image's token cost
-    // beyond the placeholder text.
+    void result;
+    const placeholderTokens = countTokens("[User sent 2 images]");
+    // The placeholder text is far cheaper than even a single image's token cost.
     expect(placeholderTokens).toBeLessThan(IMAGE_TOKENS_LOW);
   });
 });
@@ -356,9 +373,9 @@ describe("buildCurrentUserContent with a GIF", () => {
     expect(notes.some((p) => /could not be processed/.test(p.text))).toBe(true);
   });
 
-  it("carries both memes and a GIF on the same turn", () => {
-    const content = buildCurrentUserContent("combo", [mkImage()], threeFrames);
-    // 1 meme image + 3 gif frames
+  it("carries both a current image and a GIF on the same turn", () => {
+    const content = buildCurrentUserContent("combo", [MODEL_URL], threeFrames);
+    // 1 image + 3 gif frames
     expect(imageParts(content)).toHaveLength(4);
   });
 });

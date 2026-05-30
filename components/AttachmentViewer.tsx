@@ -36,10 +36,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 type ViewerPayload = {
   // The asset shown full-screen (animated for a GIF).
   displayUrl: string;
-  // The still asset sent to the watermark service to download. For a meme this
-  // is the display image; for a GIF it's the poster frame (static download).
+  // The still asset sent to the watermark service to download. For a Klipy meme
+  // this is the display image; for a GIF it's the poster frame (static
+  // download). For a user upload it's unused (we save the display asset as-is).
   sourceUrl: string;
   kind: "meme" | "gif";
+  // Attachment origin. "upload" (a user photo) saves directly with no Klipy
+  // watermark; "klipy"/undefined goes through the watermark service. Optional so
+  // older callers that don't pass it still work (inferred from host below).
+  source?: "klipy" | "upload";
 };
 
 type ViewerContextValue = {
@@ -58,15 +63,37 @@ export function useAttachmentViewer(): ViewerContextValue {
 
 type DownloadState = "idle" | "saving" | "saved" | "error";
 
-// Fetches the watermarked PNG, writes it to cache, and saves it to the device
-// gallery. Throws "permission-denied" when the user declines library access.
-async function downloadWatermarked(payload: ViewerPayload): Promise<void> {
-  const { dataBase64 } = await watermarkAttachmentCallable(payload.sourceUrl);
+// True for a user-uploaded photo, which carries no Klipy attribution and isn't
+// on the watermark service's host allowlist — so it's saved directly rather
+// than routed through watermarkAttachment. Prefers the explicit `source`, but
+// falls back to host inference so it's correct even if the caller omits it.
+function isUploadAttachment(payload: ViewerPayload): boolean {
+  if (payload.source) return payload.source === "upload";
+  try {
+    return new URL(payload.sourceUrl).hostname !== "static.klipy.com";
+  } catch {
+    return false;
+  }
+}
 
-  const fileUri = `${FileSystem.cacheDirectory}klipy-${payload.kind}-${Date.now()}.png`;
-  await FileSystem.writeAsStringAsync(fileUri, dataBase64, {
-    encoding: FileSystem.EncodingType.Base64,
-  });
+// Saves the attachment to the device gallery. Klipy assets are routed through
+// the watermark service (required attribution); user uploads are downloaded and
+// saved as-is. Throws "permission-denied" when the user declines library access.
+async function saveAttachment(payload: ViewerPayload): Promise<void> {
+  let fileUri: string;
+
+  if (isUploadAttachment(payload)) {
+    // User photo: download the display asset directly (no watermark).
+    const target = `${FileSystem.cacheDirectory}photo-${Date.now()}.jpg`;
+    const { uri } = await FileSystem.downloadAsync(payload.displayUrl, target);
+    fileUri = uri;
+  } else {
+    const { dataBase64 } = await watermarkAttachmentCallable(payload.sourceUrl);
+    fileUri = `${FileSystem.cacheDirectory}klipy-${payload.kind}-${Date.now()}.png`;
+    await FileSystem.writeAsStringAsync(fileUri, dataBase64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+  }
 
   // Add-only permission is enough to save into the library.
   const perm = await MediaLibrary.requestPermissionsAsync(true);
@@ -103,7 +130,7 @@ export function AttachmentViewerProvider({ children }: { children: ReactNode }) 
     setDownload("saving");
     setErrorKey(null);
     try {
-      await downloadWatermarked(payload);
+      await saveAttachment(payload);
       setDownload("saved");
     } catch (err) {
       setDownload("error");

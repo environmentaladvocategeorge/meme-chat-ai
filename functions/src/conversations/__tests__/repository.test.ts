@@ -22,7 +22,7 @@ function mkImage(overrides: Partial<MessageImage> = {}): MessageImage {
     url: PREVIEW_URL,
     previewUrl: PREVIEW_URL,
     ...overrides,
-  };
+  } as MessageImage;
 }
 
 type Recorded = {

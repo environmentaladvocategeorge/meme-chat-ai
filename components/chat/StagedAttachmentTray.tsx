@@ -6,7 +6,7 @@ import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { X } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 // Staged attachment tray: the row of meme thumbnails above the composer that a
 // user has picked but not yet sent. Each thumbnail keeps the KLIPY watermark
@@ -109,9 +109,12 @@ export function StagedAttachmentTray({
                   borderColor: theme["--color-border"],
                 }}
               >
-                <Image
+                <ExpoImage
                   source={{ uri: image.url }}
-                  resizeMode="cover"
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                  transition={150}
+                  recyclingKey={image.id}
                   style={{ width: "100%", height: "100%" }}
                 />
                 {image.source === "klipy" ? (

@@ -7,6 +7,7 @@ import {
 } from "../gifs/extractFrames";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
+import { RECENT_WINDOW } from "./compaction";
 import { countMessagesTokens } from "./tokens";
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -38,7 +39,9 @@ export type AssembleArgs = {
   summary?: string | null;
   recent: ChatMessage[]; // ordered oldest → newest, already filtered to status: complete
   currentText: string;
-  currentImages?: MessageImage[];
+  // Model-ready image URLs for the current turn (resolved by resolveImageInputs:
+  // Klipy CDN previewUrls and/or base64 data URLs for ingested uploads).
+  currentImageUrls?: string[];
   // Pre-extracted frames for the current turn's GIF (if any). Frame extraction
   // is async (fetch + decode), so the caller does it before this pure
   // assembler runs and hands the result in here.
@@ -46,7 +49,9 @@ export type AssembleArgs = {
   maxInputTokens: number;
 };
 
-const RECENT_TARGET = 10;
+// Verbatim recent-turn window. Sourced from the shared compaction module so it
+// stays coupled to the summarizer's keep-tail invariant (see RECENT_WINDOW).
+const RECENT_TARGET = RECENT_WINDOW;
 
 // Builds the note that tells the model the supplied frames are slices of ONE
 // animated GIF — never separate images — so it doesn't narrate "three images."
@@ -75,8 +80,8 @@ function collapseHistoricalUserContent(
   if (images && images.length > 0) {
     notes.push(
       images.length === 1
-        ? "[User sent a Klipy meme image]"
-        : `[User sent ${images.length} Klipy meme images]`,
+        ? "[User sent an image]"
+        : `[User sent ${images.length} images]`,
     );
   }
   if (gifs && gifs.length > 0) {
@@ -96,11 +101,11 @@ function collapseHistoricalUserContent(
 // base64 data URL, detail:"low").
 export function buildCurrentUserContent(
   text: string,
-  images?: MessageImage[],
+  imageUrls?: string[],
   gifFrames?: ExtractedGifFrames,
 ): string | OpenAIContentPart[] {
   const trimmed = text.trim();
-  const hasImages = Boolean(images && images.length > 0);
+  const hasImages = Boolean(imageUrls && imageUrls.length > 0);
   const hasGif = Boolean(gifFrames);
 
   if (!hasImages && !hasGif) {
@@ -111,11 +116,11 @@ export function buildCurrentUserContent(
   if (trimmed.length > 0) {
     parts.push({ type: "text", text: trimmed });
   }
-  if (images) {
-    for (const image of images) {
+  if (imageUrls) {
+    for (const url of imageUrls) {
       parts.push({
         type: "image_url",
-        image_url: { url: image.previewUrl, detail: "low" },
+        image_url: { url, detail: "low" },
       });
     }
   }
@@ -159,7 +164,7 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
       role: "user",
       content: buildCurrentUserContent(
         args.currentText,
-        args.currentImages,
+        args.currentImageUrls,
         args.currentGifFrames,
       ),
     });
@@ -226,7 +231,8 @@ export type AssembleContextArgs = {
   conversationId: string;
   plan: PlanId;
   currentUserMessage: string;
-  currentImages?: MessageImage[];
+  // Model-ready image URLs for the current turn (see resolveImageInputs).
+  currentImageUrls?: string[];
   // The GIF attached to the current turn (max one). Decoded into sampled frames
   // for the model before assembly.
   currentGif?: MessageGif;
@@ -289,7 +295,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     summary,
     recent,
     currentText: args.currentUserMessage,
-    currentImages: args.currentImages,
+    currentImageUrls: args.currentImageUrls,
     currentGifFrames,
     maxInputTokens: planCfg.maxInputTokens,
   });

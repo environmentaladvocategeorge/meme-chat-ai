@@ -5,13 +5,14 @@ import { SettingsRow } from "@/components/SettingsRow";
 import { Typography } from "@/components/Typography";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
+import { useAccountSheetStore } from "@/store/accountSheet";
 import { useNotificationsStore } from "@/store/notifications";
 import {
   type Appearance,
   type Language,
   useSettingsStore,
 } from "@/store/settings";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import {
   ArrowSquareOut,
   BellRinging,
@@ -83,7 +84,7 @@ export default function SettingsScreen() {
   const setAppearance = useSettingsStore((s) => s.setAppearance);
   const language = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
-  const router = useRouter();
+  const openAccount = useAccountSheetStore((s) => s.open);
   const openPlan = useOpenPlan();
 
   // Notifications are gated by the OS permission, so the toggle reflects the
@@ -218,7 +219,7 @@ export default function SettingsScreen() {
         {/* Account hub — all credential/session/deletion controls live behind
             this row so the settings page stays short and to the point. */}
         <Pressable
-          onPress={() => router.push("/account")}
+          onPress={() => openAccount()}
           accessibilityRole="button"
           accessibilityLabel={t("settings.account.label")}
           style={({ pressed }) => ({

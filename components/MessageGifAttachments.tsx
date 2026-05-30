@@ -5,31 +5,16 @@
 // for the single GIF a turn may carry. Keeps the required KLIPY watermark.
 
 import type { MessageGif } from "@/domain/gifs";
+import { fitAttachment } from "@/domain/mediaLayout";
 import { useTheme } from "@/hooks/useTheme";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 const KLIPY_LOGO = require("../assets/images/klipy-logo-light.png");
 const KLIPY_LOGO_RATIO = 376 / 103;
 
-const MAX_W = 220;
-const MAX_H = 220;
-const MIN_W = 96;
 const RADIUS = 16;
-
-function displaySize(gif: MessageGif): { width: number; height: number } {
-  if (!gif.width || !gif.height) return { width: 160, height: 160 };
-  const ratio = gif.width / gif.height;
-  let width = Math.min(MAX_W, gif.width);
-  let height = width / ratio;
-  if (height > MAX_H) {
-    height = MAX_H;
-    width = height * ratio;
-  }
-  width = Math.max(MIN_W, width);
-  return { width, height };
-}
 
 function Watermark() {
   return (
@@ -48,9 +33,11 @@ function Watermark() {
         colors={["transparent", "rgba(0,0,0,0.5)"]}
         style={StyleSheet.absoluteFill}
       />
-      <Image
+      <ExpoImage
         source={KLIPY_LOGO}
-        resizeMode="contain"
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        transition={0}
         style={{
           alignSelf: "flex-end",
           height: 9,
@@ -83,7 +70,7 @@ export function MessageGifAttachments({
       style={{ gap: 6, alignItems: align === "end" ? "flex-end" : "flex-start" }}
     >
       {gifs.map((gif) => {
-        const { width, height } = displaySize(gif);
+        const { width, height } = fitAttachment(gif);
         return (
           <Pressable
             key={gif.id}

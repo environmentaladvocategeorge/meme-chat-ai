@@ -25,10 +25,15 @@ export type TrendingMemesResult = {
 export const CONTENT_FILTERS = ["off", "low", "medium", "high"] as const;
 export type ContentFilter = (typeof CONTENT_FILTERS)[number];
 
-// Generic image attachment carried on a chat message. Mirrors
-// functions/src/messages/messageImage.ts (the backend is the source of truth
-// for validation). This release only supports `source: "klipy"`.
-export type MessageImage = {
+// Image attachment carried on a chat message. Discriminated union on `source`,
+// mirroring functions/src/messages/messageImage.ts (the backend is the source
+// of truth for validation):
+//   - "klipy": a CDN-hosted Klipy meme (fed to the model by URL).
+//   - "upload": a user photo compressed + uploaded to Cloud Storage (the
+//     backend ingests it by `path`; `url` is the display download URL).
+// Common display fields (url/width/height/mimeType/attribution) live on both
+// variants so the read-only renderers stay source-agnostic.
+export type KlipyMessageImage = {
   id: string;
   source: "klipy";
   // Display/full asset URL shown in the UI.
@@ -42,13 +47,32 @@ export type MessageImage = {
   memeId?: string;
 };
 
+export type UploadedMessageImage = {
+  id: string;
+  source: "upload";
+  // Cloud Storage object path (source of truth for the backend).
+  path: string;
+  // Display download URL for rendering (never fed to the model).
+  url: string;
+  width: number;
+  height: number;
+  mimeType: "image/jpeg" | "image/png";
+  // Stored (compressed) byte size.
+  bytes: number;
+  // Present only for type-compat with the shared renderers; uploads carry no
+  // third-party attribution.
+  attribution?: never;
+};
+
+export type MessageImage = KlipyMessageImage | UploadedMessageImage;
+
 // Max attachments per message. The backend enforces this too (it's the source
 // of truth); the client mirror is just for UX gating.
 export const MAX_MESSAGE_IMAGES = 3;
 
 // Convert a trending meme into a stage-able message attachment. `url` is the
 // full display asset; `previewUrl` is what the backend sends to the model.
-export function trendingMemeToMessageImage(meme: TrendingMeme): MessageImage {
+export function trendingMemeToMessageImage(meme: TrendingMeme): KlipyMessageImage {
   return {
     id: meme.id,
     source: "klipy",

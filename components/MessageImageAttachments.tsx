@@ -4,34 +4,18 @@
 // memes). Used inside message bubbles. Each image keeps the required KLIPY
 // watermark so attribution is preserved wherever a meme is shown.
 
+import { fitAttachment } from "@/domain/mediaLayout";
 import type { MessageImage } from "@/domain/memes";
 import { useTheme } from "@/hooks/useTheme";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 
 // 376×103 source wordmark — same asset the meme strip uses.
 const KLIPY_LOGO = require("../assets/images/klipy-logo-light.png");
 const KLIPY_LOGO_RATIO = 376 / 103;
 
-const MAX_W = 220;
-const MAX_H = 220;
-const MIN_W = 96;
 const RADIUS = 16;
-
-// Fit an attachment to a tidy bubble size, preserving aspect ratio. Falls back
-// to a square when the source omitted dimensions.
-function displaySize(image: MessageImage): { width: number; height: number } {
-  if (!image.width || !image.height) return { width: 160, height: 160 };
-  const ratio = image.width / image.height;
-  let width = Math.min(MAX_W, image.width);
-  let height = width / ratio;
-  if (height > MAX_H) {
-    height = MAX_H;
-    width = height * ratio;
-  }
-  width = Math.max(MIN_W, width);
-  return { width, height };
-}
 
 // The KLIPY watermark scrim, bottom-right, matching the meme strip treatment.
 function Watermark() {
@@ -53,7 +37,9 @@ function Watermark() {
       />
       <Image
         source={KLIPY_LOGO}
-        resizeMode="contain"
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        transition={0}
         style={{
           alignSelf: "flex-end",
           height: 9,
@@ -86,7 +72,7 @@ export function MessageImageAttachments({
       style={{ gap: 6, alignItems: align === "end" ? "flex-end" : "flex-start" }}
     >
       {images.map((image) => {
-        const { width, height } = displaySize(image);
+        const { width, height } = fitAttachment(image);
         return (
           <Pressable
             key={image.id}
@@ -106,7 +92,12 @@ export function MessageImageAttachments({
           >
             <Image
               source={{ uri: image.url }}
-              resizeMode="cover"
+              contentFit="cover"
+              // Memory+disk cache so a meme shown once renders instantly when
+              // the thread scrolls back to it. Brief fade as the CDN streams in.
+              cachePolicy="memory-disk"
+              transition={150}
+              recyclingKey={image.id}
               style={{ width: "100%", height: "100%" }}
             />
             {image.source === "klipy" ? <Watermark /> : null}

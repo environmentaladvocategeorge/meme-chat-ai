@@ -369,26 +369,40 @@ const es = {
     },
     rot: {
       button: "Nivel de Rot",
-      title: "Nivel de Rot",
-      subtitle: "Desliza para elegir qué tan rotted serán las respuestas que recibes",
+      title: "¿Qué tan rotted deben ser las respuestas?",
+      subtitle: "Elige tu nivel de caos — puedes cambiarlo cuando quieras.",
       done: "Listo",
       defaultBadge: "por defecto",
-      a11yValue: "Nivel {{level}}, {{name}}",
+      a11yValue: "Nivel {{level}} de 3, {{name}}",
+      preview: {
+        eyebrow: "Así se siente",
+        prompt: "explica por qué procrastino",
+        you: "tú",
+      },
       levels: {
         level1: {
           name: "Apenas Cocinado",
           description:
             "poquito memeado, casi todo serio. no sabe a asistente genérico.",
+          reply:
+            "tu cerebro vio la tarea grande y se congeló. no es flojera — es agobio. redúcela a un paso chiquito y empieza ahí.",
+          tags: ["casi todo serio", "poquito picante"],
         },
         level2: {
           name: "Rotted",
           description:
             "full energía brainrot bot. chistes y slang pero igual te resuelvo.",
+          reply:
+            "tu cerebro vio una tarea y se declaró en bancarrota emocional 😤 empieza con el paso más chiquito posible.",
+          tags: ["chistes + slang", "igual útil"],
         },
         level3: {
-          name: "Modo Goblin Total",
+          name: "Modo Goblin",
           description:
             "brainrot al máximo. metáforas cursed, reacciones dramáticas, cringe peak. sigo siendo útil, solo que feral 🦝",
+          reply:
+            "tu función ejecutiva se fue a Ohio, devolver al remitente 💀 abre el doc, escribe una frase cursed y deja que fluya solo.",
+          tags: ["metáforas cursed", "feral"],
         },
       },
     },

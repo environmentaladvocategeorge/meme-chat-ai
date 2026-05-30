@@ -10,10 +10,11 @@
 // the brand, so the circle just clips them.
 
 import { gradients } from "@/nativewind-theme";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -111,7 +112,9 @@ export function MemeAvatar({ variant, size = 64, pulse = false }: MemeAvatarProp
         <Image
           source={SOURCES[variant]}
           style={{ width: size, height: size }}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
         />
       </Animated.View>
     </View>

@@ -6,10 +6,11 @@
 // When `pulse` is false it's a static circle.
 
 import { gradients } from "@/nativewind-theme";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -108,7 +109,11 @@ export function AgentAvatar({ size = 28, pulse = false }: AgentAvatarProps) {
         <Image
           source={require("../assets/images/app-icon.png")}
           style={{ width: size, height: size }}
-          resizeMode="cover"
+          contentFit="cover"
+          // Bundled icon: cache the decoded bitmap in memory so re-mounting on
+          // every agent message in the list is instant (no re-decode, no fade).
+          cachePolicy="memory-disk"
+          transition={0}
         />
       </Animated.View>
     </View>
