@@ -26,18 +26,18 @@ export type PlanConfig = {
 //   evenPace   = monthlyCredits / daysInMonth        (the sustainable rate)
 //   dailyCap   = round(evenPace * DAILY_BURST_FACTOR)
 //
-// A burst factor of 2 lets a user spend up to two average days' worth in any
+// A burst factor of 3 lets a user spend up to three average days' worth in any
 // single day (so a heavy day never feels walled off) while guaranteeing the
-// monthly budget still lasts at least half the month even if they max the cap
-// out every day. It scales automatically by plan (via monthlyCredits) and by
-// month length (28–31 days), and it rises the moment a user upgrades because
-// monthlyCredits rises.
+// monthly budget still lasts at least ~10 days even if they max the cap out
+// every day (≈10% of the monthly budget per day on a 30-day month). It scales
+// automatically by plan (via monthlyCredits) and by month length (28–31 days),
+// and it rises the moment a user upgrades because monthlyCredits rises.
 //
 // This is the SINGLE definition of the daily cap. The server computes it and
 // writes the resolved number onto profiles/{uid} (softDailyCredits); the client
 // only ever reads that stored value — it must never keep its own copy of this
 // formula or the plan credit table.
-export const DAILY_BURST_FACTOR = 2;
+export const DAILY_BURST_FACTOR = 3;
 
 export function daysInMonth(date: Date): number {
   // Day 0 of the next month is the last day of `date`'s month.
@@ -57,37 +57,37 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 // so monthlyCredits is the MAX monthly AI spend per user. Credits are charged
 // once per turn from real token usage (no up-front reservation). At the average
 // message (~3,000 in / ~60 out on mini ≈ $0.00252 ≈ 2.52 credits), the buckets
-// below cover roughly: free ~80, basic ~700, plus ~2,000, power ~4,200
+// below cover roughly: free ~200, basic ~770, plus ~2,080, power ~4,400
 // messages/month. Allocations are sized to hold a tiered post-app-store-fee
 // margin (30% fee assumed); higher tiers commit more so we accept a thinner
 // margin in exchange for far more usage:
-//   Basic monthly_1  $3.99  → ~$2.79 net, $1.80 max cost → ~35% margin
-//   Plus  monthly_2  $9.99  → ~$6.99 net, $4.90 max cost → ~30% margin
-//   Power monthly_3  $19.99 → ~$13.99 net, $10.50 max cost → ~25% margin
+//   Basic monthly_1  $3.99  → ~$2.79 net, $1.95 max cost → ~30% margin
+//   Plus  monthly_2  $9.99  → ~$6.99 net, $5.25 max cost → ~25% margin
+//   Power monthly_3  $19.99 → ~$13.99 net, $11.20 max cost → ~20% margin
 // (Plan IDs free/basic/plus/power map to RC products free/monthly_1/monthly_2/
 // monthly_3 — see billing/revenuecat.ts.)
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
-    monthlyCredits: 200,
+    monthlyCredits: 500,
     maxInputTokens: 4000,
     maxOutputTokens: 512,
   },
   basic: {
     model: "mini",
-    monthlyCredits: 1800,
+    monthlyCredits: 1950,
     maxInputTokens: 8000,
     maxOutputTokens: 1024,
   },
   plus: {
     model: "mini",
-    monthlyCredits: 4900,
+    monthlyCredits: 5250,
     maxInputTokens: 16_000,
     maxOutputTokens: 2048,
   },
   power: {
     model: "mini",
-    monthlyCredits: 10_500,
+    monthlyCredits: 11_200,
     maxInputTokens: 32_000,
     maxOutputTokens: 4096,
   },

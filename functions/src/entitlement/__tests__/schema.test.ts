@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { PLANS, computeDailyCap } from "../../billing/plans";
+import { nextEasternMidnightMs } from "../dailyWindow";
 import { initialBilling, readProfileBilling } from "../schema";
 
 describe("initialBilling", () => {
@@ -18,13 +19,12 @@ describe("initialBilling", () => {
     expect(b.rcActiveProductId).toBeNull();
   });
 
-  it("sets monthly reset 30 days out and daily reset 24 hours out", () => {
+  it("sets monthly reset 30 days out and daily reset at the next Eastern midnight", () => {
     const now = new Date("2026-01-01T00:00:00Z");
     const b = initialBilling(now);
     const expectedMonthly = now.getTime() + 30 * 24 * 60 * 60 * 1000;
-    const expectedDaily = now.getTime() + 24 * 60 * 60 * 1000;
     expect(b.creditsResetAt.toMillis()).toBe(expectedMonthly);
-    expect(b.dailyResetAt.toMillis()).toBe(expectedDaily);
+    expect(b.dailyResetAt.toMillis()).toBe(nextEasternMidnightMs(now.getTime()));
   });
 });
 

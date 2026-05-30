@@ -28,8 +28,8 @@ export type Entitlement = {
 // are a last-resort fallback for the brief window before a legacy doc is
 // backfilled on its next load; a real subscriber's doc always carries the
 // fields. FALLBACK_BURST_FACTOR mirrors DAILY_BURST_FACTOR on the server.
-const FALLBACK_MONTHLY_CREDITS = 200; // free tier
-const FALLBACK_BURST_FACTOR = 2;
+const FALLBACK_MONTHLY_CREDITS = 500; // free tier
+const FALLBACK_BURST_FACTOR = 3;
 
 function fallbackDailyCap(monthlyCredits: number): number {
   const now = new Date();

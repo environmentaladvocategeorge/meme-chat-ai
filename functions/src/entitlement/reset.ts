@@ -1,10 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { PLANS, computeDailyCap } from "../billing/plans";
-import {
-  DAILY_WINDOW_MS,
-  MONTHLY_WINDOW_MS,
-  type ProfileBilling,
-} from "./schema";
+import { nextEasternMidnightMs } from "./dailyWindow";
+import { MONTHLY_WINDOW_MS, type ProfileBilling } from "./schema";
 
 export type ResetDecision = {
   monthlyReset: boolean;
@@ -21,8 +18,11 @@ export type ResetDecision = {
 // advancedCreditsUsed, advances creditsResetAt by exactly one window. Does
 // NOT carry over leftover credits — monthly budget is use-it-or-lose-it.
 //
-// Daily reset: zeros dailyCreditsUsed, advances dailyResetAt. The daily
-// counter is purely a soft cap; doesn't refill anything.
+// Daily reset: zeros dailyCreditsUsed, advances dailyResetAt to the next global
+// Eastern midnight. The daily counter is purely a soft cap; doesn't refill
+// anything. Because the anchor is a fixed wall-clock boundary (not now + 24h),
+// every user's window rolls at the same instant — the reset is applied lazily
+// the next time the user is seen, but always relative to the same boundary.
 export function computeResets(state: ProfileBilling, nowMs: number): ResetDecision {
   let next = state;
   let monthlyReset = false;
@@ -45,8 +45,9 @@ export function computeResets(state: ProfileBilling, nowMs: number): ResetDecisi
 
   if (state.dailyResetAt.toMillis() <= nowMs) {
     dailyReset = true;
-    let resetMs = state.dailyResetAt.toMillis();
-    while (resetMs <= nowMs) resetMs += DAILY_WINDOW_MS;
+    // Jump straight to the next global boundary regardless of how long the user
+    // was dormant — no per-window hop loop, the anchor is absolute.
+    const resetMs = nextEasternMidnightMs(nowMs);
     next = {
       ...next,
       // Refresh the stored daily cap each day so it tracks the current month's

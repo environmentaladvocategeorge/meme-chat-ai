@@ -1,5 +1,6 @@
 import { computeDailyCap, PLANS, PLAN_IDS, type PlanId } from "../../billing/plans";
-import { MONTHLY_WINDOW_MS, DAILY_WINDOW_MS, planActivationFields } from "../schema";
+import { nextEasternMidnightMs } from "../dailyWindow";
+import { MONTHLY_WINDOW_MS, planActivationFields } from "../schema";
 
 // A fixed instant so the day-of-month math is deterministic. Local-time date
 // (computeDailyCap reads local getMonth/getFullYear) → 31-day month.
@@ -24,7 +25,7 @@ describe("planActivationFields", () => {
     const f = planActivationFields("plus", NOW);
     expect(f.dailyCreditsUsed).toBe(0);
     expect(f.creditsResetAt.toMillis()).toBe(NOW.getTime() + MONTHLY_WINDOW_MS);
-    expect(f.dailyResetAt.toMillis()).toBe(NOW.getTime() + DAILY_WINDOW_MS);
+    expect(f.dailyResetAt.toMillis()).toBe(nextEasternMidnightMs(NOW.getTime()));
   });
 
   // The core guarantee behind "upgrading increases the limit": every step up
