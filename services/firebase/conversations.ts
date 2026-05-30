@@ -7,10 +7,95 @@ import {
   query,
   where,
   type DocumentData,
+  type FirestoreError,
   type Query,
   type Unsubscribe,
 } from "firebase/firestore";
+import type { MessageGif } from "@/domain/gifs";
+import type { MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
+
+const ALLOWED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
+
+// Defensive read-back of persisted attachments. The backend validated these on
+// write (it's the source of truth), so this just shapes Firestore data into
+// MessageImage and drops anything malformed rather than re-enforcing policy.
+function mapImages(value: unknown): MessageImage[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const images = value.flatMap((raw): MessageImage[] => {
+    if (!raw || typeof raw !== "object") return [];
+    const data = raw as Record<string, unknown>;
+    if (
+      data.source !== "klipy" ||
+      typeof data.id !== "string" ||
+      typeof data.url !== "string" ||
+      typeof data.previewUrl !== "string"
+    ) {
+      return [];
+    }
+    const image: MessageImage = {
+      id: data.id,
+      source: "klipy",
+      url: data.url,
+      previewUrl: data.previewUrl,
+    };
+    if (typeof data.width === "number") image.width = data.width;
+    if (typeof data.height === "number") image.height = data.height;
+    if (
+      typeof data.mimeType === "string" &&
+      (ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(data.mimeType)
+    ) {
+      image.mimeType = data.mimeType as MessageImage["mimeType"];
+    }
+    if (typeof data.attribution === "string") image.attribution = data.attribution;
+    if (typeof data.memeId === "string") image.memeId = data.memeId;
+    return [image];
+  });
+  return images.length > 0 ? images : undefined;
+}
+
+// Defensive read-back of persisted GIF attachments. Mirrors mapImages.
+function mapGifs(value: unknown): MessageGif[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const gifs = value.flatMap((raw): MessageGif[] => {
+    if (!raw || typeof raw !== "object") return [];
+    const data = raw as Record<string, unknown>;
+    if (
+      data.source !== "klipy-gif" ||
+      typeof data.id !== "string" ||
+      typeof data.url !== "string" ||
+      typeof data.previewUrl !== "string" ||
+      typeof data.frameSourceUrl !== "string"
+    ) {
+      return [];
+    }
+    const gif: MessageGif = {
+      id: data.id,
+      source: "klipy-gif",
+      url: data.url,
+      previewUrl: data.previewUrl,
+      frameSourceUrl: data.frameSourceUrl,
+    };
+    if (typeof data.width === "number") gif.width = data.width;
+    if (typeof data.height === "number") gif.height = data.height;
+    if (typeof data.attribution === "string") gif.attribution = data.attribution;
+    if (typeof data.gifId === "string") gif.gifId = data.gifId;
+    return [gif];
+  });
+  return gifs.length > 0 ? gifs : undefined;
+}
+
+// A snapshot listener fires `permission-denied` when its query stops being
+// readable while still attached — most commonly in the brief window during
+// account deletion (the auth user is removed server-side first) or on sign-out
+// before the listener is torn down. That's expected, not a real failure, so we
+// swallow it instead of letting it surface as an uncaught Firestore error.
+function handleSnapshotError(scope: string) {
+  return (error: FirestoreError) => {
+    if (error.code === "permission-denied") return;
+    console.warn(`[${scope}] snapshot error:`, error);
+  };
+}
 
 export type ConversationSummary = {
   id: string;
@@ -24,7 +109,23 @@ export type StoredChatMessage = {
   id: string;
   role: "user" | "agent";
   text: string;
+  images?: MessageImage[];
+  gifs?: MessageGif[];
+  reaction?: "up" | "down";
+  // Brainrot intensity stored on a user turn (1–3).
+  levelOfRot?: number;
   status: "complete" | "streaming" | "error";
+  createdAt: Date | null;
+  clientMessageId?: string;
+  inReplyToClientMessageId?: string;
+  personaId?: string;
+  persona?: {
+    id: string;
+    name: string;
+    slug: string;
+    displayName: string;
+    avatarKey: string;
+  };
 };
 
 function requireFirestore() {
@@ -69,13 +170,52 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
   }
 
   const text = typeof data.text === "string" ? data.text : "";
-  if (status === "streaming" && text.length === 0) return null;
+  const images = mapImages(data.images);
+  const gifs = mapGifs(data.gifs);
+  // Drop only empty *streaming* placeholders; an attachment-only complete
+  // message legitimately has empty text but real attachments.
+  if (status === "streaming" && text.length === 0 && !images && !gifs) return null;
+  const persona =
+    data.persona &&
+    typeof data.persona === "object" &&
+    typeof data.persona.id === "string" &&
+    typeof data.persona.name === "string" &&
+    typeof data.persona.slug === "string" &&
+    typeof data.persona.displayName === "string" &&
+    typeof data.persona.avatarKey === "string"
+      ? {
+          id: data.persona.id,
+          name: data.persona.name,
+          slug: data.persona.slug,
+          displayName: data.persona.displayName,
+          avatarKey: data.persona.avatarKey,
+        }
+      : undefined;
+
+  const reaction =
+    data.reaction === "up" || data.reaction === "down" ? data.reaction : undefined;
+
+  const levelOfRot =
+    typeof data.levelOfRot === "number" ? data.levelOfRot : undefined;
 
   return {
     id,
     role,
     text,
+    images,
+    gifs,
+    reaction,
+    levelOfRot,
     status,
+    createdAt: asDate(data.createdAt),
+    clientMessageId:
+      typeof data.clientMessageId === "string" ? data.clientMessageId : undefined,
+    inReplyToClientMessageId:
+      typeof data.inReplyToClientMessageId === "string"
+        ? data.inReplyToClientMessageId
+        : undefined,
+    personaId: typeof data.personaId === "string" ? data.personaId : undefined,
+    persona,
   };
 }
 
@@ -102,9 +242,13 @@ export function subscribeToConversations(
   uid: string,
   cb: (conversations: ConversationSummary[]) => void,
 ): Unsubscribe {
-  return onSnapshot(listConversations(uid), (snapshot) => {
-    cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())));
-  });
+  return onSnapshot(
+    listConversations(uid),
+    (snapshot) => {
+      cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())));
+    },
+    handleSnapshotError("conversations"),
+  );
 }
 
 export function subscribeToMessages(
@@ -117,12 +261,16 @@ export function subscribeToMessages(
     orderBy("createdAt", "asc"),
   );
 
-  return onSnapshot(messagesQuery, (snapshot) => {
-    cb(
-      snapshot.docs.flatMap((doc) => {
-        const message = mapMessage(doc.id, doc.data());
-        return message ? [message] : [];
-      }),
-    );
-  });
+  return onSnapshot(
+    messagesQuery,
+    (snapshot) => {
+      cb(
+        snapshot.docs.flatMap((doc) => {
+          const message = mapMessage(doc.id, doc.data());
+          return message ? [message] : [];
+        }),
+      );
+    },
+    handleSnapshotError("messages"),
+  );
 }

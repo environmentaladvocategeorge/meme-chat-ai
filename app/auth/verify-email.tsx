@@ -1,16 +1,11 @@
-import { Button } from "@/components/Button";
-import { PageHeader } from "@/components/PageHeader";
-import { Typography } from "@/components/Typography";
-import { useTheme } from "@/hooks/useTheme";
+import { AuthScaffold, GradientButton } from "@/components/AuthScaffold";
 import { useAuthStore } from "@/store/auth";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, AppState, type AppStateStatus, View } from "react-native";
 
 export default function VerifyEmailScreen() {
   const { t } = useTranslation();
-  const theme = useTheme();
   const email = useAuthStore((s) => s.email);
   const refreshEmailVerified = useAuthStore((s) => s.refreshEmailVerified);
   const resendVerification = useAuthStore((s) => s.resendVerificationEmail);
@@ -27,6 +22,26 @@ export default function VerifyEmailScreen() {
     }
   };
 
+  // Users typically verify by tapping the link in their email/phone, which
+  // backgrounds the app. Re-check silently when they return to the foreground
+  // so they don't have to tap "Check again" manually.
+  const appState = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        const cameToForeground =
+          appState.current.match(/inactive|background/) &&
+          nextState === "active";
+        appState.current = nextState;
+        if (cameToForeground) {
+          void refreshEmailVerified();
+        }
+      },
+    );
+    return () => subscription.remove();
+  }, [refreshEmailVerified]);
+
   const handleResend = async () => {
     setResending(true);
     const result = await resendVerification();
@@ -39,45 +54,28 @@ export default function VerifyEmailScreen() {
   };
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: theme["--color-background"] }}
-      edges={["top", "bottom"]}
+    <AuthScaffold
+      title={t("auth.verifyEmail.title")}
+      subtitle={t("auth.verifyEmail.body", { email: email ?? "" })}
     >
-      <View
-        style={{
-          flex: 1,
-          paddingHorizontal: 24,
-          paddingTop: 16,
-          paddingBottom: 24,
-          justifyContent: "space-between",
-        }}
-      >
-        <View style={{ gap: 16 }}>
-          <PageHeader
-            title={t("auth.verifyEmail.title")}
-            subtitle={t("auth.verifyEmail.body", { email: email ?? "" })}
-          />
-        </View>
-
-        <View style={{ gap: 12 }}>
-          <Button
-            title={t("auth.verifyEmail.checkAgain")}
-            loading={checking}
-            onPress={handleCheck}
-          />
-          <Button
-            title={t("auth.verifyEmail.resend")}
-            variant="outline"
-            loading={resending}
-            onPress={handleResend}
-          />
-          <Button
-            title={t("auth.verifyEmail.signOut")}
-            variant="ghost"
-            onPress={() => void signOut()}
-          />
-        </View>
+      <View style={{ flex: 1, justifyContent: "flex-end", gap: 12 }}>
+        <GradientButton
+          title={t("auth.verifyEmail.checkAgain")}
+          loading={checking}
+          onPress={handleCheck}
+        />
+        <GradientButton
+          title={t("auth.verifyEmail.resend")}
+          variant="glass"
+          loading={resending}
+          onPress={handleResend}
+        />
+        <GradientButton
+          title={t("auth.verifyEmail.signOut")}
+          variant="glass"
+          onPress={() => void signOut()}
+        />
       </View>
-    </SafeAreaView>
+    </AuthScaffold>
   );
 }

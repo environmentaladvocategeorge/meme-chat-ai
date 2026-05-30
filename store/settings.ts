@@ -12,9 +12,16 @@ export type { Appearance, Language } from "./storage";
 interface SettingsState {
   appearance: Appearance;
   language: Language;
+  chatBubbleStyle: string;
+  chatBackground: string;
+  alias: string;
   hydrate: () => Promise<void>;
   setAppearance: (v: Appearance) => void;
   setLanguage: (v: Language) => void;
+  setChatBubbleStyle: (v: string) => void;
+  setChatBackground: (v: string) => void;
+  resetChatAppearance: () => void;
+  setAlias: (v: string) => void;
   reset: () => Promise<void>;
 }
 
@@ -26,6 +33,9 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({
       appearance: stored.appearance,
       language: stored.language,
+      chatBubbleStyle: stored.chatBubbleStyle,
+      chatBackground: stored.chatBackground,
+      alias: stored.alias,
     });
     i18next.changeLanguage(resolveLanguage(stored.language));
   },
@@ -41,6 +51,30 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     set({ language });
     SettingsStorage.write({ language });
     i18next.changeLanguage(resolveLanguage(language));
+  },
+
+  setChatBubbleStyle: (chatBubbleStyle) => {
+    if (get().chatBubbleStyle === chatBubbleStyle) return;
+    set({ chatBubbleStyle });
+    SettingsStorage.write({ chatBubbleStyle });
+  },
+
+  setChatBackground: (chatBackground) => {
+    if (get().chatBackground === chatBackground) return;
+    set({ chatBackground });
+    SettingsStorage.write({ chatBackground });
+  },
+
+  resetChatAppearance: () => {
+    const { chatBubbleStyle, chatBackground } = DEFAULT_SETTINGS;
+    set({ chatBubbleStyle, chatBackground });
+    SettingsStorage.write({ chatBubbleStyle, chatBackground });
+  },
+
+  setAlias: (alias) => {
+    if (get().alias === alias) return;
+    set({ alias });
+    SettingsStorage.write({ alias });
   },
 
   reset: async () => {

@@ -1,19 +1,16 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell(Remove-Item -Recurse -Force c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\app\\\\\\(tabs\\); New-Item -ItemType Directory -Path \"c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\app\\\\\\(app\\)\" | Out-Null; Get-ChildItem c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\app)",
-      "Bash(npx tsc *)",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; try { Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/google/fonts/main/ofl/fredoka/Fredoka%5Bwdth%2Cwght%5D.ttf' -OutFile 'c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\assets\\\\fonts\\\\Fredoka-Variable.ttf' -UseBasicParsing; \\(Get-Item 'c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\assets\\\\fonts\\\\Fredoka-Variable.ttf'\\).Length } catch { Write-Host \"FAILED: $\\($_.Exception.Message\\)\" })",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; $base = 'https://cdn.jsdelivr.net/npm/@fontsource/nunito-sans/files'; $weights = @\\('400','500','600','700'\\); foreach \\($w in $weights\\) { $url = \"$base/nunito-sans-latin-$w-normal.ttf\"; $out = \"c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\assets\\\\fonts\\\\NunitoSans-$w.ttf\"; try { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing; Write-Host \"OK $w $\\(\\(Get-Item $out\\).Length\\)\" } catch { Write-Host \"FAIL $w $\\($_.Exception.Message\\)\" } })",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; try { $r = Invoke-WebRequest -Uri 'https://registry.npmjs.org/@fontsource/nunito-sans' -UseBasicParsing; $j = $r.Content | ConvertFrom-Json; $j.'dist-tags'.latest } catch { Write-Host \"fail: $\\($_.Exception.Message\\)\" })",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; $base = 'https://cdn.jsdelivr.net/npm/@fontsource/nunito-sans@5.2.7/files'; $weights = @\\('400','500','600','700'\\); foreach \\($w in $weights\\) { $url = \"$base/nunito-sans-latin-$w-normal.ttf\"; $out = \"c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\assets\\\\fonts\\\\NunitoSans-$w.ttf\"; try { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing; Write-Host \"OK $w $\\(\\(Get-Item $out\\).Length\\)\" } catch { Write-Host \"FAIL $w $\\($_.Exception.Message\\)\" } })",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; $r = Invoke-WebRequest -Uri 'https://data.jsdelivr.com/v1/package/npm/@fontsource/nunito-sans@5.2.7/flat' -UseBasicParsing; $j = $r.Content | ConvertFrom-Json; \\($j.files | ForEach-Object { $_.name } | Select-Object -First 30\\) -join \"`n\")",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; $base = 'https://cdn.jsdelivr.net/npm/@fontsource/nunito-sans@4.5.13/files'; $weights = @\\('400','500','600','700'\\); foreach \\($w in $weights\\) { $url = \"$base/nunito-sans-latin-$w-normal.ttf\"; $out = \"c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\assets\\\\fonts\\\\NunitoSans-$w.ttf\"; try { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing; Write-Host \"OK $w $\\(\\(Get-Item $out\\).Length\\)\" } catch { Write-Host \"FAIL $w $\\($_.Exception.Message\\)\" } })",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; $r = Invoke-WebRequest -Uri 'https://data.jsdelivr.com/v1/package/npm/@fontsource/nunito-sans@4.5.13/flat' -UseBasicParsing; $j = $r.Content | ConvertFrom-Json; \\($j.files | ForEach-Object { $_.name } | Select-Object -First 30\\) -join \"`n\")",
+      "Bash",
+      "Bash(cat meme-chat-ai/babel.config.js)",
+      "Bash(cat meme-chat-ai/babel.config.cjs)",
+      "Bash(cat hobby-dex/babel.config.js)",
+      "Bash(cat hobby-dex/babel.config.cjs)",
       "WebSearch",
-      "PowerShell($ProgressPreference = 'SilentlyContinue'; $base = 'https://raw.githubusercontent.com/google/fonts/main/ofl/poppins'; $weights = @\\('Regular','Medium','SemiBold','Bold'\\); foreach \\($w in $weights\\) { $url = \"$base/Poppins-$w.ttf\"; $out = \"c:\\\\Users\\\\elmof\\\\meme-chat-ai\\\\assets\\\\fonts\\\\Poppins-$w.ttf\"; try { Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing; Write-Host \"OK $w $\\(\\(Get-Item $out\\).Length\\)\" } catch { Write-Host \"FAIL $w $\\($_.Exception.Message\\)\" } })",
-      "Bash(git init *)",
-      "Bash(git remote *)"
+      "Bash(echo \"=== exit $? ===\")",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(git check-ignore *)"
     ]
   }
 }

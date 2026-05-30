@@ -11,15 +11,23 @@
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "jest"
   },
   "dependencies": {
+    "expo-file-system": "~19.0.23",
+    "expo-media-library": "~18.2.1",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "^6.1.0",
+    "js-tiktoken": "^1.0.21",
     "openai": "^4.104.0",
+    "sharp": "^0.33.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.5",
     "typescript": "^5.5.4"
   }
 }

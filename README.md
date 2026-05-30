@@ -1,4 +1,4 @@
-# MeMe Chat AI
+# Meme Chat AI
 
 React Native + Expo app, derived from `react-native-app-template`.
 
@@ -6,7 +6,7 @@ React Native + Expo app, derived from `react-native-app-template`.
 
 | Field | Value |
 |---|---|
-| App name | MeMe Chat AI |
+| App name | Meme Chat AI |
 | Slug | meme-chat-ai |
 | iOS bundle ID | com.jorgejimenez.memeai |
 | Android package | com.jorgejimenez.memeai |
@@ -74,7 +74,7 @@ templated, scoped to the marketing site + legal copy:
 | Placeholder | Where it appears | What you fill in |
 |---|---|---|
 | `%EAS_PROJECT_ID%` | `app.json` | Output of `eas init` — auto-written for you |
-| `%APP_DESCRIPTION%` | `website/public/index.html` | One-sentence pitch for MeMe Chat AI |
+| `%APP_DESCRIPTION%` | `website/public/index.html` | One-sentence pitch for Meme Chat AI |
 | `%APP_DOMAIN%` | `website/public/*.html`, `website/public/robots.txt`, `website/public/sitemap.xml` | Bare host, e.g. `memechatai.app` |
 | `%APP_STORE_URL%` | `website/public/index.html` | App Store listing URL (fill in after first ship) |
 | `%SUPPORT_EMAIL%` | `website/public/support.html`, `website/public/privacy.html` | An inbox you actually check |

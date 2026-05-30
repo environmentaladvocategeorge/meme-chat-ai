@@ -54,3 +54,6 @@ coverage/
 
 # functions build output
 functions/lib/
+
+# Personal Claude Code overrides (not shared)
+.claude/settings.local.json

@@ -3,15 +3,73 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Privacy Policy &middot; MeMe Chat AI</title>
-    <meta name="description" content="Privacy policy for MeMe Chat AI." />
+    <title>Privacy Policy &middot; Meme Chat AI</title>
+    <meta name="description" content="Privacy policy for Meme Chat AI: what we collect, how OpenAI, Firebase, RevenueCat, and Klipy process your data, and how to delete it." />
     <link rel="canonical" href="https://%APP_DOMAIN%/privacy" />
     <link rel="stylesheet" href="/styles.css" />
+    <style>
+      /* Page-local helpers — the shared styles.css doesn't style tables. */
+      .legal h3 {
+        margin-top: 24px;
+        color: var(--color-foreground);
+        font-size: 19px;
+      }
+      .legal .lead {
+        font-size: 16px;
+        color: var(--color-foreground);
+        font-weight: 600;
+      }
+      .legal table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 8px;
+        font-size: 14px;
+      }
+      .legal th,
+      .legal td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border: 1px solid var(--color-border);
+      }
+      .legal th {
+        color: var(--color-foreground);
+        background: var(--color-card-muted);
+        font-family: "Fredoka", "Poppins", sans-serif;
+      }
+      .legal .meta {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 8px;
+        display: grid;
+        gap: 6px;
+      }
+      .legal .meta li {
+        border-left: 4px solid var(--color-primary);
+        background: var(--color-card-muted);
+        padding: 8px 14px;
+      }
+      .legal .confirm {
+        background: rgba(124, 58, 237, 0.12);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .legal .callout {
+        border: 1px solid var(--color-border);
+        border-left: 4px solid var(--color-primary);
+        background: var(--color-card-muted);
+        border-radius: var(--radius-card, 12px);
+        padding: 14px 18px;
+        margin: 18px 0;
+      }
+    </style>
   </head>
   <body>
     <div class="container legal">
       <header class="site-header">
-        <div class="brand"><a href="/">MeMe Chat AI</a></div>
+        <div class="brand"><a href="/">Meme Chat AI</a></div>
         <nav class="nav">
           <a href="/support.html">Support</a>
           <a href="/privacy.html">Privacy</a>
@@ -19,67 +77,557 @@
       </header>
 
       <h1>Privacy Policy</h1>
-      <p><em>Last updated: %PRIVACY_LAST_UPDATED%</em></p>
 
-      <p>
-        This Privacy Policy describes how %COMPANY_NAME% ("we", "us") collects,
-        uses, and shares information when you use MeMe Chat AI (the "App").
-      </p>
-
-      <h2>1. Information we collect</h2>
-      <ul>
-        <li>
-          <strong>Account information.</strong> When you create an account
-          we store your email address and a Firebase-generated user
-          identifier. If you sign in with Apple, we store the
-          Apple-provided identifier and the email address Apple shares
-          (which may be a private relay address).
-        </li>
-        <li>
-          <strong>App preferences.</strong> Theme and language settings are
-          stored on your device.
-        </li>
+      <ul class="meta">
+        <li><strong>App:</strong> Meme Chat AI</li>
+        <li><strong>Effective date:</strong> %PRIVACY_LAST_UPDATED%</li>
+        <li><strong>Applies to:</strong> the Meme Chat AI mobile app (iOS and Android) and this website at https://%APP_DOMAIN%</li>
+        <li><strong>Minimum age:</strong> 13 and older <span class="confirm">[Confirm minimum age]</span></li>
+        <li><strong>Contact:</strong> <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a></li>
       </ul>
 
-      <h2>2. How we use information</h2>
-      <p>
-        We use the information above to authenticate you, keep you signed
-        in across sessions, and operate the App. We do not sell your
-        personal information.
+      <p class="lead">
+        Meme Chat AI is an AI chat app. You sign in, chat with an AI
+        companion, and can browse trending meme media. To make that work, your
+        messages are sent to OpenAI for AI replies and stored in our Firebase
+        backend, subscriptions run through RevenueCat and the app stores, and
+        meme media comes from Klipy. We do not sell your personal information,
+        and the current version of the app does not use advertising,
+        third-party analytics, crash-reporting SDKs, or cross-app tracking.
       </p>
 
-      <h2>3. Service providers</h2>
       <p>
-        We rely on Google Firebase (Authentication, Cloud Firestore, Cloud
-        Functions) to operate the App. Firebase processes your data on our
-        behalf under its own
-        <a href="https://firebase.google.com/support/privacy">privacy terms</a>.
+        This policy explains, in plain English, what data Meme Chat AI handles,
+        who processes it, how long it is kept, and the choices you have. Where a
+        detail still needs to be confirmed by the developer before publishing,
+        it is marked <span class="confirm">[Confirm]</span> and listed again at
+        the end.
       </p>
 
-      <h2>4. Your choices</h2>
+      <!-- ===================================================== -->
+      <h2>1. Overview</h2>
       <p>
-        You can delete your account at any time from
-        <em>Settings &rarr; Delete all data</em> inside the App. This
-        permanently deletes your authentication record, your profile
-        document on our servers, and every preference stored on your
-        device. Deletion is immediate and cannot be undone.
+        Meme Chat AI ("the App") is published by %COMPANY_NAME% ("we", "us").
+        The App is built with Expo and React Native, and its backend runs on
+        Google Firebase (Authentication, Cloud Firestore, and Cloud Functions).
+      </p>
+      <p>The main services that process your data are:</p>
+      <ul>
+        <li><strong>Firebase / Google Cloud</strong> — accounts, database, and backend logic.</li>
+        <li><strong>OpenAI</strong> — generates AI chat replies, conversation titles, and conversation summaries.</li>
+        <li><strong>RevenueCat</strong> — manages subscriptions and entitlements (with Apple App Store and Google Play as the payment rails).</li>
+        <li><strong>Klipy</strong> — supplies trending meme GIF/PNG/WebP media.</li>
+      </ul>
+      <p>
+        <strong>We do not sell your personal information.</strong> Based on the
+        current version of the App, we do not use advertising networks,
+        third-party analytics SDKs, crash-reporting SDKs, attribution SDKs, or
+        cross-app tracking.
       </p>
 
-      <h2>5. Children</h2>
+      <!-- ===================================================== -->
+      <h2>2. Data categories at a glance</h2>
+      <table>
+        <thead>
+          <tr><th>Category</th><th>Examples</th><th>Where it goes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Account &amp; authentication</td>
+            <td>Email address, Firebase user ID (UID), email-verification status, sign-in provider, Apple Sign In identifier</td>
+            <td>Firebase Authentication, Firestore profile</td>
+          </tr>
+          <tr>
+            <td>AI conversation content</td>
+            <td>Your messages and the AI's replies (text only)</td>
+            <td>Sent to OpenAI; stored in Firestore</td>
+          </tr>
+          <tr>
+            <td>Conversation metadata</td>
+            <td>Conversation titles, first-message snippet, last-message preview, summaries, timestamps</td>
+            <td>Firestore (titles/summaries are generated by OpenAI)</td>
+          </tr>
+          <tr>
+            <td>Usage, credit &amp; billing metadata</td>
+            <td>Token counts, cost estimates, credits, plan/model, usage events</td>
+            <td>Firestore; visible in backend logs</td>
+          </tr>
+          <tr>
+            <td>Purchase &amp; subscription data</td>
+            <td>Subscription status, product IDs, entitlement/expiry, receipts/purchase tokens, transaction metadata, RevenueCat app user ID (= your Firebase UID)</td>
+            <td>RevenueCat, Apple App Store, Google Play; status mirrored in Firestore</td>
+          </tr>
+          <tr>
+            <td>Klipy meme request data</td>
+            <td><code>customer_id</code> (= your Firebase UID), page, results-per-page, locale/country, content-filter level, and your search keyword when you search</td>
+            <td>Sent to Klipy via our backend</td>
+          </tr>
+          <tr>
+            <td>Local device data</td>
+            <td>Theme/appearance, language, onboarding-completed flag, Firebase Auth session/cache</td>
+            <td>Stays on your device (AsyncStorage)</td>
+          </tr>
+          <tr>
+            <td>Technical, log &amp; rate-limit data</td>
+            <td>Diagnostic logs, error strings, IP address / network data, hashed IP rate-limit buckets</td>
+            <td>Cloud Functions logs (Google Cloud); Firestore (hashed IP)</td>
+          </tr>
+          <tr>
+            <td>Support communications</td>
+            <td>Emails you send us and their contents</td>
+            <td>Our support inbox</td>
+          </tr>
+          <tr>
+            <td><strong>Not collected (current version)</strong></td>
+            <td>No camera, microphone, photos, location, contacts, notifications; no ad/analytics/crash/attribution SDKs; no IDFA/GAID; no file uploads</td>
+            <td>&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ===================================================== -->
+      <h2>3. Account creation and authentication</h2>
       <p>
-        The App is not directed to children under 13. We do not knowingly
-        collect personal information from children under 13.
+        An account is required to chat and to keep your conversation history.
+        You must be signed in and have a verified email address to use the chat
+        features. Anonymous sign-in is not permitted.
+      </p>
+      <p>You can sign in with:</p>
+      <ul>
+        <li><strong>Email and password</strong> (handled by Firebase Authentication), or</li>
+        <li><strong>Sign in with Apple.</strong></li>
+      </ul>
+      <p>For your account we store your email address, your Firebase-generated
+        user ID (UID), your email-verification status, and which sign-in
+        provider(s) you used. If you use Sign in with Apple, we receive an
+        Apple identifier and the email Apple shares with us — if you choose
+        Apple's <em>Hide My Email</em>, that may be an Apple private relay
+        address rather than your real email.</p>
+      <p>
+        We do not store raw passwords. Password-based sign-in is handled
+        entirely by Firebase Authentication.
       </p>
 
-      <h2>6. Changes</h2>
+      <!-- ===================================================== -->
+      <h2>4. AI features and OpenAI</h2>
       <p>
-        We may update this policy from time to time. We will update the
-        "Last updated" date when we do.
+        Meme Chat AI uses OpenAI to generate AI chat replies and to create
+        conversation titles and conversation summaries.
       </p>
 
-      <h2>7. Contact</h2>
+      <h3>What is sent to OpenAI</h3>
+      <p>When you send a chat message, our backend sends OpenAI:</p>
+      <ul>
+        <li>the system / persona prompt that defines the AI character;</li>
+        <li>an optional summary of earlier parts of the conversation;</li>
+        <li>recent conversation history (your previous messages and the AI's previous replies), for context; and</li>
+        <li>your current message.</li>
+      </ul>
       <p>
-        Questions? Email
+        <strong>Conversation history is sent to OpenAI</strong> so the AI can
+        respond with context. <strong>Only text is sent.</strong> The App has
+        no image, file, audio, or media-upload features, so no images, files,
+        audio, transcripts, camera photos, microphone audio, or uploaded media
+        are sent to OpenAI.
+      </p>
+      <p>Separately, and at our own cost (never billed to you):</p>
+      <ul>
+        <li><strong>Conversation titles</strong> are generated by sending your first message in a conversation to OpenAI.</li>
+        <li><strong>Conversation summaries</strong> are generated by sending a transcript of the conversation to OpenAI; the resulting summary is stored.</li>
+      </ul>
+
+      <h3>What is stored</h3>
+      <p>
+        Your messages and the AI's replies are stored in our Firestore
+        database, along with conversation titles, a first-message snippet, a
+        last-message preview, and summaries (see Section 6).
+      </p>
+
+      <h3>OpenAI training and retention</h3>
+      <p>
+        OpenAI states that data submitted through its API is not used to train
+        its models by default, unless the developer explicitly opts in (we do
+        not), and that OpenAI may retain limited API logs for abuse monitoring
+        for up to 30 days unless a longer period is required by law or another
+        exception applies. Whether a Zero Data Retention arrangement applies to
+        our account is <span class="confirm">[Confirm OpenAI retention tier / ZDR]</span>.
+        OpenAI's own
+        <a href="https://openai.com/policies/privacy-policy/">privacy policy</a>
+        and API data-use terms govern its processing.
+      </p>
+
+      <div class="callout">
+        <strong>Please don't share highly sensitive information.</strong>
+        Because your messages are processed by OpenAI and stored as described,
+        you should not enter highly sensitive personal, financial, health,
+        legal, or otherwise confidential information into chats unless you are
+        comfortable having it processed this way.
+      </div>
+
+      <p>
+        AI responses can be inaccurate, incomplete, or out of date. Do not rely
+        on them as professional advice.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>5. Firebase and Google Cloud</h2>
+      <p>We use Google Firebase to run the App:</p>
+      <ul>
+        <li><strong>Firebase Authentication</strong> for account creation and sign-in.</li>
+        <li>
+          <strong>Cloud Firestore</strong> stores your profile, conversations
+          and messages, usage events, billing fields, rate-limit documents, and
+          revenue/audit records.
+        </li>
+        <li>
+          <strong>Cloud Functions</strong> run our backend logic, including the
+          AI streaming proxy, account and conversation deletion, the RevenueCat
+          webhook, title generation, summarization, usage aggregation, and the
+          Klipy proxy.
+        </li>
+      </ul>
+      <p>
+        The Firebase Storage SDK is initialized in the App, but storage access
+        is locked down by default and the current version has no file-upload
+        feature — we do not store user uploads in Firebase Storage.
+      </p>
+      <p>
+        Our Cloud Functions logs may contain technical metadata such as your
+        UID, conversation and message IDs, token counts, cost/credit figures,
+        plan/model, rate-limit details, IP/network data, and error strings. We
+        do not intentionally log the text of your prompts or the AI's replies
+        (see Section 11). Our Cloud Functions run in Google's
+        <code>us-central1</code> region <span class="confirm">[Confirm region]</span>.
+      </p>
+      <p>
+        Firebase / Google Cloud processes this data on our behalf as a service
+        provider/processor under its own
+        <a href="https://firebase.google.com/support/privacy">terms</a>.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>6. Conversations, titles, summaries, and chat history</h2>
+      <p>
+        Your conversations — including the full text of your messages and the
+        AI's replies — are stored in Firestore and linked to your Firebase UID,
+        so your history is available across your sessions. We also store
+        conversation titles, a first-message snippet, a last-message preview,
+        and AI-generated summaries.
+      </p>
+      <p>
+        You can delete individual conversations from within the App. Deleting a
+        conversation removes that conversation and its messages, but it does not
+        delete your account or profile, does not delete your purchase data, and
+        does not refund credits. Your conversation data remains until you delete
+        the conversation, delete your account, or we remove it for operational,
+        safety, or legal reasons.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>7. Local device storage</h2>
+      <p>
+        The App stores a small amount of data locally on your device using
+        AsyncStorage:
+      </p>
+      <ul>
+        <li>app settings such as theme/appearance and language;</li>
+        <li>an onboarding-completed flag; and</li>
+        <li>session tokens and a user cache managed by the Firebase Auth SDK.</li>
+      </ul>
+      <p>
+        Chats, prompts, AI responses, purchases, media, logs, and permission
+        state are <strong>not</strong> persisted locally by the App's own code.
+        Local app data is cleared as part of the sign-out and account-deletion
+        flow, and you can remove it entirely by deleting the App from your
+        device.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>8. Klipy meme media</h2>
+      <p>
+        The App uses the Klipy API to show trending meme media (GIF/PNG/WebP)
+        and to let you search memes by keyword. The Klipy app key is held only
+        on our backend and is never exposed to the App.
+      </p>
+      <p>When the App requests memes, our backend sends Klipy:</p>
+      <ul>
+        <li><code>customer_id</code>, which is set to your Firebase UID;</li>
+        <li>the page and results-per-page;</li>
+        <li>your locale/country code, when available;</li>
+        <li>a content-filter level (defaulting to a conservative setting); and</li>
+        <li>when you use the search box, your search keyword (the <code>q</code> parameter).</li>
+      </ul>
+      <p>
+        According to Klipy's integration notes, <code>customer_id</code> is used
+        for personalization and de-duplication and is expected to stay
+        consistent for the same user, which is why the Firebase UID is passed.
+        Meme results are shown in the App but are not stored by us — they are
+        held only in temporary screen state. Klipy's own handling, retention,
+        and analytics are governed by Klipy's policies
+        <span class="confirm">[Confirm Klipy retention / DPA]</span>. The current
+        version does not use any Klipy advertising features or ad SDK.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>9. Purchases, subscriptions, RevenueCat, Apple, and Google</h2>
+      <p>
+        Subscriptions, entitlements, and purchase restoration are managed
+        through RevenueCat, with Apple App Store and Google Play as the payment
+        processors. Your RevenueCat "app user ID" is set to your Firebase UID.
+      </p>
+      <p>
+        RevenueCat and the app stores may process purchase history, product
+        identifiers, subscription status, receipts or purchase tokens,
+        transaction metadata, the app user ID / purchase identifier, entitlement
+        status, and renewal/expiration/cancellation events, along with related
+        device/technical information. <strong>We never receive your full payment
+        card number.</strong>
+      </p>
+      <p>
+        In your Firestore profile we store billing fields such as your plan,
+        active product ID, entitlement expiry, credit balance, RevenueCat app
+        user ID, and related status. We also keep a webhook/audit record
+        (<code>revenueCatEvents</code>) of purchase events for accounting,
+        fraud-prevention, and legal purposes.
+      </p>
+      <div class="callout">
+        <strong>Deleting your Meme Chat AI account does not cancel an active
+        subscription.</strong> To cancel, manage your subscription through the
+        Apple App Store or Google Play subscription settings. App-store and
+        RevenueCat purchase/audit records may be retained after you delete your
+        account (see Sections 18–19).
+      </div>
+      <p>
+        RevenueCat's processing is governed by its
+        <a href="https://www.revenuecat.com/privacy/">privacy policy</a>, and
+        purchases are also governed by Apple's and Google's respective policies.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>10. Usage, credits, rate limits, and technical logs</h2>
+      <p>
+        The App meters AI usage with a credit ledger. To do this we store token
+        counts, cost estimates, the model/plan used, credit balances, and usage
+        events linked to your UID. We may also keep anonymized daily usage
+        aggregates that are not tied to an individual user.
+      </p>
+      <p>
+        To protect the service from abuse, our backend applies a per-IP rate
+        limit. We store a hashed, truncated form of your IP address in a
+        short-lived rate-limit record (swept automatically by a time-to-live
+        policy) rather than your raw IP. However, your raw IP address or network
+        information may appear in our Cloud Functions diagnostic logs — for
+        example, in a rate-limit warning <span class="confirm">[Confirm raw IP
+        logging / retention]</span>.
+      </p>
+      <p>
+        We do not intentionally log the text of your prompts or the AI's
+        replies. Backend logs are used for operating the App, billing, security,
+        rate limiting, and debugging, and may include metadata and error
+        strings as described above.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>11. Device permissions</h2>
+      <p>The current version of the App:</p>
+      <ul>
+        <li>uses <strong>Sign in with Apple</strong>;</li>
+        <li>requires <strong>internet / network access</strong> to function; and</li>
+        <li>does <strong>not</strong> request access to the camera, microphone, photo or media library, location, contacts, calendar, Bluetooth, speech recognition, or push notifications.</li>
+      </ul>
+
+      <!-- ===================================================== -->
+      <h2>12. Analytics, ads, and tracking</h2>
+      <p>
+        Based on the current version of the App, we do <strong>not</strong> use
+        Google Analytics or Firebase Analytics, Crashlytics, Sentry, advertising
+        SDKs or ad networks, attribution SDKs, App Tracking Transparency / IDFA
+        / GAID, or any cross-app tracking. The only internal events we record
+        are our own usage events and server logs, used for app functionality,
+        billing, security, rate limiting, and debugging.
+      </p>
+      <p>
+        We do not use your data for third-party advertising or cross-app
+        tracking. Note that while there is no third-party crash/analytics SDK in
+        the App, backend logs and diagnostics are still processed by
+        Firebase / Google Cloud as part of running the service.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>13. How we use information</h2>
+      <p>We use the data described above to:</p>
+      <ul>
+        <li>create and authenticate your account and keep you signed in;</li>
+        <li>provide AI chat, including titles and summaries;</li>
+        <li>store and show your conversation history;</li>
+        <li>show trending and searched meme media;</li>
+        <li>manage subscriptions, entitlements, and credits;</li>
+        <li>meter usage and prevent abuse (including rate limiting and fraud prevention);</li>
+        <li>operate, debug, secure, and improve the App; and</li>
+        <li>comply with legal obligations and respond to your support requests.</li>
+      </ul>
+
+      <!-- ===================================================== -->
+      <h2>14. How we disclose information</h2>
+      <p>We share information only as needed to run the App:</p>
+      <ul>
+        <li><strong>OpenAI</strong> — chat content, and the inputs for titles/summaries.</li>
+        <li><strong>Firebase / Google Cloud</strong> — account, database, and backend processing.</li>
+        <li><strong>RevenueCat, Apple, and Google</strong> — purchase and subscription processing.</li>
+        <li><strong>Klipy</strong> — meme media requests, including your UID as <code>customer_id</code> and any search keyword.</li>
+        <li><strong>Legal/safety</strong> — where required by law, to enforce our terms, or to protect users and the service.</li>
+      </ul>
+      <p>We do not sell your personal information, and we do not share it for third-party advertising or cross-app tracking.</p>
+
+      <!-- ===================================================== -->
+      <h2>15. Security</h2>
+      <p>
+        We use measures such as Firebase Authentication, server-side
+        authorization checks, restricted database rules, backend-only API keys,
+        and rate limiting to help protect your data. No method of transmission
+        or storage is completely secure, so we cannot guarantee absolute
+        security.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>16. Children</h2>
+      <p>
+        Meme Chat AI is intended for users 13 and older
+        <span class="confirm">[Confirm minimum age]</span>. It is not directed
+        to children under 13, and we do not knowingly collect personal
+        information from children under 13. The current version does not include
+        an in-app age gate. If you believe a child under 13 has provided us
+        personal information, contact us at
+        <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a> and we will take
+        appropriate steps.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>17. Data retention</h2>
+      <ul>
+        <li><strong>Conversations and messages</strong> remain until you delete the conversation, delete your account, or we remove them for legal, safety, or operational reasons.</li>
+        <li><strong>Profile / account data</strong> remains while your account exists.</li>
+        <li><strong>Usage events</strong> tied to your UID are removed when you delete your account.</li>
+        <li><strong>Anonymized daily usage aggregates</strong> may be retained.</li>
+        <li><strong>RevenueCat webhook / audit records</strong> may be retained for accounting, fraud-prevention, and legal purposes, including after account deletion.</li>
+        <li><strong>Hashed IP rate-limit records</strong> are short-lived and swept automatically by a time-to-live policy. Retention of raw IP in Cloud Logging is <span class="confirm">[Confirm Cloud Logging retention]</span>.</li>
+        <li><strong>Local device data</strong> (settings, onboarding flag, session) is removed on sign-out, account deletion, or App deletion.</li>
+        <li><strong>Third parties</strong> (OpenAI, Klipy, RevenueCat, Apple, Google) retain data under their own policies.</li>
+      </ul>
+
+      <!-- ===================================================== -->
+      <h2>18. Account deletion, conversation deletion, and local data deletion</h2>
+      <h3>Deleting your account</h3>
+      <p>
+        You can delete your account from within the App. For your security, this
+        requires recent re-authentication. When you delete your account, the App
+        is designed to delete your Firebase Authentication user, your profile
+        and its subcollections, the conversations and messages you own, and the
+        usage events linked to your UID, and then to sign you out and wipe local
+        app data.
+      </p>
+      <p>
+        Account deletion is performed across separate systems, so it cannot be
+        perfectly atomic. We delete your sign-in record first; if a later
+        cleanup step fails, some records may briefly remain and are handled on a
+        best-effort basis. We attempt to delete all of the data described above,
+        but cannot guarantee that every copy is removed instantly.
+      </p>
+      <p>The following are <strong>not</strong> deleted by account deletion:</p>
+      <ul>
+        <li>RevenueCat webhook / audit records (<code>revenueCatEvents</code>);</li>
+        <li>anonymized daily usage aggregates;</li>
+        <li>hashed IP rate-limit records (until their time-to-live sweep);</li>
+        <li>purchase/transaction records held by RevenueCat, Apple, or Google;</li>
+        <li>any API logs OpenAI retains, and any records held by Klipy.</li>
+      </ul>
+      <p>
+        <strong>Deleting your account does not cancel your subscription</strong>
+        — cancel through the App Store or Google Play (see Section 9).
+      </p>
+      <h3>Deleting conversations</h3>
+      <p>
+        You can delete selected conversations from within the App. This removes
+        those conversations and their messages but does not delete your account,
+        profile, or purchase data, and does not refund credits.
+      </p>
+      <h3>Deleting local data</h3>
+      <p>Deleting the App from your device removes the local settings, onboarding flag, and session data stored on it.</p>
+
+      <!-- ===================================================== -->
+      <h2>19. Your choices and privacy rights</h2>
+      <p>You can:</p>
+      <ul>
+        <li>create, sign in to, or delete your account;</li>
+        <li>use Sign in with Apple, including <em>Hide My Email</em>, where available;</li>
+        <li>delete conversations within the App;</li>
+        <li>manage or cancel subscriptions through your App Store or Google Play subscription settings;</li>
+        <li>delete local app data by deleting the App;</li>
+        <li>choose not to enter sensitive content into chats; and</li>
+        <li>contact us at <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a> with any privacy request.</li>
+      </ul>
+      <p>
+        Depending on where you live, you may also have the right to request
+        access to, correction of, deletion of, or a copy/export of your personal
+        data; to object to or restrict certain processing; to withdraw consent;
+        and to lodge a complaint with, or appeal to, your data-protection
+        authority. We may need to verify your identity before acting on a
+        request. The App does not currently offer an in-app data export; export
+        on request via support is <span class="confirm">[Confirm support-based export]</span>.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>20. App Store and Google Play privacy information</h2>
+      <p>
+        The privacy disclosures we provide in Apple's App Store ("App Privacy")
+        and Google Play's ("Data safety") are intended to match this policy and
+        the App's actual behavior. The mapping below is a draft to be confirmed
+        against the final store listings.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Data type</th><th>Examples</th><th>Linked to you?</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Contact info</td><td>Email address</td><td>Yes</td><td>Account management, app functionality</td></tr>
+          <tr><td>Identifiers</td><td>Firebase UID, RevenueCat app user ID</td><td>Yes</td><td>App functionality, purchases, security</td></tr>
+          <tr><td>User content</td><td>Chat messages, AI replies, titles/summaries</td><td>Yes</td><td>App functionality (sent to OpenAI / stored in Firebase)</td></tr>
+          <tr><td>Purchases</td><td>Subscription status, product IDs, entitlement status, purchase/transaction metadata (via RevenueCat/Apple/Google)</td><td>Yes</td><td>App functionality, fraud prevention</td></tr>
+          <tr><td>Usage data</td><td>Token counts, credits, plan/model, usage events</td><td>Yes</td><td>App functionality, billing</td></tr>
+          <tr><td>Diagnostics</td><td>Logs, errors, IP/network data, rate-limit data</td><td>Yes</td><td>Security, diagnostics, app functionality</td></tr>
+          <tr><td>Search history</td><td>Meme search keywords sent to Klipy when you search</td><td>Yes</td><td>App functionality (meme search). Trending requests do not include a user-entered query.</td></tr>
+          <tr><td>Coarse location</td><td>Locale/country code (not collected as device location) <span class="confirm">[Confirm App Store category]</span></td><td>&mdash;</td><td>Meme localization</td></tr>
+          <tr><td>Data used to track you</td><td>None identified in the current version</td><td>&mdash;</td><td>&mdash;</td></tr>
+        </tbody>
+      </table>
+      <p>
+        No IDFA/GAID, App Tracking Transparency prompt, ad SDK, or cross-app
+        tracking is present in the current version.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>21. International processing</h2>
+      <p>
+        Your data may be processed in the United States and other countries by
+        us and our service providers, including Firebase / Google Cloud, OpenAI,
+        RevenueCat, Klipy, Apple, and Google. Where required, transfers are
+        intended to rely on appropriate safeguards such as Standard Contractual
+        Clauses or equivalent mechanisms
+        <span class="confirm">[Confirm SCC / DPA / EU-UK transfer specifics]</span>.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>22. Changes to this policy</h2>
+      <p>
+        We may update this policy from time to time. When we do, we will update
+        the effective date above and, where appropriate, provide additional
+        notice.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>23. Contact</h2>
+      <p>
+        Questions or privacy requests? Email
         <a href="mailto:%SUPPORT_EMAIL%">%SUPPORT_EMAIL%</a>.
       </p>
       <p>%COMPANY_NAME% &middot; %COMPANY_ADDRESS%</p>

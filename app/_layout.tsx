@@ -1,6 +1,10 @@
+import { MemeAvatar } from "@/components/MemeAvatar";
+import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
+import { PlanSheet } from "@/components/PlanSheet";
 import { Typography } from "@/components/Typography";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
+import { useAgeGateStore } from "@/store/ageGate";
 import { useAuthStore } from "@/store/auth";
 import { useOnboardingStore } from "@/store/onboarding";
 import { useSettingsStore } from "@/store/settings";
@@ -44,6 +48,7 @@ function LoadingScreen({
         backgroundColor,
       }}
     >
+      <MemeAvatar variant="loading" size={108} pulse />
       <View style={{ alignItems: "center", gap: 6, width: "100%" }}>
         <Typography
           variant="title-xl"
@@ -69,6 +74,8 @@ export default function RootLayout() {
   const hydrateSettings = useSettingsStore((s) => s.hydrate);
   const hydrateOnboarding = useOnboardingStore((s) => s.hydrate);
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
+  const hydrateAgeGate = useAgeGateStore((s) => s.hydrate);
+  const ageGatePassed = useAgeGateStore((s) => s.status === "passed");
   const initializeAuthSession = useAuthStore((s) => s.initializeAuthSession);
   const authStatus = useAuthStore((s) => s.status);
   const authEmailVerified = useAuthStore((s) => s.emailVerified);
@@ -81,10 +88,12 @@ export default function RootLayout() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    Promise.all([hydrateSettings(), hydrateOnboarding()]).finally(() =>
-      setHydrated(true),
-    );
-  }, [hydrateOnboarding, hydrateSettings]);
+    Promise.all([
+      hydrateSettings(),
+      hydrateOnboarding(),
+      hydrateAgeGate(),
+    ]).finally(() => setHydrated(true));
+  }, [hydrateAgeGate, hydrateOnboarding, hydrateSettings]);
 
   useEffect(() => {
     if (hydrated) {
@@ -98,15 +107,10 @@ export default function RootLayout() {
   }, [appearance]);
 
   const [fontsLoaded] = useFonts({
-    // Body face: Poppins (static per-weight TTFs). Each weight is its own
-    // font-family name because RN doesn't reliably engage the wght axis of
-    // a single variable font via the `fontWeight` style — which is why
-    // earlier NunitoSans-Variable always rendered at 400 regardless.
     "Poppins-Regular": require("../assets/fonts/Poppins-Regular.ttf"),
     "Poppins-Medium": require("../assets/fonts/Poppins-Medium.ttf"),
     "Poppins-SemiBold": require("../assets/fonts/Poppins-SemiBold.ttf"),
     "Poppins-Bold": require("../assets/fonts/Poppins-Bold.ttf"),
-    // Display face: Fredoka (variable, weights do engage in our setup).
     Fredoka: require("../assets/fonts/Fredoka-Variable.ttf"),
   });
 
@@ -114,15 +118,18 @@ export default function RootLayout() {
     authStatus !== "idle" &&
     authStatus !== "initializing" &&
     authStatus !== "deleting";
+
   const isAuthenticated = authStatus === "authenticated";
   const appReady = fontsLoaded && hydrated && authResolved;
   const segs = segments as readonly string[];
   const inOnboarding = segs[0] === "onboarding";
+  const atAgeGate = segs[0] === "age-gate";
   const atLanding = segs[0] === undefined;
   const inAuth = segs[0] === "auth";
   const authRoute: string | undefined =
     typeof segs[1] === "string" ? segs[1] : undefined;
   const atVerifyEmail = inAuth && authRoute === "verify-email";
+
   const needsEmailVerification =
     isAuthenticated &&
     !authEmailVerified &&
@@ -132,6 +139,8 @@ export default function RootLayout() {
     () =>
       decideAuthRoute({
         appReady,
+        ageGatePassed,
+        atAgeGate,
         isAuthenticated,
         onboardingCompleted,
         needsEmailVerification,
@@ -142,6 +151,8 @@ export default function RootLayout() {
       }),
     [
       appReady,
+      ageGatePassed,
+      atAgeGate,
       atLanding,
       atVerifyEmail,
       inAuth,
@@ -181,19 +192,27 @@ export default function RootLayout() {
       <PortalProvider>
         <BottomSheetModalProvider>
           <VariableContextProvider value={theme}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                contentStyle: { backgroundColor: theme["--color-background"] },
-              }}
-            >
-              <Stack.Screen name="index" />
-              <Stack.Screen name="auth/sign-in" />
-              <Stack.Screen name="auth/email" />
-              <Stack.Screen name="auth/verify-email" />
-              <Stack.Screen name="onboarding" />
-              <Stack.Screen name="(app)" />
-            </Stack>
+            <View style={{ flex: 1 }}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  contentStyle: {
+                    backgroundColor: theme["--color-background"],
+                  },
+                }}
+              >
+                <Stack.Screen name="age-gate" />
+                <Stack.Screen name="index" />
+                <Stack.Screen name="auth/sign-in" />
+                <Stack.Screen name="auth/email" />
+                <Stack.Screen name="auth/verify-email" />
+                <Stack.Screen name="onboarding" />
+                <Stack.Screen name="(app)" />
+              </Stack>
+            </View>
+
+            <PlanSheet />
+            <ChatCustomizationSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

@@ -21,6 +21,7 @@ import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetTextInput,
+  TouchableOpacity as BottomSheetTouchableOpacity,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
@@ -31,7 +32,15 @@ import {
   ArrowsOutSimple,
   Stop,
 } from "phosphor-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   type LayoutChangeEvent,
   Platform,
@@ -73,12 +82,24 @@ const centeredAbsolute = {
   justifyContent: "center",
 } as const;
 
+// Imperative handle so the parent can pull focus back to the composer — used
+// when swapping out of the meme picker back to the keyboard.
+export type ChatInputRef = {
+  focus: () => void;
+};
+
 interface ChatInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
   onCancel: () => void;
   streaming: boolean;
+  // When true, send is enabled even with an empty text draft (image-only turn).
+  hasAttachments?: boolean;
+  // Fired when the composer gains focus. The parent uses this to collapse the
+  // meme strip so the keyboard and the picker never share the screen (they
+  // occupy the same conceptual slot — see chat.tsx).
+  onFocus?: () => void;
   placeholder?: string;
   sendAccessibilityLabel: string;
   cancelAccessibilityLabel: string;
@@ -86,18 +107,24 @@ interface ChatInputProps {
   collapseAccessibilityLabel: string;
 }
 
-export function ChatInput({
-  value,
-  onChangeText,
-  onSend,
-  onCancel,
-  streaming,
-  placeholder,
-  sendAccessibilityLabel,
-  cancelAccessibilityLabel,
-  expandAccessibilityLabel,
-  collapseAccessibilityLabel,
-}: ChatInputProps) {
+export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
+  function ChatInput(
+    {
+      value,
+      onChangeText,
+      onSend,
+      onCancel,
+      streaming,
+      hasAttachments = false,
+      onFocus,
+      placeholder,
+      sendAccessibilityLabel,
+      cancelAccessibilityLabel,
+      expandAccessibilityLabel,
+      collapseAccessibilityLabel,
+    },
+    ref,
+  ) {
   const theme = useTheme();
   const { colorScheme } = useColorScheme();
   const gradient = gradients[colorScheme ?? "light"].primary;
@@ -119,10 +146,18 @@ export function ChatInput({
   // the ring gently hovers between ~75% and 100% intensity while focused.
   const pulse = useSharedValue(0);
   const sheetRef = useRef<BottomSheetModal>(null);
+  const inputRef = useRef<TextInput>(null);
   const snapPoints = useMemo(() => ["80%"], []);
 
+  useImperativeHandle(
+    ref,
+    () => ({ focus: () => inputRef.current?.focus() }),
+    [],
+  );
+
   const hasContent = value.trim().length > 0;
-  const canSend = hasContent && !streaming;
+  // Image-only turns are valid, so attachments alone can enable send.
+  const canSend = (hasContent || hasAttachments) && !streaming;
   const showStop = streaming;
   // +1 tolerance for subpixel jitter so a perfectly-4-line draft doesn't
   // false-positive.
@@ -296,9 +331,13 @@ export function ChatInput({
               </Text>
             ) : null}
             <TextInput
+              ref={inputRef}
               value={value}
               onChangeText={onChangeText}
-              onFocus={() => setFocused(true)}
+              onFocus={() => {
+                setFocused(true);
+                onFocus?.();
+              }}
               onBlur={() => setFocused(false)}
               placeholder={placeholder}
               placeholderTextColor={theme["--color-foreground-muted"]}
@@ -460,11 +499,12 @@ export function ChatInput({
               paddingBottom: 6,
             }}
           >
-            <Pressable
+            <BottomSheetTouchableOpacity
               onPress={() => sheetRef.current?.dismiss()}
               accessibilityRole="button"
               accessibilityLabel={collapseAccessibilityLabel}
               hitSlop={8}
+              activeOpacity={0.82}
               style={{
                 width: 36,
                 height: 36,
@@ -479,7 +519,7 @@ export function ChatInput({
                 color={theme["--color-foreground-muted"]}
                 weight="bold"
               />
-            </Pressable>
+            </BottomSheetTouchableOpacity>
           </View>
 
           {/* The text input fills the available height between header and
@@ -520,13 +560,14 @@ export function ChatInput({
               paddingTop: 8,
             }}
           >
-            <Pressable
+            <BottomSheetTouchableOpacity
               onPress={handleSheetSend}
               disabled={!canSend}
               accessibilityRole="button"
               accessibilityLabel={sendAccessibilityLabel}
               accessibilityState={{ disabled: !canSend }}
               hitSlop={8}
+              activeOpacity={0.86}
               style={{
                 width: SEND_BUTTON_SIZE + 4,
                 height: SEND_BUTTON_SIZE + 4,
@@ -572,10 +613,11 @@ export function ChatInput({
                   weight="fill"
                 />
               </Animated.View>
-            </Pressable>
+            </BottomSheetTouchableOpacity>
           </View>
         </BottomSheetView>
       </BottomSheetModal>
     </>
   );
-}
+  },
+);
