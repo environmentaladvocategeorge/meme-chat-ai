@@ -1,5 +1,6 @@
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
+import { tapHaptic } from "@/lib/haptics";
 import {
   Camera as CameraIcon,
   Gif as GifIcon,
@@ -8,6 +9,12 @@ import {
 } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
 // The accessory buttons that sit just under the composer (photo · GIFs ·
 // memes · rot level). They share one quiet, conversational pill language —
@@ -42,7 +49,10 @@ function ComposerPill({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={expanded === undefined ? undefined : { expanded }}
@@ -97,42 +107,71 @@ export function PhotoButton({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  // Same fix as the menu button: the touch target is a static Pressable; the
+  // circle + press-scale live on a pointerEvents="none" child driven by
+  // onPressIn/onPressOut. Nothing animates the Pressable's own box, and the
+  // flinch makes a dropped tap visible.
+  const pressed = useSharedValue(0);
+  const visualStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - pressed.value * 0.08 }],
+  }));
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
+      onPressIn={() => {
+        pressed.value = withTiming(1, { duration: 80 });
+      }}
+      onPressOut={() => {
+        pressed.value = withSpring(0, {
+          damping: 14,
+          stiffness: 220,
+          mass: 0.8,
+        });
+      }}
       disabled={busy}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: busy }}
-      hitSlop={6}
-      style={({ pressed }) => ({
+      hitSlop={{ top: 14, bottom: 14, left: 14, right: 4 }}
+      style={{
         flexGrow: 0,
         flexShrink: 0,
         width: PILL_HEIGHT,
         height: PILL_HEIGHT,
-        borderRadius: PILL_HEIGHT / 2,
         alignItems: "center",
         justifyContent: "center",
-        borderWidth: 1,
-        borderColor: theme["--color-border"],
-        backgroundColor: theme["--color-card"],
-        transform: [{ scale: pressed ? 0.96 : 1 }],
-        opacity: pressed || busy ? 0.7 : 1,
-      })}
+      }}
     >
-      {busy ? (
-        <ActivityIndicator
-          size="small"
-          color={theme["--color-foreground-muted"]}
-        />
-      ) : (
-        <CameraIcon
-          size={19}
-          color={theme["--color-primary"]}
-          weight="fill"
-        />
-      )}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            width: PILL_HEIGHT,
+            height: PILL_HEIGHT,
+            borderRadius: PILL_HEIGHT / 2,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: theme["--color-border"],
+            backgroundColor: theme["--color-card"],
+            opacity: busy ? 0.7 : 1,
+          },
+          visualStyle,
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator
+            size="small"
+            color={theme["--color-foreground-muted"]}
+          />
+        ) : (
+          <CameraIcon size={19} color={theme["--color-primary"]} weight="fill" />
+        )}
+      </Animated.View>
     </Pressable>
   );
 }

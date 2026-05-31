@@ -4,11 +4,11 @@
 
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { PlanAndUsage } from "@/components/PlanAndUsage";
+import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { usePlanSheetStore } from "@/store/planSheet";
 import {
-  BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
@@ -35,13 +35,7 @@ export function PlanSheet() {
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.5}
-        pressBehavior="close"
-      />
+      <SheetBackdrop {...props} opacity={0.5} />
     ),
     [],
   );

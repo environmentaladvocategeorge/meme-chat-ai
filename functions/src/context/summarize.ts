@@ -119,8 +119,13 @@ export const summarizeConversation = onDocumentWritten(
       const client = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
       const completion = await client.chat.completions.create({
         model: UTILITY_MODEL,
-        // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s.
-        max_completion_tokens: 500,
+        // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s. Note this
+        // budget is shared by reasoning + visible output, so it needs headroom
+        // for both the reasoning pass and the 6-12 sentence summary, or the
+        // content comes back empty (finish_reason "length"). Low effort plus
+        // real headroom keeps the reasoning pass from starving the summary.
+        reasoning_effort: "low",
+        max_completion_tokens: 2000,
         messages: [
           {
             role: "system",

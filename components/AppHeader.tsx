@@ -38,15 +38,12 @@ export function AppHeader({
   return (
     <View
       style={{
-        // The safe-area top inset reserves room for the status bar / Dynamic
-        // Island. Keeping the buttons hard against that boundary backfires:
-        // their hitSlop (8px) extends the *touch* target back up into the
-        // OS-reserved strip, where iOS swallows taps (status-bar scroll-to-top
-        // / Island exclusion) — so the top of the button reads as a dead zone.
-        // We add enough clearance below the inset that the whole touch target,
-        // hitSlop included, sits below the boundary, with matching room below
-        // so the button still looks optically centered in the header.
-        paddingTop: insets.top + 12,
+        // A small clearance below the safe-area inset for optical balance. We
+        // previously padded +12 on the theory that taps near the inset were
+        // being swallowed by the OS status-bar strip — that turned out not to
+        // be the cause, so this is trimmed back ~8px to sit the header (and its
+        // buttons) higher.
+        paddingTop: insets.top + 4,
         paddingBottom: 16,
         paddingHorizontal: 16,
         backgroundColor: theme["--color-card"],

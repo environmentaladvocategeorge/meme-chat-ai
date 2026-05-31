@@ -29,6 +29,122 @@ type BubblePreset =
 const WHITE = "#FFFFFF";
 const INK = "#17131F";
 
+// ---- Color math (pure, no theme) ----
+//
+// Small self-contained helpers so a fully-custom color the user picks can be
+// turned into a coherent set of UI colors WITHOUT a color library at runtime.
+// Everything here works on #rgb / #rrggbb / #rrggbbaa hex strings.
+
+type RGB = { r: number; g: number; b: number };
+
+export function hexToRgb(hex: string): RGB | null {
+  let c = hex.trim().replace(/^#/, "");
+  if (c.length === 3) {
+    c = c
+      .split("")
+      .map((ch) => ch + ch)
+      .join("");
+  }
+  if (c.length === 8) c = c.slice(0, 6); // drop an alpha channel if present
+  if (c.length !== 6 || /[^0-9a-fA-F]/.test(c)) return null;
+  return {
+    r: parseInt(c.slice(0, 2), 16),
+    g: parseInt(c.slice(2, 4), 16),
+    b: parseInt(c.slice(4, 6), 16),
+  };
+}
+
+function toHex2(n: number): string {
+  const v = Math.max(0, Math.min(255, Math.round(n)));
+  return v.toString(16).padStart(2, "0").toUpperCase();
+}
+
+function rgbToHex({ r, g, b }: RGB): string {
+  return `#${toHex2(r)}${toHex2(g)}${toHex2(b)}`;
+}
+
+// Normalize any accepted hex to canonical #RRGGBB (uppercase, no alpha), or
+// null if it isn't a parseable color.
+export function normalizeHex(hex: string): string | null {
+  const rgb = hexToRgb(hex);
+  return rgb ? rgbToHex(rgb) : null;
+}
+
+// Linear blend of two colors. t=0 → a, t=1 → b.
+function mix(a: string, b: string, t: number): string {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  if (!ca || !cb) return a;
+  const k = Math.max(0, Math.min(1, t));
+  return rgbToHex({
+    r: ca.r + (cb.r - ca.r) * k,
+    g: ca.g + (cb.g - ca.g) * k,
+    b: ca.b + (cb.b - ca.b) * k,
+  });
+}
+
+// Append an 8-bit alpha to a #rrggbb color (RN understands #RRGGBBAA).
+function withAlpha(hex: string, alpha: number): string {
+  const base = normalizeHex(hex) ?? "#000000";
+  return `${base}${toHex2(alpha * 255)}`;
+}
+
+// WCAG relative luminance — the perceptually-correct basis for contrast, so the
+// "what text/chrome reads well on this color" decision is principled rather
+// than eyeballed.
+function srgbToLinear(channel: number): number {
+  const s = channel / 255;
+  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+}
+
+function relativeLuminance(hex: string): number {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return 1; // unknown → treat as light so we fall back to dark text
+  return (
+    0.2126 * srgbToLinear(rgb.r) +
+    0.7152 * srgbToLinear(rgb.g) +
+    0.0722 * srgbToLinear(rgb.b)
+  );
+}
+
+function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  const hi = Math.max(la, lb);
+  const lo = Math.min(la, lb);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+// True when a surface is dark enough that the chat should adopt dark-mode
+// chrome (and light text) on top of it.
+export function isDarkColor(hex: string): boolean {
+  return relativeLuminance(hex) < 0.5;
+}
+
+// The on-color (white or ink) with the better contrast against `hex`. This is
+// the "detect the contrast color" the custom picker relies on so a user's
+// hand-picked fill never ships unreadable text.
+export function readableTextColor(hex: string): string {
+  return contrastRatio(hex, WHITE) >= contrastRatio(hex, INK) ? WHITE : INK;
+}
+
+// ---- Custom (user-picked) colors ----
+//
+// A custom pick is stored inline as `custom:#RRGGBB` so it rides through the
+// same string setting as the presets (no schema change), while staying easy to
+// detect and validate. The resolve functions below special-case it and derive
+// every dependent color from it via the contrast helpers above.
+const CUSTOM_PREFIX = "custom:";
+
+export function makeCustomColorId(hex: string): string {
+  return `${CUSTOM_PREFIX}${normalizeHex(hex) ?? "#000000"}`;
+}
+
+export function parseCustomColor(id: string): string | null {
+  if (!id.startsWith(CUSTOM_PREFIX)) return null;
+  return normalizeHex(id.slice(CUSTOM_PREFIX.length));
+}
+
 // Order here is the order shown in the picker (after the leading "Auto" swatch):
 // gradients, then pastels (ink text), then basics (saturated, white text). Eight
 // of each — a curated, evenly-grouped set rather than a long similar-looking row.
@@ -72,16 +188,34 @@ type BackgroundPreset =
   | { id: string; kind: "gradient"; colors: GradientStops; tone: ColorScheme };
 
 export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
-  // Gradients (vertical, subtle — they sit behind the whole thread). Six light
-  // and two dark, ordered after the leading "Auto" swatch.
+  // Gradients (vertical, subtle — they sit behind the whole thread), ordered
+  // after the leading "Auto" swatch: airy light sweeps first, then a richer set
+  // of deep "night" gradients.
   { id: "dawn", kind: "gradient", colors: ["#FFF7ED", "#EEF2FF"], tone: "light" },
   { id: "cotton", kind: "gradient", colors: ["#FDF2F8", "#E0F2FE"], tone: "light" },
   { id: "aurora", kind: "gradient", colors: ["#ECFDF5", "#EEF2FF"], tone: "light" },
   { id: "lilac", kind: "gradient", colors: ["#F5F3FF", "#FCE7F3"], tone: "light" },
   { id: "sunset", kind: "gradient", colors: ["#FFEDD5", "#FFE4E6"], tone: "light" },
   { id: "ocean", kind: "gradient", colors: ["#E0F2FE", "#CCFBF1"], tone: "light" },
+  { id: "peachy", kind: "gradient", colors: ["#FFE4E6", "#FFF1E6"], tone: "light" },
+  { id: "seafoam", kind: "gradient", colors: ["#D1FAE5", "#CFFAFE"], tone: "light" },
+  { id: "grape", kind: "gradient", colors: ["#EDE9FE", "#FAE8FF"], tone: "light" },
+  { id: "skyfade", kind: "gradient", colors: ["#DBEAFE", "#EDE9FE"], tone: "light" },
   { id: "dusk", kind: "gradient", colors: ["#312E81", "#111827"], tone: "dark" },
   { id: "midnight", kind: "gradient", colors: ["#0F172A", "#312E81"], tone: "dark" },
+  { id: "twilight", kind: "gradient", colors: ["#1E1B4B", "#581C87"], tone: "dark" },
+  { id: "forest", kind: "gradient", colors: ["#064E3B", "#022C22"], tone: "dark" },
+  { id: "ember", kind: "gradient", colors: ["#7F1D1D", "#431407"], tone: "dark" },
+  { id: "blossom", kind: "gradient", colors: ["#FFE4F0", "#F3E8FF"], tone: "light" },
+  { id: "sherbet", kind: "gradient", colors: ["#FEF3C7", "#FFE0E9"], tone: "light" },
+  { id: "lagoon", kind: "gradient", colors: ["#CFFAFE", "#DBEAFE"], tone: "light" },
+  { id: "meadow", kind: "gradient", colors: ["#DCFCE7", "#FEF9C3"], tone: "light" },
+  { id: "bubblegum", kind: "gradient", colors: ["#FBCFE8", "#DDD6FE"], tone: "light" },
+  { id: "creamsicle", kind: "gradient", colors: ["#FFE8CC", "#FEF9C3"], tone: "light" },
+  { id: "cosmos", kind: "gradient", colors: ["#1E1B4B", "#0F172A"], tone: "dark" },
+  { id: "wine", kind: "gradient", colors: ["#4A0E26", "#1A0F14"], tone: "dark" },
+  { id: "deepsea", kind: "gradient", colors: ["#082F49", "#042F2E"], tone: "dark" },
+  { id: "aubergine", kind: "gradient", colors: ["#2E1065", "#3B0764"], tone: "dark" },
   // Pastels — gentle full-surface tints (all light).
   { id: "lavender", kind: "solid", color: "#F5F3FF", tone: "light" },
   { id: "sky", kind: "solid", color: "#EFF6FF", tone: "light" },
@@ -91,6 +225,17 @@ export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
   { id: "peach", kind: "solid", color: "#FFF7ED", tone: "light" },
   { id: "butter", kind: "solid", color: "#FEFCE8", tone: "light" },
   { id: "stone", kind: "solid", color: "#F8FAFC", tone: "light" },
+  { id: "coral", kind: "solid", color: "#FFE4E0", tone: "light" },
+  { id: "lemon", kind: "solid", color: "#FEF9C3", tone: "light" },
+  { id: "cyan", kind: "solid", color: "#CFFAFE", tone: "light" },
+  { id: "indigo", kind: "solid", color: "#E0E7FF", tone: "light" },
+  { id: "fuchsia", kind: "solid", color: "#FAE8FF", tone: "light" },
+  { id: "apricot", kind: "solid", color: "#FFE3C7", tone: "light" },
+  { id: "pistachio", kind: "solid", color: "#E8F3CC", tone: "light" },
+  { id: "periwinkle", kind: "solid", color: "#DCE0FF", tone: "light" },
+  { id: "flamingo", kind: "solid", color: "#FFD6E4", tone: "light" },
+  { id: "seaglass", kind: "solid", color: "#CFEFE6", tone: "light" },
+  { id: "wisteria", kind: "solid", color: "#E7DAF7", tone: "light" },
   // Basics — muted UI colors, soft enough to read as full backgrounds.
   { id: "violet", kind: "solid", color: "#EDE9FE", tone: "light" },
   { id: "blue", kind: "solid", color: "#DBEAFE", tone: "light" },
@@ -99,10 +244,21 @@ export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
   { id: "green", kind: "solid", color: "#DCFCE7", tone: "light" },
   { id: "orange", kind: "solid", color: "#FFEDD5", tone: "light" },
   { id: "red", kind: "solid", color: "#FFE4E6", tone: "light" },
+  // Deep solids — richer "night" surfaces for users who want a dark thread.
   { id: "graphite", kind: "solid", color: "#111827", tone: "dark" },
+  { id: "plum", kind: "solid", color: "#241733", tone: "dark" },
+  { id: "navy", kind: "solid", color: "#0E1A30", tone: "dark" },
+  { id: "pine", kind: "solid", color: "#0C2A22", tone: "dark" },
+  { id: "espresso", kind: "solid", color: "#211613", tone: "dark" },
+  { id: "charcoal", kind: "solid", color: "#1C1C28", tone: "dark" },
+  { id: "oxblood", kind: "solid", color: "#330A16", tone: "dark" },
+  { id: "deepteal", kind: "solid", color: "#062A2E", tone: "dark" },
+  { id: "slateblue", kind: "solid", color: "#16243A", tone: "dark" },
 ];
 
-// Valid ids (including "auto") for storage validation.
+// Valid preset ids (including "auto"). Custom values aren't enumerable, so
+// storage validation goes through the isBubbleStyleId / isBackgroundId guards
+// below rather than membership in these arrays.
 export const BUBBLE_STYLE_IDS: readonly string[] = [
   AUTO_ID,
   ...BUBBLE_PRESETS.map((p) => p.id),
@@ -111,6 +267,17 @@ export const BACKGROUND_IDS: readonly string[] = [
   AUTO_ID,
   ...BACKGROUND_PRESETS.map((p) => p.id),
 ];
+
+const BUBBLE_STYLE_SET = new Set<string>(BUBBLE_STYLE_IDS);
+const BACKGROUND_SET = new Set<string>(BACKGROUND_IDS);
+
+// A stored value is valid if it's a known preset OR a well-formed custom color.
+export function isBubbleStyleId(id: string): boolean {
+  return BUBBLE_STYLE_SET.has(id) || parseCustomColor(id) !== null;
+}
+export function isBackgroundId(id: string): boolean {
+  return BACKGROUND_SET.has(id) || parseCustomColor(id) !== null;
+}
 
 export const DEFAULT_BUBBLE_STYLE = AUTO_ID;
 export const DEFAULT_BACKGROUND = AUTO_ID;
@@ -137,17 +304,6 @@ export type ResolvedBackground = {
   tone: ColorScheme | null;
 };
 
-// Relative luminance of a #rrggbb color. Used to decide whether overlays on a
-// custom bubble should be black-based (light fill) or white-based (dark fill).
-function isDarkText(hex: string): boolean {
-  const c = hex.replace("#", "");
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return lum < 0.5;
-}
-
 function overlaysFor(textColor: string): {
   codeBackgroundColor: string;
   borderColor: string;
@@ -155,7 +311,7 @@ function overlaysFor(textColor: string): {
   // Dark text means the bubble fill is light → overlay with black; otherwise
   // (white text on a colored/dark fill) overlay with white, matching the stock
   // gradient bubble's existing rgba(255,255,255,…) treatment.
-  const base = isDarkText(textColor) ? "0,0,0" : "255,255,255";
+  const base = isDarkColor(textColor) ? "0,0,0" : "255,255,255";
   return {
     codeBackgroundColor: `rgba(${base},0.16)`,
     borderColor: `rgba(${base},0.24)`,
@@ -173,6 +329,21 @@ export function resolveBubble(
       kind: "gradient",
       gradientColors: gradients[scheme].primary.colors,
       solidColor: null,
+      textColor,
+      ...overlaysFor(textColor),
+    };
+  }
+
+  // Fully-custom solid fill: pick the readable on-color automatically so the
+  // user can't land an unreadable bubble, and derive the code/border overlays
+  // from that same decision.
+  const custom = parseCustomColor(id);
+  if (custom) {
+    const textColor = readableTextColor(custom);
+    return {
+      kind: "solid",
+      gradientColors: null,
+      solidColor: custom,
       textColor,
       ...overlaysFor(textColor),
     };
@@ -210,6 +381,19 @@ export function resolveBackground(
       color: theme["--color-background"],
       gradientColors: null,
       tone: null,
+    };
+  }
+
+  // Fully-custom solid background: its luminance decides the tone the rest of
+  // the chat adopts (dark color → dark chrome, light color → light chrome), so
+  // the surrounding UI never fights the backdrop.
+  const custom = parseCustomColor(id);
+  if (custom) {
+    return {
+      kind: "solid",
+      color: custom,
+      gradientColors: null,
+      tone: isDarkColor(custom) ? "dark" : "light",
     };
   }
 
@@ -263,7 +447,49 @@ export type ChatSurface = {
 // so the chosen background tints through for the layered-card look).
 const FROSTED = "#FFFFFFCC";
 
-export const BACKGROUND_SURFACES: Readonly<Record<string, ChatSurface>> = {
+// Synthesizes a coherent chat surface from a single background color + tone.
+// This is the contrast engine behind BOTH the fully-custom color and the newer
+// presets (whose surfaces are generated rather than hand-tuned), so a colored
+// backdrop always gets readable, on-brand chrome.
+function tunedSurface(base: string, tone: ColorScheme): ChatSurface {
+  if (tone === "dark") {
+    return {
+      // Lift the card slightly off a dark backdrop so it reads as a layer.
+      surface: withAlpha(mix(base, WHITE, 0.12), 0.82),
+      surfaceText: WHITE,
+      surfaceBorder: withAlpha(mix(base, WHITE, 0.34), 0.4),
+      surfaceMuted: mix(WHITE, base, 0.32),
+    };
+  }
+  return {
+    surface: FROSTED,
+    surfaceText: INK,
+    // A translucent, slightly-darkened tint of the background hue — visible on
+    // the frosted white card without hardening into a line.
+    surfaceBorder: withAlpha(mix(base, INK, 0.22), 0.5),
+    surfaceMuted: mix(INK, WHITE, 0.42),
+  };
+}
+
+// The surface for a fully-custom color: tone is decided by its luminance, then
+// the whole chrome family is synthesized to read well on it.
+function customSurface(hex: string): ChatSurface {
+  return tunedSurface(hex, isDarkColor(hex) ? "dark" : "light");
+}
+
+// A single color that represents a background for surface synthesis — the fill
+// for a solid, or the midpoint of a gradient's stops.
+function representativeColor(preset: BackgroundPreset): string {
+  return preset.kind === "solid"
+    ? preset.color
+    : mix(preset.colors[0], preset.colors[1], 0.5);
+}
+
+// Hand-tuned surfaces for the original presets — kept verbatim so their look is
+// pixel-stable. Newer presets are NOT listed here; their surfaces are generated
+// below from the background color via tunedSurface, so adding a preset is a
+// one-line change to BACKGROUND_PRESETS.
+const TUNED_SURFACES: Readonly<Record<string, ChatSurface>> = {
   // Gradients
   dawn: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#FED7AA66", surfaceMuted: "#7C6F64" },
   cotton: { surface: FROSTED, surfaceText: INK, surfaceBorder: "#C7D2FE66", surfaceMuted: "#6B7280" },
@@ -293,22 +519,103 @@ export const BACKGROUND_SURFACES: Readonly<Record<string, ChatSurface>> = {
   graphite: { surface: "#1F2937CC", surfaceText: WHITE, surfaceBorder: "#47556966", surfaceMuted: "#CBD5E1" },
 };
 
+// Surfaces for every preset NOT in TUNED_SURFACES, synthesized from the
+// background color so the second-wave presets stay consistent with the
+// fully-custom path without bespoke tuning.
+const GENERATED_SURFACES: Record<string, ChatSurface> = Object.fromEntries(
+  BACKGROUND_PRESETS.filter((p) => !(p.id in TUNED_SURFACES)).map((p) => [
+    p.id,
+    tunedSurface(representativeColor(p), p.tone),
+  ]),
+);
+
+export const BACKGROUND_SURFACES: Readonly<Record<string, ChatSurface>> = {
+  ...TUNED_SURFACES,
+  ...GENERATED_SURFACES,
+};
+
 // The surface a given background id maps its chat chrome to, or null for "auto"
-// / unknown ids (keep the stock theme card that tracks light/dark).
+// / unknown ids (keep the stock theme card that tracks light/dark). A custom
+// color synthesizes its surface on the fly via the contrast engine.
 export function resolveBackgroundSurface(id: string): ChatSurface | null {
+  const custom = parseCustomColor(id);
+  if (custom) return customSurface(custom);
   return BACKGROUND_SURFACES[id] ?? null;
 }
 
 // ---- Swatch helpers (for the settings picker) ----
 
-export type Swatch = {
-  id: string;
-  kind: "gradient" | "solid";
-  colors: GradientStops | readonly [string];
-};
+// Sentinel id for the trailing "pick your own" swatch. Distinct from a stored
+// custom value (which is `custom:#RRGGBB`): tapping this swatch opens the color
+// picker rather than committing a value, so the picker treats it specially.
+export const CUSTOM_SWATCH_ID = "custom";
+
+export type Swatch =
+  | { id: string; kind: "gradient"; colors: GradientStops }
+  | { id: string; kind: "solid"; colors: readonly [string] }
+  | { id: string; kind: "custom" };
+
+// ---- Palette ordering ----
+//
+// The picker is sorted into color families: chromatic swatches grouped by hue
+// (red → magenta around the wheel), then near-neutrals, with each family
+// running light → dark. A gradient is sorted by the midpoint of its stops. The
+// leading "auto" swatch and trailing "custom" swatch are excluded — they stay
+// pinned at the ends.
+
+// Bin width in degrees for grouping hues into families (12 bins around 360°).
+const HUE_BIN = 30;
+
+function rgbToHsl({ r, g, b }: RGB): { h: number; s: number; l: number } {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return { h: 0, s: 0, l };
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === rn) h = (gn - bn) / d + (gn < bn ? 6 : 0);
+  else if (max === gn) h = (bn - rn) / d + 2;
+  else h = (rn - gn) / d + 4;
+  return { h: h * 60, s, l };
+}
+
+// The single color a swatch sorts by: a solid's fill, or a gradient's midpoint.
+function swatchSortColor(s: Swatch): string | null {
+  if (s.kind === "solid") return s.colors[0];
+  if (s.kind === "gradient") {
+    return mix(s.colors[0], s.colors[s.colors.length - 1], 0.5);
+  }
+  return null;
+}
+
+// Orders presets by (family, light → dark). True neutrals (very low saturation)
+// are pushed to the end as their own family.
+function sortPalette(swatches: readonly Swatch[]): Swatch[] {
+  const key = (s: Swatch) => {
+    const hex = swatchSortColor(s);
+    const rgb = hex ? hexToRgb(hex) : null;
+    if (!rgb) return { neutral: 1, bin: 0, light: 0 };
+    const { h, s: sat, l } = rgbToHsl(rgb);
+    const neutral = sat < 0.1 ? 1 : 0;
+    return { neutral, bin: neutral ? 0 : Math.floor(h / HUE_BIN), light: l };
+  };
+  return [...swatches].sort((a, b) => {
+    const ka = key(a);
+    const kb = key(b);
+    if (ka.neutral !== kb.neutral) return ka.neutral - kb.neutral;
+    if (ka.bin !== kb.bin) return ka.bin - kb.bin;
+    return kb.light - ka.light; // light → dark within a family
+  });
+}
 
 // Preview swatches for the bubble picker, with a leading "auto" swatch that
-// previews the live theme gradient so it reads as "follow my theme".
+// previews the live theme gradient so it reads as "follow my theme", and a
+// trailing "custom" swatch that opens the color picker. Everything between is
+// sorted into color families (see sortPalette).
 export function bubbleSwatches(scheme: ColorScheme): readonly Swatch[] {
   const auto: Swatch = {
     id: AUTO_ID,
@@ -320,7 +627,7 @@ export function bubbleSwatches(scheme: ColorScheme): readonly Swatch[] {
       ? { id: p.id, kind: "gradient", colors: p.colors }
       : { id: p.id, kind: "solid", colors: [p.color] as const },
   );
-  return [auto, ...rest];
+  return [auto, ...sortPalette(rest), { id: CUSTOM_SWATCH_ID, kind: "custom" }];
 }
 
 export function backgroundSwatches(theme: Theme): readonly Swatch[] {
@@ -334,5 +641,5 @@ export function backgroundSwatches(theme: Theme): readonly Swatch[] {
       ? { id: p.id, kind: "gradient", colors: p.colors }
       : { id: p.id, kind: "solid", colors: [p.color] as const },
   );
-  return [auto, ...rest];
+  return [auto, ...sortPalette(rest), { id: CUSTOM_SWATCH_ID, kind: "custom" }];
 }

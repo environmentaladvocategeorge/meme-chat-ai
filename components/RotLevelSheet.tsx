@@ -12,11 +12,11 @@
 
 import { useTheme } from "@/hooks/useTheme";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
+import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import { useChatStore } from "@/store/chat";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import {
-  BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetView,
@@ -164,13 +164,7 @@ export function RotLevelSheet() {
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.5}
-        pressBehavior="close"
-      />
+      <SheetBackdrop {...props} opacity={0.5} />
     ),
     [],
   );

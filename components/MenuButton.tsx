@@ -4,6 +4,7 @@
 // title text. State comes from `useMenuStore` so the matching overlay
 // (mounted once at the (app) layout level) stays in sync.
 
+import { tapHaptic } from "@/lib/haptics";
 import { gradients } from "@/nativewind-theme";
 import { useMenuStore } from "@/store/menu";
 import { LinearGradient } from "expo-linear-gradient";
@@ -13,16 +14,12 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet } from "react-native";
 import Animated, {
-  Easing,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export const MENU_BUTTON_SIZE = 46;
 const TAP_SPRING = { damping: 14, stiffness: 220, mass: 0.8 } as const;
@@ -35,24 +32,28 @@ export function MenuButton() {
   const toggle = useMenuStore((s) => s.toggle);
 
   const progress = useSharedValue(0);
-  const scale = useSharedValue(1);
+  const pressed = useSharedValue(0);
 
   useEffect(() => {
     progress.value = withSpring(open ? 1 : 0, TAP_SPRING);
   }, [open, progress]);
 
   const onPress = () => {
-    scale.value = withSequence(
-      withTiming(0.86, { duration: 90, easing: Easing.out(Easing.quad) }),
-      withSpring(1, TAP_SPRING),
-    );
+    tapHaptic();
     toggle();
   };
 
-  const buttonStyle = useAnimatedStyle(() => {
+  // Scale + rotate live on a pointerEvents="none" child, never on the Pressable
+  // itself: animating the touch target desyncs Fabric's hit-test frame in
+  // release builds, so taps land in the wrong place (or miss) until a re-layout
+  // refreshes it — the "spam-tap until it opens" bug. The press feedback is
+  // driven by onPressIn/onPressOut so the button flinches the instant a finger
+  // lands, which also makes a dropped tap visible (no flinch = touch missed).
+  const visualStyle = useAnimatedStyle(() => {
     const rotate = interpolate(progress.value, [0, 1], [0, 90]);
+    const scale = 1 - pressed.value * 0.12;
     return {
-      transform: [{ scale: scale.value }, { rotate: `${rotate}deg` }],
+      transform: [{ scale }, { rotate: `${rotate}deg` }],
     };
   });
 
@@ -67,39 +68,59 @@ export function MenuButton() {
   }));
 
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={onPress}
+      onPressIn={() => {
+        pressed.value = withTiming(1, { duration: 80 });
+      }}
+      onPressOut={() => {
+        pressed.value = withSpring(0, TAP_SPRING);
+      }}
       accessibilityRole="button"
       accessibilityLabel={t(open ? "menu.close" : "menu.open")}
       accessibilityState={{ expanded: open }}
       hitSlop={8}
-      style={[
-        {
-          width: MENU_BUTTON_SIZE,
-          height: MENU_BUTTON_SIZE,
-          borderRadius: MENU_BUTTON_SIZE / 2,
-          alignItems: "center",
-          justifyContent: "center",
-        },
-        buttonStyle,
-      ]}
+      style={{
+        width: MENU_BUTTON_SIZE,
+        height: MENU_BUTTON_SIZE,
+        borderRadius: MENU_BUTTON_SIZE / 2,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      <LinearGradient
-        colors={primaryGradient.colors}
-        start={primaryGradient.start}
-        end={primaryGradient.end}
-        style={{
-          ...StyleSheet.absoluteFillObject,
-          borderRadius: MENU_BUTTON_SIZE / 2,
-        }}
-      />
-      <Animated.View style={[StyleSheet.absoluteFillObject, centered, listStyle]}>
-        <List color="#FFFFFF" size={22} weight="bold" />
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            ...StyleSheet.absoluteFillObject,
+            borderRadius: MENU_BUTTON_SIZE / 2,
+            alignItems: "center",
+            justifyContent: "center",
+          },
+          visualStyle,
+        ]}
+      >
+        <LinearGradient
+          colors={primaryGradient.colors}
+          start={primaryGradient.start}
+          end={primaryGradient.end}
+          style={{
+            ...StyleSheet.absoluteFillObject,
+            borderRadius: MENU_BUTTON_SIZE / 2,
+          }}
+        />
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, centered, listStyle]}
+        >
+          <List color="#FFFFFF" size={22} weight="bold" />
+        </Animated.View>
+        <Animated.View
+          style={[StyleSheet.absoluteFillObject, centered, closeStyle]}
+        >
+          <X color="#FFFFFF" size={20} weight="bold" />
+        </Animated.View>
       </Animated.View>
-      <Animated.View style={[StyleSheet.absoluteFillObject, centered, closeStyle]}>
-        <X color="#FFFFFF" size={20} weight="bold" />
-      </Animated.View>
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 

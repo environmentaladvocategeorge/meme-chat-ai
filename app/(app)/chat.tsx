@@ -514,12 +514,14 @@ export default function ChatScreen() {
             title={t("chat.title")}
             right={
               canStartNew ? (
-                <Animated.View entering={FadeIn.duration(220)}>
-                  <NewConversationButton
-                    label={t("chat.newConversation")}
-                    onPress={handleNewConversation}
-                  />
-                </Animated.View>
+                // NOTE: deliberately NOT wrapped in an `entering` animation.
+                // Reanimated entering layout animations leave the child's
+                // native hit-test frame unsynced on Fabric/release builds, so
+                // this small corner button would drop the first tap(s).
+                <NewConversationButton
+                  label={t("chat.newConversation")}
+                  onPress={handleNewConversation}
+                />
               ) : undefined
             }
           />
@@ -612,15 +614,22 @@ export default function ChatScreen() {
             ) : atLimit && usage ? (
               // 100% of the binding allowance is spent: the composer is replaced
               // by an upgrade prompt so the user can't keep typing into a wall.
-              <Animated.View entering={FadeIn.duration(220)}>
+              // Plain View (no `entering`) so the upgrade button's hit-test
+              // frame stays synced on Fabric — same fix as the composer below.
+              <View>
                 <UsageLimitBlock
                   usage={usage}
                   isTopTier={isTopTier}
                   onUpgrade={openPlan}
                 />
-              </Animated.View>
+              </View>
             ) : (
-              <Animated.View entering={FadeIn.duration(220)}>
+              // NOTE: plain View, not an `entering` Animated.View. The entering
+              // fade desynced the photo button's hit-test frame on Fabric (the
+              // "tap the camera repeatedly before it opens" bug). The composer
+              // just appears instead of fading in — a fair trade for taps that
+              // always register.
+              <View>
                 {nearLimit && usage ? (
                   <UsageNudge
                     usage={usage}
@@ -755,7 +764,7 @@ export default function ChatScreen() {
                     onPress={handleOpenRot}
                   />
                 </ScrollView>
-              </Animated.View>
+              </View>
             )}
           </View>
 

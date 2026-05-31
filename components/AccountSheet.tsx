@@ -10,6 +10,7 @@ import { ChangeEmailForm } from "@/components/account/ChangeEmailForm";
 import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 import { ResetPasswordForm } from "@/components/account/ResetPasswordForm";
+import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import {
@@ -17,7 +18,6 @@ import {
   useAccountSheetStore,
 } from "@/store/accountSheet";
 import {
-  BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
@@ -51,13 +51,7 @@ export function AccountSheet() {
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.5}
-        pressBehavior={busy ? "none" : "close"}
-      />
+      <SheetBackdrop {...props} opacity={0.5} enabled={!busy} />
     ),
     [busy],
   );
