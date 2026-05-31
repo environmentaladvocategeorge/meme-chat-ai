@@ -1,119 +1,183 @@
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
-import { gradients } from "@/nativewind-theme";
-import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "nativewind";
+import { tapHaptic } from "@/lib/haptics";
 import {
+  Camera as CameraIcon,
   Gif as GifIcon,
   Keyboard as KeyboardIcon,
   Sticker,
 } from "phosphor-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import type { ReactNode } from "react";
+import { ActivityIndicator, Pressable } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
-// The memes affordance that sits just under the composer. A chunky little
-// "sticker" chip: a rounded square icon badge + label. When the strip is open
-// it fills with the brand gradient and lifts; closed, it's a soft card chip.
-// Squishes on press so it feels tactile and playful rather than form-y.
-export function MemeToggleButton({
+// The accessory buttons that sit just under the composer (photo · GIFs ·
+// memes · rot level). They share one quiet, conversational pill language —
+// rounded "lozenge" chips that read like chat affordances, not a toolbar.
+// Resting chips are a soft card surface with a hairline border and a brand-
+// tinted glyph; an active toggle fills solid with the brand color. No
+// gradients, glows, or tilted badges — the row should feel calm and native
+// next to the keyboard, and the glyphs sit inline (no clipping badge box) so
+// the rot-level emoji renders at full height.
+const PILL_HEIGHT = 40;
+
+// Shared chip body. Grows to share the row evenly when there's room, but won't
+// shrink below its content — so when all four don't fit (narrow screens, long
+// locales) the row scrolls instead of cropping a label. See the ScrollView in
+// chat.tsx that hosts these.
+function ComposerPill({
+  leading,
   label,
-  open,
+  active = false,
   onPress,
+  accessibilityLabel,
+  expanded,
 }: {
+  leading: ReactNode;
   label: string;
-  open: boolean;
+  active?: boolean;
   onPress: () => void;
+  accessibilityLabel: string;
+  expanded?: boolean;
 }) {
   const theme = useTheme();
-  const { colorScheme } = useColorScheme();
-  const gradient = gradients[colorScheme ?? "light"].primary;
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
       accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ expanded: open }}
-      hitSlop={8}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={expanded === undefined ? undefined : { expanded }}
+      hitSlop={6}
       style={({ pressed }) => ({
-        alignSelf: "flex-start",
-        borderRadius: 16,
-        overflow: "hidden",
-        // A gentle squish + dip on press; the open chip rides a touch higher
-        // so its lift reads as "on".
-        transform: [
-          { scale: pressed ? 0.95 : 1 },
-          { translateY: pressed ? 1 : open ? -1 : 0 },
-        ],
-        // Soft colored glow under the open (gradient) chip for a bit of pop.
-        shadowColor: open ? theme["--color-primary"] : "#000000",
-        shadowOpacity: open ? 0.32 : 0.08,
-        shadowRadius: open ? 10 : 5,
-        shadowOffset: { width: 0, height: open ? 4 : 2 },
-        elevation: open ? 4 : 1,
+        flexGrow: 1,
+        flexShrink: 0,
+        flexBasis: "auto",
+        height: PILL_HEIGHT,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 7,
+        paddingHorizontal: 14,
+        borderRadius: PILL_HEIGHT / 2,
+        borderWidth: 1,
+        borderColor: active ? "transparent" : theme["--color-border"],
+        backgroundColor: active
+          ? theme["--color-primary"]
+          : theme["--color-card"],
+        transform: [{ scale: pressed ? 0.96 : 1 }],
+        opacity: pressed ? 0.92 : 1,
       })}
     >
-      {open ? (
-        <LinearGradient
-          colors={gradient.colors}
-          start={gradient.start}
-          end={gradient.end}
-          style={StyleSheet.absoluteFillObject}
-        />
-      ) : null}
-      <View
+      {leading}
+      <Typography
+        variant="body-sm"
+        weight="bold"
+        numberOfLines={1}
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingLeft: 7,
-          paddingRight: 14,
-          paddingVertical: 7,
-          borderRadius: 16,
-          borderWidth: open ? 0 : 1,
-          borderColor: theme["--color-border"],
-          backgroundColor: open ? "transparent" : theme["--color-card"],
+          color: active
+            ? theme["--color-primary-foreground"]
+            : theme["--color-foreground-secondary"],
+          letterSpacing: 0.2,
         }}
       >
-        {/* Icon badge — a little rounded-square "sticker" that flips colors
-            with the open state. While the strip is open the chip becomes a
-            "back to keyboard" affordance, so the glyph swaps to a keyboard. */}
-        <View
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 9,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: open
-              ? "rgba(255,255,255,0.22)"
-              : theme["--color-primary-subtle"],
-            transform: [{ rotate: open ? "0deg" : "-8deg" }],
-          }}
-        >
-          {open ? (
-            <KeyboardIcon size={18} color="#FFFFFF" weight="fill" />
-          ) : (
-            <Sticker size={18} color={theme["--color-primary"]} weight="fill" />
-          )}
-        </View>
-        <Typography
-          variant="body-sm"
-          weight="bold"
-          style={{
-            color: open ? "#FFFFFF" : theme["--color-foreground"],
-            letterSpacing: 0.2,
-          }}
-        >
-          {label}
-        </Typography>
-      </View>
+        {label}
+      </Typography>
     </Pressable>
   );
 }
 
-// The GIF affordance that sits beside the meme chip. Same chunky sticker-chip
-// language as MemeToggleButton, but wears a GIF badge and toggles the GIF
-// drawer. Filled with the brand gradient + lifted when open.
+// Circular camera button — the only icon-only affordance in the row. Stays a
+// fixed circle (doesn't grow) so the labeled chips get the flexible space.
+export function PhotoButton({
+  label,
+  busy,
+  onPress,
+}: {
+  label: string;
+  busy: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  // Same fix as the menu button: the touch target is a static Pressable; the
+  // circle + press-scale live on a pointerEvents="none" child driven by
+  // onPressIn/onPressOut. Nothing animates the Pressable's own box, and the
+  // flinch makes a dropped tap visible.
+  const pressed = useSharedValue(0);
+  const visualStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 - pressed.value * 0.08 }],
+  }));
+
+  return (
+    <Pressable
+      onPress={() => {
+        tapHaptic();
+        onPress();
+      }}
+      onPressIn={() => {
+        pressed.value = withTiming(1, { duration: 80 });
+      }}
+      onPressOut={() => {
+        pressed.value = withSpring(0, {
+          damping: 14,
+          stiffness: 220,
+          mass: 0.8,
+        });
+      }}
+      disabled={busy}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: busy }}
+      hitSlop={{ top: 14, bottom: 14, left: 14, right: 4 }}
+      style={{
+        flexGrow: 0,
+        flexShrink: 0,
+        width: PILL_HEIGHT,
+        height: PILL_HEIGHT,
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            width: PILL_HEIGHT,
+            height: PILL_HEIGHT,
+            borderRadius: PILL_HEIGHT / 2,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: theme["--color-border"],
+            backgroundColor: theme["--color-card"],
+            opacity: busy ? 0.7 : 1,
+          },
+          visualStyle,
+        ]}
+      >
+        {busy ? (
+          <ActivityIndicator
+            size="small"
+            color={theme["--color-foreground-muted"]}
+          />
+        ) : (
+          <CameraIcon size={19} color={theme["--color-primary"]} weight="fill" />
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// GIF drawer toggle. When the drawer is open the chip fills solid and its
+// label flips to "Keyboard", so the glyph becomes a keyboard to match.
 export function GifToggleButton({
   label,
   open,
@@ -124,84 +188,60 @@ export function GifToggleButton({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  const { colorScheme } = useColorScheme();
-  const gradient = gradients[colorScheme ?? "light"].primary;
 
   return (
-    <Pressable
+    <ComposerPill
+      label={label}
+      active={open}
+      expanded={open}
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ expanded: open }}
-      hitSlop={8}
-      style={({ pressed }) => ({
-        alignSelf: "flex-start",
-        borderRadius: 16,
-        overflow: "hidden",
-        transform: [
-          { scale: pressed ? 0.95 : 1 },
-          { translateY: pressed ? 1 : open ? -1 : 0 },
-        ],
-        shadowColor: open ? theme["--color-primary"] : "#000000",
-        shadowOpacity: open ? 0.32 : 0.08,
-        shadowRadius: open ? 10 : 5,
-        shadowOffset: { width: 0, height: open ? 4 : 2 },
-        elevation: open ? 4 : 1,
-      })}
-    >
-      {open ? (
-        <LinearGradient
-          colors={gradient.colors}
-          start={gradient.start}
-          end={gradient.end}
-          style={StyleSheet.absoluteFillObject}
-        />
-      ) : null}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingLeft: 7,
-          paddingRight: 14,
-          paddingVertical: 7,
-          borderRadius: 16,
-          borderWidth: open ? 0 : 1,
-          borderColor: theme["--color-border"],
-          backgroundColor: open ? "transparent" : theme["--color-card"],
-        }}
-      >
-        <View
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 9,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: open
-              ? "rgba(255,255,255,0.22)"
-              : theme["--color-primary-subtle"],
-            transform: [{ rotate: "-8deg" }],
-          }}
-        >
-          <GifIcon
+      leading={
+        open ? (
+          <KeyboardIcon
             size={18}
-            color={open ? "#FFFFFF" : theme["--color-primary"]}
+            color={theme["--color-primary-foreground"]}
             weight="fill"
           />
-        </View>
-        <Typography
-          variant="body-sm"
-          weight="bold"
-          style={{
-            color: open ? "#FFFFFF" : theme["--color-foreground"],
-            letterSpacing: 0.2,
-          }}
-        >
-          {label}
-        </Typography>
-      </View>
-    </Pressable>
+        ) : (
+          <GifIcon size={18} color={theme["--color-primary"]} weight="fill" />
+        )
+      }
+    />
+  );
+}
+
+// Meme strip toggle — same language as the GIF chip with a sticker glyph.
+export function MemeToggleButton({
+  label,
+  open,
+  onPress,
+}: {
+  label: string;
+  open: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <ComposerPill
+      label={label}
+      active={open}
+      expanded={open}
+      onPress={onPress}
+      accessibilityLabel={label}
+      leading={
+        open ? (
+          <KeyboardIcon
+            size={18}
+            color={theme["--color-primary-foreground"]}
+            weight="fill"
+          />
+        ) : (
+          <Sticker size={18} color={theme["--color-primary"]} weight="fill" />
+        )
+      }
+    />
   );
 }
 
@@ -209,9 +249,10 @@ export function GifToggleButton({
 // the chip previews the vibe that's currently dialed in.
 const ROT_EMOJI = ["🤓", "😤", "💀"];
 
-// The "Rot Level" affordance that sits beside the meme chip. Same chunky
-// sticker-chip language as MemeToggleButton, but instead of a toggle it opens
-// the rot-level bottom sheet. The icon badge wears the current level's emoji.
+// Rot Level chip — opens the rot-level sheet rather than toggling a drawer, so
+// it never enters the filled "active" state. The emoji is the leading glyph,
+// rendered inline with generous line height so it sits at full size without
+// being clipped.
 export function RotLevelButton({
   label,
   level,
@@ -221,65 +262,20 @@ export function RotLevelButton({
   level: number;
   onPress: () => void;
 }) {
-  const theme = useTheme();
-
   return (
-    <Pressable
+    <ComposerPill
+      label={label}
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={`${label}, ${level}`}
-      hitSlop={8}
-      style={({ pressed }) => ({
-        alignSelf: "flex-start",
-        borderRadius: 16,
-        overflow: "hidden",
-        transform: [
-          { scale: pressed ? 0.95 : 1 },
-          { translateY: pressed ? 1 : 0 },
-        ],
-        shadowColor: "#000000",
-        shadowOpacity: 0.08,
-        shadowRadius: 5,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 1,
-      })}
-    >
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 8,
-          paddingLeft: 7,
-          paddingRight: 14,
-          paddingVertical: 7,
-          borderRadius: 16,
-          borderWidth: 1,
-          borderColor: theme["--color-border"],
-          backgroundColor: theme["--color-card"],
-        }}
-      >
-        <View
-          style={{
-            width: 28,
-            height: 28,
-            borderRadius: 9,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: theme["--color-primary-subtle"],
-          }}
-        >
-          <Typography variant="body" style={{ fontSize: 16 }}>
-            {ROT_EMOJI[Math.min(Math.max(level, 1), 3) - 1]}
-          </Typography>
-        </View>
+      leading={
         <Typography
-          variant="body-sm"
-          weight="bold"
-          style={{ color: theme["--color-foreground"], letterSpacing: 0.2 }}
+          variant="body"
+          style={{ fontSize: 16, lineHeight: 22 }}
+          allowFontScaling={false}
         >
-          {label}
+          {ROT_EMOJI[Math.min(Math.max(level, 1), 3) - 1]}
         </Typography>
-      </View>
-    </Pressable>
+      }
+    />
   );
 }

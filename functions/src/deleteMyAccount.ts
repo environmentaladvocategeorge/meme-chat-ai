@@ -1,6 +1,7 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
 import { logger } from "firebase-functions";
 
 const REAUTH_MAX_AGE_SECONDS = 5 * 60;
@@ -44,6 +45,15 @@ export async function deleteUserData(uid: string, db: Firestore): Promise<void> 
 
   await Promise.all(pending);
   await writer.close();
+
+  // Remove all of the user's uploaded chat images (catch-all by prefix — covers
+  // every upload folder, including drafts not tied to a surviving conversation).
+  // Best-effort: a Storage failure here shouldn't fail the account deletion.
+  try {
+    await getStorage().bucket().deleteFiles({ prefix: `messageImages/${uid}/` });
+  } catch (err) {
+    logger.warn("[deleteMyAccount] storage image cleanup failed", { uid, err });
+  }
 }
 
 // Auth + Firestore live in different systems, so the deletion can't be

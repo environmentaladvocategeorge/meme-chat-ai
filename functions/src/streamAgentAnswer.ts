@@ -4,16 +4,8 @@ import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
-import {
-  GET_GIF_TOOL,
-  GIF_TOOL_GUIDANCE,
-  runGetGif,
-} from "./gifs/getGifTool";
-import {
-  GET_MEME_TOOL,
-  MEME_TOOL_GUIDANCE,
-  runGetMeme,
-} from "./memes/getMemeTool";
+import { GET_GIF_TOOL, runGetGif } from "./gifs/getGifTool";
+import { GET_MEME_TOOL, runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
@@ -32,7 +24,14 @@ import {
   markAgentMessageErrored,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
-import { summarizeImagesForLog } from "./messages/messageImage";
+import {
+  isOwnedMessageImagePath,
+  summarizeImagesForLog,
+} from "./messages/messageImage";
+import {
+  deleteUploadObjects,
+  resolveImageInputs,
+} from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
 import { buildSystemPromptForStream } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
@@ -194,6 +193,48 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
+    // ---------- resolve + moderate image inputs ----------
+    // Ownership re-check (the zod schema can't see uid): every upload path must
+    // live under this caller's namespace. Client validation is UX-only.
+    const ownershipOk = images.every(
+      (img) =>
+        img.source !== "upload" || isOwnedMessageImagePath(uid, img.path),
+    );
+    if (!ownershipOk) {
+      logger.warn("[streamAgentAnswer] rejected unowned upload path", { uid });
+      res.status(400).json({ code: "invalid_request" });
+      return;
+    }
+
+    // Ingest uploads by Storage path (Admin SDK), downscale to the model copy,
+    // and run the moderation gate. Klipy images pass through by URL. Done before
+    // anything is persisted, so a rejected turn writes nothing.
+    let currentImageUrls: string[];
+    try {
+      const resolved = await resolveImageInputs(
+        uid,
+        images,
+        OPENAI_API_KEY.value(),
+      );
+      if (!resolved.ok) {
+        if (resolved.reason === "moderation") {
+          await deleteUploadObjects(resolved.rejectedPaths);
+          res.status(400).json({ code: "image_rejected" });
+          return;
+        }
+        res.status(502).json({ code: "image_unavailable" });
+        return;
+      }
+      currentImageUrls = resolved.modelImageUrls;
+    } catch (err) {
+      logger.error("[streamAgentAnswer] image resolution failed", {
+        conversationId,
+        err,
+      });
+      res.status(500).json({ code: "internal" });
+      return;
+    }
+
     // ---------- routing + context ----------
     let internalModel;
     let assembleResult;
@@ -206,21 +247,18 @@ export const streamAgentAnswer = onRequest(
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
-      // Teach the persona about the get_meme / get_gif capabilities only when
-      // they're actually available, so a text-only deployment doesn't promise
-      // attachments it can't send. Both tools share the KLIPY app key.
-      // GIF guidance leads so the model treats animated GIFs as the default
-      // visual reaction and only falls back to the still-meme tool.
-      const systemPrompt = memeToolEnabled
-        ? `${promptResult.systemPrompt}\n\n${GIF_TOOL_GUIDANCE}\n\n${MEME_TOOL_GUIDANCE}`
-        : promptResult.systemPrompt;
+      // The persona prompt itself carries the get_gif / get_meme usage rules,
+      // so no extra tool guidance is appended here. `memeToolEnabled` still
+      // gates whether the tools are actually registered below.
+      const systemPrompt = promptResult.systemPrompt;
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
         currentUserMessage: userText,
-        currentImages: images,
+        currentImageUrls,
         currentGif,
         systemPrompt,
+        userAlias: entitlement.alias,
       });
     } catch (err) {
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });

@@ -1,12 +1,45 @@
 import { logger } from "firebase-functions";
 import type { ChatCompletionTool } from "openai/resources/chat/completions";
 import { z } from "zod";
+import { pickIndexByRandomness } from "../klipy/pickByRandomness";
 import {
   messageImageSchema,
   type ValidatedMessageImage,
 } from "../messages/messageImage";
 import { KlipyError, searchMemes } from "./klipy";
 import type { ContentFilter, TrendingMeme } from "./types";
+
+// Curated bank of meme references that exist on Klipy as near-exact titles,
+// each paired with the moment it fits. Klipy's search matches REFERENCES, not
+// free-form emotions or descriptions — searching "shocked confusion" returns
+// junk, but searching the exact title "Blinking Guy Meme Reaction" returns the
+// meme. So the model maps the moment to one of these vibes and searches the
+// title verbatim (with randomness_factor 1). Retained as reference data: the
+// persona prompt now carries its own (trimmed) meme bank, so this fuller list
+// is no longer injected into the system prompt — keep it for future reuse.
+export const MEME_REFERENCE_LIBRARY: ReadonlyArray<{
+  name: string;
+  vibe: string;
+}> = [
+  { name: "Whoopdidy Scoop", vibe: "goofy nonsense" },
+  { name: "Blinking Guy Meme Reaction", vibe: "shocked confusion" },
+  { name: "Forrest Gump Wave", vibe: "wholesome greeting" },
+  { name: "Creep Yes", vibe: "weird approval" },
+  { name: "Jack Nicholson's Creepy Smile", vibe: "smug evil" },
+  { name: "Tung Tung Sahur", vibe: "loud chaos" },
+  { name: "Come Over Here Roman Bürki", vibe: "playful callout" },
+  { name: "Dog Awkward", vibe: "social awkwardness" },
+  { name: "Spongebob Meme and Dog Standing Up", vibe: "confused waiting" },
+  { name: "Cat Meme", vibe: "quiet judgment" },
+  { name: "gigachad", vibe: "confident win" },
+  { name: "dog cooked meme", vibe: "total defeat" },
+  { name: "ishowspeed calm", vibe: "barely composed" },
+  { name: "tuff baby", vibe: "tiny flex" },
+  { name: "brainrot stare meme", vibe: "empty-headed confusion" },
+  { name: "let him cook", vibe: "chaotic confidence" },
+  { name: "side eye cat meme", vibe: "quiet judgment" },
+];
+
 
 // The OpenAI tool the agent may call to attach a single meme to its reply.
 // The description carries the *when to use it* policy so the decision lives
@@ -16,14 +49,21 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
   function: {
     name: "get_meme",
     description:
-      "Attach ONE real STILL meme image to your reply by searching Klipy. This is the SECONDARY visual option — for animated reactions prefer get_gif, which is richer and returns more relevant results. Only use get_meme when a specific still caption/format genuinely says it better than motion could (a classic captioned reaction image the user is clearly invoking). Otherwise reach for get_gif. Like get_gif, this is on-brand on casual turns when the user is joking, hyped, celebrating, reacting, being playful, or venting about something low-stakes. Skip it on serious, sensitive, technical, or emotionally heavy turns, or when the user just wants a straight answer (apply the same serious-topic restraint your persona instructions already define). At most ONE image per reply total — either a GIF (get_gif) OR a meme (get_meme), never both, and default to the GIF. This attaches an IMAGE, which is separate from your normal meme-y wording — the image is shown to the user automatically on its own, so you must still write a normal text reply and must never title, describe, link, or embed it yourself. Keep the search query specific and relevant to THIS moment.",
+      "Attach ONE real STILL meme image to your reply by searching Klipy. This is the SECONDARY visual option — for animated reactions prefer get_gif, which is richer and returns more relevant results. Only use get_meme when a specific still caption/format genuinely says it better than motion could (a classic captioned reaction image the user is clearly invoking). Otherwise reach for get_gif. Like get_gif, this is on-brand on casual turns when the user is joking, hyped, celebrating, reacting, being playful, or venting about something low-stakes. Skip it on serious, sensitive, technical, or emotionally heavy turns, or when the user just wants a straight answer (apply the same serious-topic restraint your persona instructions already define). At most ONE image per reply total — either a GIF (get_gif) OR a meme (get_meme), never both, and default to the GIF. This attaches an IMAGE, which is separate from your normal meme-y wording — the image is shown to the user automatically on its own, so you must still write a normal text reply and must never title, describe, link, or embed it yourself. Klipy matches exact meme REFERENCES, not raw emotions — search the verbatim name of a known meme (prefer one from your provided meme bank), not a description of a feeling.",
     parameters: {
       type: "object",
       properties: {
         query: {
           type: "string",
           description:
-            "A short meme search query (about 2–5 words) capturing the vibe or reaction, e.g. 'mind blown', 'celebration dance', 'monday tired'.",
+            "The exact name/reference of a meme to search, NOT a description of an emotion. Prefer a verbatim title from your meme bank (e.g. 'Blinking Guy Meme Reaction', 'let him cook', 'gigachad'). Only improvise a query when nothing in the bank fits, and even then anchor it to a real, recognizable meme reference.",
+        },
+        randomness_factor: {
+          type: "integer",
+          minimum: 1,
+          maximum: 4,
+          description:
+            "How literal/exact your query is. Use 1 for an exact meme reference (e.g. a bank title) — it returns that precise meme. Use 2–3 for a looser query where any of the top few hits would land (e.g. a generic word like 'cooked'); we then randomly pick from roughly the first N results, favoring earlier ones. Default 1.",
         },
       },
       required: ["query"],
@@ -32,37 +72,11 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
   },
 };
 
-export const MEME_TOOL_GUIDANCE = `═══ STILL MEME IMAGES, get_meme TOOL (secondary — prefer get_gif) ═══
-
-You are in MeMe Chat AI, a casual chat app. get_meme attaches ONE real STILL meme image under your text reply. It is the SECONDARY visual option: animated GIFs (get_gif) are richer and have better search results, so default to a GIF and only reach for get_meme when a specific still caption/format clearly lands the moment better than motion could (a classic captioned reaction image the user is clearly invoking).
-
-Always write a real text reply first. The meme image is a bonus reaction, not the answer.
-
-Output rules:
-
-* The image is rendered automatically by the app.
-* Never write the meme title, caption, file name, URL, link, markdown image syntax, attachment syntax, or tool details.
-* Never say "I found this meme" or "here is the meme."
-* Do not describe the meme image unless the user asks afterward.
-* Call get_meme at most once per reply.
-* Do not attach a meme every turn.
-
-For casual, funny, playful, hype, confused, shocked, celebratory, roasting, venting, "am I cooked," "sus," "we're cooked," or brainrot moments, a visual reaction fits — but reach for get_gif first. Only pick get_meme over a GIF when a specific still captioned format is exactly what the moment calls for. If the user explicitly asks for a meme (not a GIF), use get_meme.
-
-Skip get_meme for serious, sensitive, legal, medical, financial, safety, grief, crisis, discrimination, harassment, or emotionally heavy topics. Also skip it when an image would distract from exact code, factual precision, or professional help.
-
-Query rules — make it RELEVANT:
-Use one short, specific query, usually 2 to 6 words, that matches THIS exact moment — the reaction or the concrete subject — not a generic vibe. Avoid generic queries like "funny meme," "reaction meme," "lol meme," or "meme."
-
-Good queries:
-"we are cooked", "shocked side eye", "suspicious reaction", "this is fine", "let him cook", "big W reaction", "zero aura moment", "dogwater moment", "confused cat", "crying laughing", "npc behavior", "brainrot detected", "villain arc", "ate no crumbs"
-
-If the user sends an image, match the query to the visible vibe. Examples: "fit check reaction", "aura check", "side eye meme", "absolute chaos", "adorable reaction", "this is fine", "confused reaction", "dogwater moment".
-
-Vary queries across turns. Rotate between shocked, side-eye, celebration, chaos, animals, classic reactions, cursed energy, relatable memes, brainrot, and "we're cooked" formats.`;
-
 const memeArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),
+  // How widely to sample the ranked results. 1 = always the top hit. Invalid or
+  // missing values fall back to 1 (exact) rather than failing the tool.
+  randomness_factor: z.coerce.number().int().min(1).max(4).catch(1).default(1),
 });
 
 export type GetMemeDeps = {
@@ -111,8 +125,11 @@ export async function runGetMeme(
   deps: GetMemeDeps,
 ): Promise<GetMemeResult> {
   let query: string;
+  let randomnessFactor: number;
   try {
-    query = memeArgsSchema.parse(JSON.parse(rawArguments)).query;
+    const args = memeArgsSchema.parse(JSON.parse(rawArguments));
+    query = args.query;
+    randomnessFactor = args.randomness_factor;
   } catch {
     return {
       content: JSON.stringify({ found: false, reason: "invalid_query" }),
@@ -124,7 +141,8 @@ export async function runGetMeme(
       apiKey: deps.apiKey,
       query,
       page: 1,
-      // Klipy's search endpoint requires per_page >= 8; we only use the top hit.
+      // Klipy's search endpoint requires per_page >= 8; the randomness factor
+      // may sample a few hits deep, so keep the full page available.
       perPage: 8,
       customerId: deps.customerId,
       locale: deps.locale,
@@ -132,8 +150,16 @@ export async function runGetMeme(
       contentFilter: deps.contentFilter ?? "medium",
     });
 
-    const top = result.memes[0];
-    const meme = top ? toMessageImage(top) : null;
+    // Validate every hit to the attachment shape first (drops off-host URLs),
+    // then let the randomness factor pick among the usable ones. With factor 1
+    // this is just the top hit; higher factors sample a few deep with a strong
+    // front bias — without us reading each result to choose (token waste).
+    const candidates = result.memes
+      .map(toMessageImage)
+      .filter((m): m is ValidatedMessageImage => m !== null);
+    const meme =
+      candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
+      null;
     if (!meme) {
       return { content: JSON.stringify({ found: false }) };
     }

@@ -1,9 +1,13 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { PLANS, computeDailyCap, type PlanId } from "../billing/plans";
+import type { RevenueCatProductId } from "../billing/revenuecat";
+import { nextEasternMidnightMs } from "./dailyWindow";
 
 export type PlanSource = "revenuecat" | "stub";
 
-export type RevenueCatProductIdStored = "monthly" | "monthly_2" | "monthly_3" | null;
+// Derived from the single product→plan map so it always covers both the test
+// and production identifiers without manual upkeep.
+export type RevenueCatProductIdStored = RevenueCatProductId | null;
 
 // Billing fields on profiles/{uid}. Server-written only — the client never
 // writes to profiles; firestore.rules blocks create/update/delete and only
@@ -24,10 +28,15 @@ export type ProfileBilling = {
   creditsRemaining: number;
   creditsResetAt: Timestamp; // monthly rolling window
   dailyCreditsUsed: number;
-  dailyResetAt: Timestamp; // 24-hour rolling window
+  // Next global daily-reset instant: 00:00 US Eastern, shared by all users (see
+  // dailyWindow.ts). NOT a per-user rolling 24h window.
+  dailyResetAt: Timestamp;
 };
 
 export const MONTHLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+// 24h span, still used by tests to build "a daily window in the future". The
+// daily reset ANCHOR is no longer this offset — it's the next Eastern midnight
+// (nextEasternMidnightMs); this constant is just a convenient day length.
 export const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // Initial billing payload for a brand-new profile (no RC entitlement).
@@ -44,7 +53,7 @@ export function initialBilling(now: Date): ProfileBilling {
     creditsRemaining: PLANS[plan].monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
     dailyCreditsUsed: 0,
-    dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
+    dailyResetAt: Timestamp.fromMillis(nextEasternMidnightMs(now.getTime())),
   };
 }
 
@@ -73,7 +82,7 @@ export function planActivationFields(plan: PlanId, now: Date): PlanActivationFie
     creditsRemaining: monthlyCredits,
     creditsResetAt: Timestamp.fromMillis(now.getTime() + MONTHLY_WINDOW_MS),
     dailyCreditsUsed: 0,
-    dailyResetAt: Timestamp.fromMillis(now.getTime() + DAILY_WINDOW_MS),
+    dailyResetAt: Timestamp.fromMillis(nextEasternMidnightMs(now.getTime())),
   };
 }
 

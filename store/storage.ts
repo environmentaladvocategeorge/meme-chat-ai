@@ -1,9 +1,9 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
-  BACKGROUND_IDS,
-  BUBBLE_STYLE_IDS,
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
+  isBackgroundId,
+  isBubbleStyleId,
 } from "@/domain/customization";
 
 export type Appearance = "system" | "light" | "dark";
@@ -29,8 +29,6 @@ const ONBOARDING_KEY = "app.onboarding";
 
 const APPEARANCE_VALUES = new Set<Appearance>(["system", "light", "dark"]);
 const LANGUAGE_VALUES = new Set<Language>(["system", "en", "es"]);
-const BUBBLE_STYLE_VALUES = new Set<string>(BUBBLE_STYLE_IDS);
-const BACKGROUND_VALUES = new Set<string>(BACKGROUND_IDS);
 
 export const DEFAULT_SETTINGS: PersistedSettings = {
   appearance: "system",
@@ -60,12 +58,12 @@ function normalizeSettings(value: unknown): PersistedSettings {
         : DEFAULT_SETTINGS.language,
     chatBubbleStyle:
       typeof value.chatBubbleStyle === "string" &&
-      BUBBLE_STYLE_VALUES.has(value.chatBubbleStyle)
+      isBubbleStyleId(value.chatBubbleStyle)
         ? value.chatBubbleStyle
         : DEFAULT_SETTINGS.chatBubbleStyle,
     chatBackground:
       typeof value.chatBackground === "string" &&
-      BACKGROUND_VALUES.has(value.chatBackground)
+      isBackgroundId(value.chatBackground)
         ? value.chatBackground
         : DEFAULT_SETTINGS.chatBackground,
     alias:

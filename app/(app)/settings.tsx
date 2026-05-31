@@ -1,3 +1,5 @@
+import Constants from "expo-constants";
+import { AdBanner } from "@/components/ads/AdBanner";
 import { AppCustomizationSection } from "@/components/AppCustomizationSection";
 import { AppHeader } from "@/components/AppHeader";
 import { SegmentedControl } from "@/components/SegmentedControl";
@@ -5,17 +7,19 @@ import { SettingsRow } from "@/components/SettingsRow";
 import { Typography } from "@/components/Typography";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
+import { useAccountSheetStore } from "@/store/accountSheet";
 import { useNotificationsStore } from "@/store/notifications";
 import {
   type Appearance,
   type Language,
   useSettingsStore,
 } from "@/store/settings";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import {
   ArrowSquareOut,
   BellRinging,
   CaretRight,
+  FileText,
   Lifebuoy,
   ShieldCheck,
   UserCircle,
@@ -27,6 +31,9 @@ import type { IconProps } from "phosphor-react-native";
 
 const SUPPORT_URL = "https://meme-chat-ai.com/support";
 const PRIVACY_URL = "https://meme-chat-ai.com/privacy";
+// Apple's Standard EULA — used because the app doesn't ship a custom EULA.
+const TERMS_URL =
+  "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 
 // A tappable settings row that opens an external URL. Mirrors the plan card's
 // treatment, with a leading icon and a trailing "external link" glyph.
@@ -83,7 +90,7 @@ export default function SettingsScreen() {
   const setAppearance = useSettingsStore((s) => s.setAppearance);
   const language = useSettingsStore((s) => s.language);
   const setLanguage = useSettingsStore((s) => s.setLanguage);
-  const router = useRouter();
+  const openAccount = useAccountSheetStore((s) => s.open);
   const openPlan = useOpenPlan();
 
   // Notifications are gated by the OS permission, so the toggle reflects the
@@ -218,7 +225,7 @@ export default function SettingsScreen() {
         {/* Account hub — all credential/session/deletion controls live behind
             this row so the settings page stays short and to the point. */}
         <Pressable
-          onPress={() => router.push("/account")}
+          onPress={() => openAccount()}
           accessibilityRole="button"
           accessibilityLabel={t("settings.account.label")}
           style={({ pressed }) => ({
@@ -336,7 +343,15 @@ export default function SettingsScreen() {
             label={t("settings.about.privacy")}
             onPress={() => void openUrl(PRIVACY_URL)}
           />
+          <LinkRow
+            icon={FileText}
+            label={t("settings.about.terms")}
+            onPress={() => void openUrl(TERMS_URL)}
+          />
         </View>
+
+        {/* Free-tier ad banner — hidden for Pro (any paid plan). */}
+        <AdBanner />
 
         <Typography
           variant="caption"
@@ -346,7 +361,7 @@ export default function SettingsScreen() {
             marginTop: 4,
           }}
         >
-          {t("common.appName")}
+          {`v${Constants.expoConfig?.version ?? ""}`}
         </Typography>
       </ScrollView>
     </View>

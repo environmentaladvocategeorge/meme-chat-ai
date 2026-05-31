@@ -1,7 +1,10 @@
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { AccountSheet } from "@/components/AccountSheet";
 import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
 import { PlanSheet } from "@/components/PlanSheet";
+import { RotLevelSheet } from "@/components/RotLevelSheet";
 import { Typography } from "@/components/Typography";
+import { initializeMobileAds } from "@/domain/ads/mobileAds";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
 import { useAgeGateStore } from "@/store/ageGate";
@@ -99,6 +102,7 @@ export default function RootLayout() {
     if (hydrated) {
       void initializeAuthSession();
       void initializeSubscription();
+      void initializeMobileAds();
     }
   }, [hydrated, initializeAuthSession, initializeSubscription]);
 
@@ -213,6 +217,8 @@ export default function RootLayout() {
 
             <PlanSheet />
             <ChatCustomizationSheet />
+            <AccountSheet />
+            <RotLevelSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

@@ -16,11 +16,11 @@ describe("daysInMonth", () => {
 
 describe("computeDailyCap", () => {
   it("is the even daily pace times the burst factor, rounded", () => {
-    // plus: 4900/mo over a 31-day month → 4900/31 * 2 = 316.1 → 316
+    // 4900 credits/mo over a 31-day month → 4900/31 * 3 = 474.2 → 474
     expect(computeDailyCap(4900, JAN_2026)).toBe(
       Math.round((4900 / 31) * DAILY_BURST_FACTOR),
     );
-    expect(computeDailyCap(4900, JAN_2026)).toBe(316);
+    expect(computeDailyCap(4900, JAN_2026)).toBe(474);
   });
 
   it("rises as the plan's monthly budget rises (upgrade increases the cap)", () => {
@@ -40,12 +40,17 @@ describe("computeDailyCap", () => {
     );
   });
 
-  it("guarantees the budget lasts at least half the month at max daily use", () => {
+  it("guarantees the budget lasts ~1/burst of the month at max daily use", () => {
+    // With burst factor N the cap is N average days' worth, so a user maxing it
+    // every day exhausts the budget in ~daysInMonth / N days. Allow a 1-day slack
+    // for the rounding in computeDailyCap.
     for (const date of [JAN_2026, FEB_2026, APR_2026]) {
       for (const { monthlyCredits } of Object.values(PLANS)) {
         const cap = computeDailyCap(monthlyCredits, date);
         const daysToExhaust = monthlyCredits / cap;
-        expect(daysToExhaust).toBeGreaterThanOrEqual(daysInMonth(date) / 2 - 1);
+        expect(daysToExhaust).toBeGreaterThanOrEqual(
+          daysInMonth(date) / DAILY_BURST_FACTOR - 1,
+        );
       }
     }
   });

@@ -22,7 +22,7 @@ import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
 import { PLAN_RANK, type PlanId } from "@/domain/billing";
 import { useTheme } from "@/hooks/useTheme";
-import { gradients, themes } from "@/nativewind-theme";
+import { gradients, type ThemeTokens } from "@/nativewind-theme";
 import { useEffectivePlan } from "@/store/entitlement";
 import { useSubscriptionStore } from "@/store/subscription";
 import { TouchableOpacity as BottomSheetTouchableOpacity } from "@gorhom/bottom-sheet";
@@ -37,10 +37,11 @@ type PaidPlanId = Exclude<PlanId, "free">;
 
 const PAID_TIERS: readonly PaidPlanId[] = ["basic", "plus", "power"] as const;
 const RECOMMENDED: PaidPlanId = "plus";
-const FEATURE_KEYS: readonly ["chats", "memory", "customization"] = [
+const FEATURE_KEYS: readonly ["chats", "memory", "customization", "adFree"] = [
   "chats",
   "memory",
   "customization",
+  "adFree",
 ] as const;
 const MATRIX_PLANS: readonly PlanId[] = ["free", "basic", "plus", "power"] as const;
 
@@ -51,13 +52,20 @@ const PLAN_EMOJI: Record<PlanId, string> = {
   power: "⚡",
 };
 
-const PLAN_TO_RC_PRODUCT: Record<PaidPlanId, string> = {
-  basic: "monthly",
-  plus: "monthly_2",
-  power: "monthly_3",
-};
+// Forward plan→product map, split by store mode. The test store keeps the
+// original identifiers; production uses the App Store / Play product IDs.
+// The reverse map (domain/billing.ts) recognizes BOTH sets, so entitlement
+// resolution works regardless of which build is running.
+const RC_PRODUCT_BY_MODE = {
+  test: { basic: "monthly", plus: "monthly_2", power: "monthly_3" },
+  production: {
+    basic: "memeaibasic",
+    plus: "memeaiplus",
+    power: "memeaipower",
+  },
+} as const satisfies Record<"test" | "production", Record<PaidPlanId, string>>;
 
-type Theme = (typeof themes)[keyof typeof themes];
+type Theme = ThemeTokens;
 type PrimaryGradient = (typeof gradients)[keyof typeof gradients]["primary"];
 
 export function PlanPaywall() {
@@ -66,8 +74,14 @@ export function PlanPaywall() {
   const { colorScheme } = useColorScheme();
   const gradient = gradients[colorScheme ?? "light"].primary;
   const subscriptionStatus = useSubscriptionStore((s) => s.status);
+  const subscriptionMode = useSubscriptionStore((s) => s.mode);
   const refresh = useSubscriptionStore((s) => s.refresh);
   const openManagement = useSubscriptionStore((s) => s.openManagement);
+  // Resolve the plan→product map for the active store. Anything other than the
+  // test store (including the pre-init null state in prod builds) uses the
+  // production App Store / Play product identifiers.
+  const planToProduct =
+    RC_PRODUCT_BY_MODE[subscriptionMode === "test" ? "test" : "production"];
   // The paywall reads the EFFECTIVE plan (RC-live ∪ backend mirror) for both
   // its payment routing and its display. RC's client state flips the instant a
   // purchase completes, whereas the backend mirror only catches up after
@@ -143,7 +157,7 @@ export function PlanPaywall() {
       return;
     }
 
-    const productId = PLAN_TO_RC_PRODUCT[selected];
+    const productId = planToProduct[selected];
     if (subscriptionStatus !== "ready") {
       Alert.alert(t("settings.plan.heading"), t("settings.plan.paywallNote"));
       return;
@@ -253,7 +267,7 @@ export function PlanPaywall() {
             selected={selected === tier}
             current={effectivePlan === tier}
             recommend={recommendFor(tier)}
-            priceString={priceByProduct[PLAN_TO_RC_PRODUCT[tier]] ?? null}
+            priceString={priceByProduct[planToProduct[tier]] ?? null}
             onPress={() => setSelected(tier)}
             theme={theme}
             gradient={gradient}
@@ -324,6 +338,15 @@ export function PlanPaywall() {
           ? t("settings.plan.manageNote")
           : t("settings.plan.paywallNote")}
       </Typography>
+
+      {!hasActiveSubscription && (
+        <RestorePurchasesButton
+          busy={busy}
+          setBusy={setBusy}
+          refresh={refresh}
+          theme={theme}
+        />
+      )}
 
       {/* Selected tier details */}
       <SelectedDetails selected={selected} theme={theme} />
@@ -738,6 +761,61 @@ function MatrixHeaderCell({
         {PLAN_EMOJI[plan]}
       </Typography>
     </View>
+  );
+}
+
+// ----- Restore Purchases -----
+
+function RestorePurchasesButton({
+  busy,
+  setBusy,
+  refresh,
+  theme,
+}: {
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  refresh: () => Promise<void>;
+  theme: Theme;
+}) {
+  const { t } = useTranslation();
+
+  const handleRestore = async () => {
+    setBusy(true);
+    try {
+      const info = await Purchases.restorePurchases();
+      await refresh();
+      const active = Object.values(info.entitlements?.active ?? {});
+      if (active.length > 0) {
+        Alert.alert(t("settings.plan.heading"), t("settings.plan.restoreSuccess"));
+      } else {
+        Alert.alert(t("settings.plan.heading"), t("settings.plan.restoreNone"));
+      }
+    } catch {
+      Alert.alert(t("settings.plan.heading"), t("settings.plan.restoreFailed"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <BottomSheetTouchableOpacity
+      onPress={() => void handleRestore()}
+      disabled={busy}
+      activeOpacity={0.6}
+      accessibilityRole="button"
+      accessibilityLabel={t("settings.plan.restorePurchases")}
+      style={{ alignItems: "center", paddingVertical: 4 }}
+    >
+      <Typography
+        variant="caption"
+        style={{
+          color: theme["--color-foreground-muted"],
+          textDecorationLine: "underline",
+        }}
+      >
+        {t("settings.plan.restorePurchases")}
+      </Typography>
+    </BottomSheetTouchableOpacity>
   );
 }
 

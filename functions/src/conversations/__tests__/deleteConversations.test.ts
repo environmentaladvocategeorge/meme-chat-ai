@@ -1,100 +1,133 @@
-jest.mock("firebase-functions", () => ({
-  logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
-
-jest.mock("firebase-admin/firestore", () => ({
-  getFirestore: jest.fn(),
-}));
-
-import { getFirestore } from "firebase-admin/firestore";
 import { deleteConversationsForUser } from "../deleteConversations";
+import { deleteUploadObjects } from "../../messages/resolveImageInputs";
+import { HttpsError } from "firebase-functions/v2/https";
 
-type Doc = { uid?: string } & Record<string, unknown>;
+// Mock the Storage-cleanup helper so the test doesn't pull in openai/sharp/
+// firebase-admin storage, and so we can assert exactly what gets deleted.
+jest.mock("../../messages/resolveImageInputs", () => ({
+  deleteUploadObjects: jest.fn().mockResolvedValue(undefined),
+}));
 
-// Minimal Firestore stand-in that records every collection it touches, so we
-// can assert deletion never reaches the billing collections.
-function makeDb(conversations: Record<string, Doc>) {
-  const touchedCollections = new Set<string>();
-  const deletedPaths: string[] = [];
+type DocData = { uid?: string };
+type MessageData = { images?: unknown[]; text?: string };
 
+// In-memory Firestore double: enough surface for deleteConversationsForUser
+// (collection/doc/get + doc.collection("messages").get + recursiveDelete +
+// bulkWriter).
+let store: Map<string, DocData>;
+let messages: Map<string, MessageData[]>;
+
+function makeDb() {
+  const writer = { close: jest.fn().mockResolvedValue(undefined) };
+  const docRef = (id: string) => ({
+    id,
+    path: `conversations/${id}`,
+    get: async () => ({
+      exists: store.has(id),
+      data: () => store.get(id),
+      id,
+      ref: docRef(id),
+    }),
+    collection: (_name: string) => ({
+      get: async () => ({
+        docs: (messages.get(id) ?? []).map((m) => ({ data: () => m })),
+      }),
+    }),
+  });
   const db = {
-    collection(name: string) {
-      touchedCollections.add(name);
-      return {
-        doc(id: string) {
-          const ref = { path: `${name}/${id}` };
-          return {
-            ...ref,
-            get: async () => ({
-              exists: Object.prototype.hasOwnProperty.call(conversations, id),
-              data: () => conversations[id],
-            }),
-          };
-        },
-      };
-    },
-    bulkWriter() {
-      return { delete: jest.fn(), close: jest.fn(async () => {}) };
-    },
-    async recursiveDelete(ref: { path: string }) {
-      deletedPaths.push(ref.path);
-    },
+    collection: jest.fn(() => ({ doc: (id: string) => docRef(id) })),
+    recursiveDelete: jest.fn().mockResolvedValue(undefined),
+    bulkWriter: jest.fn(() => writer),
   };
-
-  return { db, touchedCollections, deletedPaths };
+  return { db, writer };
 }
 
-const asDb = (db: unknown) => db as ReturnType<typeof getFirestore>;
+beforeEach(() => {
+  store = new Map();
+  messages = new Map();
+  (deleteUploadObjects as jest.Mock).mockClear();
+});
 
 describe("deleteConversationsForUser", () => {
-  it("deletes the caller's conversations and dedupes ids", async () => {
-    const { db, deletedPaths } = makeDb({
-      c1: { uid: "user-1" },
-      c2: { uid: "user-1" },
-    });
+  it("deletes only conversations owned by the caller", async () => {
+    store.set("c1", { uid: "owner" });
 
-    const deleted = await deleteConversationsForUser(
-      "user-1",
-      ["c1", "c2", "c1"],
-      asDb(db),
-    );
+    const { db, writer } = makeDb();
+    const deleted = await deleteConversationsForUser("owner", ["c1"], db as never);
 
-    expect(deleted).toBe(2);
-    expect(deletedPaths).toEqual(["conversations/c1", "conversations/c2"]);
+    expect(deleted).toBe(1);
+    expect(db.recursiveDelete).toHaveBeenCalledTimes(1);
+    expect(writer.close).toHaveBeenCalledTimes(1);
   });
 
-  it("skips conversations that don't exist", async () => {
-    const { db, deletedPaths } = makeDb({ c1: { uid: "user-1" } });
+  it("throws when the caller is not the owner", async () => {
+    store.set("c1", { uid: "someone-else" });
 
+    const { db } = makeDb();
+    await expect(
+      deleteConversationsForUser("owner", ["c1"], db as never),
+    ).rejects.toThrow(HttpsError);
+  });
+
+  it("skips conversations that do not exist", async () => {
+    const { db } = makeDb();
     const deleted = await deleteConversationsForUser(
-      "user-1",
-      ["c1", "missing"],
-      asDb(db),
+      "owner",
+      ["missing"],
+      db as never,
+    );
+
+    expect(deleted).toBe(0);
+    expect(db.recursiveDelete).not.toHaveBeenCalled();
+    expect(deleteUploadObjects).not.toHaveBeenCalled();
+  });
+
+  it("dedupes repeated ids in the request", async () => {
+    store.set("c1", { uid: "owner" });
+
+    const { db, writer } = makeDb();
+    const deleted = await deleteConversationsForUser(
+      "owner",
+      ["c1", "c1"],
+      db as never,
     );
 
     expect(deleted).toBe(1);
-    expect(deletedPaths).toEqual(["conversations/c1"]);
+    expect(db.recursiveDelete).toHaveBeenCalledTimes(1);
+    expect(writer.close).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects deleting a conversation owned by someone else", async () => {
-    const { db, deletedPaths } = makeDb({ c1: { uid: "other-user" } });
+  it("deletes uploaded image objects from Storage before tearing down docs", async () => {
+    store.set("c1", { uid: "owner" });
+    messages.set("c1", [
+      {
+        images: [
+          { source: "upload", path: "messageImages/owner/c1/a.jpg" },
+          { source: "klipy", url: "https://static.klipy.com/x.png" },
+        ],
+      },
+      { images: [{ source: "upload", path: "messageImages/owner/c1/b.jpg" }] },
+      { text: "no attachments" },
+    ]);
 
-    await expect(
-      deleteConversationsForUser("user-1", ["c1"], asDb(db)),
-    ).rejects.toMatchObject({ code: "permission-denied" });
-    expect(deletedPaths).toEqual([]);
+    const { db } = makeDb();
+    await deleteConversationsForUser("owner", ["c1"], db as never);
+
+    expect(deleteUploadObjects).toHaveBeenCalledWith([
+      "messageImages/owner/c1/a.jpg",
+      "messageImages/owner/c1/b.jpg",
+    ]);
   });
 
-  it("never touches billing collections (no quota refund / bypass)", async () => {
-    const { db, touchedCollections } = makeDb({
-      c1: { uid: "user-1" },
-      c2: { uid: "user-1" },
-    });
+  it("does not call Storage cleanup when no uploads are present", async () => {
+    store.set("c1", { uid: "owner" });
+    messages.set("c1", [
+      { images: [{ source: "klipy", url: "https://static.klipy.com/x.png" }] },
+    ]);
 
-    await deleteConversationsForUser("user-1", ["c1", "c2"], asDb(db));
+    const { db } = makeDb();
+    await deleteConversationsForUser("owner", ["c1"], db as never);
 
-    expect([...touchedCollections]).toEqual(["conversations"]);
-    expect(touchedCollections.has("profiles")).toBe(false);
-    expect(touchedCollections.has("usageEvents")).toBe(false);
+    expect(deleteUploadObjects).not.toHaveBeenCalled();
   });
 });

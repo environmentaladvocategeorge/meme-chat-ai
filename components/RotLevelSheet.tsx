@@ -1,330 +1,205 @@
 // RotLevelSheet
 //
-// The "Rot Level" picker — a bottom sheet built around a horizontal pill rail.
-// Drag (or tap) RIGHT to crank the brainrot, LEFT to calm it. The control
-// snaps to three detents: Lightly Cooked / Rotted / Goblin Mode.
+// The "Rot Level" picker — a bottom sheet for choosing a chat personality.
+// Three compact tone tiles sit in a row; tapping one selects it with a soft
+// pop. A live preview answers one fixed question in the selected tone inside
+// a subtle chat-background container. The sheet is dismissed by swiping down
+// or tapping the backdrop — no Done button needed.
 //
-// Design intent is "quiet and tactile", not "animated demo": a muted rail with
-// a soft brand-colored fill that grows left→right, three understated detents,
-// and a thumb that only lifts while you're actually touching it. There is no
-// always-running motion — every animation is driven by direct interaction and
-// settles to rest. The selected level's name + description live BELOW the rail
-// in a fixed-height block so the Done button never shifts as copy changes.
-//
-// Architecture: gesture-driven values stay on the UI runtime (Reanimated
-// shared values + Gesture Handler). We only cross back to JS when the discrete
-// level changes during a drag, or to commit the final selection. The parent
-// owns the value; this sheet just edits it via `level` / `onChange`.
+// Mounted once at the root layout (outside the iPad content column) and driven
+// by useRotLevelSheetStore, so the sheet spans the full screen width and stays
+// centered on wide screens. The composer's RotLevelButton opens it via open().
 
 import { useTheme } from "@/hooks/useTheme";
-import { gradients } from "@/nativewind-theme";
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
+import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
+import { useChatStore } from "@/store/chat";
+import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import {
-  BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "nativewind";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  type LayoutChangeEvent,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Pressable, Text, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
-  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
 
-export type RotLevelSheetRef = {
-  present: () => void;
-  dismiss: () => void;
-};
-
-interface RotLevelSheetProps {
-  // Current level (1–3). Owned by the parent.
-  level: number;
-  onChange: (level: number) => void;
-}
-
-// Single source of truth per tier. Non-locale presentation (emoji + the quiet
-// accent used on the "Level N" eyebrow) lives here so adding a future fourth
-// tier is one entry, not edits scattered across parallel arrays. Copy stays in
-// the locale files under chat.rot.levels.levelN. `accent` is resolved against
-// the active theme at render time.
 type RotLevelConfig = {
   level: number;
   emoji: string;
-  accent: (theme: ReturnType<typeof useTheme>) => string;
 };
 
 const ROT_LEVELS: readonly RotLevelConfig[] = [
-  { level: 1, emoji: "🤓", accent: (t) => t["--color-foreground-secondary"] },
-  { level: 2, emoji: "😤", accent: (t) => t["--color-primary"] },
-  { level: 3, emoji: "💀", accent: (t) => t["--color-secondary"] },
+  { level: 1, emoji: "🤓" },
+  { level: 2, emoji: "😤" },
+  { level: 3, emoji: "💀" },
 ] as const;
 
 const LEVEL_COUNT = ROT_LEVELS.length;
 
-const TRACK_HEIGHT = 56;
-const THUMB_SIZE = 44;
-// Inset so the thumb never clips the rail's rounded ends.
-const RAIL_INSET = 6;
-const DOT_SIZE = 6;
-// Fixed height reserved for the copy block. Sized for the longest (Goblin
-// Mode) description in either locale so the Done button stays put.
-const DETAILS_HEIGHT = 132;
+// Fixed height for the preview — tall enough for the longest tier reply.
+const PREVIEW_HEIGHT = 220;
 
-// Snap behavior shared by drag-end, tap, and a11y commits. Spring when motion
-// is allowed; the parent passes `reduceMotion` so callers can fall back to a
-// hard set.
-const SNAP_SPRING = { damping: 18, stiffness: 220, mass: 0.7 } as const;
+const POP_SPRING = { damping: 12, stiffness: 320, mass: 0.6 } as const;
 
-// progress is 0..1 where 0 = level 1 (left, calm) and 1 = top level (right).
-function levelToProgress(level: number): number {
-  "worklet";
-  const clamped = Math.min(Math.max(level, 1), LEVEL_COUNT);
-  return (clamped - 1) / (LEVEL_COUNT - 1);
-}
-function progressToLevel(progress: number): number {
-  "worklet";
-  return Math.round(progress * (LEVEL_COUNT - 1)) + 1;
-}
 function clampLevel(level: number): number {
   return Math.min(Math.max(Math.round(level), 1), LEVEL_COUNT);
 }
 
-export const RotLevelSheet = forwardRef<RotLevelSheetRef, RotLevelSheetProps>(
-  function RotLevelSheet({ level, onChange }, ref) {
-    const { t } = useTranslation();
-    const theme = useTheme();
-    const { colorScheme } = useColorScheme();
-    const gradient = gradients[colorScheme ?? "light"].primary;
-    const reduceMotion = useReducedMotion();
+function ToneCard({
+  emoji,
+  name,
+  isSelected,
+  a11yLabel,
+  onPress,
+  reduceMotion,
+}: {
+  emoji: string;
+  name: string;
+  isSelected: boolean;
+  a11yLabel: string;
+  onPress: () => void;
+  reduceMotion: boolean;
+}) {
+  const theme = useTheme();
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
-    const sheetRef = useRef<BottomSheetModal>(null);
-    const snapPoints = useMemo(() => ["46%"], []);
+  const handlePress = useCallback(() => {
+    if (!reduceMotion) {
+      scale.value = withSequence(
+        withTiming(0.93, { duration: 80 }),
+        withSpring(1, POP_SPRING),
+      );
+    }
+    onPress();
+  }, [onPress, reduceMotion, scale]);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        present: () => sheetRef.current?.present(),
-        dismiss: () => sheetRef.current?.dismiss(),
-      }),
-      [],
-    );
-
-    // Gesture/animation state on the UI runtime.
-    const progress = useSharedValue(levelToProgress(level));
-    const startProgress = useSharedValue(0);
-    const dragging = useSharedValue(0);
-    // Measured rail width, written from onLayout. Worklets read it to map
-    // pointer movement → progress; 0 until the first layout pass.
-    const trackW = useSharedValue(0);
-    // Last level the gesture reported to JS, so we only cross the bridge when
-    // the discrete level actually changes during a drag.
-    const lastReported = useSharedValue(level);
-
-    // The level the copy block is showing. Mirrors `progress` while dragging,
-    // then settles on the committed value. `levelRef` is the synchronous
-    // source of truth used by a11y actions without a stale closure.
-    const [displayLevel, setDisplayLevel] = useState(clampLevel(level));
-    // React-side mirror of the measured width, used to lay out the (static)
-    // detents. Set once per layout — not per frame.
-    const [trackWidth, setTrackWidth] = useState(0);
-    const levelRef = useRef(clampLevel(level));
-
-    const goToLevel = useCallback((next: number) => {
-      const clamped = clampLevel(next);
-      if (levelRef.current === clamped) return;
-      levelRef.current = clamped;
-      setDisplayLevel(clamped);
-    }, []);
-
-    const commit = useCallback(
-      (next: number) => {
-        const clamped = clampLevel(next);
-        goToLevel(clamped);
-        onChange(clamped);
-      },
-      [goToLevel, onChange],
-    );
-
-    // Keep the rail in sync when the value changes from outside the gesture
-    // (initial mount, a11y actions, parent reset). Hard-set under reduced
-    // motion; spring otherwise. Animating to the same spot is a cheap no-op,
-    // so this is safe to run on every commit too.
-    useEffect(() => {
-      const target = levelToProgress(level);
-      levelRef.current = clampLevel(level);
-      lastReported.value = clampLevel(level);
-      setDisplayLevel(clampLevel(level));
-      progress.value = reduceMotion
-        ? target
-        : withSpring(target, SNAP_SPRING);
-    }, [level, reduceMotion, lastReported, progress]);
-
-    const onTrackLayout = useCallback(
-      (e: LayoutChangeEvent) => {
-        const w = e.nativeEvent.layout.width;
-        trackW.value = w;
-        setTrackWidth(w);
-      },
-      [trackW],
-    );
-
-    const pan = useMemo(
-      () =>
-        Gesture.Pan()
-          .onBegin(() => {
-            dragging.value = reduceMotion ? 1 : withTiming(1, { duration: 120 });
-            startProgress.value = progress.value;
-          })
-          .onUpdate((e) => {
-            // Right (positive translationX) increases intensity.
-            const travel = Math.max(trackW.value - THUMB_SIZE - RAIL_INSET * 2, 1);
-            const next = startProgress.value + e.translationX / travel;
-            const clamped = next < 0 ? 0 : next > 1 ? 1 : next;
-            progress.value = clamped;
-            const lvl = progressToLevel(clamped);
-            if (lvl !== lastReported.value) {
-              lastReported.value = lvl;
-              runOnJS(goToLevel)(lvl);
-            }
-          })
-          .onEnd(() => {
-            const lvl = progressToLevel(progress.value);
-            const target = levelToProgress(lvl);
-            progress.value = reduceMotion ? target : withSpring(target, SNAP_SPRING);
-            lastReported.value = lvl;
-            runOnJS(commit)(lvl);
-          })
-          .onFinalize(() => {
-            dragging.value = reduceMotion ? 0 : withTiming(0, { duration: 200 });
-          }),
-      [
-        commit,
-        dragging,
-        goToLevel,
-        lastReported,
-        progress,
-        reduceMotion,
-        startProgress,
-        trackW,
-      ],
-    );
-
-    const tap = useMemo(
-      () =>
-        Gesture.Tap()
-          .maxDuration(260)
-          .onEnd((e) => {
-            // Map the tap's X (relative to the rail) to a progress.
-            const travel = Math.max(trackW.value - THUMB_SIZE - RAIL_INSET * 2, 1);
-            const raw = (e.x - RAIL_INSET - THUMB_SIZE / 2) / travel;
-            const clamped = raw < 0 ? 0 : raw > 1 ? 1 : raw;
-            const lvl = progressToLevel(clamped);
-            const target = levelToProgress(lvl);
-            progress.value = reduceMotion ? target : withSpring(target, SNAP_SPRING);
-            lastReported.value = lvl;
-            runOnJS(commit)(lvl);
-          }),
-      [commit, lastReported, progress, reduceMotion, trackW],
-    );
-
-    const gesture = useMemo(() => Gesture.Race(pan, tap), [pan, tap]);
-
-    // Soft fill grows left→right to the thumb center. Hidden until measured to
-    // avoid a first-frame snap from width 0.
-    const fillStyle = useAnimatedStyle(() => {
-      const travel = Math.max(trackW.value - THUMB_SIZE - RAIL_INSET * 2, 0);
-      const center = RAIL_INSET + THUMB_SIZE / 2 + progress.value * travel;
-      return {
-        width: center,
-        opacity: trackW.value > 0 ? 1 : 0,
-      };
-    });
-
-    // Thumb rides on translateX. It lifts (shadow + a hair of scale) only while
-    // touched — and not at all under reduced motion.
-    const thumbStyle = useAnimatedStyle(() => {
-      const travel = Math.max(trackW.value - THUMB_SIZE - RAIL_INSET * 2, 0);
-      const x = RAIL_INSET + progress.value * travel;
-      const lift = dragging.value;
-      return {
-        opacity: trackW.value > 0 ? 1 : 0,
-        transform: [
-          { translateX: x },
-          { scale: reduceMotion ? 1 : 1 + lift * 0.06 },
-        ],
-        shadowOpacity: 0.06 + lift * 0.12,
-        shadowRadius: 4 + lift * 6,
-        elevation: 2 + lift * 4,
-      };
-    });
-
-    const renderBackdrop = useCallback(
-      (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop
-          {...props}
-          appearsOnIndex={0}
-          disappearsOnIndex={-1}
-          opacity={0.5}
-          pressBehavior="close"
-        />
-      ),
-      [],
-    );
-
-    const active = ROT_LEVELS[displayLevel - 1] ?? ROT_LEVELS[1];
-    const levelName = t(`chat.rot.levels.level${displayLevel}.name`);
-    const levelDesc = t(`chat.rot.levels.level${displayLevel}.description`);
-    const a11yValue = t("chat.rot.a11yValue", {
-      level: displayLevel,
-      name: levelName,
-    });
-
-    // Static detent positions, recomputed only when the measured width changes.
-    const travel = Math.max(trackWidth - THUMB_SIZE - RAIL_INSET * 2, 0);
-
-    return (
-      <BottomSheetModal
-        ref={sheetRef}
-        snapPoints={snapPoints}
-        enableDynamicSizing={false}
-        enablePanDownToClose
-        // The horizontal drag belongs to the rail; keep the sheet's own content
-        // pan off so the two never fight.
-        enableContentPanningGesture={false}
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: theme["--color-card"] }}
-        handleIndicatorStyle={{ backgroundColor: theme["--color-foreground-muted"] }}
+  return (
+    <Animated.View style={[{ flex: 1 }, animStyle]}>
+      <Pressable
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isSelected }}
+        accessibilityLabel={a11yLabel}
+        style={{
+          alignItems: "center",
+          paddingVertical: 14,
+          paddingHorizontal: 6,
+          borderRadius: 14,
+          borderWidth: isSelected ? 2 : 1,
+          borderColor: isSelected
+            ? theme["--color-primary"]
+            : theme["--color-border"],
+          backgroundColor: isSelected
+            ? theme["--color-primary-subtle"]
+            : theme["--color-card"],
+          gap: 7,
+        }}
       >
-        <BottomSheetView
-          style={{ flex: 1, paddingHorizontal: 24, paddingBottom: 20 }}
+        <Text style={{ fontSize: 26, lineHeight: 30 }}>{emoji}</Text>
+        <Typography
+          variant="caption"
+          numberOfLines={2}
+          style={{
+            textAlign: "center",
+            fontWeight: isSelected ? "700" : "500",
+            color: isSelected
+              ? theme["--color-primary"]
+              : theme["--color-foreground-secondary"],
+          }}
+        >
+          {name}
+        </Typography>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+export function RotLevelSheet() {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
+
+  const isOpen = useRotLevelSheetStore((s) => s.isOpen);
+  const close = useRotLevelSheetStore((s) => s.close);
+  const level = useChatStore((s) => s.rotLevel);
+  const setRotLevel = useChatStore((s) => s.setRotLevel);
+
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["52%"], []);
+
+  useEffect(() => {
+    if (isOpen) sheetRef.current?.present();
+    else sheetRef.current?.dismiss();
+  }, [isOpen]);
+
+  const [selected, setSelected] = useState(clampLevel(level));
+
+  useEffect(() => {
+    setSelected(clampLevel(level));
+  }, [level]);
+
+  const handleSelect = useCallback(
+    (next: number) => {
+      const clamped = clampLevel(next);
+      setSelected(clamped);
+      setRotLevel(clamped);
+    },
+    [setRotLevel],
+  );
+
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <SheetBackdrop {...props} opacity={0.5} />
+    ),
+    [],
+  );
+
+  const active = ROT_LEVELS[selected - 1] ?? ROT_LEVELS[1];
+  const levelReply = t(`chat.rot.levels.level${selected}.reply`);
+
+  return (
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      onDismiss={close}
+      backgroundStyle={{ backgroundColor: theme["--color-card"] }}
+      handleIndicatorStyle={{
+        backgroundColor: theme["--color-foreground-muted"],
+      }}
+    >
+      <BottomSheetView style={{ flex: 1, width: "100%", alignItems: "center" }}>
+        {/* The sheet itself is full-width; on wide screens (iPad) constrain and
+            center the content to the same column as the rest of the app,
+            matching the PlanSheet. */}
+        <View
+          style={{
+            flex: 1,
+            width: "100%",
+            maxWidth: MAX_CONTENT_WIDTH,
+            paddingHorizontal: 20,
+            paddingBottom: 24,
+          }}
         >
           {/* Header */}
-          <View style={{ gap: 4, paddingTop: 2 }}>
+          <View style={{ gap: 3, paddingTop: 2, marginBottom: 18 }}>
             <Typography
               variant="title-lg"
               style={{ color: theme["--color-foreground"] }}
@@ -339,170 +214,128 @@ export const RotLevelSheet = forwardRef<RotLevelSheetRef, RotLevelSheetProps>(
             </Typography>
           </View>
 
-          {/* Horizontal rail */}
-          <View style={{ marginTop: 26 }}>
-            <GestureDetector gesture={gesture}>
+          {/* Three tone tiles */}
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {ROT_LEVELS.map((cfg) => {
+              const name = t(`chat.rot.levels.level${cfg.level}.name`);
+              return (
+                <ToneCard
+                  key={cfg.level}
+                  emoji={cfg.emoji}
+                  name={name}
+                  isSelected={cfg.level === selected}
+                  a11yLabel={t("chat.rot.a11yValue", {
+                    level: cfg.level,
+                    name,
+                  })}
+                  onPress={() => handleSelect(cfg.level)}
+                  reduceMotion={reduceMotion}
+                />
+              );
+            })}
+          </View>
+
+          {/* Preview — subtle chat-surface container */}
+          <View
+            style={{
+              marginTop: 16,
+              borderRadius: 16,
+              backgroundColor: theme["--color-background"],
+              borderWidth: 1,
+              borderColor: theme["--color-border"],
+              padding: 14,
+              overflow: "hidden",
+              height: PREVIEW_HEIGHT,
+            }}
+          >
+            <Typography
+              variant="overline"
+              style={{
+                color: theme["--color-foreground-muted"],
+                marginBottom: 10,
+              }}
+            >
+              {t("chat.rot.preview.eyebrow")}
+            </Typography>
+
+            <Animated.View
+              key={selected}
+              entering={reduceMotion ? undefined : FadeIn.duration(180)}
+              exiting={reduceMotion ? undefined : FadeOut.duration(120)}
+              style={{ position: "absolute", left: 14, right: 14, top: 34 }}
+            >
+              {/* User prompt */}
               <View
-                accessible
-                accessibilityRole="adjustable"
-                accessibilityLabel={t("chat.rot.title")}
-                accessibilityValue={{ text: a11yValue }}
-                accessibilityActions={[
-                  { name: "increment" },
-                  { name: "decrement" },
-                ]}
-                onAccessibilityAction={(event) => {
-                  if (event.nativeEvent.actionName === "increment") {
-                    commit(levelRef.current + 1);
-                  } else if (event.nativeEvent.actionName === "decrement") {
-                    commit(levelRef.current - 1);
-                  }
-                }}
-                onLayout={onTrackLayout}
-                style={{ height: TRACK_HEIGHT, justifyContent: "center" }}
+                style={{ flexDirection: "row", justifyContent: "flex-end" }}
               >
-                {/* Rail background (clips the fill to the pill shape). */}
                 <View
                   style={{
-                    ...StyleSheet.absoluteFillObject,
-                    borderRadius: TRACK_HEIGHT / 2,
-                    backgroundColor: theme["--color-background-muted"],
-                    borderWidth: 1,
-                    borderColor: theme["--color-border"],
-                    overflow: "hidden",
+                    maxWidth: "84%",
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 14,
+                    borderBottomRightRadius: 4,
+                    backgroundColor: theme["--color-primary"],
                   }}
                 >
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[
-                      {
-                        position: "absolute",
-                        left: 0,
-                        top: 0,
-                        bottom: 0,
-                        backgroundColor: theme["--color-primary"],
-                      },
-                      fillStyle,
-                    ]}
-                  />
+                  <Typography
+                    variant="body"
+                    style={{ color: theme["--color-primary-foreground"] }}
+                  >
+                    {t("chat.rot.preview.prompt")}
+                  </Typography>
                 </View>
-
-                {/* Detents — quiet stops the thumb settles onto. */}
-                {trackWidth > 0
-                  ? ROT_LEVELS.map((cfg) => {
-                      const centerX =
-                        RAIL_INSET +
-                        THUMB_SIZE / 2 +
-                        levelToProgress(cfg.level) * travel;
-                      const isActive = cfg.level === displayLevel;
-                      return (
-                        <View
-                          key={cfg.level}
-                          pointerEvents="none"
-                          style={{
-                            position: "absolute",
-                            left: centerX - DOT_SIZE / 2,
-                            width: DOT_SIZE,
-                            height: DOT_SIZE,
-                            borderRadius: DOT_SIZE / 2,
-                            backgroundColor: isActive
-                              ? "rgba(255,255,255,0.9)"
-                              : theme["--color-border-strong"],
-                            opacity: isActive ? 0.95 : 0.7,
-                          }}
-                        />
-                      );
-                    })
-                  : null}
-
-                {/* Thumb — emoji marker that lifts only while touched. */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    {
-                      position: "absolute",
-                      left: 0,
-                      width: THUMB_SIZE,
-                      height: THUMB_SIZE,
-                      borderRadius: THUMB_SIZE / 2,
-                      backgroundColor: theme["--color-card"],
-                      borderWidth: 1,
-                      borderColor: theme["--color-border-strong"],
-                      alignItems: "center",
-                      justifyContent: "center",
-                      shadowColor: "#000000",
-                      shadowOffset: { width: 0, height: 2 },
-                    },
-                    thumbStyle,
-                  ]}
-                >
-                  <Text style={{ fontSize: 20 }}>{active.emoji}</Text>
-                </Animated.View>
               </View>
-            </GestureDetector>
-          </View>
 
-          {/* Copy block — fixed height so Done never jumps. Subtle fade only. */}
-          <View style={{ height: DETAILS_HEIGHT, marginTop: 20 }}>
-            <Animated.View
-              key={displayLevel}
-              entering={reduceMotion ? undefined : FadeIn.duration(160)}
-              exiting={reduceMotion ? undefined : FadeOut.duration(120)}
-              style={{ position: "absolute", left: 0, right: 0, top: 0, gap: 8 }}
-            >
-              <Typography
-                variant="overline"
-                style={{ color: active.accent(theme) }}
+              {/* Bot reply */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "flex-end",
+                  gap: 8,
+                  marginTop: 8,
+                }}
               >
-                {`Level ${displayLevel}`}
-              </Typography>
-              <Typography
-                variant="title-md"
-                style={{ color: theme["--color-foreground"] }}
-              >
-                {levelName}
-              </Typography>
-              <Typography
-                variant="body"
-                style={{ color: theme["--color-foreground-secondary"] }}
-              >
-                {levelDesc}
-              </Typography>
+                <View
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: theme["--color-card"],
+                    borderWidth: 1,
+                    borderColor: theme["--color-border"],
+                  }}
+                >
+                  <Text style={{ fontSize: 14, lineHeight: 18 }}>
+                    {active.emoji}
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flex: 1,
+                    paddingHorizontal: 12,
+                    paddingVertical: 9,
+                    borderRadius: 14,
+                    borderBottomLeftRadius: 4,
+                    backgroundColor: theme["--color-card"],
+                    borderWidth: 1,
+                    borderColor: theme["--color-border"],
+                  }}
+                >
+                  <Typography
+                    variant="body"
+                    style={{ color: theme["--color-foreground"] }}
+                  >
+                    {levelReply}
+                  </Typography>
+                </View>
+              </View>
             </Animated.View>
           </View>
-
-          {/* Done */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("chat.rot.done")}
-            onPress={() => sheetRef.current?.dismiss()}
-            style={({ pressed }) => ({
-              marginTop: "auto",
-              height: 52,
-              borderRadius: 26,
-              overflow: "hidden",
-              opacity: pressed ? 0.92 : 1,
-            })}
-          >
-            <LinearGradient
-              colors={gradient.colors}
-              start={gradient.start}
-              end={gradient.end}
-              style={StyleSheet.absoluteFillObject}
-            />
-            <View
-              style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-            >
-              <Typography
-                variant="title-sm"
-                style={{ color: "#FFFFFF", fontWeight: "800" }}
-              >
-                {t("chat.rot.done")}
-              </Typography>
-            </View>
-          </Pressable>
-        </BottomSheetView>
-      </BottomSheetModal>
-    );
-  },
-);
+        </View>
+      </BottomSheetView>
+    </BottomSheetModal>
+  );
+}

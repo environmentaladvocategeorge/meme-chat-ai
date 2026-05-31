@@ -22,6 +22,11 @@ const SAMPLE_GIF = {
   type: "gif",
 };
 
+// Distinct, all-valid gifs so a randomness pick lands on a deterministic id.
+function sampleGif(id: number) {
+  return { ...SAMPLE_GIF, id };
+}
+
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return { ok, status, json: async () => body } as unknown as Response;
 }
@@ -36,7 +41,10 @@ describe("GET_GIF_TOOL definition", () => {
       required: string[];
     };
     expect(params.properties).toHaveProperty("query");
+    expect(params.properties).toHaveProperty("randomness_factor");
     expect(params.required).toContain("query");
+    // randomness_factor is optional — it defaults to an exact (top-hit) pick.
+    expect(params.required).not.toContain("randomness_factor");
   });
 });
 
@@ -68,6 +76,50 @@ describe("runGetGif", () => {
     });
     // Must NOT leak the GIF's title/URL back to the model.
     expect(JSON.parse(result.content)).toEqual({ found: true });
+  });
+
+  it("defaults to the top hit (randomness_factor omitted = exact)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: {
+          data: [sampleGif(10), sampleGif(20), sampleGif(30)],
+          has_next: false,
+        },
+      }),
+    );
+    // Even with a high rng roll, no factor means factor 1 → always index 0.
+    const rng = jest.spyOn(Math, "random").mockReturnValue(0.99);
+    try {
+      const result = await runGetGif(JSON.stringify({ query: "mic drop" }), deps);
+      expect(result.gif?.id).toBe("10");
+    } finally {
+      rng.mockRestore();
+    }
+  });
+
+  it("samples a later hit when randomness_factor loosens the search", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: {
+          data: [sampleGif(10), sampleGif(20), sampleGif(30), sampleGif(40)],
+          has_next: false,
+        },
+      }),
+    );
+    // factor 3 over 4 hits → weights [3,2,1] + straggler 0.5 (total 6.5).
+    // rng 0.8 → 5.2 lands in index 2's band → the third gif (id 30).
+    const rng = jest.spyOn(Math, "random").mockReturnValue(0.8);
+    try {
+      const result = await runGetGif(
+        JSON.stringify({ query: "cooked", randomness_factor: 3 }),
+        deps,
+      );
+      expect(result.gif?.id).toBe("30");
+    } finally {
+      rng.mockRestore();
+    }
   });
 
   it("hits the gifs/search endpoint with the model's query", async () => {

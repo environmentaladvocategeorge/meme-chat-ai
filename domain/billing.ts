@@ -12,10 +12,20 @@ export const PLAN_RANK: Record<PlanId, number> = {
   power: 3,
 };
 
+// Recognizes both store generations so entitlement resolution is correct in
+// every build: the original test-store identifiers AND the production App
+// Store / Play product IDs. Keys are distinct strings, so including both is
+// unambiguous. Keep in sync with functions/src/billing/revenuecat.ts and the
+// forward map in components/PlanPaywall.tsx (RC_PRODUCT_BY_MODE).
 export const REVENUECAT_PRODUCT_TO_PLAN = {
+  // Test store.
   monthly: "basic",
   monthly_2: "plus",
   monthly_3: "power",
+  // Production.
+  memeaibasic: "basic",
+  memeaiplus: "plus",
+  memeaipower: "power",
 } as const;
 
 export type RevenueCatProductId = keyof typeof REVENUECAT_PRODUCT_TO_PLAN;

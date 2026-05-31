@@ -1,11 +1,37 @@
 rules_version = '2';
 
-// Default deny. The template doesn't ship any file-upload features; if
-// you add one (e.g. profile photos, attachments), open up the matching
-// path here and keep server-side moderation in Cloud Functions.
+// User-uploaded chat photos live under messageImages/{uid}/{conversationId}/{imageId}.
+// Everything else stays default-deny. The backend (Admin SDK) is the source of
+// truth for what reaches the model: it re-validates ownership, mime, size, and
+// dimensions and ingests the object BY PATH — never by trusting a client URL.
+// These rules are the first gate (client write), not the last.
 
 service firebase.storage {
   match /b/{bucket}/o {
+
+    // A signed-in, email-verified user owns this uid namespace.
+    function isOwner(uid) {
+      return request.auth != null
+        && request.auth.uid == uid
+        && request.auth.token.email_verified == true;
+    }
+
+    // Bounds enforced again server-side; kept here so a bad client write is
+    // rejected before it ever lands in the bucket.
+    function isAllowedImage() {
+      return request.resource.size < 8 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png)');
+    }
+
+    match /messageImages/{uid}/{conversationId}/{imageId} {
+      // Owner may read their own uploads (chat history rendering) and create
+      // new ones. No updates (immutable once written); deletes are performed
+      // server-side via the Admin SDK during conversation/account cleanup.
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && isAllowedImage();
+      allow update, delete: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

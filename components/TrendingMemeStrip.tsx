@@ -12,6 +12,7 @@
 // placeholder + per-meme watermark already satisfy the guidelines.
 
 import { Typography } from "@/components/Typography";
+import { stripCardWidth } from "@/domain/mediaLayout";
 import { useTheme } from "@/hooks/useTheme";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image as ExpoImage } from "expo-image";
@@ -21,7 +22,6 @@ import { useEffect, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   TextInput,
@@ -85,13 +85,14 @@ type TrendingMemeStripProps<T extends StripMedia> = {
   labels: MemeStripLabels;
 };
 
-// Scale each item to a fixed strip height, preserving aspect ratio, clamped to
-// sane bounds so a freak-shaped item can't blow out the row.
+// Scale each item to the fixed strip height, preserving aspect ratio, clamped
+// to sane bounds so a freak-shaped item can't blow out the row.
 function cardWidth(item: StripMedia): number {
-  if (!item.width || !item.height) return STRIP_HEIGHT;
-  const ratio = item.width / item.height;
-  const w = STRIP_HEIGHT * ratio;
-  return Math.max(MIN_CARD_WIDTH, Math.min(MAX_CARD_WIDTH, w));
+  return stripCardWidth(item, {
+    height: STRIP_HEIGHT,
+    min: MIN_CARD_WIDTH,
+    max: MAX_CARD_WIDTH,
+  });
 }
 
 // One shimmering placeholder card. A light band sweeps across a muted surface
@@ -184,9 +185,11 @@ function CardWatermark() {
         colors={["transparent", "rgba(0,0,0,0.5)"]}
         style={StyleSheet.absoluteFill}
       />
-      <Image
+      <ExpoImage
         source={KLIPY_LOGO}
-        resizeMode="contain"
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        transition={0}
         style={{
           alignSelf: "flex-end",
           height: 9,
@@ -255,17 +258,23 @@ function MemeCard<T extends StripMedia>({
             source={{ uri: meme.url }}
             placeholder={meme.blurPreview ? { uri: meme.blurPreview } : undefined}
             contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={meme.id}
             style={{ width: "100%", height: "100%" }}
           />
         ) : (
-          <Image
+          <ExpoImage
             // blurPreview is a tiny inline base64 placeholder shown while the
-            // CDN asset streams in.
+            // CDN asset streams in; expo-image blurs-up to the still and caches
+            // it to memory+disk so re-scrolling the strip is instant.
             source={{ uri: meme.url }}
-            defaultSource={
+            placeholder={
               meme.blurPreview ? { uri: meme.blurPreview } : undefined
             }
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+            recyclingKey={meme.id}
             style={{ width: "100%", height: "100%" }}
           />
         )}

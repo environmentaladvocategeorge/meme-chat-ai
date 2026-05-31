@@ -1,4 +1,5 @@
 import { useTheme } from "@/hooks/useTheme";
+import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import { forwardRef } from "react";
 import { TextInput, TextInputProps, View } from "react-native";
 import { Typography } from "./Typography";
@@ -10,6 +11,9 @@ interface InputProps extends Omit<TextInputProps, "style"> {
   // screens that sit over the brand gradient; "default" is the standard
   // theme-surfaced field used everywhere else.
   tone?: "default" | "glass";
+  // When rendered inside a @gorhom bottom sheet, swap the plain TextInput for
+  // BottomSheetTextInput so focus + keyboard avoidance is handled by the sheet.
+  bottomSheet?: boolean;
 }
 
 // Glass palette is fixed (not theme-derived) because it always sits over the
@@ -25,11 +29,12 @@ const GLASS = {
 } as const;
 
 export const Input = forwardRef<TextInput, InputProps>(function Input(
-  { label, error, placeholder, tone = "default", ...rest },
+  { label, error, placeholder, tone = "default", bottomSheet = false, ...rest },
   ref,
 ) {
   const theme = useTheme();
   const isGlass = tone === "glass";
+  const Field = bottomSheet ? BottomSheetTextInput : TextInput;
 
   const labelColor = isGlass ? GLASS.label : theme["--color-foreground-secondary"];
   const errorColor = isGlass ? GLASS.error : theme["--color-error"];
@@ -41,8 +46,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           {label}
         </Typography>
       ) : null}
-      <TextInput
-        ref={ref}
+      <Field
+        ref={ref as never}
         placeholder={placeholder}
         placeholderTextColor={
           isGlass ? GLASS.placeholder : theme["--color-foreground-muted"]

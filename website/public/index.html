@@ -3,6 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Marks JS as available so scroll-reveal only hides content when it can
+         later un-hide it (no-JS visitors see every section immediately). -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <title>Meme Chat AI | Funny AI chat app for replies that hit</title>
     <meta
       name="description"
@@ -12,7 +17,7 @@
       name="keywords"
       content="meme AI chat, funny AI assistant, AI text rewriter, AI chat app, meme chatbot, iPhone AI chat"
     />
-    <link rel="canonical" href="https://%APP_DOMAIN%/" />
+    <link rel="canonical" href="https://meme-chat-ai.com/" />
     <link rel="icon" href="/assets/images/app-icon.png" />
     <meta name="theme-color" content="#7C3AED" />
     <meta property="og:title" content="Meme Chat AI" />
@@ -21,8 +26,8 @@
       content="A funny AI chat app that fixes dry texts, explains confusing stuff, roasts ideas usefully, and turns brain soup into replies, captions, and plans."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://%APP_DOMAIN%/" />
-    <meta property="og:image" content="https://%APP_DOMAIN%/assets/images/app-icon.png" />
+    <meta property="og:url" content="https://meme-chat-ai.com/" />
+    <meta property="og:image" content="https://meme-chat-ai.com/assets/images/app-icon.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
@@ -81,8 +86,10 @@
         "description": "A funny AI chat app that fixes dry texts, explains confusing stuff fast, roasts ideas usefully, and turns brain soup into replies, captions, and plans.",
         "applicationCategory": "LifestyleApplication",
         "operatingSystem": "iOS",
-        "url": "https://%APP_DOMAIN%/",
-        "image": "https://%APP_DOMAIN%/assets/images/app-icon.png",
+        "url": "https://meme-chat-ai.com/",
+        "image": "https://meme-chat-ai.com/assets/images/app-icon.png",
+        "installUrl": "https://apps.apple.com/app/id6774211629",
+        "downloadUrl": "https://apps.apple.com/app/id6774211629",
         "offers": {
           "@type": "Offer",
           "price": "0",
@@ -90,7 +97,7 @@
         },
         "publisher": {
           "@type": "Organization",
-          "name": "%COMPANY_NAME%"
+          "name": "Jorge Jimenez"
         }
       }
     </script>
@@ -112,7 +119,7 @@
             "name": "Is the iOS app available?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "The iOS app is not live on the App Store yet. The iOS page is a placeholder and will become the install page when the app launches."
+              "text": "Yes. Meme Chat AI is live on the App Store. Download it on iPhone and start chatting with Brainrot Bot for free."
             }
           },
           {
@@ -152,7 +159,7 @@
             soup into replies, captions, plans, and actual lore.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="/ios">iOS app warming up</a>
+            <a class="button button-primary" href="https://apps.apple.com/app/id6774211629">Download on the App Store</a>
             <a class="button button-secondary" href="#demo">See the chat lore</a>
           </div>
           <ul class="quick-tags" aria-label="Popular uses">
@@ -193,13 +200,13 @@
         </div>
       </section>
 
-      <section class="status-strip" aria-label="Launch status">
+      <section class="status-strip reveal" aria-label="Launch status">
         <span>Built for iPhone</span>
-        <span>App Store page is a placeholder for now</span>
+        <span>Now live on the App Store</span>
         <span>Your account controls live in the app</span>
       </section>
 
-      <section class="section split-section" id="how">
+      <section class="section split-section reveal" id="how">
         <div>
           <p class="eyebrow">What it is</p>
           <h2>For brain soup that needs better packaging.</h2>
@@ -230,7 +237,7 @@
         </div>
       </section>
 
-      <section class="section prompt-section">
+      <section class="section prompt-section reveal">
         <div class="prompt-copy">
           <p class="eyebrow">Starter prompts</p>
           <h2>Open chat, pick a vibe, keep moving.</h2>
@@ -245,7 +252,49 @@
         </div>
       </section>
 
-      <section class="section">
+      <section class="section rot-section reveal">
+        <div class="section-heading">
+          <p class="eyebrow">Rot Level</p>
+          <h2>Dial the brainrot up or down.</h2>
+          <p>
+            Rot Level sets how unhinged Brainrot Bot gets — from lightly spiced
+            to full goblin mode. The useful answer stays underneath; you just
+            pick the energy. Switch it anytime, mid-chat.
+          </p>
+        </div>
+        <div class="rot-grid">
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">🤓</span>
+            <h3>Lightly Cooked</h3>
+            <p>
+              Mostly business, lightly meme'd. Still won't read like a default
+              corporate assistant.
+            </p>
+            <span class="rot-tag">mostly business</span>
+          </article>
+          <article class="rot-card rot-card-featured">
+            <span class="rot-pill">Default</span>
+            <span class="rot-emoji" aria-hidden="true">😤</span>
+            <h3>Rotted</h3>
+            <p>
+              Full Brainrot Bot energy — jokes and slang the whole way, but it
+              still gets you there.
+            </p>
+            <span class="rot-tag">jokes + slang</span>
+          </article>
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">💀</span>
+            <h3>Goblin Mode</h3>
+            <p>
+              Maximum brainrot. Cursed metaphors and dramatic overreactions —
+              still useful, just feral about it.
+            </p>
+            <span class="rot-tag">cursed + feral</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
             <p class="eyebrow">Memes on tap</p>
@@ -269,7 +318,7 @@
         </div>
       </section>
 
-      <section class="section plans-section" id="plans">
+      <section class="section plans-section reveal" id="plans">
         <div class="section-heading">
           <p class="eyebrow">Meme-power</p>
           <h2>Plans that match how hard you chat.</h2>
@@ -292,38 +341,38 @@
             <span class="plan-kicker">Basic</span>
             <h3>Sidekick</h3>
             <p>More replies, less aura debt.</p>
-            <strong>9x chats &middot; M memory &middot; App themes</strong>
+            <strong>9x chats &middot; M memory &middot; App themes &middot; Ad-free</strong>
           </article>
           <article class="plan-card">
             <span class="plan-kicker">Popular</span>
             <h3>Wingman</h3>
             <p>Tons of chats, bigger memory, better momentum.</p>
-            <strong>25x chats &middot; L memory &middot; App themes</strong>
+            <strong>25x chats &middot; L memory &middot; App themes &middot; Ad-free</strong>
           </article>
           <article class="plan-card recommended">
             <span class="plan-kicker">Best</span>
             <h3>MVP</h3>
             <p>For heavy chat days and professional yapping.</p>
-            <strong>50x chats &middot; XL memory &middot; App themes</strong>
+            <strong>50x chats &middot; XL memory &middot; App themes &middot; Ad-free</strong>
           </article>
         </div>
       </section>
 
-      <section class="section ios-callout">
-        <img src="/assets/images/meme-out-of-power.png" alt="Concerned Brainrot Bot avatar" />
+      <section class="section ios-callout reveal">
+        <img src="/assets/images/meme-level-up.png" alt="Brainrot Bot avatar celebrating" />
         <div>
-          <p class="eyebrow">iOS launch status</p>
-          <h2>The App Store button is warming up.</h2>
+          <p class="eyebrow">iOS — out now</p>
+          <h2>Meme Chat AI is live on the App Store.</h2>
           <p>
-            No live iOS listing yet, so install taps go to a placeholder page
-            for now. When the App Store page is ready, this turns into the Smart
-            App Banner, campaign link, and QR-code hub. No vaporware lore here.
+            Grab it on iPhone, open a chat, and put Brainrot Bot to work on your
+            dry texts, half-baked ideas, and brain soup. Free to start, with
+            meme-power plans when you want more.
           </p>
-          <a class="button button-primary" href="/ios">View iOS placeholder</a>
+          <a class="button button-primary" href="https://apps.apple.com/app/id6774211629">Download on the App Store</a>
         </div>
       </section>
 
-      <section class="section faq-section">
+      <section class="section faq-section reveal">
         <div class="section-heading">
           <p class="eyebrow">FAQ</p>
           <h2>Questions, minus the lore wall.</h2>
@@ -339,8 +388,9 @@
           <details>
             <summary>Can I download it today?</summary>
             <p>
-              Not yet. The iOS app is still warming up. The placeholder page is
-              ready so the real App Store link can drop in cleanly at launch.
+              Yes. Meme Chat AI is live on the App Store — download it on iPhone
+              and start chatting. Free to start, with meme-power plans when you
+              want more chats and memory.
             </p>
           </details>
           <details>
@@ -364,7 +414,33 @@
         <a href="/support">Support</a>
         <a href="/ios">iOS</a>
       </div>
-      <span>&copy; %COMPANY_NAME%</span>
+      <span>&copy; Jorge Jimenez</span>
     </footer>
+
+    <!-- Scroll-reveal: fade + rise each .reveal section in as it enters view.
+         Falls back to showing everything if IntersectionObserver is missing. -->
+    <script>
+      (function () {
+        var els = document.querySelectorAll(".reveal");
+        if (!("IntersectionObserver" in window) || !els.length) {
+          for (var i = 0; i < els.length; i++) els[i].classList.add("is-visible");
+          return;
+        }
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("is-visible");
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+        );
+        els.forEach(function (el) {
+          io.observe(el);
+        });
+      })();
+    </script>
   </body>
 </html>

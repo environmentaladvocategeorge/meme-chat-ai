@@ -2,12 +2,13 @@
 // by usePlanSheetStore, so the paywall + usage view can be summoned from
 // anywhere (chat nudges, the quota modal, settings) without a route change.
 
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { PlanAndUsage } from "@/components/PlanAndUsage";
+import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { usePlanSheetStore } from "@/store/planSheet";
 import {
-  BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
@@ -34,13 +35,7 @@ export function PlanSheet() {
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.5}
-        pressBehavior="close"
-      />
+      <SheetBackdrop {...props} opacity={0.5} />
     ),
     [],
   );
@@ -69,6 +64,11 @@ export function PlanSheet() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          // The sheet itself is full-width; on wide screens (iPad) constrain
+          // and center the content to the same column as the rest of the app.
+          width: "100%",
+          maxWidth: MAX_CONTENT_WIDTH,
+          alignSelf: "center",
           paddingHorizontal: 24,
           paddingTop: 6,
           paddingBottom: insets.bottom + 32,

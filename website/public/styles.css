@@ -318,8 +318,10 @@ h3 {
   width: 124px;
   margin: 12px auto 0;
   border-radius: 0 0 16px 16px;
-  background: var(--color-foreground);
-  opacity: 0.9;
+  /* Device notch: always a dark cutout, independent of theme (foreground
+     flips to near-white in dark mode, which made the notch glow white). */
+  background: #0b0714;
+  opacity: 0.92;
 }
 
 .phone-top {
@@ -385,7 +387,10 @@ h3 {
   align-items: flex-start;
   gap: 10px;
   background: var(--gradient-bubble);
-  color: var(--color-foreground);
+  /* The received bubble is a light gradient in BOTH themes, so its text must
+     stay dark — var(--color-foreground) would be near-white in dark mode and
+     render white-on-white. */
+  color: #17131f;
 }
 
 .bubble.agent p {
@@ -398,9 +403,9 @@ h3 {
 
 .hero-avatar {
   position: absolute;
-  right: -34px;
-  bottom: 2px;
-  width: min(42vw, 270px);
+  right: -28px;
+  bottom: -28px;
+  width: min(34vw, 210px);
   border-radius: 50%;
   box-shadow: var(--shadow-card);
 }
@@ -657,6 +662,95 @@ h3 {
   font-weight: 700;
 }
 
+/* Rot Level — the personality dial showcase. Three tone tiles mirror the
+   in-app picker (Lightly Cooked / Rotted / Goblin Mode). */
+.rot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.rot-card {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
+  padding: 28px 22px 24px;
+}
+
+.rot-card-featured {
+  border-color: transparent;
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    var(--gradient-primary) border-box;
+}
+
+.rot-emoji {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 42px;
+  line-height: 1;
+}
+
+.rot-card h3 {
+  margin-bottom: 8px;
+}
+
+.rot-card p {
+  margin-bottom: 16px;
+  color: var(--color-foreground-secondary);
+}
+
+.rot-tag {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-card-muted);
+  color: var(--color-foreground-secondary);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.rot-pill {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  border-radius: 999px;
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+/* Scroll-reveal — sections fade and rise into view as they enter the
+   viewport. Hidden state is gated behind `.js` so visitors without
+   JavaScript still see everything, and disabled under reduced-motion. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.js .reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 @media (max-width: 900px) {
   .site-header {
     align-items: flex-start;
@@ -686,7 +780,9 @@ h3 {
   }
 
   .hero-avatar {
-    right: 0;
+    right: -12px;
+    bottom: -16px;
+    width: 150px;
   }
 
   .status-strip,
@@ -695,7 +791,8 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  .feature-grid {
+  .feature-grid,
+  .rot-grid {
     grid-template-columns: 1fr;
   }
 
@@ -741,7 +838,7 @@ h3 {
   }
 
   .hero-avatar {
-    width: 178px;
+    width: 118px;
   }
 
   .chat-stack {

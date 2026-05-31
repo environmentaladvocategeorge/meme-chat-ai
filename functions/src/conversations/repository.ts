@@ -17,9 +17,10 @@ type StoredMessage = {
   gifs?: MessageGif[];
 };
 
-// Title shown for image-only conversations (no first-message text for the
-// title model to work from). The generateConversationTitle trigger leaves this
-// untouched because firstUserMessage is empty.
+// Placeholder title shown for image-only conversations (no first-message text
+// to title from yet). It's only temporary now: generateConversationTitle titles
+// from the opening exchange once the bot's first reply lands, so even a meme-
+// only opener gets a real title from how the bot reacted to it.
 const IMAGE_ONLY_TITLE_FALLBACK = "Sent a meme";
 
 export type MessagePersonaMetadata = {
@@ -58,9 +59,9 @@ export async function createConversation(
   const conversationRef = db.collection("conversations").doc();
 
   const trimmedFirst = firstUserMessageText.trim();
-  // Image-only opener: there's no text for the title model, so seed a fixed
-  // fallback and leave firstUserMessage empty (the title trigger short-circuits
-  // on empty text, so the fallback stays).
+  // Image-only opener: there's no text to seed a title from, so show a fixed
+  // placeholder until the bot replies and generateConversationTitle names the
+  // exchange.
   const title =
     trimmedFirst.length === 0 && options?.hasImages
       ? IMAGE_ONLY_TITLE_FALLBACK
@@ -68,8 +69,8 @@ export async function createConversation(
 
   await conversationRef.set({
     uid,
-    // Truncated fallback title shown immediately; the generateConversationTitle
-    // trigger replaces it with a meme title once gpt-5-nano responds.
+    // Placeholder title shown immediately; generateConversationTitle replaces it
+    // with a meme title once the bot's first reply lands.
     title,
     firstUserMessage: firstUserMessageText.slice(0, 500),
     titleGenerated: false,

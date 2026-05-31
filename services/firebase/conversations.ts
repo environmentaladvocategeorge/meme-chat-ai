@@ -12,7 +12,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import type { MessageGif } from "@/domain/gifs";
-import type { MessageImage } from "@/domain/memes";
+import type { KlipyMessageImage, MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
 
 const ALLOWED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
@@ -25,31 +25,56 @@ function mapImages(value: unknown): MessageImage[] | undefined {
   const images = value.flatMap((raw): MessageImage[] => {
     if (!raw || typeof raw !== "object") return [];
     const data = raw as Record<string, unknown>;
-    if (
-      data.source !== "klipy" ||
-      typeof data.id !== "string" ||
-      typeof data.url !== "string" ||
-      typeof data.previewUrl !== "string"
-    ) {
-      return [];
+    if (typeof data.id !== "string" || typeof data.url !== "string") return [];
+
+    // User-uploaded photo (Cloud Storage backed).
+    if (data.source === "upload") {
+      if (
+        typeof data.path !== "string" ||
+        typeof data.width !== "number" ||
+        typeof data.height !== "number"
+      ) {
+        return [];
+      }
+      const mimeType = data.mimeType === "image/png" ? "image/png" : "image/jpeg";
+      return [
+        {
+          id: data.id,
+          source: "upload",
+          path: data.path,
+          url: data.url,
+          width: data.width,
+          height: data.height,
+          mimeType,
+          bytes: typeof data.bytes === "number" ? data.bytes : 0,
+        },
+      ];
     }
-    const image: MessageImage = {
-      id: data.id,
-      source: "klipy",
-      url: data.url,
-      previewUrl: data.previewUrl,
-    };
-    if (typeof data.width === "number") image.width = data.width;
-    if (typeof data.height === "number") image.height = data.height;
-    if (
-      typeof data.mimeType === "string" &&
-      (ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(data.mimeType)
-    ) {
-      image.mimeType = data.mimeType as MessageImage["mimeType"];
+
+    // Klipy meme (CDN backed).
+    if (data.source === "klipy" && typeof data.previewUrl === "string") {
+      const image: KlipyMessageImage = {
+        id: data.id,
+        source: "klipy",
+        url: data.url,
+        previewUrl: data.previewUrl,
+      };
+      if (typeof data.width === "number") image.width = data.width;
+      if (typeof data.height === "number") image.height = data.height;
+      if (
+        typeof data.mimeType === "string" &&
+        (ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(data.mimeType)
+      ) {
+        image.mimeType = data.mimeType as KlipyMessageImage["mimeType"];
+      }
+      if (typeof data.attribution === "string") {
+        image.attribution = data.attribution;
+      }
+      if (typeof data.memeId === "string") image.memeId = data.memeId;
+      return [image];
     }
-    if (typeof data.attribution === "string") image.attribution = data.attribution;
-    if (typeof data.memeId === "string") image.memeId = data.memeId;
-    return [image];
+
+    return [];
   });
   return images.length > 0 ? images : undefined;
 }
@@ -251,6 +276,10 @@ export function subscribeToConversations(
   );
 }
 
+// Cap the live listener to the most recent N messages so the snapshot callback
+// cost stays bounded regardless of how long a conversation runs.
+const MESSAGES_LIVE_LIMIT = 100;
+
 export function subscribeToMessages(
   conversationId: string,
   cb: (messages: StoredChatMessage[]) => void,
@@ -259,6 +288,7 @@ export function subscribeToMessages(
   const messagesQuery = query(
     collection(db, "conversations", conversationId, "messages"),
     orderBy("createdAt", "asc"),
+    limit(MESSAGES_LIVE_LIMIT),
   );
 
   return onSnapshot(

@@ -38,14 +38,12 @@ export function AppHeader({
   return (
     <View
       style={{
-        // The safe-area top inset reserves room for the status bar, but
-        // the status bar glyphs only occupy a thin band at its very top —
-        // the remainder reads as empty space above the button. So we keep
-        // the top padding tight (small +2 on top of the inset) and add
-        // matching breathing room below so the button looks optically
-        // centered within the visible header rather than shoved against
-        // the card's lower edge.
-        paddingTop: insets.top + 2,
+        // A small clearance below the safe-area inset for optical balance. We
+        // previously padded +12 on the theory that taps near the inset were
+        // being swallowed by the OS status-bar strip — that turned out not to
+        // be the cause, so this is trimmed back ~8px to sit the header (and its
+        // buttons) higher.
+        paddingTop: insets.top + 4,
         paddingBottom: 16,
         paddingHorizontal: 16,
         backgroundColor: theme["--color-card"],
@@ -56,7 +54,6 @@ export function AppHeader({
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
         elevation: 3,
-        overflow: "hidden",
       }}
     >
       {/* Title row: button on the left, title flex-centered in the middle,

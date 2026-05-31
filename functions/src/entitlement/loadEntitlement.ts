@@ -8,6 +8,7 @@ export type Entitlement = ProfileBilling & {
   monthlyCredits: number;
   maxInputTokens: number;
   maxOutputTokens: number;
+  alias: string | null;
 };
 
 // Reads profiles/{uid}, applies any expired monthly/daily window resets in a
@@ -31,7 +32,7 @@ export async function loadEntitlement(uid: string): Promise<Entitlement> {
       // before that trigger landed.
       billing = initialBilling(now);
       tx.set(ref, billing, { merge: true });
-      return billing;
+      return { billing, alias: null };
     }
 
     const data = snap.data();
@@ -63,17 +64,20 @@ export async function loadEntitlement(uid: string): Promise<Entitlement> {
     if (needsWrite) {
       tx.set(ref, billing, { merge: true });
     }
-    return billing;
+    const alias =
+      typeof data?.alias === "string" && data.alias.trim().length > 0
+        ? data.alias.trim()
+        : null;
+    return { billing, alias };
   });
 
-  const planCfg = PLANS[result.plan];
+  const planCfg = PLANS[result.billing.plan];
   return {
-    ...result,
-    // Resolve the caps live off the plan so routing always sees the current
-    // tier's allowance, regardless of what's denormalized on the doc.
+    ...result.billing,
     softDailyCredits: computeDailyCap(planCfg.monthlyCredits, new Date()),
     monthlyCredits: planCfg.monthlyCredits,
     maxInputTokens: planCfg.maxInputTokens,
     maxOutputTokens: planCfg.maxOutputTokens,
+    alias: result.alias,
   };
 }

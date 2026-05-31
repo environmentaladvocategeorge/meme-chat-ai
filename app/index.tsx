@@ -2,6 +2,8 @@ import { Typography } from "@/components/Typography";
 import { gradients } from "@/nativewind-theme";
 import { useAuthStore } from "@/store/auth";
 import * as AppleAuthentication from "expo-apple-authentication";
+import Constants from "expo-constants";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -17,7 +19,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Platform,
   Pressable,
   StyleSheet,
@@ -240,6 +241,18 @@ export default function LandingScreen() {
             </Animated.View>
           ) : null}
         </View>
+
+        {/* App version pinned at the very bottom of the landing page. */}
+        <Typography
+          variant="caption"
+          style={{
+            color: "rgba(255,255,255,0.5)",
+            textAlign: "center",
+            marginTop: 12,
+          }}
+        >
+          {`v${Constants.expoConfig?.version ?? ""}`}
+        </Typography>
       </View>
     </View>
   );
@@ -271,7 +284,9 @@ function MascotHero({ size }: { size: number }) {
             height: size,
             borderRadius: size * 0.26,
           }}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={0}
         />
       </View>
     </Floaty>

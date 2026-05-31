@@ -6,7 +6,9 @@
 // in sync without a parent/child relationship.
 
 import { MENU_BUTTON_SIZE } from "@/components/MenuButton";
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { Typography } from "@/components/Typography";
+import { tapHaptic } from "@/lib/haptics";
 import { gradients, themes } from "@/nativewind-theme";
 import { useMenuStore } from "@/store/menu";
 import { LinearGradient } from "expo-linear-gradient";
@@ -99,6 +101,7 @@ export function PlayfulMenu() {
 
   const handleNavigate = useCallback(
     (item: MenuItemDef) => {
+      tapHaptic();
       close();
       if (item.key !== activeKey) {
         router.replace(item.path);
@@ -128,29 +131,42 @@ export function PlayfulMenu() {
         ]}
       />
 
+      {/* Full-screen centering layer so the backdrop can dim edge-to-edge while
+          the pills stay confined to (and left-aligned within) the same content
+          column as the header — keeping them under the menu button on iPad. */}
       <View
         pointerEvents="box-none"
         style={{
           position: "absolute",
           top: insets.top + MENU_BUTTON_SIZE + 22,
-          left: 16,
-          right: 16,
-          gap: ITEM_GAP,
+          left: 0,
+          right: 0,
+          alignItems: "center",
         }}
       >
-        {ITEMS.map((item, index) => (
-          <MenuPill
-            key={item.key}
-            index={index}
-            progress={progress}
-            isActive={item.key === activeKey}
-            label={t(item.labelKey)}
-            Icon={item.Icon}
-            onPress={() => handleNavigate(item)}
-            theme={theme}
-            gradient={primaryGradient}
-          />
-        ))}
+        <View
+          pointerEvents="box-none"
+          style={{
+            width: "100%",
+            maxWidth: MAX_CONTENT_WIDTH,
+            paddingHorizontal: 16,
+            gap: ITEM_GAP,
+          }}
+        >
+          {ITEMS.map((item, index) => (
+            <MenuPill
+              key={item.key}
+              index={index}
+              progress={progress}
+              isActive={item.key === activeKey}
+              label={t(item.labelKey)}
+              Icon={item.Icon}
+              onPress={() => handleNavigate(item)}
+              theme={theme}
+              gradient={primaryGradient}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );
@@ -205,70 +221,78 @@ function MenuPill({
     };
   });
 
+  // The slide/scale/rotate animation lives on a pointerEvents="none" inner
+  // view; the Pressable stays a static box at the pill's resting position.
+  // Animating the Pressable itself desyncs Fabric's hit-test frame in release
+  // builds, which makes the pill drop taps until a re-layout.
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: isActive }}
-      style={[
-        {
-          height: ITEM_HEIGHT,
-          borderRadius: ITEM_HEIGHT / 2,
-          flexDirection: "row",
-          alignItems: "center",
-          paddingLeft: 10,
-          paddingRight: 22,
-          alignSelf: "flex-start",
-          minWidth: 200,
-          backgroundColor: isActive ? "transparent" : theme["--color-card"],
-          borderWidth: isActive ? 0 : 1,
-          borderColor: theme["--color-border"],
-          shadowColor: theme["--color-foreground"],
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 3,
-          overflow: "hidden",
-        },
-        pillStyle,
-      ]}
+      style={{ alignSelf: "flex-start" }}
     >
-      {isActive && (
-        <LinearGradient
-          colors={gradient.colors}
-          start={gradient.start}
-          end={gradient.end}
-          style={StyleSheet.absoluteFillObject}
-        />
-      )}
-      <View
-        style={{
-          width: 38,
-          height: 38,
-          borderRadius: 19,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: isActive
-            ? "rgba(255,255,255,0.22)"
-            : theme["--color-primary-subtle"],
-          marginRight: 12,
-        }}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            height: ITEM_HEIGHT,
+            borderRadius: ITEM_HEIGHT / 2,
+            flexDirection: "row",
+            alignItems: "center",
+            paddingLeft: 10,
+            paddingRight: 22,
+            minWidth: 200,
+            backgroundColor: isActive ? "transparent" : theme["--color-card"],
+            borderWidth: isActive ? 0 : 1,
+            borderColor: theme["--color-border"],
+            shadowColor: theme["--color-foreground"],
+            shadowOpacity: 0.08,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 3 },
+            elevation: 3,
+            overflow: "hidden",
+          },
+          pillStyle,
+        ]}
       >
-        <Icon
-          color={isActive ? "#FFFFFF" : theme["--color-primary"]}
-          size={20}
-          weight="bold"
-        />
-      </View>
-      <Typography
-        variant="title-sm"
-        style={{
-          color: isActive ? "#FFFFFF" : theme["--color-foreground"],
-        }}
-      >
-        {label}
-      </Typography>
-    </AnimatedPressable>
+        {isActive && (
+          <LinearGradient
+            colors={gradient.colors}
+            start={gradient.start}
+            end={gradient.end}
+            style={StyleSheet.absoluteFillObject}
+          />
+        )}
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: isActive
+              ? "rgba(255,255,255,0.22)"
+              : theme["--color-primary-subtle"],
+            marginRight: 12,
+          }}
+        >
+          <Icon
+            color={isActive ? "#FFFFFF" : theme["--color-primary"]}
+            size={20}
+            weight="bold"
+          />
+        </View>
+        <Typography
+          variant="title-sm"
+          style={{
+            color: isActive ? "#FFFFFF" : theme["--color-foreground"],
+          }}
+        >
+          {label}
+        </Typography>
+      </Animated.View>
+    </Pressable>
   );
 }
