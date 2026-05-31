@@ -3,6 +3,11 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Marks JS as available so scroll-reveal only hides content when it can
+         later un-hide it (no-JS visitors see every section immediately). -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
     <title>Meme Chat AI | Funny AI chat app for replies that hit</title>
     <meta
       name="description"
@@ -195,13 +200,13 @@
         </div>
       </section>
 
-      <section class="status-strip" aria-label="Launch status">
+      <section class="status-strip reveal" aria-label="Launch status">
         <span>Built for iPhone</span>
         <span>Now live on the App Store</span>
         <span>Your account controls live in the app</span>
       </section>
 
-      <section class="section split-section" id="how">
+      <section class="section split-section reveal" id="how">
         <div>
           <p class="eyebrow">What it is</p>
           <h2>For brain soup that needs better packaging.</h2>
@@ -232,7 +237,7 @@
         </div>
       </section>
 
-      <section class="section prompt-section">
+      <section class="section prompt-section reveal">
         <div class="prompt-copy">
           <p class="eyebrow">Starter prompts</p>
           <h2>Open chat, pick a vibe, keep moving.</h2>
@@ -247,7 +252,49 @@
         </div>
       </section>
 
-      <section class="section">
+      <section class="section rot-section reveal">
+        <div class="section-heading">
+          <p class="eyebrow">Rot Level</p>
+          <h2>Dial the brainrot up or down.</h2>
+          <p>
+            Rot Level sets how unhinged Brainrot Bot gets — from lightly spiced
+            to full goblin mode. The useful answer stays underneath; you just
+            pick the energy. Switch it anytime, mid-chat.
+          </p>
+        </div>
+        <div class="rot-grid">
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">🤓</span>
+            <h3>Lightly Cooked</h3>
+            <p>
+              Mostly business, lightly meme'd. Still won't read like a default
+              corporate assistant.
+            </p>
+            <span class="rot-tag">mostly business</span>
+          </article>
+          <article class="rot-card rot-card-featured">
+            <span class="rot-pill">Default</span>
+            <span class="rot-emoji" aria-hidden="true">😤</span>
+            <h3>Rotted</h3>
+            <p>
+              Full Brainrot Bot energy — jokes and slang the whole way, but it
+              still gets you there.
+            </p>
+            <span class="rot-tag">jokes + slang</span>
+          </article>
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">💀</span>
+            <h3>Goblin Mode</h3>
+            <p>
+              Maximum brainrot. Cursed metaphors and dramatic overreactions —
+              still useful, just feral about it.
+            </p>
+            <span class="rot-tag">cursed + feral</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
             <p class="eyebrow">Memes on tap</p>
@@ -271,7 +318,7 @@
         </div>
       </section>
 
-      <section class="section plans-section" id="plans">
+      <section class="section plans-section reveal" id="plans">
         <div class="section-heading">
           <p class="eyebrow">Meme-power</p>
           <h2>Plans that match how hard you chat.</h2>
@@ -311,7 +358,7 @@
         </div>
       </section>
 
-      <section class="section ios-callout">
+      <section class="section ios-callout reveal">
         <img src="/assets/images/meme-level-up.png" alt="Brainrot Bot avatar celebrating" />
         <div>
           <p class="eyebrow">iOS — out now</p>
@@ -325,7 +372,7 @@
         </div>
       </section>
 
-      <section class="section faq-section">
+      <section class="section faq-section reveal">
         <div class="section-heading">
           <p class="eyebrow">FAQ</p>
           <h2>Questions, minus the lore wall.</h2>
@@ -369,5 +416,31 @@
       </div>
       <span>&copy; Jorge Jimenez</span>
     </footer>
+
+    <!-- Scroll-reveal: fade + rise each .reveal section in as it enters view.
+         Falls back to showing everything if IntersectionObserver is missing. -->
+    <script>
+      (function () {
+        var els = document.querySelectorAll(".reveal");
+        if (!("IntersectionObserver" in window) || !els.length) {
+          for (var i = 0; i < els.length; i++) els[i].classList.add("is-visible");
+          return;
+        }
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("is-visible");
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+        );
+        els.forEach(function (el) {
+          io.observe(el);
+        });
+      })();
+    </script>
   </body>
 </html>
