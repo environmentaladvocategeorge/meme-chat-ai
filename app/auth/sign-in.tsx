@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/auth";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 
 function errorKey(error: SignInEmailError) {
   switch (error) {
@@ -25,11 +25,13 @@ export default function SignInScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const signInEmail = useAuthStore((s) => s.signInEmail);
+  const sendPasswordResetEmail = useAuthStore((s) => s.sendPasswordResetEmail);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const handleSubmit = async () => {
     setErrorMessage(null);
@@ -39,6 +41,35 @@ export default function SignInScreen() {
     if (!result.success) {
       setErrorMessage(t(errorKey(result.error)));
     }
+  };
+
+  // Forgot password: send a reset email to whatever's typed in the email field
+  // (no dedicated screen — the reset link lands them back via deep link). We
+  // require the email up front so we're not sending into the void.
+  const handleForgotPassword = async () => {
+    const trimmed = email.trim();
+    if (trimmed.length === 0) {
+      setErrorMessage(t("auth.errors.invalidEmail"));
+      return;
+    }
+    setErrorMessage(null);
+    setResetting(true);
+    const result = await sendPasswordResetEmail(trimmed);
+    setResetting(false);
+    if (result.success) {
+      Alert.alert(
+        t("account.resetPassword.sentTitle"),
+        t("account.resetPassword.sentBody"),
+      );
+      return;
+    }
+    const key =
+      result.error === "invalid-email"
+        ? "account.resetPassword.errors.invalidEmail"
+        : result.error === "too-many-requests"
+          ? "account.resetPassword.errors.tooManyRequests"
+          : "account.resetPassword.errors.generic";
+    Alert.alert(t("account.resetPassword.errorTitle"), t(key));
   };
 
   return (
@@ -71,6 +102,25 @@ export default function SignInScreen() {
             onChangeText={setPassword}
             error={errorMessage}
           />
+
+          <Pressable
+            onPress={handleForgotPassword}
+            disabled={resetting}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              alignSelf: "flex-end",
+              opacity: pressed || resetting ? 0.6 : 1,
+            })}
+          >
+            <Typography
+              variant="caption"
+              style={{ color: "rgba(255,255,255,0.86)", fontWeight: "600" }}
+            >
+              {resetting
+                ? t("account.resetPassword.sending")
+                : t("auth.forgotPassword")}
+            </Typography>
+          </Pressable>
         </View>
 
         <View style={{ marginTop: 24, gap: 16 }}>

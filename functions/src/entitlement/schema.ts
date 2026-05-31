@@ -1,10 +1,13 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { PLANS, computeDailyCap, type PlanId } from "../billing/plans";
+import type { RevenueCatProductId } from "../billing/revenuecat";
 import { nextEasternMidnightMs } from "./dailyWindow";
 
 export type PlanSource = "revenuecat" | "stub";
 
-export type RevenueCatProductIdStored = "monthly" | "monthly_2" | "monthly_3" | null;
+// Derived from the single product→plan map so it always covers both the test
+// and production identifiers without manual upkeep.
+export type RevenueCatProductIdStored = RevenueCatProductId | null;
 
 // Billing fields on profiles/{uid}. Server-written only — the client never
 // writes to profiles; firestore.rules blocks create/update/delete and only

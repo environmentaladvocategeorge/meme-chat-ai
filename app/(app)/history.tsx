@@ -1,3 +1,4 @@
+import { AdBanner } from "@/components/ads/AdBanner";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { AppHeader } from "@/components/AppHeader";
 import { SegmentedControl } from "@/components/SegmentedControl";
@@ -262,6 +263,9 @@ export default function HistoryScreen() {
           value={sort}
           onChange={setSort}
         />
+
+        {/* Free-tier ad banner — hidden for Pro (any paid plan). */}
+        <AdBanner />
       </View>
 
       <SectionList<ConversationSummary, HistorySection>

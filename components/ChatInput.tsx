@@ -14,6 +14,7 @@
 //     in a much larger composer surface for longer messages.
 //   - Focus state fades in a soft brand-gradient glow ring around the pill.
 
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import {
@@ -478,6 +479,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         snapPoints={snapPoints}
         enablePanDownToClose
         backdropComponent={renderBackdrop}
+        // On wide screens (iPad) cap the sheet to the same content column as
+        // the rest of the app and center it, instead of stretching edge-to-edge.
+        containerStyle={{ alignItems: "center" }}
+        style={{ width: "100%", maxWidth: MAX_CONTENT_WIDTH }}
         backgroundStyle={{ backgroundColor: theme["--color-card"] }}
         handleIndicatorStyle={{
           backgroundColor: theme["--color-foreground-muted"],

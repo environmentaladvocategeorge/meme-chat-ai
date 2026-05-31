@@ -276,6 +276,10 @@ export function subscribeToConversations(
   );
 }
 
+// Cap the live listener to the most recent N messages so the snapshot callback
+// cost stays bounded regardless of how long a conversation runs.
+const MESSAGES_LIVE_LIMIT = 100;
+
 export function subscribeToMessages(
   conversationId: string,
   cb: (messages: StoredChatMessage[]) => void,
@@ -284,6 +288,7 @@ export function subscribeToMessages(
   const messagesQuery = query(
     collection(db, "conversations", conversationId, "messages"),
     orderBy("createdAt", "asc"),
+    limit(MESSAGES_LIVE_LIMIT),
   );
 
   return onSnapshot(

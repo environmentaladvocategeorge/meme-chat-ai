@@ -6,7 +6,12 @@ import { useAuthStore } from "@/store/auth";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { Linking, Pressable, View } from "react-native";
+
+const PRIVACY_URL = "https://meme-chat-ai.com/privacy";
+// Apple's Standard EULA — the app doesn't ship a custom one.
+const TERMS_URL =
+  "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 
 function errorKey(error: RegisterEmailError) {
   switch (error) {
@@ -97,6 +102,62 @@ export default function EmailRegisterScreen() {
               {t("auth.haveAccount")}
             </Typography>
           </Pressable>
+
+          {/* Legal consent — Apple requires the EULA/Terms and Privacy Policy
+              to be available at account creation. */}
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 4,
+              paddingHorizontal: 8,
+            }}
+          >
+            <Typography
+              variant="caption"
+              style={{ color: "rgba(255,255,255,0.7)", textAlign: "center" }}
+            >
+              {t("auth.legalConsent.prefix")}
+            </Typography>
+            <Pressable
+              onPress={() => void Linking.openURL(TERMS_URL)}
+              hitSlop={6}
+            >
+              <Typography
+                variant="caption"
+                style={{
+                  color: "#FFFFFF",
+                  fontWeight: "600",
+                  textDecorationLine: "underline",
+                }}
+              >
+                {t("auth.legalConsent.terms")}
+              </Typography>
+            </Pressable>
+            <Typography
+              variant="caption"
+              style={{ color: "rgba(255,255,255,0.7)" }}
+            >
+              {t("auth.legalConsent.and")}
+            </Typography>
+            <Pressable
+              onPress={() => void Linking.openURL(PRIVACY_URL)}
+              hitSlop={6}
+            >
+              <Typography
+                variant="caption"
+                style={{
+                  color: "#FFFFFF",
+                  fontWeight: "600",
+                  textDecorationLine: "underline",
+                }}
+              >
+                {t("auth.legalConsent.privacy")}
+              </Typography>
+            </Pressable>
+          </View>
         </View>
       </View>
     </AuthScaffold>

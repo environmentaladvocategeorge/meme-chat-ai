@@ -8,6 +8,7 @@ import {
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
 } from "@/domain/customization";
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { useTheme } from "@/hooks/useTheme";
 import { useChatCustomizationSheetStore } from "@/store/chatCustomizationSheet";
 import { useSettingsStore } from "@/store/settings";
@@ -92,6 +93,11 @@ export function ChatCustomizationSheet() {
       <BottomSheetScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{
+          // The sheet itself is full-width; on wide screens (iPad) constrain
+          // and center the content to the same column as the rest of the app.
+          width: "100%",
+          maxWidth: MAX_CONTENT_WIDTH,
+          alignSelf: "center",
           paddingHorizontal: 24,
           paddingTop: 6,
           paddingBottom: insets.bottom + 32,

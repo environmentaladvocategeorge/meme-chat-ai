@@ -55,6 +55,12 @@ const en = {
     submitSignUp: "Sign up",
     haveAccount: "Have an account? Sign in",
     needAccount: "New here? Create an account",
+    legalConsent: {
+      prefix: "By creating an account, you agree to our",
+      terms: "Terms of Use (EULA)",
+      and: "and",
+      privacy: "Privacy Policy",
+    },
     errors: {
       invalidEmail: "That email address looks wrong.",
       weakPassword: "Use at least 8 characters.",
@@ -368,7 +374,7 @@ const en = {
     rot: {
       button: "Rot Level",
       title: "How rotted should replies be?",
-      subtitle: "Pick the chaos level — you can change it anytime.",
+      subtitle: "Pick the chaos level. You can always change it.",
       done: "Done",
       defaultBadge: "default",
       // Spoken to screen readers as the selected tone card, e.g.
@@ -519,6 +525,7 @@ const en = {
         chats: "Chats",
         memory: "Memory",
         customization: "App themes",
+        adFree: "Ad-free",
       },
       featureValues: {
         chats: {
@@ -534,6 +541,12 @@ const en = {
           power: "XL",
         },
         customization: {
+          free: "—",
+          basic: "✓",
+          plus: "✓",
+          power: "✓",
+        },
+        adFree: {
           free: "—",
           basic: "✓",
           plus: "✓",
@@ -562,9 +575,9 @@ const en = {
       },
       planBullets: {
         free: ["The real, full-personality Brainrot Bot", "A taste each day"],
-        basic: ["9× more chats", "Same smart Brainrot Bot", "App customization"],
-        plus: ["25× more chats", "Remembers more of your chats", "App customization", "Great all-rounder"],
-        power: ["50× more chats", "Longest memory", "App customization", "Most meme-power"],
+        basic: ["9× more chats", "Same smart Brainrot Bot", "App customization", "Ad-free"],
+        plus: ["25× more chats", "Remembers more of your chats", "App customization", "Ad-free", "Great all-rounder"],
+        power: ["50× more chats", "Longest memory", "App customization", "Ad-free", "Most meme-power"],
       },
       planHeadlineFeature: {
         free: "Full Brainrot Bot",
@@ -576,6 +589,10 @@ const en = {
       upgradeCta: "Pick this plan",
       currentCta: "You're here",
       paywallNote: "Cancel anytime in the App Store.",
+      restorePurchases: "Restore Purchases",
+      restoreSuccess: "Your subscription has been restored.",
+      restoreNone: "No active subscription found.",
+      restoreFailed: "Restore failed. Please try again.",
       avatarSpeech: "Wanna meme harder?",
     },
     customization: {
@@ -617,6 +634,7 @@ const en = {
     about: {
       support: "Support",
       privacy: "Privacy Policy",
+      terms: "Terms of Use (EULA)",
       openFailed: "We couldn't open that link.",
     },
     signOut: "Sign out",
@@ -635,9 +653,22 @@ const en = {
       appleManaged: "Your account is managed through Sign in with Apple.",
     },
     sections: {
+      personalization: "Personalization",
       loginSecurity: "Login & security",
       session: "Session",
       dangerZone: "Danger zone",
+    },
+    changeName: {
+      title: "Nickname",
+      rowLabel: "Set nickname",
+      rowLabelWithName: "Nickname: {{name}}",
+      inputLabel: "What should the bot call you?",
+      placeholder: "Your name or nickname",
+      save: "Save nickname",
+      error: "Couldn't save your nickname. Please try again.",
+      successTitle: "Nickname updated",
+      successBody: "The bot will now call you {{name}}.",
+      successBodyCleared: "Nickname cleared.",
     },
     changeEmail: {
       rowLabel: "Change email",
@@ -736,6 +767,10 @@ const en = {
         generic: "We couldn't delete your account. Please try again.",
       },
     },
+  },
+
+  ads: {
+    placeholder: "Ad placeholder",
   },
 };
 

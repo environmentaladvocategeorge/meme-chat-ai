@@ -56,6 +56,12 @@ const es = {
     submitSignUp: "Registrarse",
     haveAccount: "¿Ya tienes cuenta? Inicia sesión",
     needAccount: "¿Eres nuevo? Crea una cuenta",
+    legalConsent: {
+      prefix: "Al crear una cuenta, aceptas nuestros",
+      terms: "Términos de uso (EULA)",
+      and: "y la",
+      privacy: "Política de privacidad",
+    },
     errors: {
       invalidEmail: "Ese correo electrónico no es válido.",
       weakPassword: "Usa al menos 8 caracteres.",
@@ -370,7 +376,7 @@ const es = {
     rot: {
       button: "Nivel de Rot",
       title: "¿Qué tan rotted deben ser las respuestas?",
-      subtitle: "Elige tu nivel de caos — puedes cambiarlo cuando quieras.",
+      subtitle: "Elige tu nivel de caos. Puedes cambiarlo cuando quieras.",
       done: "Listo",
       defaultBadge: "por defecto",
       a11yValue: "Nivel {{level}} de 3, {{name}}",
@@ -517,6 +523,7 @@ const es = {
         chats: "Chats",
         memory: "Memoria",
         customization: "Temas",
+        adFree: "Sin anuncios",
       },
       featureValues: {
         chats: {
@@ -532,6 +539,12 @@ const es = {
           power: "XL",
         },
         customization: {
+          free: "—",
+          basic: "✓",
+          plus: "✓",
+          power: "✓",
+        },
+        adFree: {
           free: "—",
           basic: "✓",
           plus: "✓",
@@ -560,9 +573,9 @@ const es = {
       },
       planBullets: {
         free: ["El Brainrot Bot real, con toda su personalidad", "Un poco cada día"],
-        basic: ["9× más chats", "El mismo Brainrot Bot listo", "Personalización de la app"],
-        plus: ["25× más chats", "Recuerda más de tus chats", "Personalización de la app", "El más equilibrado"],
-        power: ["50× más chats", "Memoria al tope", "Personalización de la app", "Máximo meme-power"],
+        basic: ["9× más chats", "El mismo Brainrot Bot listo", "Personalización de la app", "Sin anuncios"],
+        plus: ["25× más chats", "Recuerda más de tus chats", "Personalización de la app", "Sin anuncios", "El más equilibrado"],
+        power: ["50× más chats", "Memoria al tope", "Personalización de la app", "Sin anuncios", "Máximo meme-power"],
       },
       planHeadlineFeature: {
         free: "Brainrot Bot completo",
@@ -574,6 +587,10 @@ const es = {
       upgradeCta: "Elegir este plan",
       currentCta: "Estás aquí",
       paywallNote: "Cancela cuando quieras desde la App Store.",
+      restorePurchases: "Restaurar compras",
+      restoreSuccess: "Tu suscripción ha sido restaurada.",
+      restoreNone: "No se encontró ninguna suscripción activa.",
+      restoreFailed: "Error al restaurar. Inténtalo de nuevo.",
       avatarSpeech: "¿Quieres memear más?",
     },
     customization: {
@@ -615,6 +632,7 @@ const es = {
     about: {
       support: "Soporte",
       privacy: "Política de privacidad",
+      terms: "Términos de uso (EULA)",
       openFailed: "No pudimos abrir ese enlace.",
     },
     signOut: "Cerrar sesión",
@@ -633,9 +651,22 @@ const es = {
       appleManaged: "Tu cuenta se gestiona a través de Iniciar sesión con Apple.",
     },
     sections: {
+      personalization: "Personalización",
       loginSecurity: "Inicio de sesión y seguridad",
       session: "Sesión",
       dangerZone: "Zona de peligro",
+    },
+    changeName: {
+      title: "Apodo",
+      rowLabel: "Establecer apodo",
+      rowLabelWithName: "Apodo: {{name}}",
+      inputLabel: "¿Cómo te llama el bot?",
+      placeholder: "Tu nombre o apodo",
+      save: "Guardar apodo",
+      error: "No se pudo guardar el apodo. Inténtalo de nuevo.",
+      successTitle: "Apodo actualizado",
+      successBody: "El bot ahora te llamará {{name}}.",
+      successBodyCleared: "Apodo eliminado.",
     },
     changeEmail: {
       rowLabel: "Cambiar correo",
@@ -736,6 +767,10 @@ const es = {
         generic: "No pudimos eliminar tu cuenta. Inténtalo de nuevo.",
       },
     },
+  },
+
+  ads: {
+    placeholder: "Marcador de anuncio",
   },
 };
 

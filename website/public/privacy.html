@@ -80,10 +80,11 @@
 
       <ul class="meta">
         <li><strong>App:</strong> MeMe Chat AI</li>
-        <li><strong>Effective date:</strong> May 29, 2026</li>
+        <li><strong>Effective date:</strong> May 30, 2026</li>
+        <li><strong>Applies to app version:</strong> 1.0.0</li>
         <li><strong>Applies to:</strong> the MeMe Chat AI mobile app (iOS and Android), its backend services, and this website at https://meme-chat-ai.com</li>
         <li><strong>Minimum age:</strong> 16 and older</li>
-        <li><strong>Contact:</strong> <a href="mailto:hobbydexsupport@gmail.com">hobbydexsupport@gmail.com</a></li>
+        <li><strong>Contact:</strong> <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a></li>
       </ul>
 
       <p class="lead">
@@ -93,8 +94,9 @@
         and the meme/GIF images involved in a chat — are sent to OpenAI to
         generate replies and are stored in our Firebase backend; meme and GIF
         media come from Klipy; and subscriptions run through RevenueCat with the
-        app stores. We do not sell your personal information, and the current
-        version of the app does not use advertising, third-party analytics,
+        app stores. Free users see ads served by Google AdMob (we request
+        non-personalized ads); paid plans are ad-free. We do not sell your
+        personal information, and the app does not use third-party analytics,
         crash-reporting SDKs, attribution SDKs, or cross-app tracking.
       </p>
 
@@ -116,13 +118,15 @@
         <li><strong>OpenAI</strong> — generates AI chat replies, conversation titles, and conversation summaries. <strong>The App sends OpenAI both text and image inputs</strong> (see Sections 5 and 6).</li>
         <li><strong>Klipy</strong> — supplies trending meme and GIF media and powers meme/GIF search.</li>
         <li><strong>RevenueCat</strong> — manages subscriptions and entitlements (with Apple App Store and Google Play as the payment rails).</li>
+        <li><strong>Google AdMob</strong> — shows ads (and, where used, rewarded ads) to free users; paid plans are ad-free.</li>
       </ul>
       <p>
-        <strong>We do not sell your personal information.</strong> Based on the
-        current version of the App, we do not use advertising networks,
-        third-party analytics SDKs, crash-reporting SDKs, attribution SDKs, or
-        cross-app tracking. Backend logs and diagnostics are still processed by
-        Firebase / Google Cloud as part of running the service (see Section 13).
+        <strong>We do not sell your personal information.</strong> Free users
+        see ads served by Google AdMob, for which we request non-personalized
+        ads (see Section 14); paid plans are ad-free. Aside from AdMob, we do not
+        use third-party analytics SDKs, crash-reporting SDKs, attribution SDKs,
+        or cross-app tracking. Backend logs and diagnostics are still processed
+        by Firebase / Google Cloud as part of running the service (see Section 13).
       </p>
       <div class="callout">
         <strong>Chat content and meme/GIF images may be processed by OpenAI.</strong>
@@ -216,8 +220,13 @@
             <td>Our support inbox</td>
           </tr>
           <tr>
+            <td>Advertising data (free users)</td>
+            <td>IP address, device information, advertising or app identifiers (where available and permitted), coarse location derived from IP, ad interactions, and diagnostics — used to serve non-personalized ads; paid plans are ad-free</td>
+            <td>Google AdMob; see Section 14</td>
+          </tr>
+          <tr>
             <td><strong>Not collected (current version)</strong></td>
-            <td>No microphone, precise location, contacts, calendar; no file or audio uploads; no ad/analytics/crash/attribution SDKs; no IDFA/GAID; no cross-app tracking</td>
+            <td>No microphone, precise location, contacts, calendar; no file or audio uploads; no third-party analytics, crash-reporting, or attribution SDKs; no cross-app tracking (free users do see ads via Google AdMob — see Section 14)</td>
             <td>&mdash;</td>
           </tr>
         </tbody>
@@ -584,18 +593,41 @@
       <!-- ===================================================== -->
       <h2>14. Analytics, ads, and tracking</h2>
       <p>
-        Based on the current version of the App, we do <strong>not</strong> use
-        Google Analytics or Firebase Analytics, Crashlytics, Sentry, advertising
-        SDKs or ad networks, attribution SDKs, App Tracking Transparency / IDFA
-        / GAID, or any cross-app tracking. The only internal events we record
-        are our own usage events and server logs, used for app functionality,
-        billing, security, rate limiting, and debugging.
+        <strong>Ads.</strong> The App shows ads to free users through Google
+        AdMob, and requests non-personalized ads where supported. Paid plans are
+        ad-free. The App may also use rewarded ads for optional features —
+        rewarded ads let you choose to watch or interact with an ad in exchange
+        for an in-app reward — though rewarded ads are not shown in the current
+        version.
+      </p>
+      <p>Ad providers may process information such as:</p>
+      <ul>
+        <li>IP address</li>
+        <li>Device information</li>
+        <li>Advertising or app identifiers, where available and permitted</li>
+        <li>Coarse location derived from technical information such as IP address</li>
+        <li>Ad interactions</li>
+        <li>App interactions related to ad delivery</li>
+        <li>Video views</li>
+        <li>Reward completion events</li>
+        <li>Diagnostics and performance information</li>
+        <li>Fraud-prevention and frequency-capping information</li>
+      </ul>
+      <p>
+        Non-personalized ads are not based on your past behavior, but they may
+        still use contextual information, general location, device information,
+        and technical data for ad delivery and measurement. Where required by law
+        or platform rules, we or our ad partners may ask for consent before using
+        certain identifiers or ad technologies.
       </p>
       <p>
-        We do not use your data for third-party advertising or cross-app
-        tracking in the current version. Note that while there is no third-party
-        crash/analytics SDK in the App, backend logs and diagnostics are still
-        processed by Firebase / Google Cloud as part of running the service.
+        Aside from Google AdMob, and based on the current version of the App, we
+        do <strong>not</strong> use Google Analytics or Firebase Analytics,
+        Crashlytics, Sentry, attribution SDKs, or any cross-app tracking. The
+        only internal events we record are our own usage events and server logs,
+        used for app functionality, billing, security, rate limiting, and
+        debugging. Backend logs and diagnostics are still processed by Firebase /
+        Google Cloud as part of running the service.
       </p>
 
       <!-- ===================================================== -->
@@ -608,6 +640,7 @@
         <li>store and show your conversation history, ratings, and personalization;</li>
         <li>show, search, attach, and let you download trending meme and GIF media;</li>
         <li>manage subscriptions, entitlements, and credits;</li>
+        <li>show ads to free users through Google AdMob (paid plans are ad-free);</li>
         <li>meter usage and prevent abuse (including rate limiting and fraud prevention);</li>
         <li>operate, debug, secure, and improve the App; and</li>
         <li>comply with legal obligations and respond to your support requests.</li>
@@ -621,9 +654,10 @@
         <li><strong>Firebase / Google Cloud</strong> — account, database, and backend processing.</li>
         <li><strong>Klipy</strong> — meme/GIF media requests, including your UID as <code>customer_id</code> and any search query (typed or AI-generated).</li>
         <li><strong>RevenueCat, Apple, and Google</strong> — purchase and subscription processing.</li>
+        <li><strong>Google AdMob</strong> — ad requests and the technical / ad-delivery information listed in Section 14, for ads shown to free users.</li>
         <li><strong>Legal/safety</strong> — where required by law, to enforce our terms, or to protect users and the service.</li>
       </ul>
-      <p>We do not sell your personal information, and we do not share it for third-party advertising or cross-app tracking.</p>
+      <p>We do not sell your personal information. Free users see non-personalized ads through Google AdMob as described in Section 14; we do not otherwise share your data for cross-app tracking.</p>
 
       <!-- ===================================================== -->
       <h2>17. Security</h2>
@@ -643,7 +677,7 @@
         anyone under the minimum age. The App uses a date-of-birth age gate to
         enforce this (see Section 4). If you believe someone under the minimum
         age has provided us personal information, contact us at
-        <a href="mailto:hobbydexsupport@gmail.com">hobbydexsupport@gmail.com</a> and we will take
+        <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a> and we will take
         appropriate steps.
       </p>
 
@@ -715,7 +749,7 @@
         <li>manage or cancel subscriptions through your App Store or Google Play subscription settings;</li>
         <li>delete local app data (including the age-gate record) by deleting the App;</li>
         <li>choose not to enter sensitive content into chats; and</li>
-        <li>contact us at <a href="mailto:hobbydexsupport@gmail.com">hobbydexsupport@gmail.com</a> with any privacy request.</li>
+        <li>contact us at <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a> with any privacy request.</li>
       </ul>
       <p>
         Depending on where you live, you may also have the right to request
@@ -750,12 +784,15 @@
           <tr><td>Photos or videos</td><td>Photos you take or choose to attach to a message are uploaded and sent to OpenAI. (Separately, the App saves watermarked memes/GIFs to your gallery via add/save access and does not otherwise read your library.)</td><td>Yes</td><td>App functionality (chat attachments)</td></tr>
           <tr><td>Coarse location</td><td>Locale/country code (not collected as device location)</td><td>&mdash;</td><td>Meme/GIF localization</td></tr>
           <tr><td>Notifications</td><td>Permission requested; no push token collected in the current version</td><td>&mdash;</td><td>&mdash;</td></tr>
-          <tr><td>Data used to track you</td><td>None identified in the current version</td><td>&mdash;</td><td>&mdash;</td></tr>
+          <tr><td>Advertising data (free users)</td><td>IP address, device info, advertising/app identifiers where available, coarse location from IP, ad interactions, and diagnostics — processed by Google AdMob for non-personalized ads; paid plans are ad-free</td><td>Yes</td><td>Third-party advertising (Google AdMob)</td></tr>
+          <tr><td>Data used to track you</td><td>None identified in the current version (AdMob requests are for non-personalized ads and are not used for cross-app tracking)</td><td>&mdash;</td><td>&mdash;</td></tr>
         </tbody>
       </table>
       <p>
-        No IDFA/GAID, App Tracking Transparency prompt, ad SDK, or cross-app
-        tracking is present in the current version.
+        Free users see ads through Google AdMob, which requests non-personalized
+        ads and may process advertising or app identifiers where available and
+        permitted (see Section 14). The App does not present an App Tracking
+        Transparency prompt or use cross-app tracking in the current version.
       </p>
 
       <!-- ===================================================== -->
@@ -780,7 +817,7 @@
       <h2>25. Contact</h2>
       <p>
         Questions or privacy requests? Email
-        <a href="mailto:hobbydexsupport@gmail.com">hobbydexsupport@gmail.com</a>.
+        <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a>.
       </p>
       <p>Jorge Jimenez</p>
 

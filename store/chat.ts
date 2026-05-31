@@ -108,6 +108,32 @@ type ChatState = {
 let unsubscribeMessages: (() => void) | null = null;
 let optimisticCounter = 0;
 
+// Delta batching — accumulate SSE token chunks and flush once per animation
+// frame instead of calling set() on every individual token. Reduces re-renders
+// from ~800 per response down to ~10, keeping the JS thread free for touches.
+let deltaBuffer = "";
+let deltaRafId: ReturnType<typeof requestAnimationFrame> | null = null;
+
+function flushDeltaBuffer(
+  set: (partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)) => void,
+) {
+  if (deltaBuffer.length === 0) return;
+  const chunk = deltaBuffer;
+  deltaBuffer = "";
+  deltaRafId = null;
+  set((state: ChatState) => ({
+    streamingText: `${state.streamingText}${chunk}`,
+  }));
+}
+
+function cancelDeltaFlush() {
+  if (deltaRafId !== null) {
+    cancelAnimationFrame(deltaRafId);
+    deltaRafId = null;
+  }
+  deltaBuffer = "";
+}
+
 function createClientMessageId() {
   optimisticCounter += 1;
   return [
@@ -264,9 +290,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         }
 
         if (event.type === "delta") {
-          set((state) => ({
-            streamingText: `${state.streamingText}${event.text}`,
-          }));
+          deltaBuffer += event.text;
+          if (deltaRafId === null) {
+            deltaRafId = requestAnimationFrame(() => flushDeltaBuffer(set));
+          }
           continue;
         }
 
@@ -304,6 +331,20 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         if (event.type === "error") {
           throw new Error(event.code);
         }
+      }
+
+      // Flush any buffered delta tokens synchronously before reading the
+      // final text — the RAF may not have fired yet if the stream ended fast.
+      if (deltaRafId !== null) {
+        cancelAnimationFrame(deltaRafId);
+        deltaRafId = null;
+      }
+      if (deltaBuffer.length > 0) {
+        const remaining = deltaBuffer;
+        deltaBuffer = "";
+        set((state: ChatState) => ({
+          streamingText: `${state.streamingText}${remaining}`,
+        }));
       }
 
       const finalText = get().streamingText;
@@ -365,6 +406,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         }));
       }
     } catch (error) {
+      cancelDeltaFlush();
+
       if (controller.signal.aborted) {
         set({
           streamingText: "",

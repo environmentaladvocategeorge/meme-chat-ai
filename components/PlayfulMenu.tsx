@@ -6,6 +6,7 @@
 // in sync without a parent/child relationship.
 
 import { MENU_BUTTON_SIZE } from "@/components/MenuButton";
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { Typography } from "@/components/Typography";
 import { gradients, themes } from "@/nativewind-theme";
 import { useMenuStore } from "@/store/menu";
@@ -128,29 +129,42 @@ export function PlayfulMenu() {
         ]}
       />
 
+      {/* Full-screen centering layer so the backdrop can dim edge-to-edge while
+          the pills stay confined to (and left-aligned within) the same content
+          column as the header — keeping them under the menu button on iPad. */}
       <View
         pointerEvents="box-none"
         style={{
           position: "absolute",
           top: insets.top + MENU_BUTTON_SIZE + 22,
-          left: 16,
-          right: 16,
-          gap: ITEM_GAP,
+          left: 0,
+          right: 0,
+          alignItems: "center",
         }}
       >
-        {ITEMS.map((item, index) => (
-          <MenuPill
-            key={item.key}
-            index={index}
-            progress={progress}
-            isActive={item.key === activeKey}
-            label={t(item.labelKey)}
-            Icon={item.Icon}
-            onPress={() => handleNavigate(item)}
-            theme={theme}
-            gradient={primaryGradient}
-          />
-        ))}
+        <View
+          pointerEvents="box-none"
+          style={{
+            width: "100%",
+            maxWidth: MAX_CONTENT_WIDTH,
+            paddingHorizontal: 16,
+            gap: ITEM_GAP,
+          }}
+        >
+          {ITEMS.map((item, index) => (
+            <MenuPill
+              key={item.key}
+              index={index}
+              progress={progress}
+              isActive={item.key === activeKey}
+              label={t(item.labelKey)}
+              Icon={item.Icon}
+              onPress={() => handleNavigate(item)}
+              theme={theme}
+              gradient={primaryGradient}
+            />
+          ))}
+        </View>
       </View>
     </View>
   );

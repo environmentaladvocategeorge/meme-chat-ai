@@ -36,6 +36,9 @@ export type AssembledContext = {
 
 export type AssembleArgs = {
   systemPrompt?: string;
+  // User's display alias injected as a second system message so the main
+  // system prompt stays cacheable (identical prefix for all users).
+  userAlias?: string | null;
   summary?: string | null;
   recent: ChatMessage[]; // ordered oldest → newest, already filtered to status: complete
   currentText: string;
@@ -144,6 +147,14 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
 
   const build = (recentSlice: ChatMessage[]): OpenAIMessage[] => {
     const out: OpenAIMessage[] = [{ role: "system", content: systemPrompt }];
+    // Alias injected as a second system message so the main prompt prefix
+    // stays cacheable — the large static prompt is the same for every user.
+    if (args.userAlias) {
+      out.push({
+        role: "system",
+        content: `The user's name is ${args.userAlias}. Use it naturally when it fits the conversation.`,
+      });
+    }
     if (summaryUsed) {
       out.push({
         role: "system",
@@ -237,6 +248,7 @@ export type AssembleContextArgs = {
   // for the model before assembly.
   currentGif?: MessageGif;
   systemPrompt?: string;
+  userAlias?: string | null;
 };
 
 export async function assembleContext(args: AssembleContextArgs): Promise<AssembledContext> {
@@ -292,6 +304,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
   const planCfg = PLANS[args.plan];
   return assembleFromInputs({
     systemPrompt: args.systemPrompt,
+    userAlias: args.userAlias,
     summary,
     recent,
     currentText: args.currentUserMessage,

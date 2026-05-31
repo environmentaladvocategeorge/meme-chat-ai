@@ -1,3 +1,5 @@
+import Constants from "expo-constants";
+import { AdBanner } from "@/components/ads/AdBanner";
 import { AppCustomizationSection } from "@/components/AppCustomizationSection";
 import { AppHeader } from "@/components/AppHeader";
 import { SegmentedControl } from "@/components/SegmentedControl";
@@ -17,6 +19,7 @@ import {
   ArrowSquareOut,
   BellRinging,
   CaretRight,
+  FileText,
   Lifebuoy,
   ShieldCheck,
   UserCircle,
@@ -28,6 +31,9 @@ import type { IconProps } from "phosphor-react-native";
 
 const SUPPORT_URL = "https://meme-chat-ai.com/support";
 const PRIVACY_URL = "https://meme-chat-ai.com/privacy";
+// Apple's Standard EULA — used because the app doesn't ship a custom EULA.
+const TERMS_URL =
+  "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 
 // A tappable settings row that opens an external URL. Mirrors the plan card's
 // treatment, with a leading icon and a trailing "external link" glyph.
@@ -337,7 +343,15 @@ export default function SettingsScreen() {
             label={t("settings.about.privacy")}
             onPress={() => void openUrl(PRIVACY_URL)}
           />
+          <LinkRow
+            icon={FileText}
+            label={t("settings.about.terms")}
+            onPress={() => void openUrl(TERMS_URL)}
+          />
         </View>
+
+        {/* Free-tier ad banner — hidden for Pro (any paid plan). */}
+        <AdBanner />
 
         <Typography
           variant="caption"
@@ -347,7 +361,7 @@ export default function SettingsScreen() {
             marginTop: 4,
           }}
         >
-          {t("common.appName")}
+          {`v${Constants.expoConfig?.version ?? ""}`}
         </Typography>
       </ScrollView>
     </View>

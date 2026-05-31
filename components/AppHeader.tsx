@@ -38,14 +38,15 @@ export function AppHeader({
   return (
     <View
       style={{
-        // The safe-area top inset reserves room for the status bar, but
-        // the status bar glyphs only occupy a thin band at its very top —
-        // the remainder reads as empty space above the button. So we keep
-        // the top padding tight (small +2 on top of the inset) and add
-        // matching breathing room below so the button looks optically
-        // centered within the visible header rather than shoved against
-        // the card's lower edge.
-        paddingTop: insets.top + 2,
+        // The safe-area top inset reserves room for the status bar / Dynamic
+        // Island. Keeping the buttons hard against that boundary backfires:
+        // their hitSlop (8px) extends the *touch* target back up into the
+        // OS-reserved strip, where iOS swallows taps (status-bar scroll-to-top
+        // / Island exclusion) — so the top of the button reads as a dead zone.
+        // We add enough clearance below the inset that the whole touch target,
+        // hitSlop included, sits below the boundary, with matching room below
+        // so the button still looks optically centered in the header.
+        paddingTop: insets.top + 12,
         paddingBottom: 16,
         paddingHorizontal: 16,
         backgroundColor: theme["--color-card"],
@@ -56,7 +57,6 @@ export function AppHeader({
         shadowRadius: 12,
         shadowOffset: { width: 0, height: 4 },
         elevation: 3,
-        overflow: "hidden",
       }}
     >
       {/* Title row: button on the left, title flex-centered in the middle,

@@ -3,7 +3,9 @@
 // switch the active view in place — so the whole account flow surfaces as a
 // paywall-style bottom sheet instead of pushing full-screen stack pages.
 
+import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { AccountHubContent } from "@/components/account/AccountHubContent";
+import { ChangeNameForm } from "@/components/account/ChangeNameForm";
 import { ChangeEmailForm } from "@/components/account/ChangeEmailForm";
 import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
@@ -38,7 +40,7 @@ export function AccountSheet() {
   const sheetRef = useRef<BottomSheetModal>(null);
   // The hub is short; the forms are taller (and rise with the keyboard).
   const snapPoints = useMemo(
-    () => (view === "hub" ? ["72%"] : ["92%"]),
+    () => (view === "hub" ? ["85%"] : ["92%"]),
     [view],
   );
 
@@ -62,6 +64,7 @@ export function AccountSheet() {
 
   const titles: Record<AccountSheetView, string> = {
     hub: t("account.title"),
+    "change-name": t("account.changeName.title"),
     "change-email": t("account.changeEmail.title"),
     "change-password": t("account.changePassword.title"),
     "reset-password": t("account.resetPassword.title"),
@@ -105,7 +108,16 @@ export function AccountSheet() {
         backgroundColor: theme["--color-border"],
       }}
     >
-      <View style={{ flex: 1 }}>
+      {/* The sheet itself is full-width; on wide screens (iPad) constrain and
+          center the content to the same column as the rest of the app. */}
+      <View
+        style={{
+          flex: 1,
+          width: "100%",
+          maxWidth: MAX_CONTENT_WIDTH,
+          alignSelf: "center",
+        }}
+      >
         {/* Header: back (non-hub) / title / close, each in a fixed-width slot
             so the title stays centered. */}
         <View
@@ -163,6 +175,9 @@ export function AccountSheet() {
 
         {view === "hub" ? (
           <AccountHubContent onSelect={navigate} onClose={close} />
+        ) : null}
+        {view === "change-name" ? (
+          <ChangeNameForm onDone={() => navigate("hub")} />
         ) : null}
         {view === "change-email" ? (
           <ChangeEmailForm onDone={() => navigate("hub")} />

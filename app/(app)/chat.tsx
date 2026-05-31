@@ -1,7 +1,6 @@
+import { AdBanner } from "@/components/ads/AdBanner";
 import { AppHeader } from "@/components/AppHeader";
-import {
-  AttachmentViewerProvider,
-} from "@/components/AttachmentViewer";
+import { AttachmentViewerProvider } from "@/components/AttachmentViewer";
 import { ChatInput, type ChatInputRef } from "@/components/ChatInput";
 import { buildVisibleMessages } from "@/components/chat/buildVisibleMessages";
 import {
@@ -29,12 +28,12 @@ import {
 import { QuotaModal } from "@/components/chat/QuotaModal";
 import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
-import {
-  UsageLimitBlock,
-  UsageNudge,
-} from "@/components/chat/UsageNotices";
+import { UsageLimitBlock, UsageNudge } from "@/components/chat/UsageNotices";
 import { MemeAvatar } from "@/components/MemeAvatar";
-import { RotLevelSheet, type RotLevelSheetRef } from "@/components/RotLevelSheet";
+import {
+  RotLevelSheet,
+  type RotLevelSheetRef,
+} from "@/components/RotLevelSheet";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import {
   trendingGifToMessageGif,
@@ -47,10 +46,7 @@ import {
   type MessageImage,
   type TrendingMeme,
 } from "@/domain/memes";
-import {
-  computeUsageState,
-  type UsageState,
-} from "@/domain/usage";
+import { computeUsageState, type UsageState } from "@/domain/usage";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useKlipy } from "@/hooks/useKlipy";
 import { useKlipyGifs } from "@/hooks/useKlipyGifs";
@@ -60,13 +56,7 @@ import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
@@ -430,17 +420,26 @@ export default function ChatScreen() {
     if (uploadingImage) return;
     Keyboard.dismiss();
     applyPickers(dismissPickers());
-    Alert.alert(t("chat.photo.title", { defaultValue: "Add a photo" }), undefined, [
-      {
-        text: t("chat.photo.camera", { defaultValue: "Take Photo" }),
-        onPress: () => void stageUploadedPhoto("camera"),
-      },
-      {
-        text: t("chat.photo.library", { defaultValue: "Choose from Library" }),
-        onPress: () => void stageUploadedPhoto("library"),
-      },
-      { text: t("common.cancel", { defaultValue: "Cancel" }), style: "cancel" },
-    ]);
+    Alert.alert(
+      t("chat.photo.title", { defaultValue: "Add a photo" }),
+      undefined,
+      [
+        {
+          text: t("chat.photo.camera", { defaultValue: "Take Photo" }),
+          onPress: () => void stageUploadedPhoto("camera"),
+        },
+        {
+          text: t("chat.photo.library", {
+            defaultValue: "Choose from Library",
+          }),
+          onPress: () => void stageUploadedPhoto("library"),
+        },
+        {
+          text: t("common.cancel", { defaultValue: "Cancel" }),
+          style: "cancel",
+        },
+      ],
+    );
   }, [uploadingImage, stageUploadedPhoto, t]);
 
   // Drives the cross-fade when starting a new chat: fade the current thread
@@ -489,278 +488,294 @@ export default function ChatScreen() {
 
   return (
     <ChatToneContext.Provider value={chatThemeContext}>
-    <AttachmentViewerProvider>
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={{
-        flex: 1,
-        backgroundColor:
-          chatBackground.kind === "solid"
-            ? (chatBackground.color ?? theme["--color-background"])
-            : theme["--color-background"],
-      }}
-    >
-      {chatBackground.kind === "gradient" && chatBackground.gradientColors ? (
-        // Custom gradient background sits behind the whole thread. Rendered as
-        // an absolute-fill sibling before the in-flow content so the header,
-        // message list, and composer all paint on top of it.
-        <LinearGradient
-          colors={chatBackground.gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-          pointerEvents="none"
-        />
-      ) : null}
-
-      <AppHeader
-        title={t("chat.title")}
-        right={
-          canStartNew ? (
-            <Animated.View entering={FadeIn.duration(220)}>
-              <NewConversationButton
-                label={t("chat.newConversation")}
-                onPress={handleNewConversation}
-              />
-            </Animated.View>
-          ) : undefined
-        }
-      />
-
-      <BubbleGradientContext.Provider value={bubbleGradient}>
-        <View style={{ flex: 1 }}>
-        <Animated.FlatList
-          style={[contentFadeStyle, { flex: 1 }]}
-          inverted
-          data={visibleMessages}
-          keyExtractor={messageKey}
-          keyboardShouldPersistTaps="handled"
-          onScroll={scrollHandler}
-          scrollEventThrottle={16}
-          onContentSizeChange={bumpGradient}
-          onMomentumScrollEnd={bumpGradient}
-          contentContainerStyle={{
-            flexGrow: 1,
-            justifyContent:
-              visibleMessages.length === 0 ? "center" : "flex-start",
-            paddingHorizontal: 18,
-            paddingTop: 16,
-            paddingBottom: 18,
-            gap: 10,
+      <AttachmentViewerProvider>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={{
+            flex: 1,
+            backgroundColor:
+              chatBackground.kind === "solid"
+                ? (chatBackground.color ?? theme["--color-background"])
+                : theme["--color-background"],
           }}
-          ListEmptyComponent={
-            // The FlatList is `inverted`, which applies a vertical flip to ALL
-            // its content — including this empty component. We counter it with
-            // the inverse transform so it reads right-side up. While loading we
-            // show the playful loader instead of the (premature) empty state.
-            areaLoading ? (
-              <ChatLoading label={t("chat.loading")} />
-            ) : (
-              <EmptyChatState
-                onStarterPress={handleStarterPress}
-                atLimit={atLimit}
-              />
-            )
-          }
-          renderItem={({ item }) => (
-            <MessageBubble
-              message={item}
-              retryLabel={t("common.retry")}
-              errorLabel={t("chat.errors.generic")}
-              thinkingLabel={thinkingLabel}
-              onRetry={handleRetry}
-              onRate={rateMessage}
+        >
+          {chatBackground.kind === "gradient" &&
+          chatBackground.gradientColors ? (
+            // Custom gradient background sits behind the whole thread. Rendered as
+            // an absolute-fill sibling before the in-flow content so the header,
+            // message list, and composer all paint on top of it.
+            <LinearGradient
+              colors={chatBackground.gradientColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
+              style={StyleSheet.absoluteFillObject}
+              pointerEvents="none"
             />
-          )}
-        />
-        {/* While a picker is open, a transparent layer over the thread turns a
+          ) : null}
+
+          <AppHeader
+            title={t("chat.title")}
+            right={
+              canStartNew ? (
+                <Animated.View entering={FadeIn.duration(220)}>
+                  <NewConversationButton
+                    label={t("chat.newConversation")}
+                    onPress={handleNewConversation}
+                  />
+                </Animated.View>
+              ) : undefined
+            }
+          />
+
+          {/* Free-tier ad banner — sits under the header so it stays put while the
+          composer + keyboard move. Hidden for Pro (any paid plan). */}
+          <AdBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
+
+          <BubbleGradientContext.Provider value={bubbleGradient}>
+            <View style={{ flex: 1 }}>
+              <Animated.FlatList
+                style={[contentFadeStyle, { flex: 1 }]}
+                inverted
+                data={visibleMessages}
+                keyExtractor={messageKey}
+                keyboardShouldPersistTaps="handled"
+                onScroll={scrollHandler}
+                scrollEventThrottle={16}
+                onContentSizeChange={bumpGradient}
+                onMomentumScrollEnd={bumpGradient}
+                contentContainerStyle={{
+                  flexGrow: 1,
+                  justifyContent:
+                    visibleMessages.length === 0 ? "center" : "flex-start",
+                  paddingHorizontal: 18,
+                  paddingTop: 16,
+                  paddingBottom: 18,
+                  gap: 10,
+                }}
+                ListEmptyComponent={
+                  // The FlatList is `inverted`, which applies a vertical flip to ALL
+                  // its content — including this empty component. We counter it with
+                  // the inverse transform so it reads right-side up. While loading we
+                  // show the playful loader instead of the (premature) empty state.
+                  areaLoading ? (
+                    <ChatLoading label={t("chat.loading")} />
+                  ) : (
+                    <EmptyChatState
+                      onStarterPress={handleStarterPress}
+                      atLimit={atLimit}
+                    />
+                  )
+                }
+                renderItem={({ item }) => (
+                  <MessageBubble
+                    message={item}
+                    retryLabel={t("common.retry")}
+                    errorLabel={t("chat.errors.generic")}
+                    thinkingLabel={thinkingLabel}
+                    onRetry={handleRetry}
+                    onRate={rateMessage}
+                  />
+                )}
+              />
+              {/* While a picker is open, a transparent layer over the thread turns a
             tap on the conversation into "dismiss the picker" — the same
             tap-away gesture that closes a keyboard. Only mounted when open, so
             it never intercepts normal scrolling or message taps otherwise. */}
-        {anyPickerOpen({ memesOpen, gifsOpen }) ? (
-          <Pressable
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            onPress={() => applyPickers(dismissPickers())}
-            style={StyleSheet.absoluteFill}
-          />
-        ) : null}
-        </View>
-      </BubbleGradientContext.Provider>
+              {anyPickerOpen({ memesOpen, gifsOpen }) ? (
+                <Pressable
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                  onPress={() => applyPickers(dismissPickers())}
+                  style={StyleSheet.absoluteFill}
+                />
+              ) : null}
+            </View>
+          </BubbleGradientContext.Provider>
 
-      <View
-        style={{
-          paddingHorizontal: 16,
-          paddingTop: 8,
-          paddingBottom: Math.max(insets.bottom, 12),
-        }}
-      >
-        {!entitlementReady ? (
-          // Don't render the composer OR the upgrade block until we know the
-          // usage state — showing either would flicker into the other.
-          <Animated.View
-            entering={FadeIn.duration(220)}
+          <View
             style={{
-              height: 52,
-              alignItems: "center",
-              justifyContent: "center",
+              paddingHorizontal: 16,
+              paddingTop: 8,
+              paddingBottom: Math.max(insets.bottom, 12),
             }}
           >
-            <MemeAvatar variant="loading" size={36} pulse />
-          </Animated.View>
-        ) : atLimit && usage ? (
-          // 100% of the binding allowance is spent: the composer is replaced
-          // by an upgrade prompt so the user can't keep typing into a wall.
-          <Animated.View entering={FadeIn.duration(220)}>
-            <UsageLimitBlock
-              usage={usage}
-              isTopTier={isTopTier}
-              onUpgrade={openPlan}
-            />
-          </Animated.View>
-        ) : (
-          <Animated.View entering={FadeIn.duration(220)}>
-            {nearLimit && usage ? (
-              <UsageNudge
-                usage={usage}
-                isTopTier={isTopTier}
-                onUpgrade={openPlan}
-              />
-            ) : null}
-            <CollapsiblePicker open={memesOpen}>
-              <View style={{ paddingBottom: 8 }}>
-                <TrendingMemeStrip
-                  items={klipy.memes}
-                  loading={klipy.loading}
-                  loadingMore={klipy.loadingMore}
-                  error={klipy.error}
-                  hasNext={klipy.hasNext}
-                  mode={klipy.mode}
-                  searching={klipy.searching}
-                  query={klipy.query}
-                  onChangeQuery={klipy.setQuery}
-                  onClearSearch={klipy.clearSearch}
-                  onEndReached={klipy.loadMore}
-                  onRetry={klipy.retry}
-                  onSelectItem={handleSelectMeme}
-                  labels={{
-                    searchPlaceholder: t("chat.memes.searchPlaceholder"),
-                    empty: t("chat.memes.empty"),
-                    noResults: t("chat.memes.noResults"),
-                    error: t("chat.memes.error"),
-                    retry: t("chat.memes.retry"),
-                  }}
+            {!entitlementReady ? (
+              // Don't render the composer OR the upgrade block until we know the
+              // usage state — showing either would flicker into the other.
+              <Animated.View
+                entering={FadeIn.duration(220)}
+                style={{
+                  height: 52,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <MemeAvatar variant="loading" size={36} pulse />
+              </Animated.View>
+            ) : atLimit && usage ? (
+              // 100% of the binding allowance is spent: the composer is replaced
+              // by an upgrade prompt so the user can't keep typing into a wall.
+              <Animated.View entering={FadeIn.duration(220)}>
+                <UsageLimitBlock
+                  usage={usage}
+                  isTopTier={isTopTier}
+                  onUpgrade={openPlan}
                 />
-              </View>
-            </CollapsiblePicker>
-            <CollapsiblePicker open={gifsOpen}>
-              <View style={{ paddingBottom: 8 }}>
-                <TrendingMemeStrip
-                  items={klipyGifs.gifs}
-                  loading={klipyGifs.loading}
-                  loadingMore={klipyGifs.loadingMore}
-                  error={klipyGifs.error}
-                  hasNext={klipyGifs.hasNext}
-                  mode={klipyGifs.mode}
-                  searching={klipyGifs.searching}
-                  query={klipyGifs.query}
-                  onChangeQuery={klipyGifs.setQuery}
-                  onClearSearch={klipyGifs.clearSearch}
-                  onEndReached={klipyGifs.loadMore}
-                  onRetry={klipyGifs.retry}
-                  onSelectItem={handleSelectGif}
-                  animated
-                  labels={{
-                    searchPlaceholder: t("chat.gifs.searchPlaceholder"),
-                    empty: t("chat.gifs.empty"),
-                    noResults: t("chat.gifs.noResults"),
-                    error: t("chat.gifs.error"),
-                    retry: t("chat.gifs.retry"),
-                  }}
+              </Animated.View>
+            ) : (
+              <Animated.View entering={FadeIn.duration(220)}>
+                {nearLimit && usage ? (
+                  <UsageNudge
+                    usage={usage}
+                    isTopTier={isTopTier}
+                    onUpgrade={openPlan}
+                  />
+                ) : null}
+                <CollapsiblePicker open={memesOpen}>
+                  <View style={{ paddingBottom: 8 }}>
+                    <TrendingMemeStrip
+                      items={klipy.memes}
+                      loading={klipy.loading}
+                      loadingMore={klipy.loadingMore}
+                      error={klipy.error}
+                      hasNext={klipy.hasNext}
+                      mode={klipy.mode}
+                      searching={klipy.searching}
+                      query={klipy.query}
+                      onChangeQuery={klipy.setQuery}
+                      onClearSearch={klipy.clearSearch}
+                      onEndReached={klipy.loadMore}
+                      onRetry={klipy.retry}
+                      onSelectItem={handleSelectMeme}
+                      labels={{
+                        searchPlaceholder: t("chat.memes.searchPlaceholder"),
+                        empty: t("chat.memes.empty"),
+                        noResults: t("chat.memes.noResults"),
+                        error: t("chat.memes.error"),
+                        retry: t("chat.memes.retry"),
+                      }}
+                    />
+                  </View>
+                </CollapsiblePicker>
+                <CollapsiblePicker open={gifsOpen}>
+                  <View style={{ paddingBottom: 8 }}>
+                    <TrendingMemeStrip
+                      items={klipyGifs.gifs}
+                      loading={klipyGifs.loading}
+                      loadingMore={klipyGifs.loadingMore}
+                      error={klipyGifs.error}
+                      hasNext={klipyGifs.hasNext}
+                      mode={klipyGifs.mode}
+                      searching={klipyGifs.searching}
+                      query={klipyGifs.query}
+                      onChangeQuery={klipyGifs.setQuery}
+                      onClearSearch={klipyGifs.clearSearch}
+                      onEndReached={klipyGifs.loadMore}
+                      onRetry={klipyGifs.retry}
+                      onSelectItem={handleSelectGif}
+                      animated
+                      labels={{
+                        searchPlaceholder: t("chat.gifs.searchPlaceholder"),
+                        empty: t("chat.gifs.empty"),
+                        noResults: t("chat.gifs.noResults"),
+                        error: t("chat.gifs.error"),
+                        retry: t("chat.gifs.retry"),
+                      }}
+                    />
+                  </View>
+                </CollapsiblePicker>
+                <CollapsiblePicker
+                  open={
+                    stagedImages.length > 0 || stagedGif !== null || maxNotice
+                  }
+                >
+                  <StagedAttachmentTray
+                    images={stagedImages}
+                    gif={stagedGif}
+                    showMaxNotice={maxNotice}
+                    onRemove={handleRemoveStagedImage}
+                    onRemoveGif={handleRemoveStagedGif}
+                  />
+                </CollapsiblePicker>
+                <ChatInput
+                  ref={chatInputRef}
+                  value={draft}
+                  onChangeText={setDraft}
+                  onSend={handleSubmit}
+                  onCancel={cancelStreaming}
+                  onFocus={() => applyPickers(dismissPickers())}
+                  streaming={status === "streaming"}
+                  hasAttachments={stagedImages.length > 0 || stagedGif !== null}
+                  placeholder={t("chat.input.placeholder")}
+                  sendAccessibilityLabel={t("chat.send")}
+                  cancelAccessibilityLabel={t("chat.cancel")}
+                  expandAccessibilityLabel={t("chat.expand")}
+                  collapseAccessibilityLabel={t("chat.collapse")}
                 />
-              </View>
-            </CollapsiblePicker>
-            <CollapsiblePicker
-              open={
-                stagedImages.length > 0 || stagedGif !== null || maxNotice
-              }
-            >
-              <StagedAttachmentTray
-                images={stagedImages}
-                gif={stagedGif}
-                showMaxNotice={maxNotice}
-                onRemove={handleRemoveStagedImage}
-                onRemoveGif={handleRemoveStagedGif}
-              />
-            </CollapsiblePicker>
-            <ChatInput
-              ref={chatInputRef}
-              value={draft}
-              onChangeText={setDraft}
-              onSend={handleSubmit}
-              onCancel={cancelStreaming}
-              onFocus={() => applyPickers(dismissPickers())}
-              streaming={status === "streaming"}
-              hasAttachments={stagedImages.length > 0 || stagedGif !== null}
-              placeholder={t("chat.input.placeholder")}
-              sendAccessibilityLabel={t("chat.send")}
-              cancelAccessibilityLabel={t("chat.cancel")}
-              expandAccessibilityLabel={t("chat.expand")}
-              collapseAccessibilityLabel={t("chat.collapse")}
-            />
-            {/* Composer accessory row. The chips grow to fill the width
+                {/* Composer accessory row. The chips grow to fill the width
                 evenly when they fit, and the row scrolls horizontally rather
                 than cropping a label when they don't (narrow screens / long
                 locales). */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              style={{ marginTop: 8 }}
-              contentContainerStyle={{
-                flexGrow: 1,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <PhotoButton
-                label={t("chat.photo.button", { defaultValue: "Add a photo" })}
-                busy={uploadingImage}
-                onPress={handleAddPhoto}
-              />
-              <GifToggleButton
-                label={gifsOpen ? t("chat.gifs.keyboard") : t("chat.gifs.button")}
-                open={gifsOpen}
-                onPress={handleToggleGifs}
-              />
-              <MemeToggleButton
-                label={
-                  memesOpen ? t("chat.memes.keyboard") : t("chat.memes.button")
-                }
-                open={memesOpen}
-                onPress={handleToggleMemes}
-              />
-              <RotLevelButton
-                label={t("chat.rot.button")}
-                level={rotLevel}
-                onPress={handleOpenRot}
-              />
-            </ScrollView>
-          </Animated.View>
-        )}
-      </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  style={{ marginTop: 8, marginHorizontal: -16 }}
+                  contentContainerStyle={{
+                    flexGrow: 1,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    paddingHorizontal: 16,
+                  }}
+                >
+                  <PhotoButton
+                    label={t("chat.photo.button", {
+                      defaultValue: "Add a photo",
+                    })}
+                    busy={uploadingImage}
+                    onPress={handleAddPhoto}
+                  />
+                  <GifToggleButton
+                    label={
+                      gifsOpen ? t("chat.gifs.keyboard") : t("chat.gifs.button")
+                    }
+                    open={gifsOpen}
+                    onPress={handleToggleGifs}
+                  />
+                  <MemeToggleButton
+                    label={
+                      memesOpen
+                        ? t("chat.memes.keyboard")
+                        : t("chat.memes.button")
+                    }
+                    open={memesOpen}
+                    onPress={handleToggleMemes}
+                  />
+                  <RotLevelButton
+                    label={t("chat.rot.button")}
+                    level={rotLevel}
+                    onPress={handleOpenRot}
+                  />
+                </ScrollView>
+              </Animated.View>
+            )}
+          </View>
 
-      <QuotaModal
-        quota={quota}
-        isTopTier={isTopTier}
-        onUpgrade={openPlan}
-        onDismiss={dismissQuota}
-      />
+          <QuotaModal
+            quota={quota}
+            isTopTier={isTopTier}
+            onUpgrade={openPlan}
+            onDismiss={dismissQuota}
+          />
 
-      <RotLevelSheet ref={rotSheetRef} level={rotLevel} onChange={setRotLevel} />
-    </KeyboardAvoidingView>
-    </AttachmentViewerProvider>
+          <RotLevelSheet
+            ref={rotSheetRef}
+            level={rotLevel}
+            onChange={setRotLevel}
+          />
+        </KeyboardAvoidingView>
+      </AttachmentViewerProvider>
     </ChatToneContext.Provider>
   );
 }

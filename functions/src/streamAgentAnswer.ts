@@ -258,6 +258,7 @@ export const streamAgentAnswer = onRequest(
         currentImageUrls,
         currentGif,
         systemPrompt,
+        userAlias: entitlement.alias,
       });
     } catch (err) {
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });

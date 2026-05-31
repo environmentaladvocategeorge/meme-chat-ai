@@ -6,7 +6,8 @@ import {
 } from "@/components/account/parts";
 import { type AccountSheetView } from "@/store/accountSheet";
 import { useAuthStore } from "@/store/auth";
-import { Envelope, Key, Lock, SignOut, Trash } from "phosphor-react-native";
+import { useSettingsStore } from "@/store/settings";
+import { Envelope, Key, Lock, SignOut, Smiley, Trash } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { Alert, View } from "react-native";
 
@@ -21,6 +22,7 @@ export function AccountHubContent({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
+  const alias = useSettingsStore((s) => s.alias);
   const providers = useAuthStore((s) => s.providers);
   const signOut = useAuthStore((s) => s.signOut);
   const hasPasswordProvider = providers.some(
@@ -49,6 +51,20 @@ export function AccountHubContent({
   return (
     <AccountBody>
       <IdentityCard />
+
+      {/* Personalization */}
+      <View style={{ gap: 10 }}>
+        <SectionHeader title={t("account.sections.personalization")} />
+        <ActionRow
+          icon={Smiley}
+          label={
+            alias.trim().length > 0
+              ? t("account.changeName.rowLabelWithName", { name: alias.trim() })
+              : t("account.changeName.rowLabel")
+          }
+          onPress={() => onSelect("change-name")}
+        />
+      </View>
 
       {/* Login & security — only meaningful for password accounts. Apple
           accounts have no app-managed password to rotate. */}
