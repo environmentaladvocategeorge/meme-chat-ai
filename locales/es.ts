@@ -165,7 +165,7 @@ const es = {
     // Paso 5 — Captura opcional del nombre
     name: {
       title: "¿cómo quieres que Brainrot Bot te llame?",
-      placeholder: "gng, amenaza, Jorge, lo que sea",
+      placeholder: "gng, amenaza, rey, lo que sea",
       microcopy: "Solo para la vibra del chat. Nada de comportamiento de LinkedIn aquí.",
       cta: "fijar el nombre",
       skip: "saltar, sigo siendo un misterio",

@@ -30,10 +30,6 @@ import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
 import { UsageLimitBlock, UsageNudge } from "@/components/chat/UsageNotices";
 import { MemeAvatar } from "@/components/MemeAvatar";
-import {
-  RotLevelSheet,
-  type RotLevelSheetRef,
-} from "@/components/RotLevelSheet";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import {
   trendingGifToMessageGif,
@@ -54,6 +50,7 @@ import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { ChatToneContext } from "@/hooks/useTheme";
 import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
+import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -96,7 +93,6 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState("");
   const [memesOpen, setMemesOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
-  const rotSheetRef = useRef<RotLevelSheetRef>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
   // Memes the user has staged but not yet sent. Sent as multimodal image
   // inputs; capped at MAX_MESSAGE_IMAGES (the backend re-enforces the cap).
@@ -119,9 +115,10 @@ export default function ChatScreen() {
   const klipyGifs = useKlipyGifs({ perPage: 24, enabled: gifsOpen });
   const conversationId = useChatStore((s) => s.conversationId);
   // Brainrot intensity dial. Sticky and persisted in the chat store, applied to
-  // every turn; defaults to "Rotted". Edited via the RotLevelSheet below.
+  // every turn; defaults to "Rotted". Edited via the RotLevelSheet (mounted in
+  // the root layout, opened here through useRotLevelSheetStore).
   const rotLevel = useChatStore((s) => s.rotLevel);
-  const setRotLevel = useChatStore((s) => s.setRotLevel);
+  const openRotSheet = useRotLevelSheetStore((s) => s.open);
   const hydrateSession = useChatStore((s) => s.hydrateSession);
   const messages = useChatStore((s) => s.messages);
   const streamingText = useChatStore((s) => s.streamingText);
@@ -328,7 +325,7 @@ export default function ChatScreen() {
   const handleOpenRot = () => {
     Keyboard.dismiss();
     applyPickers(dismissPickers());
-    rotSheetRef.current?.present();
+    openRotSheet();
   };
 
   const flashMaxNotice = useCallback(() => {
@@ -767,12 +764,6 @@ export default function ChatScreen() {
             isTopTier={isTopTier}
             onUpgrade={openPlan}
             onDismiss={dismissQuota}
-          />
-
-          <RotLevelSheet
-            ref={rotSheetRef}
-            level={rotLevel}
-            onChange={setRotLevel}
           />
         </KeyboardAvoidingView>
       </AttachmentViewerProvider>

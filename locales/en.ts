@@ -164,7 +164,7 @@ const en = {
     // Step 5 — Optional name capture
     name: {
       title: "what should Brainrot Bot call you?",
-      placeholder: "gng, menace, Jorge, whatever",
+      placeholder: "gng, menace, king, whatever",
       microcopy: "Used for chat vibes only. No LinkedIn behavior here.",
       cta: "lock in the name",
       skip: "skip, remain mysterious",

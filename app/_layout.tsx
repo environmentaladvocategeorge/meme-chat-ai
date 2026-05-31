@@ -2,6 +2,7 @@ import { MemeAvatar } from "@/components/MemeAvatar";
 import { AccountSheet } from "@/components/AccountSheet";
 import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
 import { PlanSheet } from "@/components/PlanSheet";
+import { RotLevelSheet } from "@/components/RotLevelSheet";
 import { Typography } from "@/components/Typography";
 import { initializeMobileAds } from "@/domain/ads/mobileAds";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
@@ -217,6 +218,7 @@ export default function RootLayout() {
             <PlanSheet />
             <ChatCustomizationSheet />
             <AccountSheet />
+            <RotLevelSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

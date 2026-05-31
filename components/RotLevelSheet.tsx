@@ -5,25 +5,23 @@
 // pop. A live preview answers one fixed question in the selected tone inside
 // a subtle chat-background container. The sheet is dismissed by swiping down
 // or tapping the backdrop — no Done button needed.
+//
+// Mounted once at the root layout (outside the iPad content column) and driven
+// by useRotLevelSheetStore, so the sheet spans the full screen width and stays
+// centered on wide screens. The composer's RotLevelButton opens it via open().
 
 import { useTheme } from "@/hooks/useTheme";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { Typography } from "@/components/Typography";
+import { useChatStore } from "@/store/chat";
+import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import {
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
 import Animated, {
@@ -36,16 +34,6 @@ import Animated, {
   withSpring,
   withTiming,
 } from "react-native-reanimated";
-
-export type RotLevelSheetRef = {
-  present: () => void;
-  dismiss: () => void;
-};
-
-interface RotLevelSheetProps {
-  level: number;
-  onChange: (level: number) => void;
-}
 
 type RotLevelConfig = {
   level: number;
@@ -141,75 +129,77 @@ function ToneCard({
   );
 }
 
-export const RotLevelSheet = forwardRef<RotLevelSheetRef, RotLevelSheetProps>(
-  function RotLevelSheet({ level, onChange }, ref) {
-    const { t } = useTranslation();
-    const theme = useTheme();
-    const reduceMotion = useReducedMotion();
+export function RotLevelSheet() {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const reduceMotion = useReducedMotion();
 
-    const sheetRef = useRef<BottomSheetModal>(null);
-    const snapPoints = useMemo(() => ["52%"], []);
+  const isOpen = useRotLevelSheetStore((s) => s.isOpen);
+  const close = useRotLevelSheetStore((s) => s.close);
+  const level = useChatStore((s) => s.rotLevel);
+  const setRotLevel = useChatStore((s) => s.setRotLevel);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        present: () => sheetRef.current?.present(),
-        dismiss: () => sheetRef.current?.dismiss(),
-      }),
-      [],
-    );
+  const sheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["52%"], []);
 
-    const [selected, setSelected] = useState(clampLevel(level));
+  useEffect(() => {
+    if (isOpen) sheetRef.current?.present();
+    else sheetRef.current?.dismiss();
+  }, [isOpen]);
 
-    useEffect(() => {
-      setSelected(clampLevel(level));
-    }, [level]);
+  const [selected, setSelected] = useState(clampLevel(level));
 
-    const handleSelect = useCallback(
-      (next: number) => {
-        const clamped = clampLevel(next);
-        setSelected(clamped);
-        onChange(clamped);
-      },
-      [onChange],
-    );
+  useEffect(() => {
+    setSelected(clampLevel(level));
+  }, [level]);
 
-    const renderBackdrop = useCallback(
-      (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop
-          {...props}
-          appearsOnIndex={0}
-          disappearsOnIndex={-1}
-          opacity={0.5}
-          pressBehavior="close"
-        />
-      ),
-      [],
-    );
+  const handleSelect = useCallback(
+    (next: number) => {
+      const clamped = clampLevel(next);
+      setSelected(clamped);
+      setRotLevel(clamped);
+    },
+    [setRotLevel],
+  );
 
-    const active = ROT_LEVELS[selected - 1] ?? ROT_LEVELS[1];
-    const levelReply = t(`chat.rot.levels.level${selected}.reply`);
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.5}
+        pressBehavior="close"
+      />
+    ),
+    [],
+  );
 
-    return (
-      <BottomSheetModal
-        ref={sheetRef}
-        snapPoints={snapPoints}
-        enableDynamicSizing={false}
-        enablePanDownToClose
-        backdropComponent={renderBackdrop}
-        backgroundStyle={{ backgroundColor: theme["--color-card"] }}
-        handleIndicatorStyle={{
-          backgroundColor: theme["--color-foreground-muted"],
-        }}
-      >
-        <BottomSheetView
-          // The sheet itself is full-width; on wide screens (iPad) constrain
-          // and center the content to the same column as the rest of the app.
+  const active = ROT_LEVELS[selected - 1] ?? ROT_LEVELS[1];
+  const levelReply = t(`chat.rot.levels.level${selected}.reply`);
+
+  return (
+    <BottomSheetModal
+      ref={sheetRef}
+      snapPoints={snapPoints}
+      enableDynamicSizing={false}
+      enablePanDownToClose
+      backdropComponent={renderBackdrop}
+      onDismiss={close}
+      backgroundStyle={{ backgroundColor: theme["--color-card"] }}
+      handleIndicatorStyle={{
+        backgroundColor: theme["--color-foreground-muted"],
+      }}
+    >
+      <BottomSheetView style={{ flex: 1, width: "100%", alignItems: "center" }}>
+        {/* The sheet itself is full-width; on wide screens (iPad) constrain and
+            center the content to the same column as the rest of the app,
+            matching the PlanSheet. */}
+        <View
           style={{
             flex: 1,
             width: "100%",
             maxWidth: MAX_CONTENT_WIDTH,
-            alignSelf: "center",
             paddingHorizontal: 20,
             paddingBottom: 24,
           }}
@@ -281,7 +271,9 @@ export const RotLevelSheet = forwardRef<RotLevelSheetRef, RotLevelSheetProps>(
               style={{ position: "absolute", left: 14, right: 14, top: 34 }}
             >
               {/* User prompt */}
-              <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+              <View
+                style={{ flexDirection: "row", justifyContent: "flex-end" }}
+              >
                 <View
                   style={{
                     maxWidth: "84%",
@@ -348,8 +340,8 @@ export const RotLevelSheet = forwardRef<RotLevelSheetRef, RotLevelSheetProps>(
               </View>
             </Animated.View>
           </View>
-        </BottomSheetView>
-      </BottomSheetModal>
-    );
-  },
-);
+        </View>
+      </BottomSheetView>
+    </BottomSheetModal>
+  );
+}
