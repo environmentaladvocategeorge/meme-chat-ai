@@ -1,11 +1,17 @@
 import {
-  BUBBLE_PRESETS,
+  addGradientPreset,
+  addSolidPreset,
   BACKGROUND_PRESETS,
   BACKGROUND_SURFACES,
   backgroundSwatches,
+  buildPickerGradientSwatches,
+  buildPickerSolidSwatches,
+  BUBBLE_PRESETS,
   bubbleSwatches,
   chatUiAccentTokens,
   CUSTOM_SWATCH_ID,
+  deleteGradientPreset,
+  deleteSolidPreset,
   isBackgroundId,
   isBubbleStyleId,
   isDarkColor,
@@ -14,6 +20,8 @@ import {
   normalizeHex,
   parseCustomColor,
   parseCustomGradient,
+  PICKER_GRADIENT_PRESETS,
+  PICKER_SOLID_PRESETS,
   readableGradientTextColor,
   readableTextColor,
   resolveBackground,
@@ -261,5 +269,143 @@ describe("swatch builders", () => {
     // for the violet family. (auto/custom are excluded from the sort.)
     expect(ids.indexOf("sky")).toBeLessThan(ids.indexOf("blue"));
     expect(ids.indexOf("lavender")).toBeLessThan(ids.indexOf("violet"));
+  });
+});
+
+// ---- Picker preset helpers ----
+
+describe("addSolidPreset", () => {
+  it("prepends a new hex", () => {
+    expect(addSolidPreset("#FF0000", [])).toEqual(["#FF0000"]);
+    expect(addSolidPreset("#FF0000", ["#00FF00"])).toEqual(["#FF0000", "#00FF00"]);
+  });
+
+  it("moves an existing hex to the front without duplicating it", () => {
+    expect(addSolidPreset("#FF0000", ["#00FF00", "#FF0000"])).toEqual([
+      "#FF0000",
+      "#00FF00",
+    ]);
+  });
+
+  it("does not mutate the existing array", () => {
+    const existing = ["#00FF00"];
+    addSolidPreset("#FF0000", existing);
+    expect(existing).toEqual(["#00FF00"]);
+  });
+});
+
+describe("deleteSolidPreset", () => {
+  it("removes the matching hex", () => {
+    expect(deleteSolidPreset("#FF0000", ["#FF0000", "#00FF00"])).toEqual([
+      "#00FF00",
+    ]);
+  });
+
+  it("returns the list unchanged when the hex is not present", () => {
+    expect(deleteSolidPreset("#0000FF", ["#FF0000", "#00FF00"])).toEqual([
+      "#FF0000",
+      "#00FF00",
+    ]);
+  });
+
+  it("handles an empty list", () => {
+    expect(deleteSolidPreset("#FF0000", [])).toEqual([]);
+  });
+});
+
+describe("addGradientPreset", () => {
+  const red = ["#FF0000", "#00FF00"];
+  const blue = ["#0000FF", "#FF00FF"];
+
+  it("prepends a new gradient", () => {
+    expect(addGradientPreset(red, [])).toEqual([red]);
+    expect(addGradientPreset(red, [blue])).toEqual([red, blue]);
+  });
+
+  it("moves an existing gradient to the front without duplicating it", () => {
+    expect(addGradientPreset(red, [blue, red])).toEqual([red, blue]);
+  });
+
+  it("does not mutate the existing array", () => {
+    const existing = [blue];
+    addGradientPreset(red, existing);
+    expect(existing).toEqual([blue]);
+  });
+});
+
+describe("deleteGradientPreset", () => {
+  const red = ["#FF0000", "#00FF00"];
+  const blue = ["#0000FF", "#FF00FF"];
+
+  it("removes the gradient matching the colon-joined key", () => {
+    expect(deleteGradientPreset(red.join(":"), [red, blue])).toEqual([blue]);
+  });
+
+  it("returns the list unchanged when no gradient matches", () => {
+    expect(deleteGradientPreset("#AAAAAA:#BBBBBB", [red, blue])).toEqual([
+      red,
+      blue,
+    ]);
+  });
+
+  it("handles an empty list", () => {
+    expect(deleteGradientPreset(red.join(":"), [])).toEqual([]);
+  });
+});
+
+describe("buildPickerSolidSwatches", () => {
+  it("puts user-saved presets before the built-ins", () => {
+    const swatches = buildPickerSolidSwatches(["#ABCDEF"]);
+    expect(swatches[0]).toBe("#ABCDEF");
+  });
+
+  it("includes all built-in presets when nothing is saved", () => {
+    const swatches = buildPickerSolidSwatches([]);
+    expect(swatches).toHaveLength(PICKER_SOLID_PRESETS.length);
+  });
+
+  it("deduplicates: a saved color that matches a built-in appears only once", () => {
+    const builtIn = normalizeHex(PICKER_SOLID_PRESETS[0])!;
+    const swatches = buildPickerSolidSwatches([builtIn]);
+    expect(swatches.filter((h) => h === builtIn)).toHaveLength(1);
+    expect(swatches[0]).toBe(builtIn);
+    // Total length stays the same as built-ins alone (no extra slot).
+    expect(swatches).toHaveLength(PICKER_SOLID_PRESETS.length);
+  });
+
+  it("a unique saved color extends the list by one", () => {
+    const swatches = buildPickerSolidSwatches(["#123456"]);
+    expect(swatches).toHaveLength(PICKER_SOLID_PRESETS.length + 1);
+  });
+});
+
+describe("buildPickerGradientSwatches", () => {
+  it("puts user-saved gradients before the built-ins", () => {
+    const g = ["#AABBCC", "#DDEEFF"];
+    const swatches = buildPickerGradientSwatches([g]);
+    expect(swatches[0]).toEqual(g);
+  });
+
+  it("includes all built-in gradient presets when nothing is saved", () => {
+    const swatches = buildPickerGradientSwatches([]);
+    expect(swatches).toHaveLength(PICKER_GRADIENT_PRESETS.length);
+  });
+
+  it("deduplicates: a saved gradient that matches a built-in appears only once", () => {
+    const [p0, p1] = PICKER_GRADIENT_PRESETS[0];
+    const builtIn = [normalizeHex(p0) ?? p0, normalizeHex(p1) ?? p1];
+    const swatches = buildPickerGradientSwatches([builtIn]);
+    const count = swatches.filter(
+      (g) => g.join(":") === builtIn.join(":"),
+    ).length;
+    expect(count).toBe(1);
+    expect(swatches[0]).toEqual(builtIn);
+    expect(swatches).toHaveLength(PICKER_GRADIENT_PRESETS.length);
+  });
+
+  it("a unique saved gradient extends the list by one", () => {
+    const g = ["#AABBCC", "#DDEEFF"];
+    const swatches = buildPickerGradientSwatches([g]);
+    expect(swatches).toHaveLength(PICKER_GRADIENT_PRESETS.length + 1);
   });
 });

@@ -19,6 +19,11 @@ export const streamAgentRequestSchema = z
     // Stored on the user turn for now; the agent prompt is unaffected. Defaults
     // to 2 ("Rotted") to match the client's default selection.
     levelOfRot: z.number().int().min(1).max(3).optional().default(2),
+    // The user's resolved app language (e.g. "en", "es"). The client resolves
+    // "system" to a concrete code before sending, so this is never "system".
+    // Folded into the per-user system message so the model knows which language
+    // to default to. Optional — omitted turns just skip the language hint.
+    language: z.string().trim().min(2).max(10).optional(),
   })
   .refine(
     (body) =>

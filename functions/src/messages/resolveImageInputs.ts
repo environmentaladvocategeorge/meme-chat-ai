@@ -140,6 +140,38 @@ export async function resolveImageInputs(
   return { ok: true, modelImageUrls };
 }
 
+// Resolves already-trusted stored images to model-ready URLs WITHOUT the
+// moderation gate. Used by turn replay: the attachments were moderated when the
+// user first sent them, so re-running the gate buys nothing — and worse, a rare
+// moderation false-positive would route into the rejection path and delete an
+// upload object that belongs to a persisted history message. This path only
+// downscales uploads (by Storage path, ownership re-checked in ingestUpload) and
+// passes klipy URLs through; it never deletes anything.
+export async function resolveTrustedImageInputs(
+  uid: string,
+  images: MessageImage[],
+): Promise<ResolveImageInputsResult> {
+  if (images.length === 0) return { ok: true, modelImageUrls: [] };
+
+  const modelImageUrls: string[] = [];
+  for (const image of images) {
+    if (image.source === "klipy") {
+      modelImageUrls.push(image.previewUrl);
+      continue;
+    }
+    try {
+      const modelCopy = await ingestUpload(uid, image);
+      modelImageUrls.push(toDataUrl(modelCopy));
+    } catch (err) {
+      logger.error("[resolveTrustedImageInputs] upload ingest failed", {
+        detail: err instanceof Error ? err.message : "unknown",
+      });
+      return { ok: false, reason: "ingest_failed" };
+    }
+  }
+  return { ok: true, modelImageUrls };
+}
+
 // Best-effort deletion of rejected/abandoned upload objects. Never throws.
 export async function deleteUploadObjects(paths: string[]): Promise<void> {
   await Promise.all(

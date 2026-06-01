@@ -5,8 +5,11 @@ import {
   subscribeToMessages,
   type StoredChatMessage,
 } from "@/services/firebase/conversations";
-import { streamAgentAnswer } from "@/services/firebase/streamAgent";
+import { streamAgentAnswer, streamReplayTurn } from "@/services/firebase/streamAgent";
+import { SessionExpiredError } from "@/services/firebase/sessionErrors";
 import { ChatSessionStorage, DEFAULT_ROT_LEVEL } from "@/store/storage";
+import { useSettingsStore } from "@/store/settings";
+import { resolveLanguage } from "@/i18n";
 import { create } from "zustand";
 
 export type MessageReaction = "up" | "down";
@@ -76,6 +79,12 @@ type ChatState = {
   // snapshot. This bridges the gap between `done` (sent before the backend
   // writes the final text) and the snapshot, so the reply never blinks out.
   settledReply: SettledReply | null;
+  // serverId of an agent reply currently being regenerated (turn replay). The
+  // backend deletes that doc shortly after the stream starts, but until the
+  // deletion reaches the live snapshot we hide it locally so the old reply
+  // doesn't flash back beneath the new streaming bubble. Cleared when the
+  // replay settles.
+  replacingServerId: string | null;
   // Internal model ID returned by the backend in the `model` SSE event
   // (e.g. "smart-nano", "smart-mini"). Cleared when streaming ends.
   currentModel: string | null;
@@ -91,6 +100,10 @@ type ChatState = {
     gif?: MessageGif | null,
     levelOfRot?: number,
   ) => Promise<void>;
+  // Regenerate an agent reply: delete it server-side and stream a fresh answer
+  // for the same user turn (with randomized sampling). `agentServerId` is the
+  // stored agent message's id. No-op while another turn is streaming.
+  replayTurn: (agentServerId: string) => Promise<void>;
   // Optimistically set/toggle a thumbs rating on an agent message, then persist
   // it. Tapping the already-active thumb clears the rating.
   rateMessage: (serverId: string, reaction: MessageReaction) => void;
@@ -149,6 +162,20 @@ function cleanupSubscription() {
   unsubscribeMessages = null;
 }
 
+// The stream reported a terminal auth failure (token rejected even after a
+// forced refresh, or the refresh token itself is dead). Retrying is pointless,
+// so hand off to the auth store to sign out — onAuthStateChanged then routes
+// the app to the sign-in screen. Imported lazily to avoid a static import cycle
+// (store/auth imports this chat store at module load).
+async function handleSessionExpired(): Promise<void> {
+  try {
+    const { useAuthStore } = await import("@/store/auth");
+    await useAuthStore.getState().signOut();
+  } catch (err) {
+    console.warn("[chat] session-expired sign-out failed:", err);
+  }
+}
+
 function fromStoredMessage(message: StoredChatMessage): ChatMessage {
   return {
     ...message,
@@ -163,7 +190,13 @@ function applySnapshotMessages(
   set: (partial: Partial<ChatState>) => void,
 ) {
   if (messages.length === 0 && get().status === "streaming") return;
-  const storedMessages = messages.map(fromStoredMessage);
+  // While a reply is being regenerated, hide its (soon-to-be-deleted) doc so it
+  // doesn't flash back beneath the new streaming bubble before the server-side
+  // deletion reaches this snapshot.
+  const replacingServerId = get().replacingServerId;
+  const storedMessages = messages
+    .filter((message) => message.id !== replacingServerId)
+    .map(fromStoredMessage);
   const storedClientMessageIds = new Set(
     storedMessages.flatMap((message) =>
       message.clientMessageId ? [message.clientMessageId] : [],
@@ -204,6 +237,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   streamingGif: null,
   activeReplyClientId: null,
   settledReply: null,
+  replacingServerId: null,
   currentModel: null,
   quota: null,
   status: "idle",
@@ -250,6 +284,11 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     }));
 
     try {
+      // Send the user's selected language resolved to a concrete code (never
+      // "system"): "system" maps to the device locale via resolveLanguage. The
+      // backend tells the model to default to it unless the user writes in
+      // another language.
+      const language = resolveLanguage(useSettingsStore.getState().language);
       for await (const event of streamAgentAnswer({
         message: trimmed,
         images,
@@ -257,6 +296,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         conversationId: get().conversationId,
         clientMessageId,
         levelOfRot,
+        language,
         signal: controller.signal,
       })) {
         if (event.type === "conversation") {
@@ -422,7 +462,207 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         return;
       }
 
+      if (error instanceof SessionExpiredError) {
+        // Terminal auth failure: the session is gone server-side. Clear the
+        // in-flight turn WITHOUT a retryable error bubble — replaying the same
+        // dead session is useless and misleading — and route to re-auth.
+        set({
+          streamingText: "",
+          streamingMeme: null,
+          streamingGif: null,
+          activeReplyClientId: null,
+          settledReply: null,
+          status: "idle",
+          abortController: null,
+          error: null,
+        });
+        void handleSessionExpired();
+        return;
+      }
+
       set({
+        streamingMeme: null,
+        streamingGif: null,
+        activeReplyClientId: null,
+        settledReply: null,
+        status: "error",
+        abortController: null,
+        error: error instanceof Error ? error.message : "generic",
+      });
+    }
+  },
+
+  replayTurn: async (agentServerId) => {
+    const conversationId = get().conversationId;
+    if (!conversationId || get().status === "streaming") return;
+
+    // Locate the reply being regenerated and the user turn it answers; the
+    // streaming bubble anchors to that user turn's clientMessageId, exactly like
+    // a fresh send.
+    const target = get().messages.find(
+      (message) => message.role === "agent" && message.serverId === agentServerId,
+    );
+    if (!target) return;
+    const replyClientId = target.inReplyToClientMessageId ?? null;
+
+    const controller = new AbortController();
+
+    // Optimistically drop the old reply and show the typing bubble in its place.
+    // `replacingServerId` keeps the snapshot from re-adding the old doc until the
+    // server-side deletion propagates.
+    set((state) => ({
+      messages: state.messages.filter(
+        (message) => message.serverId !== agentServerId,
+      ),
+      replacingServerId: agentServerId,
+      streamingText: "",
+      streamingMeme: null,
+      streamingGif: null,
+      activeReplyClientId: replyClientId,
+      settledReply: null,
+      currentModel: null,
+      quota: null,
+      status: "streaming",
+      abortController: controller,
+      error: null,
+    }));
+
+    try {
+      const language = resolveLanguage(useSettingsStore.getState().language);
+      for await (const event of streamReplayTurn({
+        conversationId,
+        agentMessageId: agentServerId,
+        language,
+        signal: controller.signal,
+      })) {
+        // No `conversation`/user `message` events on replay — the conversation
+        // and user turn already exist. Everything else mirrors a normal turn.
+        if (event.type === "model") {
+          set({ currentModel: event.id });
+          continue;
+        }
+
+        if (event.type === "delta") {
+          deltaBuffer += event.text;
+          if (deltaRafId === null) {
+            deltaRafId = requestAnimationFrame(() => flushDeltaBuffer(set));
+          }
+          continue;
+        }
+
+        if (event.type === "meme") {
+          set({ streamingMeme: event.image });
+          continue;
+        }
+
+        if (event.type === "gif") {
+          set({ streamingGif: event.gif });
+          continue;
+        }
+
+        if (event.type === "quota_exceeded") {
+          // Rejected before streaming. The old reply was only removed locally
+          // and is still in Firestore (nothing was deleted server-side), so
+          // clearing replacingServerId lets the snapshot restore it.
+          set({
+            quota: { reason: event.reason, resetAt: event.resetAt },
+            replacingServerId: null,
+            streamingText: "",
+            streamingMeme: null,
+            streamingGif: null,
+            activeReplyClientId: null,
+            settledReply: null,
+            status: "idle",
+            abortController: null,
+            currentModel: null,
+            error: null,
+          });
+          return;
+        }
+
+        if (event.type === "error") {
+          throw new Error(event.code);
+        }
+      }
+
+      if (deltaRafId !== null) {
+        cancelAnimationFrame(deltaRafId);
+        deltaRafId = null;
+      }
+      if (deltaBuffer.length > 0) {
+        const remaining = deltaBuffer;
+        deltaBuffer = "";
+        set((state: ChatState) => ({
+          streamingText: `${state.streamingText}${remaining}`,
+        }));
+      }
+
+      const finalText = get().streamingText;
+      const finalMeme = get().streamingMeme;
+      const finalGif = get().streamingGif;
+      const hasReply =
+        finalText.length > 0 || finalMeme !== null || finalGif !== null;
+      // Hand off to the settled-reply bridge keyed by the same user turn, so the
+      // regenerated bubble stays put until the new finalized message lands. The
+      // new doc has a fresh serverId, so we can stop hiding the old one.
+      set({
+        settledReply:
+          hasReply && replyClientId
+            ? {
+                clientMessageId: replyClientId,
+                text: finalText,
+                images: finalMeme ? [finalMeme] : undefined,
+                gifs: finalGif ? [finalGif] : undefined,
+              }
+            : null,
+        replacingServerId: null,
+        streamingText: "",
+        streamingMeme: null,
+        streamingGif: null,
+        activeReplyClientId: null,
+        currentModel: null,
+        status: "idle",
+        abortController: null,
+        error: null,
+      });
+    } catch (error) {
+      cancelDeltaFlush();
+
+      if (controller.signal.aborted) {
+        set({
+          replacingServerId: null,
+          streamingText: "",
+          streamingMeme: null,
+          streamingGif: null,
+          activeReplyClientId: null,
+          settledReply: null,
+          status: "idle",
+          abortController: null,
+          error: null,
+        });
+        return;
+      }
+
+      if (error instanceof SessionExpiredError) {
+        set({
+          replacingServerId: null,
+          streamingText: "",
+          streamingMeme: null,
+          streamingGif: null,
+          activeReplyClientId: null,
+          settledReply: null,
+          status: "idle",
+          abortController: null,
+          error: null,
+        });
+        void handleSessionExpired();
+        return;
+      }
+
+      // Generic failure: the old reply may already be gone server-side, so leave
+      // replacingServerId cleared and surface a retryable error bubble.
+      set({
+        replacingServerId: null,
         streamingMeme: null,
         streamingGif: null,
         activeReplyClientId: null,
@@ -479,6 +719,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       streamingGif: null,
       activeReplyClientId: null,
       settledReply: null,
+      replacingServerId: null,
       status: "idle",
       error: null,
     });
@@ -501,6 +742,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       streamingGif: null,
       activeReplyClientId: null,
       settledReply: null,
+      replacingServerId: null,
       status: "idle",
       abortController: null,
       error: null,
@@ -517,6 +759,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       streamingGif: null,
       activeReplyClientId: null,
       settledReply: null,
+      replacingServerId: null,
       currentModel: null,
     });
   },

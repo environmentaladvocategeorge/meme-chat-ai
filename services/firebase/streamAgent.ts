@@ -1,6 +1,43 @@
 import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
+import { SessionExpiredError } from "./sessionErrors";
+
+// Re-exported so existing importers can reach the error type via this module.
+export { SessionExpiredError } from "./sessionErrors";
+
+// A non-2xx HTTP response from the stream endpoint. The status is preserved so
+// the generator can tell an auth rejection (401) apart from everything else.
+class StreamHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`stream-failed-${status}`);
+    this.name = "StreamHttpError";
+  }
+}
+
+function isUnauthorized(err: unknown): err is StreamHttpError {
+  return err instanceof StreamHttpError && err.status === 401;
+}
+
+// Firebase Auth error codes that mean the local session is dead and cannot be
+// silently refreshed — the SDK can't mint a new ID token from this state, so
+// the only recovery is to sign in again.
+const TERMINAL_AUTH_ERROR_CODES = new Set([
+  "auth/user-token-expired",
+  "auth/user-disabled",
+  "auth/user-not-found",
+  "auth/invalid-user-token",
+  "auth/user-token-revoked",
+  "auth/requires-recent-login",
+]);
+
+function isTerminalAuthError(err: unknown): boolean {
+  if (err && typeof err === "object" && "code" in err) {
+    const code = (err as { code?: unknown }).code;
+    return typeof code === "string" && TERMINAL_AUTH_ERROR_CODES.has(code);
+  }
+  return false;
+}
 
 export type StreamEvent =
   | { type: "conversation"; id: string }
@@ -33,6 +70,10 @@ type StreamAgentAnswerParams = {
   // Brainrot intensity dial (1–3). Sent to the backend, which stores it on the
   // user turn. Omitted falls back to the backend default (2).
   levelOfRot?: number;
+  // The user's resolved app language code (e.g. "en", "es") — never "system".
+  // The backend folds it into the per-user system message so the model defaults
+  // to replying in this language.
+  language?: string;
   signal?: AbortSignal;
 };
 
@@ -189,10 +230,10 @@ function parseSSEFrame(frame: string): StreamEvent | null {
   return null;
 }
 
-function getFunctionUrl() {
+function getFunctionUrl(functionName: string) {
   const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
   if (!projectId) throw new Error("firebase-project-missing");
-  return `https://us-central1-${projectId}.cloudfunctions.net/streamAgentAnswer`;
+  return `https://us-central1-${projectId}.cloudfunctions.net/${functionName}`;
 }
 
 function makeStreamQueue() {
@@ -255,36 +296,24 @@ function makeStreamQueue() {
   };
 }
 
-export async function* streamAgentAnswer({
-  message,
-  images,
-  gif,
-  conversationId,
-  clientMessageId,
-  personaId,
-  levelOfRot,
-  signal,
-}: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
-  const firebase = getFirebaseServices();
-  if (!firebase.available) throw new Error("firebase-unavailable");
+type StreamAttempt = {
+  queue: ReturnType<typeof makeStreamQueue>;
+  // Tears down this attempt's XHR + listeners. Safe to call repeatedly and
+  // after the attempt has already settled (no-op in that case).
+  abort: () => void;
+};
 
-  const user = firebase.services.auth.currentUser;
-  if (!user) throw new Error("signed-out");
-
-  const idToken = await user.getIdToken();
+// Fires a single POST to the stream endpoint with the given token and surfaces
+// its SSE frames through a queue. The generator below owns retry/refresh logic;
+// this just runs one attempt's transport.
+function startStreamAttempt(
+  url: string,
+  idToken: string,
+  body: string,
+  signal: AbortSignal | undefined,
+): StreamAttempt {
   const queue = makeStreamQueue();
   const xhr = new XMLHttpRequest();
-  const body = JSON.stringify({
-    message,
-    // Only include `images` / `gifs` when present, so text-only payloads stay
-    // byte-identical to the pre-attachment format (backend defaults to []).
-    images: images && images.length > 0 ? images : undefined,
-    gifs: gif ? [gif] : undefined,
-    conversationId: conversationId ?? undefined,
-    clientMessageId,
-    personaId: personaId ?? undefined,
-    levelOfRot,
-  });
   let buffer = "";
   let seenLength = 0;
   let completed = false;
@@ -331,7 +360,7 @@ export async function* streamAgentAnswer({
 
   signal?.addEventListener("abort", handleAbort);
 
-  xhr.open("POST", getFunctionUrl(), true);
+  xhr.open("POST", url, true);
   xhr.setRequestHeader("Authorization", `Bearer ${idToken}`);
   xhr.setRequestHeader("Content-Type", "application/json");
 
@@ -344,7 +373,7 @@ export async function* streamAgentAnswer({
 
   xhr.onload = () => {
     if (xhr.status < 200 || xhr.status >= 300) {
-      fail(new Error(`stream-failed-${xhr.status}`));
+      fail(new StreamHttpError(xhr.status));
       return;
     }
 
@@ -368,16 +397,131 @@ export async function* streamAgentAnswer({
 
   xhr.send(body);
 
-  try {
-    while (true) {
-      const next = await queue.next();
-      if (next.done) break;
-      yield next.value;
-    }
-  } finally {
-    if (!completed) {
+  return {
+    queue,
+    abort: () => {
+      if (completed) return;
       xhr.abort();
       cleanup();
+    },
+  };
+}
+
+// Runs an authenticated SSE stream against `url` with the given JSON `body`,
+// owning the token-fetch + 401-refresh-replay retry logic shared by every
+// stream endpoint (the live answer stream and turn replay). The caller only
+// builds the request body; this handles auth and surfaces SSE frames.
+async function* runAuthedStream(
+  url: string,
+  body: string,
+  signal: AbortSignal | undefined,
+): AsyncIterable<StreamEvent> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) throw new Error("firebase-unavailable");
+
+  const user = firebase.services.auth.currentUser;
+  if (!user) throw new Error("signed-out");
+
+  // `getIdToken()` returns the cached token and only refreshes if it's near
+  // expiry. If it throws naming a dead session, that's terminal — surface it as
+  // a session-expired failure so the UI re-auths instead of showing a useless
+  // retry. Other failures (e.g. transient network) propagate as generic errors.
+  let idToken: string;
+  try {
+    idToken = await user.getIdToken();
+  } catch (err) {
+    if (isTerminalAuthError(err)) throw new SessionExpiredError();
+    throw err;
+  }
+
+  // A 401 means the backend rejected the token — it can be locally valid yet
+  // already revoked server-side (we verify with checkRevoked), so a cached
+  // token would loop forever. Force-refresh and replay exactly once; if that
+  // still fails the session is genuinely gone.
+  let forcedRefresh = false;
+  while (true) {
+    const attempt = startStreamAttempt(url, idToken, body, signal);
+    let yieldedAny = false;
+    try {
+      while (true) {
+        const next = await attempt.queue.next();
+        if (next.done) break;
+        yieldedAny = true;
+        yield next.value;
+      }
+      return;
+    } catch (err) {
+      // The backend rejects auth before flushing any SSE frame, so a 401 can
+      // only surface with nothing yielded yet — that's what makes a clean
+      // replay safe.
+      if (isUnauthorized(err) && !yieldedAny && !forcedRefresh) {
+        forcedRefresh = true;
+        try {
+          idToken = await user.getIdToken(true);
+        } catch {
+          throw new SessionExpiredError();
+        }
+        continue;
+      }
+      if (isUnauthorized(err)) throw new SessionExpiredError();
+      throw err;
+    } finally {
+      // Runs on normal completion, throw, early consumer return, AND before a
+      // retry's `continue` — tearing down the just-finished attempt's XHR.
+      attempt.abort();
     }
   }
+}
+
+export async function* streamAgentAnswer({
+  message,
+  images,
+  gif,
+  conversationId,
+  clientMessageId,
+  personaId,
+  levelOfRot,
+  language,
+  signal,
+}: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
+  const body = JSON.stringify({
+    message,
+    // Only include `images` / `gifs` when present, so text-only payloads stay
+    // byte-identical to the pre-attachment format (backend defaults to []).
+    images: images && images.length > 0 ? images : undefined,
+    gifs: gif ? [gif] : undefined,
+    conversationId: conversationId ?? undefined,
+    clientMessageId,
+    personaId: personaId ?? undefined,
+    levelOfRot,
+    language,
+  });
+
+  yield* runAuthedStream(getFunctionUrl("streamAgentAnswer"), body, signal);
+}
+
+type StreamReplayTurnParams = {
+  // The conversation owning the reply to regenerate.
+  conversationId: string;
+  // The agent message to replace. The backend deletes it and streams a fresh
+  // answer for the same user turn; it must be the conversation's latest message.
+  agentMessageId: string;
+  // The user's resolved app language (never "system"), folded into the system
+  // message exactly like a normal turn.
+  language?: string;
+  signal?: AbortSignal;
+};
+
+// Regenerates an existing agent reply. Emits the same SSE event stream as
+// streamAgentAnswer (model/persona/delta/meme/gif/done, plus quota_exceeded or
+// error), so the chat store can consume it through the same code path. The user
+// turn is read server-side, so nothing about the original message is resent.
+export async function* streamReplayTurn({
+  conversationId,
+  agentMessageId,
+  language,
+  signal,
+}: StreamReplayTurnParams): AsyncIterable<StreamEvent> {
+  const body = JSON.stringify({ conversationId, agentMessageId, language });
+  yield* runAuthedStream(getFunctionUrl("streamReplayTurn"), body, signal);
 }

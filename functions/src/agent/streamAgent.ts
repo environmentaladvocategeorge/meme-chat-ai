@@ -48,6 +48,17 @@ const MAX_TOOL_ROUNDS = 1;
 
 type AccumulatedToolCall = { id: string; name: string; arguments: string };
 
+// Optional sampling knobs spread into the OpenAI completion call. Used by turn
+// replay to nudge the model toward a different answer than last time: a fresh
+// `seed` reshuffles the sampling RNG, and a varied `top_p` widens/narrows the
+// token pool. Omitted entirely on a normal turn so the request stays
+// byte-identical to before (and fully cacheable). Note: gpt-5.x reasoning
+// models reject a non-default `temperature`, so we deliberately don't expose it.
+export type SamplingOverrides = {
+  topP?: number;
+  seed?: number;
+};
+
 function emptyUsage(): AgentUsage {
   return {
     inputTokens: 0,
@@ -74,6 +85,7 @@ export async function* streamAgent({
   maxOutputTokens,
   tools,
   runTool,
+  sampling,
   signal,
 }: {
   messages: OpenAIMessage[];
@@ -82,6 +94,10 @@ export async function* streamAgent({
   maxOutputTokens: number;
   tools?: ChatCompletionTool[];
   runTool?: ToolRunner;
+  // Optional per-request sampling overrides (see SamplingOverrides). Applied to
+  // every completion round in this turn so a replay stays varied even through
+  // the tool loop.
+  sampling?: SamplingOverrides;
   signal?: AbortSignal;
 }): AsyncIterable<AgentDelta> {
   try {
@@ -89,6 +105,11 @@ export async function* streamAgent({
     const convo = toChatParams(messages);
     const toolsEnabled = Boolean(tools && tools.length > 0 && runTool);
     const totalUsage = emptyUsage();
+    // Only include keys that are actually set, so a normal turn (no overrides)
+    // sends no `top_p`/`seed` at all and stays identical to the prior behavior.
+    const samplingParams: { top_p?: number; seed?: number } = {};
+    if (typeof sampling?.topP === "number") samplingParams.top_p = sampling.topP;
+    if (typeof sampling?.seed === "number") samplingParams.seed = sampling.seed;
 
     for (let round = 0; ; round++) {
       // Tools are offered only while we still have a tool round left; the final
@@ -104,6 +125,7 @@ export async function* streamAgent({
           stream: true,
           stream_options: { include_usage: true },
           messages: convo,
+          ...samplingParams,
           ...(offerTools ? { tools, tool_choice: "auto" as const } : {}),
         },
         { signal },

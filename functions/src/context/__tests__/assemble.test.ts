@@ -88,6 +88,46 @@ describe("assembleFromInputs", () => {
     expect(result.messages[1].content).toContain("User wants help with X.");
   });
 
+  it("injects alias + language into a single second system message", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "hi",
+      maxInputTokens: 1000,
+      userAlias: "Goblin",
+      userLanguage: "es",
+    });
+    expect(result.messages[1].role).toBe("system");
+    const content = result.messages[1].content as string;
+    expect(content).toContain("Goblin");
+    // "es" is rendered as a friendly name and instructs a Spanish default with
+    // a switch-to-the-user's-language escape hatch.
+    expect(content).toContain("Spanish");
+    expect(content).toContain("different language");
+  });
+
+  it("emits the language hint even without an alias", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "hi",
+      maxInputTokens: 1000,
+      userLanguage: "en",
+    });
+    expect(result.messages[1].role).toBe("system");
+    expect(result.messages[1].content).toContain("English");
+  });
+
+  it("adds no second system message when alias and language are absent", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "hi",
+      maxInputTokens: 1000,
+    });
+    expect(result.messages.filter((m) => m.role === "system")).toHaveLength(1);
+  });
+
   it("treats empty/whitespace summary as no-summary", () => {
     const result = assembleFromInputs({
       summary: "   ",

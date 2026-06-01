@@ -39,6 +39,10 @@ export type AssembleArgs = {
   // User's display alias injected as a second system message so the main
   // system prompt stays cacheable (identical prefix for all users).
   userAlias?: string | null;
+  // Concrete language the user's app is set to (e.g. "en", "es"). Already
+  // resolved client-side — never the literal "system". Folded into the same
+  // second system message as the alias so the model defaults to it.
+  userLanguage?: string | null;
   summary?: string | null;
   recent: ChatMessage[]; // ordered oldest → newest, already filtered to status: complete
   currentText: string;
@@ -55,6 +59,41 @@ export type AssembleArgs = {
 // Verbatim recent-turn window. Sourced from the shared compaction module so it
 // stays coupled to the summarizer's keep-tail invariant (see RECENT_WINDOW).
 const RECENT_TARGET = RECENT_WINDOW;
+
+// Friendly names for the app's supported language codes so the language
+// instruction reads naturally to the model. Falls back to the raw code for any
+// value we don't have a name for.
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  es: "Spanish",
+};
+
+function languageDisplayName(code: string): string {
+  return LANGUAGE_NAMES[code.toLowerCase()] ?? code;
+}
+
+// Builds the second system message that carries per-user, non-cacheable bits:
+// the display alias and the preferred language. Kept separate from the big
+// static system prompt so that prompt's prefix stays identical (and cacheable)
+// across users. Returns null when there's nothing user-specific to say.
+function buildUserContextMessage(
+  userAlias?: string | null,
+  userLanguage?: string | null,
+): string | null {
+  const parts: string[] = [];
+  if (userAlias) {
+    parts.push(
+      `The user's name is ${userAlias}. Use it naturally when it fits the conversation.`,
+    );
+  }
+  if (userLanguage) {
+    const name = languageDisplayName(userLanguage);
+    parts.push(
+      `The user's app language is ${name}. Reply in ${name} by default, but if the user writes to you in a different language, reply in that language instead.`,
+    );
+  }
+  return parts.length > 0 ? parts.join(" ") : null;
+}
 
 // Builds the note that tells the model the supplied frames are slices of ONE
 // animated GIF — never separate images — so it doesn't narrate "three images."
@@ -147,13 +186,11 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
 
   const build = (recentSlice: ChatMessage[]): OpenAIMessage[] => {
     const out: OpenAIMessage[] = [{ role: "system", content: systemPrompt }];
-    // Alias injected as a second system message so the main prompt prefix
-    // stays cacheable — the large static prompt is the same for every user.
-    if (args.userAlias) {
-      out.push({
-        role: "system",
-        content: `The user's name is ${args.userAlias}. Use it naturally when it fits the conversation.`,
-      });
+    // Alias + language injected as a second system message so the main prompt
+    // prefix stays cacheable — the large static prompt is the same for every user.
+    const userContext = buildUserContextMessage(args.userAlias, args.userLanguage);
+    if (userContext) {
+      out.push({ role: "system", content: userContext });
     }
     if (summaryUsed) {
       out.push({
@@ -249,6 +286,14 @@ export type AssembleContextArgs = {
   currentGif?: MessageGif;
   systemPrompt?: string;
   userAlias?: string | null;
+  // Resolved app language (e.g. "en", "es") — never "system".
+  userLanguage?: string | null;
+  // Message doc IDs to drop from the recent window before assembly. Used by
+  // turn replay: the user turn being regenerated still lives in Firestore, but
+  // it's passed in as `currentUserMessage` instead — so excluding it here keeps
+  // it from being both a history turn AND the current turn (a duplicate plus a
+  // trailing empty user message). Empty/omitted on a normal turn.
+  excludeMessageIds?: string[];
 };
 
 export async function assembleContext(args: AssembleContextArgs): Promise<AssembledContext> {
@@ -265,29 +310,27 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     .limit(RECENT_TARGET * 2);
 
   const recentSnap = await query.get();
-  let recent: ChatMessage[] = recentSnap.docs
+  // Filter out any excluded docs (replay) up front so every downstream path —
+  // the plain window and the summary-cutoff branch — operates on the same set.
+  // Ordered oldest → newest after the reverse, matching `recent`.
+  const exclude = new Set(args.excludeMessageIds ?? []);
+  const orderedDocs = recentSnap.docs
+    .slice()
     .reverse()
-    .flatMap((d) => {
-      const m = mapMessage(d);
-      return m ? [m] : [];
-    });
+    .filter((d) => !exclude.has(d.id));
+
+  let recent: ChatMessage[] = orderedDocs.flatMap((d) => {
+    const m = mapMessage(d);
+    return m ? [m] : [];
+  });
 
   // If a summary cutoff exists, drop any recent messages from before/at the
   // cutoff so we don't double-count summarized history.
   if (summaryUpToMessageId) {
-    const cutoffIdx = recentSnap.docs.findIndex((d) => d.id === summaryUpToMessageId);
+    const cutoffIdx = orderedDocs.findIndex((d) => d.id === summaryUpToMessageId);
     if (cutoffIdx >= 0) {
-      // recentSnap.docs is reversed compared to `recent`; map indices safely
-      // by filtering on doc IDs we kept.
-      const keepIds = new Set<string>();
-      const reversedDocs = recentSnap.docs.slice().reverse();
-      let pastCutoff = false;
-      for (const doc of reversedDocs) {
-        if (pastCutoff && mapMessage(doc)) keepIds.add(doc.id);
-        if (doc.id === summaryUpToMessageId) pastCutoff = true;
-      }
-      recent = reversedDocs
-        .filter((d) => keepIds.has(d.id))
+      recent = orderedDocs
+        .slice(cutoffIdx + 1)
         .flatMap((d) => {
           const m = mapMessage(d);
           return m ? [m] : [];
@@ -305,6 +348,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
   return assembleFromInputs({
     systemPrompt: args.systemPrompt,
     userAlias: args.userAlias,
+    userLanguage: args.userLanguage,
     summary,
     recent,
     currentText: args.currentUserMessage,

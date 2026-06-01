@@ -8,6 +8,7 @@ export { updateProfile } from "./profile/updateProfile";
 export { deleteConversations } from "./conversations/deleteConversations";
 export { rateMessage } from "./conversations/rateMessage";
 export { streamAgentAnswer } from "./streamAgentAnswer";
+export { streamReplayTurn } from "./streamReplayTurn";
 export { devSetPlan } from "./entitlement/devSetPlan";
 export { revenueCatWebhook } from "./revenueCat/webhook";
 export { syncRevenueCatPlan } from "./revenueCat/syncPlan";

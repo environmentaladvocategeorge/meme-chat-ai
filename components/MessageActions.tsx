@@ -6,9 +6,17 @@
 // Copy gives a gentler pulse and briefly swaps to a check to confirm.
 
 import { AppPressable } from "@/components/AppPressable";
+import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import * as Clipboard from "expo-clipboard";
-import { Check, Copy, ThumbsDown, ThumbsUp, type IconProps } from "phosphor-react-native";
+import {
+  ArrowClockwise,
+  Check,
+  Copy,
+  ThumbsDown,
+  ThumbsUp,
+  type IconProps,
+} from "phosphor-react-native";
 import {
   type ComponentType,
   type ReactNode,
@@ -19,6 +27,8 @@ import {
 import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -105,16 +115,66 @@ function ThumbIcon({
   );
 }
 
+// The regenerate button. Spins a full turn on each tap for a little delight,
+// and reuses the same press-pop feedback as the other actions.
+function ReplayButton({
+  accessibilityLabel,
+  onPress,
+  color,
+}: {
+  accessibilityLabel: string;
+  onPress: () => void;
+  color: string;
+}) {
+  const rotation = useSharedValue(0);
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  const handlePress = () => {
+    rotation.value = withTiming(rotation.value + 360, {
+      duration: 520,
+      easing: Easing.out(Easing.cubic),
+    });
+    onPress();
+  };
+
+  return (
+    <AppPressable
+      accessibilityLabel={accessibilityLabel}
+      onPress={handlePress}
+      haptic
+      hitSlop={8}
+      pressScale={0.12}
+      style={{ paddingHorizontal: 6, paddingVertical: 4 }}
+    >
+      <Animated.View style={spinStyle} pointerEvents="none">
+        <ArrowClockwise size={ICON} color={color} weight="regular" />
+      </Animated.View>
+    </AppPressable>
+  );
+}
+
 export function MessageActions({
   text,
   reaction,
   onRate,
+  onReplay,
   labels,
+  timestamp,
+  showTimestamp = false,
 }: {
   text: string;
   reaction?: MessageReaction;
   onRate: (reaction: MessageReaction) => void;
-  labels: { copy: string; copied: string; up: string; down: string };
+  // Regenerate this reply. Passed only for the conversation's latest agent turn
+  // (replaying an older one would orphan everything after it), so the button is
+  // absent everywhere else.
+  onReplay?: () => void;
+  labels: { copy: string; copied: string; up: string; down: string; replay: string };
+  // When the bubble is tapped, its timestamp rides the right edge of this row.
+  timestamp?: string | null;
+  showTimestamp?: boolean;
 }) {
   const theme = useTheme();
   const [copied, setCopied] = useState(false);
@@ -168,6 +228,8 @@ export function MessageActions({
           gap: 2,
           marginTop: 2,
           marginLeft: -6, // pull the row's optical edge back under the bubble
+          // Span the bubble width so the timestamp can sit on its right edge.
+          alignSelf: "stretch",
         },
         enterStyle,
       ]}
@@ -209,6 +271,28 @@ export function MessageActions({
           activeColor={active}
         />
       </ActionButton>
+
+      {onReplay ? (
+        <ReplayButton
+          accessibilityLabel={labels.replay}
+          onPress={onReplay}
+          color={idle}
+        />
+      ) : null}
+
+      {showTimestamp && timestamp ? (
+        // Fades in on tap and floats to the bubble's right edge, sharing the
+        // baseline with the action icons.
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(160)}
+          style={{ marginLeft: "auto", paddingLeft: 8 }}
+        >
+          <Typography variant="micro" style={{ color: idle }}>
+            {timestamp}
+          </Typography>
+        </Animated.View>
+      ) : null}
     </Animated.View>
   );
 }

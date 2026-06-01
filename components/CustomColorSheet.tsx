@@ -19,18 +19,22 @@ import { SegmentedControl } from "@/components/SegmentedControl";
 import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import {
+  addGradientPreset,
+  addSolidPreset,
+  buildPickerGradientSwatches,
+  buildPickerSolidSwatches,
   type ChatUiColorRole,
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
   DEFAULT_GRADIENT_DIRECTION,
+  deleteGradientPreset,
+  deleteSolidPreset,
   type GradientDirection,
   GRADIENT_DIRECTIONS,
   gradientDirectionPoints,
   makeCustomColorId,
   makeCustomGradientId,
   normalizeHex,
-  PICKER_GRADIENT_PRESETS,
-  PICKER_SOLID_PRESETS,
   readableGradientTextColor,
   readableTextColor,
   withAlpha,
@@ -67,6 +71,11 @@ import type { ComponentType } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, View } from "react-native";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import ColorPicker, {
   type ColorFormatsObject,
   type ColorPickerRef,
@@ -470,22 +479,18 @@ export function CustomColorSheet({
   const handleAddCurrent = useCallback(() => {
     if (modeRef.current === "gradient") {
       const current = stopsRef.current.slice();
-      const key = current.join(":");
-      setAddedGradients((prev) => [
-        current,
-        ...prev.filter((g) => g.join(":") !== key),
-      ]);
+      setAddedGradients((prev) => addGradientPreset(current, prev));
     } else {
       const current = colorRef.current;
-      setAddedSolids((prev) => [current, ...prev.filter((c) => c !== current)]);
+      setAddedSolids((prev) => addSolidPreset(current, prev));
     }
   }, []);
 
-  const deleteSolid = useCallback((hex: string) => {
-    setAddedSolids((prev) => prev.filter((c) => c !== hex));
+  const handleDeleteSolid = useCallback((hex: string) => {
+    setAddedSolids((prev) => deleteSolidPreset(hex, prev));
   }, []);
-  const deleteGradient = useCallback((key: string) => {
-    setAddedGradients((prev) => prev.filter((g) => g.join(":") !== key));
+  const handleDeleteGradient = useCallback((key: string) => {
+    setAddedGradients((prev) => deleteGradientPreset(key, prev));
   }, []);
   const exitDeleteMode = useCallback(() => setDeleteMode(false), []);
 
@@ -556,36 +561,14 @@ export function CustomColorSheet({
 
   // Swatches for the active mode: saved picks first, then built-ins — deduped so
   // a value never renders twice (and keys stay unique).
-  const solidSwatches = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const hex of [
-      ...addedSolids,
-      ...PICKER_SOLID_PRESETS.map((h) => normalizeHex(h) ?? h),
-    ]) {
-      if (seen.has(hex)) continue;
-      seen.add(hex);
-      out.push(hex);
-    }
-    return out;
-  }, [addedSolids]);
-  const gradientSwatches = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[][] = [];
-    for (const g of [
-      ...addedGradients,
-      ...PICKER_GRADIENT_PRESETS.map((p) => [
-        normalizeHex(p[0]) ?? p[0],
-        normalizeHex(p[1]) ?? p[1],
-      ]),
-    ]) {
-      const key = g.join(":");
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(g);
-    }
-    return out;
-  }, [addedGradients]);
+  const solidSwatches = useMemo(
+    () => buildPickerSolidSwatches(addedSolids),
+    [addedSolids],
+  );
+  const gradientSwatches = useMemo(
+    () => buildPickerGradientSwatches(addedGradients),
+    [addedGradients],
+  );
 
   const title =
     target === "accent"
@@ -795,7 +778,7 @@ export function CustomColorSheet({
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 10, paddingVertical: 4, paddingRight: 4 }}
+              contentContainerStyle={{ gap: 10, paddingVertical: 8, paddingRight: 4 }}
             >
               <DefaultSwatch
                 color={defaultRep}
@@ -822,7 +805,7 @@ export function CustomColorSheet({
                         onPress={
                           deleteMode
                             ? saved
-                              ? () => deleteGradient(key)
+                              ? () => handleDeleteGradient(key)
                               : exitDeleteMode
                             : () => applyGradientStops(g)
                         }
@@ -844,7 +827,7 @@ export function CustomColorSheet({
                         onPress={
                           deleteMode
                             ? saved
-                              ? () => deleteSolid(hex)
+                              ? () => handleDeleteSolid(hex)
                               : exitDeleteMode
                             : () => applySolidPreset(hex)
                         }
@@ -1251,6 +1234,12 @@ function PresetSwatch({
     ? readableGradientTextColor(colors as unknown as readonly [string, string])
     : readableTextColor(colors[0]);
 
+  const badgeOpacity = useSharedValue(showDeleteBadge ? 1 : 0);
+  useEffect(() => {
+    badgeOpacity.value = withTiming(showDeleteBadge ? 1 : 0, { duration: 180 });
+  }, [showDeleteBadge, badgeOpacity]);
+  const badgeStyle = useAnimatedStyle(() => ({ opacity: badgeOpacity.value }));
+
   return (
     <AppPressable
       onPress={onPress}
@@ -1259,54 +1248,63 @@ function PresetSwatch({
       pressScale={0.1}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected }}
-      style={{
-        width: SWATCH,
-        height: SWATCH,
-        borderRadius: SWATCH / 2,
-        overflow: "hidden",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: isGradient ? undefined : colors[0],
-        borderWidth: 2,
-        borderColor: selected ? theme["--color-primary"] : theme["--color-border"],
-      }}
+      style={{ width: SWATCH, height: SWATCH }}
     >
-      {isGradient ? (
-        <LinearGradient
-          colors={colors as unknown as readonly [string, string, ...string[]]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleFill}
-        />
-      ) : null}
-      {showDeleteBadge ? (
-        <View
-          style={{
+      {/* Circular clip layer — overflow:hidden lives here so the badge
+          (a sibling below) is not clipped by the rounded shape. */}
+      <View
+        style={{
+          ...StyleFill,
+          borderRadius: SWATCH / 2,
+          overflow: "hidden",
+          backgroundColor: isGradient ? undefined : colors[0],
+          borderWidth: 2,
+          borderColor: selected ? theme["--color-primary"] : theme["--color-border"],
+        }}
+      >
+        {isGradient ? (
+          <LinearGradient
+            colors={colors as unknown as readonly [string, string, ...string[]]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleFill}
+          />
+        ) : null}
+        {selected && !showDeleteBadge ? (
+          <View
+            style={{
+              ...StyleFill,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.22)",
+            }}
+          >
+            <Check size={16} weight="bold" color={onColor} />
+          </View>
+        ) : null}
+      </View>
+      {/* Badge sits outside the overflow:hidden layer so it renders fully
+          at the top-right corner without being clipped. Always rendered
+          so the fade-out can complete before it disappears. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          badgeStyle,
+          {
             position: "absolute",
-            top: 1,
-            right: 1,
+            top: -5,
+            right: -5,
             width: 18,
             height: 18,
             borderRadius: 9,
             alignItems: "center",
             justifyContent: "center",
             backgroundColor: "#FF3B30",
-          }}
-        >
-          <X size={11} weight="bold" color="#FFFFFF" />
-        </View>
-      ) : selected ? (
-        <View
-          style={{
-            ...StyleFill,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "rgba(0,0,0,0.22)",
-          }}
-        >
-          <Check size={16} weight="bold" color={onColor} />
-        </View>
-      ) : null}
+          },
+        ]}
+      >
+        <X size={11} weight="bold" color="#FFFFFF" />
+      </Animated.View>
     </AppPressable>
   );
 }

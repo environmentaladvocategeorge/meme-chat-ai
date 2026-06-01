@@ -141,7 +141,7 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).toContain(
       "PLATFORM\n\nActive persona prompt:\nBRAINROT",
     );
-    expect(result.systemPrompt).toContain("ROT LEVEL: 2 of 3 — ROTTED");
+    expect(result.systemPrompt).toContain("ROT LEVEL: 2/3 — ROTTED DEFAULT");
   });
 
   it("resolves a valid enabled personaId", async () => {

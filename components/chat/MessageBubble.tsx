@@ -30,6 +30,8 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  FadeIn,
+  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -58,6 +60,8 @@ export function MessageBubble({
   thinkingLabel,
   onRetry,
   onRate,
+  isLastAgent = false,
+  onReplay,
 }: {
   message: RenderMessage;
   retryLabel: string;
@@ -65,6 +69,10 @@ export function MessageBubble({
   thinkingLabel: string;
   onRetry: () => void;
   onRate: (serverId: string, reaction: MessageReaction) => void;
+  // True only for the conversation's most recent agent reply — the one turn
+  // replay is allowed to regenerate.
+  isLastAgent?: boolean;
+  onReplay: (serverId: string) => void;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -502,8 +510,18 @@ export function MessageBubble({
   // of the brand colors; the agent's uses --color-card, the same subtle
   // surface the chat input pill sits on, so they read as part of the
   // same surface family. Error variant uses the error-muted tone.
+  //
+  // For gradient bubbles the visible sweep is a separate, page-anchored layer
+  // that only fades in once the bubble has measured its on-screen position.
+  // Until then — including when the inverted FlatList remounts a recycled cell
+  // on send — that layer is invisible, so we paint the gradient's top color
+  // here as a solid fallback. Without it the bubble would flash fully
+  // transparent ("loses the background, then renders"); with it the bubble
+  // always has a fill and the anchored gradient just crossfades in on top.
+  const gradientFallback =
+    bubble.gradientColors?.[0] ?? primaryGradient.colors[0];
   const bubbleBg = useGradient
-    ? "transparent"
+    ? gradientFallback
     : useSolidBubble
       ? (bubble.solidColor ?? theme["--color-card"])
       : errored
@@ -757,19 +775,30 @@ export function MessageBubble({
               text={messageText}
               reaction={message.reaction}
               onRate={(reaction) => onRate(message.serverId!, reaction)}
+              onReplay={
+                isLastAgent ? () => onReplay(message.serverId!) : undefined
+              }
               labels={{
                 copy: t("chat.actions.copy"),
                 copied: t("chat.actions.copied"),
                 up: t("chat.actions.thumbsUp"),
                 down: t("chat.actions.thumbsDown"),
+                replay: t("chat.actions.regenerate"),
               }}
+              timestamp={timestampLabel}
+              showTimestamp={showTimestamp}
             />
           ) : null}
         </View>
       </View>
 
-      {showTimestamp && timestampLabel ? (
-        <View
+      {/* Agent replies carry their timestamp inside the action row (right edge);
+          this standalone line covers user bubbles and any agent reply without
+          the action row. */}
+      {showTimestamp && timestampLabel && !showActions ? (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(160)}
           style={{
             paddingLeft: AVATAR_SIZE + AVATAR_GUTTER,
             paddingRight: mine ? 0 : AVATAR_SIZE + AVATAR_GUTTER,
@@ -782,7 +811,7 @@ export function MessageBubble({
           >
             {timestampLabel}
           </Typography>
-        </View>
+        </Animated.View>
       ) : null}
     </Animated.View>
   );

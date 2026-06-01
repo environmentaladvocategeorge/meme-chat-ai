@@ -9,7 +9,9 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   appendMessage,
   createConversation,
+  deleteMessage,
   loadRecentMessages,
+  loadReplayTargets,
 } from "../repository";
 import type { MessageImage } from "../../messages/messageImage";
 
@@ -195,5 +197,154 @@ describe("loadRecentMessages read path", () => {
 
     const messages = await loadRecentMessages("conv-1");
     expect(messages).toHaveLength(0);
+  });
+});
+
+// Docs as Firestore returns them for loadReplayTargets: newest-first, each with
+// an explicit id and arbitrary stored fields.
+type IdDoc = { id: string } & Record<string, unknown>;
+
+function makeReplayDb(docsNewestFirst: IdDoc[]) {
+  const deleted: string[] = [];
+
+  const messageDocRef = (id: string) => ({
+    delete: jest.fn(async () => {
+      deleted.push(id);
+    }),
+  });
+
+  const messagesCollection: Record<string, jest.Mock> = {};
+  messagesCollection.orderBy = jest.fn(() => messagesCollection);
+  messagesCollection.limit = jest.fn(() => messagesCollection);
+  messagesCollection.get = jest.fn(async () => ({
+    docs: docsNewestFirst.map(({ id, ...data }) => ({ id, data: () => data })),
+  }));
+  messagesCollection.doc = jest.fn((id: string) => messageDocRef(id));
+
+  // Spy on conversation-level writes so a test can assert that deletion is
+  // side-effect-free (no preview/quota/ledger mutation rides along).
+  const convUpdate = jest.fn(async () => undefined);
+  const convSet = jest.fn(async () => undefined);
+  const conversationRef = {
+    collection: jest.fn(() => messagesCollection),
+    update: convUpdate,
+    set: convSet,
+  };
+  const conversationsCollection = { doc: jest.fn(() => conversationRef) };
+  const db = { collection: jest.fn(() => conversationsCollection) };
+
+  return { db, deleted, convUpdate, convSet };
+}
+
+describe("loadReplayTargets", () => {
+  const USER = {
+    id: "u1",
+    role: "user",
+    text: "tell me a joke",
+    status: "complete",
+    clientMessageId: "client-1",
+    levelOfRot: 3,
+  };
+  const AGENT = {
+    id: "a1",
+    role: "agent",
+    text: "here you go",
+    status: "complete",
+    inReplyToClientMessageId: "client-1",
+  };
+
+  it("returns the agent record, its linked user turn, and isLatest=true", async () => {
+    const { db } = makeReplayDb([AGENT, USER]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await loadReplayTargets("conv-1", "a1");
+
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.isLatest).toBe(true);
+    expect(result.agent.id).toBe("a1");
+    expect(result.agent.role).toBe("agent");
+    expect(result.user?.id).toBe("u1");
+    expect(result.user?.text).toBe("tell me a joke");
+    expect(result.user?.levelOfRot).toBe(3);
+  });
+
+  it("reports isLatest=false when a newer message exists after the agent reply", async () => {
+    const NEWER_USER = { id: "u2", role: "user", text: "next", status: "complete" };
+    const { db } = makeReplayDb([NEWER_USER, AGENT, USER]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await loadReplayTargets("conv-1", "a1");
+
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.isLatest).toBe(false);
+  });
+
+  it("falls back to the nearest preceding user turn when no inReplyTo link exists", async () => {
+    const agentNoLink = { ...AGENT, inReplyToClientMessageId: undefined };
+    const { db } = makeReplayDb([agentNoLink, USER]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await loadReplayTargets("conv-1", "a1");
+
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.user?.id).toBe("u1");
+  });
+
+  it("returns found:false when the agent message id is absent", async () => {
+    const { db } = makeReplayDb([USER]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await loadReplayTargets("conv-1", "missing");
+    expect(result.found).toBe(false);
+  });
+
+  it("returns found:false when the target id is a user message, not an agent", async () => {
+    const { db } = makeReplayDb([AGENT, USER]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await loadReplayTargets("conv-1", "u1");
+    expect(result.found).toBe(false);
+  });
+
+  it("carries the user turn's attachments through the record", async () => {
+    const userWithImage = {
+      ...USER,
+      images: [mkImage()],
+    };
+    const { db } = makeReplayDb([AGENT, userWithImage]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await loadReplayTargets("conv-1", "a1");
+    expect(result.found).toBe(true);
+    if (!result.found) return;
+    expect(result.user?.images).toEqual([mkImage()]);
+  });
+});
+
+describe("deleteMessage", () => {
+  it("deletes the targeted message doc", async () => {
+    const { db, deleted } = makeReplayDb([]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    await deleteMessage("conv-1", "a1");
+    expect(deleted).toEqual(["a1"]);
+  });
+
+  // Billing guard: replay's deletion of the old agent reply must NOT refund or
+  // restore anything. There is no refund primitive in the ledger, and the
+  // deletion is a pure doc removal — it writes nothing to the conversation doc
+  // (no preview, no quota/credit mutation).
+  it("is side-effect-free: no conversation/ledger writes accompany the delete", async () => {
+    const { db, deleted, convUpdate, convSet } = makeReplayDb([]);
+    mockedGetFirestore.mockReturnValue(db);
+
+    await deleteMessage("conv-1", "a1");
+
+    expect(deleted).toEqual(["a1"]);
+    expect(convUpdate).not.toHaveBeenCalled();
+    expect(convSet).not.toHaveBeenCalled();
   });
 });

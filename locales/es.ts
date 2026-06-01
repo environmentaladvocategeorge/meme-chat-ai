@@ -437,6 +437,7 @@ const es = {
       copied: "Copiado",
       thumbsUp: "Buena respuesta",
       thumbsDown: "Mala respuesta",
+      regenerate: "Regenerar respuesta",
     },
   },
   history: {

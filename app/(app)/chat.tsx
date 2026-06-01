@@ -57,6 +57,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Alert,
+  AppState,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -94,6 +95,7 @@ export default function ChatScreen() {
   const [memesOpen, setMemesOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
   const chatInputRef = useRef<ChatInputRef>(null);
+  const newConvoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Memes the user has staged but not yet sent. Sent as multimodal image
   // inputs; capped at MAX_MESSAGE_IMAGES (the backend re-enforces the cap).
   const [stagedImages, setStagedImages] = useState<MessageImage[]>([]);
@@ -131,6 +133,7 @@ export default function ChatScreen() {
   const quota = useChatStore((s) => s.quota);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const rateMessage = useChatStore((s) => s.rateMessage);
+  const replayTurn = useChatStore((s) => s.replayTurn);
   const loadConversation = useChatStore((s) => s.loadConversation);
   const startNewConversation = useChatStore((s) => s.startNewConversation);
   const cancelStreaming = useChatStore((s) => s.cancelStreaming);
@@ -247,6 +250,20 @@ export default function ChatScreen() {
       streamingGif,
     ],
   );
+
+  // The most recent finalized agent reply is the only turn replay may
+  // regenerate (replaying an older one would orphan everything after it). null
+  // while none exists or while a turn is streaming, which hides the button.
+  const lastAgentServerId = useMemo<string | null>(() => {
+    if (status === "streaming") return null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role === "agent" && m.status === "complete" && m.serverId) {
+        return m.serverId;
+      }
+    }
+    return null;
+  }, [messages, status]);
 
   const handleSubmit = () => {
     if (atLimit) return;
@@ -475,13 +492,32 @@ export default function ChatScreen() {
       }
     };
 
+    if (newConvoTimer.current) clearTimeout(newConvoTimer.current);
     contentOpacity.value = withTiming(0, { duration: 160 });
     // Swap content at the trough of the fade, then fade the empty state in.
-    setTimeout(() => {
+    newConvoTimer.current = setTimeout(() => {
+      newConvoTimer.current = null;
       reset();
       contentOpacity.value = withTiming(1, { duration: 240 });
     }, 170);
   };
+
+  // If the app resumes from background while contentOpacity is stuck at 0
+  // (e.g. the device locked mid-fade-out), force it back to visible.
+  // Also reset picker state so the invisible tap-intercept overlay never
+  // persists after a background/foreground cycle.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        if (contentOpacity.value < 0.5 && !newConvoTimer.current) {
+          contentOpacity.value = withTiming(1, { duration: 240 });
+        }
+        setMemesOpen(false);
+        setGifsOpen(false);
+      }
+    });
+    return () => sub.remove();
+  }, [contentOpacity]);
 
   return (
     <ChatToneContext.Provider value={chatThemeContext}>
@@ -573,6 +609,11 @@ export default function ChatScreen() {
                     thinkingLabel={thinkingLabel}
                     onRetry={handleRetry}
                     onRate={rateMessage}
+                    isLastAgent={
+                      item.serverId != null &&
+                      item.serverId === lastAgentServerId
+                    }
+                    onReplay={replayTurn}
                   />
                 )}
               />

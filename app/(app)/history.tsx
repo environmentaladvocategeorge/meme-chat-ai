@@ -28,6 +28,9 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -223,15 +226,17 @@ export default function HistoryScreen() {
           onBack={clearSelection}
           backAccessibilityLabel={t("common.cancel")}
           right={
-            <IconButton
-              accessibilityLabel={t("history.select.confirm")}
-              onPress={() => setConfirmOpen(true)}
-              hitSlop={8}
-              size={40}
-              surfaceStyle={{ backgroundColor: theme["--color-error-muted"] }}
-            >
-              <Trash size={22} color={theme["--color-error"]} weight="bold" />
-            </IconButton>
+            <Animated.View entering={FadeIn.duration(180)}>
+              <IconButton
+                accessibilityLabel={t("history.select.confirm")}
+                onPress={() => setConfirmOpen(true)}
+                hitSlop={8}
+                size={40}
+                surfaceStyle={{ backgroundColor: theme["--color-error-muted"] }}
+              >
+                <Trash size={22} color={theme["--color-error"]} weight="bold" />
+              </IconButton>
+            </Animated.View>
           }
         />
       ) : (
@@ -611,25 +616,37 @@ function HistoryCard({
         }}
       >
         {selectionMode ? (
-          selected ? (
-            <CheckCircle
-              size={24}
-              color={theme["--color-primary"]}
-              weight="fill"
-            />
-          ) : (
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                borderWidth: 2,
-                borderColor: theme["--color-foreground-muted"],
-              }}
-            />
-          )
+          // Fade the indicator in/out so entering/leaving selection mode reads
+          // as a gentle change rather than a snap.
+          <Animated.View
+            entering={FadeIn.duration(180)}
+            exiting={FadeOut.duration(140)}
+          >
+            {selected ? (
+              <CheckCircle
+                size={24}
+                color={theme["--color-primary"]}
+                weight="fill"
+              />
+            ) : (
+              <View
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 11,
+                  borderWidth: 2,
+                  borderColor: theme["--color-foreground-muted"],
+                }}
+              />
+            )}
+          </Animated.View>
         ) : null}
-        <View style={{ flex: 1, gap: 6 }}>
+        {/* layout transition lets the title slide over as the indicator's
+            space appears/disappears, instead of jumping. */}
+        <Animated.View
+          layout={LinearTransition.duration(200)}
+          style={{ flex: 1, gap: 6 }}
+        >
           <View
             style={{
               flexDirection: "row",
@@ -666,7 +683,7 @@ function HistoryCard({
               {conversation.lastMessagePreview}
             </Typography>
           ) : null}
-        </View>
+        </Animated.View>
       </AppPressable>
   );
 }

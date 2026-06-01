@@ -438,6 +438,7 @@ const en = {
       copied: "Copied",
       thumbsUp: "Good response",
       thumbsDown: "Bad response",
+      regenerate: "Regenerate response",
     },
   },
   history: {

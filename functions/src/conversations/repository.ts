@@ -246,6 +246,141 @@ export async function markAgentMessageErrored(
   });
 }
 
+// A stored message read back in full enough for turn replay: identity + role +
+// content + the user-turn fields (attachments, rot level, clientMessageId) the
+// replay needs to reconstruct the original turn as the "current" turn.
+export type ReplayMessageRecord = {
+  id: string;
+  role: ChatRole;
+  text: string;
+  status: MessageStatus;
+  clientMessageId?: string;
+  inReplyToClientMessageId?: string;
+  images?: MessageImage[];
+  gifs?: MessageGif[];
+  levelOfRot?: number;
+  // Persona the agent reply was generated with (agent records only). Replay
+  // reuses it so the same character answers again.
+  personaId?: string;
+};
+
+export type ReplayTargets =
+  | { found: false }
+  | {
+      found: true;
+      // True only when the target agent message is the most recent message in
+      // the conversation — the guard that keeps replay from orphaning anything
+      // that came after it.
+      isLatest: boolean;
+      agent: ReplayMessageRecord;
+      // The user turn the agent message answered (resolved via
+      // inReplyToClientMessageId, else the nearest preceding user message).
+      // Null when it can't be located within the scan window.
+      user: ReplayMessageRecord | null;
+    };
+
+function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null {
+  const data = doc.data() as StoredMessage & {
+    clientMessageId?: string;
+    inReplyToClientMessageId?: string;
+    levelOfRot?: number;
+    personaId?: string;
+  };
+  if (data.role !== "user" && data.role !== "agent") return null;
+  const record: ReplayMessageRecord = {
+    id: doc.id,
+    role: data.role,
+    text: typeof data.text === "string" ? data.text : "",
+    status: data.status ?? "complete",
+  };
+  if (typeof data.clientMessageId === "string") {
+    record.clientMessageId = data.clientMessageId;
+  }
+  if (typeof data.inReplyToClientMessageId === "string") {
+    record.inReplyToClientMessageId = data.inReplyToClientMessageId;
+  }
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    record.images = data.images;
+  }
+  if (Array.isArray(data.gifs) && data.gifs.length > 0) {
+    record.gifs = data.gifs;
+  }
+  if (typeof data.levelOfRot === "number") {
+    record.levelOfRot = data.levelOfRot;
+  }
+  if (typeof data.personaId === "string") {
+    record.personaId = data.personaId;
+  }
+  return record;
+}
+
+// Resolves everything turn replay needs in a single ordered read: whether the
+// target agent message is still the latest message (the orphan guard), the
+// agent record itself, and the user turn it answered. One query, newest-first,
+// so no composite index is required. `scanLimit` bounds the lookback; a user
+// turn always sits immediately before its agent reply, so the default is ample.
+export async function loadReplayTargets(
+  conversationId: string,
+  agentMessageId: string,
+  scanLimit = 20,
+): Promise<ReplayTargets> {
+  const snapshot = await getFirestore()
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .orderBy("createdAt", "desc")
+    .limit(scanLimit)
+    .get();
+
+  const docs = snapshot.docs;
+  const agentIdx = docs.findIndex((d) => d.id === agentMessageId);
+  if (agentIdx < 0) return { found: false };
+
+  const agent = toReplayRecord(docs[agentIdx]);
+  if (!agent || agent.role !== "agent") return { found: false };
+
+  const isLatest = docs[0]?.id === agentMessageId;
+
+  // Locate the user turn this reply answered. Prefer the exact link via
+  // inReplyToClientMessageId; fall back to the nearest older user message.
+  let user: ReplayMessageRecord | null = null;
+  if (agent.inReplyToClientMessageId) {
+    const linked = docs.find(
+      (d) =>
+        (d.data() as { clientMessageId?: string }).clientMessageId ===
+        agent.inReplyToClientMessageId,
+    );
+    if (linked) user = toReplayRecord(linked);
+  }
+  if (!user) {
+    // docs are newest-first; entries after agentIdx are older than the reply.
+    for (let i = agentIdx + 1; i < docs.length; i++) {
+      const record = toReplayRecord(docs[i]);
+      if (record?.role === "user") {
+        user = record;
+        break;
+      }
+    }
+  }
+
+  return { found: true, isLatest, agent, user };
+}
+
+// Hard-deletes a single message doc. Used by turn replay to remove the old
+// agent reply before regenerating. Deliberately touches nothing in the billing
+// ledger — the deletion is free, and the fresh stream charges itself.
+export async function deleteMessage(
+  conversationId: string,
+  messageId: string,
+): Promise<void> {
+  await getFirestore()
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .doc(messageId)
+    .delete();
+}
+
 export async function loadRecentMessages(
   conversationId: string,
   limit = 20,

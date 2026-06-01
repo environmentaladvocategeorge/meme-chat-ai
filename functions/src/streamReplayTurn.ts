@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
+import { randomReplaySampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import type { AgentUsage } from "./agent/types";
 import { GET_GIF_TOOL, runGetGif } from "./gifs/getGifTool";
@@ -20,8 +21,9 @@ import { IMAGE_TOKENS_LOW } from "./context/tokens";
 import {
   appendMessage,
   assertConversationOwner,
-  createConversation,
+  deleteMessage,
   finalizeAgentMessage,
+  loadReplayTargets,
   markAgentMessageErrored,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
@@ -29,17 +31,12 @@ import {
   isOwnedMessageImagePath,
   summarizeImagesForLog,
 } from "./messages/messageImage";
-import {
-  deleteUploadObjects,
-  resolveImageInputs,
-} from "./messages/resolveImageInputs";
+import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
 import { buildSystemPromptForStream } from "./personas/prompts";
-import { streamAgentRequestSchema } from "./streamAgentRequest";
+import { streamReplayRequestSchema } from "./streamReplayRequest";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
-// The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
-// configured the tool is simply not offered and the agent replies text-only.
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
 
 type SseResponse = {
@@ -66,7 +63,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
   try {
     await markAgentMessageErrored(conversationId, messageId);
   } catch (err) {
-    logger.error("[streamAgentAnswer] failed to mark message errored", {
+    logger.error("[streamReplayTurn] failed to mark message errored", {
       conversationId,
       messageId,
       err,
@@ -74,11 +71,14 @@ async function markErroredSafely(conversationId: string, messageId: string) {
   }
 }
 
-// TODO: enable `enforceAppCheck: true` here once the mobile client integrates
-// the Firebase App Check SDK. Until then, leaving it off keeps emulator and
-// existing builds working. The per-IP rate limit below provides interim
-// abuse protection.
-export const streamAgentAnswer = onRequest(
+// Turn replay. Regenerates the agent reply named by `agentMessageId`: the old
+// reply is deleted and a fresh answer is streamed for the SAME user turn, nudged
+// toward something different via randomized seed/top_p. The user turn (text +
+// attachments + rot level) is read from Firestore, so the client never resends
+// it. Billing note: the deletion touches nothing in the ledger; the new stream
+// charges itself once at the end, exactly like a normal turn — so a replay
+// naturally consumes quota and is never refunded.
+export const streamReplayTurn = onRequest(
   {
     secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
     timeoutSeconds: 540,
@@ -94,8 +94,6 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
-    // Per-IP rate limit closes the loophole where a single client creates
-    // many free-tier accounts and hammers the endpoint.
     const clientIp = extractClientIp({
       forwarded: req.header("x-forwarded-for"),
       realIp: req.header("x-real-ip"),
@@ -103,7 +101,7 @@ export const streamAgentAnswer = onRequest(
     });
     const allowed = await checkIpRateLimit(clientIp);
     if (!allowed) {
-      logger.warn("[streamAgentAnswer] rate-limited", { ipKey: logKey(clientIp) });
+      logger.warn("[streamReplayTurn] rate-limited", { ipKey: logKey(clientIp) });
       res.status(429).json({ code: "rate_limited" });
       return;
     }
@@ -119,54 +117,66 @@ export const streamAgentAnswer = onRequest(
       const decoded = await getAuth().verifyIdToken(token, true);
       uid = decoded.uid;
     } catch (err) {
-      logger.warn("[streamAgentAnswer] invalid auth token", { err });
+      logger.warn("[streamReplayTurn] invalid auth token", { err });
       res.status(401).end();
       return;
     }
 
-    const parsed = streamAgentRequestSchema.safeParse(req.body);
+    const parsed = streamReplayRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ code: "invalid_request" });
       return;
     }
 
-    const userText = parsed.data.message.trim();
-    const images = parsed.data.images;
-    const gifs = parsed.data.gifs;
-    const currentGif = gifs[0];
-    const personaId = parsed.data.personaId;
-    const clientMessageId = parsed.data.clientMessageId;
-    const levelOfRot = parsed.data.levelOfRot;
+    const conversationId = parsed.data.conversationId;
+    const agentMessageId = parsed.data.agentMessageId;
     const language = parsed.data.language;
 
-    // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
-    // Never log full asset URLs.
+    // ---------- ownership ----------
+    try {
+      await assertConversationOwner(conversationId, uid);
+    } catch {
+      res.status(404).json({ code: "not_found" });
+      return;
+    }
+
+    // ---------- resolve the turn to replay ----------
+    const targets = await loadReplayTargets(conversationId, agentMessageId);
+    if (!targets.found) {
+      res.status(404).json({ code: "not_found" });
+      return;
+    }
+    // Only the most recent message may be replayed — regenerating an older reply
+    // would orphan everything that came after it.
+    if (!targets.isLatest) {
+      res.status(409).json({ code: "not_replayable" });
+      return;
+    }
+    if (!targets.user) {
+      res.status(409).json({ code: "not_replayable" });
+      return;
+    }
+
+    const userTurn = targets.user;
+    const userText = userTurn.text.trim();
+    const images = userTurn.images ?? [];
+    const gifs = userTurn.gifs ?? [];
+    const currentGif = gifs[0];
+    // Reconstruct the original turn's dials: reuse the persona the deleted reply
+    // was generated with so the same character answers; default rot to 2 to
+    // match the request schema's default for turns stored before the dial.
+    const personaId = targets.agent.personaId;
+    const levelOfRot = userTurn.levelOfRot ?? 2;
+
     if (images.length > 0) {
-      logger.info("[streamAgentAnswer] received image attachments", {
+      logger.info("[streamReplayTurn] replaying image turn", {
         ...summarizeImagesForLog(images),
       });
     }
     if (gifs.length > 0) {
-      logger.info("[streamAgentAnswer] received gif attachment", {
+      logger.info("[streamReplayTurn] replaying gif turn", {
         ...summarizeGifsForLog(gifs),
       });
-    }
-
-    // ---------- resolve conversation ----------
-    let conversationId = parsed.data.conversationId;
-    const newConversation = !conversationId;
-    try {
-      if (conversationId) {
-        await assertConversationOwner(conversationId, uid);
-      } else {
-        const created = await createConversation(uid, userText, {
-          hasImages: images.length > 0 || gifs.length > 0,
-        });
-        conversationId = created.conversationId;
-      }
-    } catch {
-      res.status(404).json({ code: "not_found" });
-      return;
     }
 
     // ---------- entitlement ----------
@@ -174,7 +184,7 @@ export const streamAgentAnswer = onRequest(
     try {
       entitlement = await loadEntitlement(uid);
     } catch (err) {
-      logger.error("[streamAgentAnswer] entitlement load failed", {
+      logger.error("[streamReplayTurn] entitlement load failed", {
         conversationId,
         err,
       });
@@ -183,9 +193,7 @@ export const streamAgentAnswer = onRequest(
     }
 
     // ---------- quota gate (read-only) ----------
-    // No credits are reserved up front. We only refuse a turn when the user
-    // has already exhausted a window; the real cost is charged after the
-    // stream (see chargeForUsage), so the displayed balance moves exactly once.
+    // A replay is a billable turn, so it's gated exactly like a fresh message.
     const quota = evaluateQuota({ state: entitlement, plan: entitlement.plan });
     if (!quota.ok) {
       res.setHeader("Content-Type", "text/event-stream");
@@ -201,43 +209,31 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
-    // ---------- resolve + moderate image inputs ----------
-    // Ownership re-check (the zod schema can't see uid): every upload path must
-    // live under this caller's namespace. Client validation is UX-only.
+    // ---------- resolve image inputs (trusted: already moderated) ----------
     const ownershipOk = images.every(
       (img) =>
         img.source !== "upload" || isOwnedMessageImagePath(uid, img.path),
     );
     if (!ownershipOk) {
-      logger.warn("[streamAgentAnswer] rejected unowned upload path", {
+      logger.warn("[streamReplayTurn] rejected unowned upload path", {
         userKey: logKey(uid),
       });
       res.status(400).json({ code: "invalid_request" });
       return;
     }
 
-    // Ingest uploads by Storage path (Admin SDK), downscale to the model copy,
-    // and run the moderation gate. Klipy images pass through by URL. Done before
-    // anything is persisted, so a rejected turn writes nothing.
     let currentImageUrls: string[];
     try {
-      const resolved = await resolveImageInputs(
-        uid,
-        images,
-        OPENAI_API_KEY.value(),
-      );
+      const resolved = await resolveTrustedImageInputs(uid, images);
       if (!resolved.ok) {
-        if (resolved.reason === "moderation") {
-          await deleteUploadObjects(resolved.rejectedPaths);
-          res.status(400).json({ code: "image_rejected" });
-          return;
-        }
+        // Stored uploads should always re-ingest; a failure here means the
+        // object is gone or corrupt. Don't destroy the turn — surface an error.
         res.status(502).json({ code: "image_unavailable" });
         return;
       }
       currentImageUrls = resolved.modelImageUrls;
     } catch (err) {
-      logger.error("[streamAgentAnswer] image resolution failed", {
+      logger.error("[streamReplayTurn] image resolution failed", {
         conversationId,
         err,
       });
@@ -257,9 +253,6 @@ export const streamAgentAnswer = onRequest(
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
-      // The persona prompt itself carries the get_gif / get_meme usage rules,
-      // so no extra tool guidance is appended here. `memeToolEnabled` still
-      // gates whether the tools are actually registered below.
       const systemPrompt = promptResult.systemPrompt;
       assembleResult = await assembleContext({
         conversationId,
@@ -270,37 +263,33 @@ export const streamAgentAnswer = onRequest(
         systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
+        // The user turn still lives in Firestore; it's passed as the current
+        // turn above, so exclude it from the history window to avoid a
+        // duplicate plus a trailing empty user message.
+        excludeMessageIds: [userTurn.id],
       });
     } catch (err) {
-      logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
+      logger.error("[streamReplayTurn] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });
       return;
     }
 
     // ---------- stream ----------
-    let agentMessageId: string | null = null;
+    let agentMessageIdNew: string | null = null;
     let finalized = false;
     let clientClosed = false;
     let sawDelta = false;
+    let oldReplyDeleted = false;
     let lastUsage: AgentUsage | null = null;
-    // The meme / GIF the agent attached via get_meme / get_gif this turn, if
-    // any. Persisted on the agent message at finalize and emitted to the client
-    // over SSE. At most one is set (the guidance says pick one).
     let agentMeme: MessageImage | null = null;
     let agentGif: MessageGif | null = null;
     const abortController = new AbortController();
 
-    // Charge the turn's real cost once the stream's final usage is known.
-    // There is nothing to reserve or release: if no usage ever arrived (e.g.
-    // the client aborted before any output), the turn is free.
     const chargeForUsage = async (reason: string) => {
       if (!lastUsage) return;
 
-      // Early-rollout calibration: compare our flat image-token estimate to the
-      // model's actual prompt tokens so we can tune IMAGE_TOKENS_LOW per model.
-      // No image URLs are logged.
       if (images.length > 0) {
-        logger.info("[streamAgentAnswer] image turn usage", {
+        logger.info("[streamReplayTurn] image turn usage", {
           model: internalModel,
           imageCount: images.length,
           estimatedImageTokens: images.length * IMAGE_TOKENS_LOW,
@@ -314,8 +303,8 @@ export const streamAgentAnswer = onRequest(
         const costUsd = calculateCostUsd(internalModel, lastUsage);
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
-          conversationId: conversationId!,
-          messageId: agentMessageId,
+          conversationId,
+          messageId: agentMessageIdNew,
           model: internalModel,
           inputTokens: lastUsage.inputTokens,
           cachedInputTokens: lastUsage.cachedInputTokens,
@@ -325,10 +314,10 @@ export const streamAgentAnswer = onRequest(
           credits,
         });
       } catch (err) {
-        logger.error("[streamAgentAnswer] charge failed", {
+        logger.error("[streamReplayTurn] charge failed", {
           userKey: logKey(uid),
           conversationId,
-          agentMessageId,
+          agentMessageId: agentMessageIdNew,
           reason,
           err,
         });
@@ -349,30 +338,17 @@ export const streamAgentAnswer = onRequest(
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
-      const userMessage = await appendMessage(conversationId, {
-        role: "user",
-        text: userText,
-        status: "complete",
-        clientMessageId,
-        images: images.length > 0 ? images : undefined,
-        gifs: gifs.length > 0 ? gifs : undefined,
-        levelOfRot,
-      });
-
-      if (newConversation) {
-        writeSse(res, "conversation", { id: conversationId });
-      }
-      writeSse(res, "message", {
-        role: "user",
-        id: userMessage.messageId,
-        clientMessageId,
-      });
+      // Delete the old reply only now that everything is ready to stream — so a
+      // preflight failure above leaves the conversation untouched. No ledger
+      // change accompanies the delete.
+      await deleteMessage(conversationId, agentMessageId);
+      oldReplyDeleted = true;
 
       const agentMessage = await appendMessage(conversationId, {
         role: "agent",
         text: "",
         status: "streaming",
-        inReplyToClientMessageId: clientMessageId,
+        inReplyToClientMessageId: userTurn.clientMessageId,
         persona: resolvedPersona
           ? {
               id: resolvedPersona.id,
@@ -383,17 +359,15 @@ export const streamAgentAnswer = onRequest(
             }
           : undefined,
       });
-      agentMessageId = agentMessage.messageId;
+      agentMessageIdNew = agentMessage.messageId;
       writeSse(res, "message", {
         role: "agent",
-        id: agentMessageId,
-        inReplyToClientMessageId: clientMessageId,
+        id: agentMessageIdNew,
+        inReplyToClientMessageId: userTurn.clientMessageId,
       });
 
       writeSse(res, "model", { id: internalModel });
       if (resolvedPersona) {
-        // Only safe public metadata goes over SSE. Prompt content stays
-        // backend-only inside assembleResult.messages[0].
         writeSse(res, "persona", {
           id: resolvedPersona.id,
           name: resolvedPersona.name,
@@ -407,9 +381,9 @@ export const streamAgentAnswer = onRequest(
         apiKey: OPENAI_API_KEY.value(),
         model: resolveModelId(internalModel),
         maxOutputTokens: entitlement.maxOutputTokens,
-        // Offer the get_meme tool only when Klipy is configured. The runner
-        // resolves Klipy internally and never throws, so a meme miss/outage
-        // still yields a normal text reply.
+        // The whole point of replay: a fresh seed + nudged top_p so the answer
+        // differs from the one we just deleted.
+        sampling: randomReplaySampling(),
         tools: memeToolEnabled ? [GET_GIF_TOOL, GET_MEME_TOOL] : undefined,
         runTool: memeToolEnabled
           ? (call) => {
@@ -428,7 +402,7 @@ export const streamAgentAnswer = onRequest(
         signal: abortController.signal,
       })) {
         if (clientClosed) {
-          await markErroredSafely(conversationId, agentMessageId);
+          await markErroredSafely(conversationId, agentMessageIdNew);
           finalized = true;
           await chargeForUsage("client-closed");
           return;
@@ -442,16 +416,12 @@ export const streamAgentAnswer = onRequest(
         }
 
         if (delta.type === "meme") {
-          // Keep the latest meme (the tool is capped to one round, so this fires
-          // at most once) and stream it so the client can show it immediately,
-          // before the finalized Firestore message lands.
           agentMeme = delta.image;
           writeSse(res, "meme", { image: agentMeme });
           continue;
         }
 
         if (delta.type === "gif") {
-          // Same as the meme path, for an agent-attached GIF.
           agentGif = delta.gif;
           writeSse(res, "gif", { gif: agentGif });
           continue;
@@ -463,16 +433,14 @@ export const streamAgentAnswer = onRequest(
         }
 
         if (delta.type === "error") {
-          logger.error("[streamAgentAnswer] agent stream failed", {
-            // Renamed off `message` — the logger reserves that field and was
-            // overwriting the real agent error with the log title.
+          logger.error("[streamReplayTurn] agent stream failed", {
             agentError: delta.message,
             sawDelta,
           });
           writeSse(res, "error", { code: "agent_error" });
           res.end();
           finalized = true;
-          await markErroredSafely(conversationId, agentMessageId);
+          await markErroredSafely(conversationId, agentMessageIdNew);
           await chargeForUsage("agent-error");
           return;
         }
@@ -485,34 +453,33 @@ export const streamAgentAnswer = onRequest(
       try {
         await finalizeAgentMessage(
           conversationId,
-          agentMessageId,
-          // Scrub any meme markdown/attachment artifacts the model may have
-          // written; the meme/gif is persisted + shown as its own image below.
+          agentMessageIdNew,
           stripMemeArtifacts(fullText),
           agentMeme ? [agentMeme] : undefined,
           agentGif ? [agentGif] : undefined,
         );
       } catch (err) {
-        logger.error("[streamAgentAnswer] failed to finalize agent message", {
+        logger.error("[streamReplayTurn] failed to finalize agent message", {
           conversationId,
-          agentMessageId,
+          agentMessageId: agentMessageIdNew,
           err,
         });
-        await markErroredSafely(conversationId, agentMessageId);
+        await markErroredSafely(conversationId, agentMessageIdNew);
       }
       await chargeForUsage("done");
     } catch (err) {
-      logger.error("[streamAgentAnswer] request failed", {
+      logger.error("[streamReplayTurn] request failed", {
         conversationId,
-        agentMessageId,
+        agentMessageId: agentMessageIdNew,
+        oldReplyDeleted,
         err,
       });
 
       if (res.headersSent) {
         writeSse(res, "error", { code: "agent_error" });
         res.end();
-        if (conversationId && agentMessageId) {
-          await markErroredSafely(conversationId, agentMessageId);
+        if (agentMessageIdNew) {
+          await markErroredSafely(conversationId, agentMessageIdNew);
         }
         finalized = true;
         await chargeForUsage("exception-after-headers");

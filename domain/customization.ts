@@ -774,6 +774,78 @@ export const PICKER_GRADIENT_PRESETS: readonly (readonly [string, string])[] = [
   ["#7F00FF", "#E100FF"],
 ];
 
+// ---- Picker preset state helpers ----
+//
+// Pure functions for the add / delete / dedup logic used by CustomColorSheet's
+// "saved picks" row. Extracted here so they can be unit-tested without mounting
+// the component.
+
+// Prepend hex to the saved list; if it's already there, move it to the front.
+export function addSolidPreset(hex: string, existing: readonly string[]): string[] {
+  return [hex, ...existing.filter((c) => c !== hex)];
+}
+
+// Remove one entry from the saved solid list.
+export function deleteSolidPreset(hex: string, existing: readonly string[]): string[] {
+  return existing.filter((c) => c !== hex);
+}
+
+// Prepend a gradient stop-array to the saved list; move to front if duplicate.
+export function addGradientPreset(
+  stops: readonly string[],
+  existing: readonly (readonly string[])[],
+): string[][] {
+  const key = stops.join(":");
+  return [
+    stops.slice() as string[],
+    ...existing.filter((g) => g.join(":") !== key).map((g) => g.slice() as string[]),
+  ];
+}
+
+// Remove one gradient (matched by colon-joined key) from the saved list.
+export function deleteGradientPreset(
+  key: string,
+  existing: readonly (readonly string[])[],
+): string[][] {
+  return existing.filter((g) => g.join(":") !== key).map((g) => g.slice() as string[]);
+}
+
+// Build the full solid swatch row: saved picks first, then built-ins, deduped.
+export function buildPickerSolidSwatches(addedSolids: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const hex of [
+    ...addedSolids,
+    ...PICKER_SOLID_PRESETS.map((h) => normalizeHex(h) ?? h),
+  ]) {
+    if (seen.has(hex)) continue;
+    seen.add(hex);
+    out.push(hex);
+  }
+  return out;
+}
+
+// Build the full gradient swatch row: saved picks first, then built-ins, deduped.
+export function buildPickerGradientSwatches(
+  addedGradients: readonly (readonly string[])[],
+): string[][] {
+  const seen = new Set<string>();
+  const out: string[][] = [];
+  for (const g of [
+    ...addedGradients,
+    ...PICKER_GRADIENT_PRESETS.map((p) => [
+      normalizeHex(p[0]) ?? p[0],
+      normalizeHex(p[1]) ?? p[1],
+    ]),
+  ]) {
+    const key = g.join(":");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(g.slice() as string[]);
+  }
+  return out;
+}
+
 // ---- Swatch helpers (for the settings picker) ----
 
 // Sentinel id for the trailing "pick your own" swatch. Distinct from a stored
