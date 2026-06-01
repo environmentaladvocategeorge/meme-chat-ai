@@ -503,8 +503,8 @@ export default function ChatScreen() {
             // message list, and composer all paint on top of it.
             <LinearGradient
               colors={chatBackground.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
+              start={chatBackground.gradientStart ?? { x: 0, y: 0 }}
+              end={chatBackground.gradientEnd ?? { x: 0, y: 1 }}
               style={StyleSheet.absoluteFillObject}
               pointerEvents="none"
             />

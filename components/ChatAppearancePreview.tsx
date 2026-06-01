@@ -7,6 +7,7 @@ import { AgentAvatar } from "@/components/AgentAvatar";
 import { Typography } from "@/components/Typography";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { LinearGradient } from "expo-linear-gradient";
+import { List, PaperPlaneTilt } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
@@ -35,8 +36,8 @@ export function ChatAppearancePreview() {
       {background.kind === "gradient" && background.gradientColors ? (
         <LinearGradient
           colors={background.gradientColors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
+          start={background.gradientStart ?? { x: 0, y: 0 }}
+          end={background.gradientEnd ?? { x: 0, y: 1 }}
           style={{ ...StyleFill }}
         />
       ) : (
@@ -47,6 +48,65 @@ export function ChatAppearancePreview() {
           }}
         />
       )}
+
+      {/* Header preview. */}
+      <View
+        style={{
+          marginHorizontal: 14,
+          marginTop: 14,
+          borderRadius: 18,
+          paddingHorizontal: 10,
+          paddingVertical: 8,
+          flexDirection: "row",
+          alignItems: "center",
+          backgroundColor: chatTheme["--color-card"],
+          borderWidth: 1,
+          borderColor: chatTheme["--color-border"],
+        }}
+      >
+        <View
+          style={{
+            width: 30,
+            height: 30,
+            borderRadius: 15,
+            overflow: "hidden",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: chatTheme["--color-primary"],
+          }}
+        >
+          <LinearGradient
+            colors={[
+              chatTheme["--color-primary"],
+              chatTheme["--color-primary"],
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{ ...StyleFill }}
+          />
+          <List
+            size={15}
+            weight="bold"
+            color={chatTheme["--color-primary-foreground"]}
+          />
+        </View>
+        <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 8 }}>
+          <Typography
+            variant="body"
+            weight="bold"
+            numberOfLines={1}
+            style={{ color: chatTheme["--color-foreground"], fontSize: 15 }}
+          >
+            {t("chat.title")}
+          </Typography>
+        </View>
+        <View
+          style={{
+            width: 30,
+            height: 30,
+          }}
+        />
+      </View>
 
       <View style={{ padding: 14, gap: 8 }}>
         {/* Agent bubble (left, with avatar). */}
@@ -95,8 +155,8 @@ export function ChatAppearancePreview() {
           {bubble.kind === "gradient" && bubble.gradientColors ? (
             <LinearGradient
               colors={bubble.gradientColors}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
+              start={bubble.gradientStart ?? { x: 0, y: 0 }}
+              end={bubble.gradientEnd ?? { x: 0, y: 1 }}
               style={{ ...StyleFill }}
             />
           ) : null}
@@ -108,6 +168,52 @@ export function ChatAppearancePreview() {
               {t("settings.customization.previewUser")}
             </Typography>
           </View>
+        </View>
+      </View>
+
+      {/* Chat bar preview. */}
+      <View
+        style={{
+          marginHorizontal: 14,
+          marginBottom: 14,
+          height: 38,
+          borderRadius: 19,
+          paddingLeft: 14,
+          paddingRight: 5,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 8,
+          backgroundColor: chatTheme["--color-input"],
+          borderWidth: 1,
+          borderColor: chatTheme["--color-border"],
+        }}
+      >
+        <Typography
+          variant="body-sm"
+          numberOfLines={1}
+          style={{
+            flex: 1,
+            color: chatTheme["--color-foreground-muted"],
+            fontSize: 13,
+          }}
+        >
+          {t("settings.customization.previewPlaceholder")}
+        </Typography>
+        <View
+          style={{
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: chatTheme["--color-primary"],
+          }}
+        >
+          <PaperPlaneTilt
+            size={13}
+            weight="fill"
+            color={chatTheme["--color-primary-foreground"]}
+          />
         </View>
       </View>
     </View>

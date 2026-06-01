@@ -5,6 +5,7 @@
 // matching MenuButton lives inline inside AppHeader so the two stay
 // in sync without a parent/child relationship.
 
+import { AppPressable } from "@/components/AppPressable";
 import { MENU_BUTTON_SIZE } from "@/components/MenuButton";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { Typography } from "@/components/Typography";
@@ -22,7 +23,7 @@ import {
 } from "phosphor-react-native";
 import { ComponentType, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   interpolate,
@@ -34,8 +35,6 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const ITEM_HEIGHT = 56;
 const ITEM_GAP = 12;
@@ -121,15 +120,24 @@ export function PlayfulMenu() {
       pointerEvents={open ? "auto" : "none"}
       style={StyleSheet.absoluteFillObject}
     >
-      <AnimatedPressable
+      {/* Static full-screen catcher; only the inner dimmer animates its
+          opacity, so the touch frame never moves. */}
+      <AppPressable
         onPress={close}
+        feedback="none"
+        hitSlop={0}
         accessibilityLabel={t("menu.close")}
-        style={[
-          StyleSheet.absoluteFillObject,
-          { backgroundColor: theme["--color-overlay"] },
-          backdropStyle,
-        ]}
-      />
+        containerStyle={StyleSheet.absoluteFillObject}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: theme["--color-overlay"] },
+            backdropStyle,
+          ]}
+        />
+      </AppPressable>
 
       {/* Full-screen centering layer so the backdrop can dim edge-to-edge while
           the pills stay confined to (and left-aligned within) the same content
@@ -222,16 +230,18 @@ function MenuPill({
   });
 
   // The slide/scale/rotate animation lives on a pointerEvents="none" inner
-  // view; the Pressable stays a static box at the pill's resting position.
-  // Animating the Pressable itself desyncs Fabric's hit-test frame in release
-  // builds, which makes the pill drop taps until a re-layout.
+  // view; the touch target stays a static box at the pill's resting position.
+  // Animating the target itself desyncs Fabric's hit-test frame in release
+  // builds, which makes the pill drop taps until a re-layout. feedback="none"
+  // keeps AppPressable from adding its own scale layer — the entrance view is
+  // the only animation here.
   return (
-    <Pressable
+    <AppPressable
       onPress={onPress}
-      accessibilityRole="button"
+      feedback="none"
       accessibilityLabel={label}
       accessibilityState={{ selected: isActive }}
-      style={{ alignSelf: "flex-start" }}
+      containerStyle={{ alignSelf: "flex-start" }}
     >
       <Animated.View
         pointerEvents="none"
@@ -293,6 +303,6 @@ function MenuPill({
           {label}
         </Typography>
       </Animated.View>
-    </Pressable>
+    </AppPressable>
   );
 }

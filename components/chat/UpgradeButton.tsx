@@ -1,9 +1,10 @@
+import { AppPressable } from "@/components/AppPressable";
 import { Typography } from "@/components/Typography";
 import { gradients } from "@/nativewind-theme";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 // Gradient CTA shared by the quota modal + usage block. Label flips to
 // "See limits" on the top tier, where there's nothing left to upgrade to.
@@ -22,16 +23,16 @@ export function UpgradeButton({
   const label = isTopTier ? t("chat.usage.seeLimits") : t("chat.usage.upgrade");
 
   return (
-    <Pressable
-      accessibilityRole="button"
+    <AppPressable
       accessibilityLabel={label}
       onPress={onPress}
-      style={({ pressed }) => ({
+      haptic
+      feedback="opacity"
+      style={{
         height,
         borderRadius: height / 2,
         overflow: "hidden",
-        opacity: pressed ? 0.92 : 1,
-      })}
+      }}
     >
       <LinearGradient
         colors={gradient.colors}
@@ -47,6 +48,6 @@ export function UpgradeButton({
           {label}
         </Typography>
       </View>
-    </Pressable>
+    </AppPressable>
   );
 }

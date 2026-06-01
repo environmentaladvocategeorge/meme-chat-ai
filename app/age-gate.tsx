@@ -6,6 +6,7 @@
 // dispatcher in app/_layout.tsx keeps the user here until the gate passes;
 // a blocked result has no escape (only a reinstall clears it).
 
+import { AppPressable } from "@/components/AppPressable";
 import { AuthScaffold, GradientButton } from "@/components/AuthScaffold";
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
@@ -16,7 +17,7 @@ import DateTimePicker, {
 import { CalendarBlank } from "phosphor-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Platform, Pressable, View } from "react-native";
+import { Platform, View } from "react-native";
 
 // Sensible spinner starting point: an adult birthday, so the common case is a
 // short scroll rather than spinning back from today.
@@ -33,6 +34,8 @@ export default function AgeGate() {
 
   const [dob, setDob] = useState<Date | null>(null);
   const [iosPickerOpen, setIosPickerOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const maxDate = new Date();
 
   // Blocked is terminal: show the hard-no and offer no way forward.
@@ -59,7 +62,10 @@ export default function AgeGate() {
         mode: "date",
         maximumDate: maxDate,
         onChange: (event, selected) => {
-          if (event.type === "set" && selected) setDob(selected);
+          if (event.type === "set" && selected) {
+            setErrorMessage(null);
+            setDob(selected);
+          }
         },
       });
     } else {
@@ -67,11 +73,19 @@ export default function AgeGate() {
     }
   };
 
-  const onContinue = () => {
-    if (!dob) return;
+  const onContinue = async () => {
+    if (!dob || submitting) return;
     // The store update flips ageGate status; the dispatcher routes onward when
     // it passes, or this screen re-renders into the blocked state.
-    submitBirthDate(dob);
+    setSubmitting(true);
+    setErrorMessage(null);
+    try {
+      await submitBirthDate(dob);
+    } catch {
+      setErrorMessage(t("ageGate.saveError"));
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const fieldLabel = dob
@@ -86,11 +100,11 @@ export default function AgeGate() {
     <AuthScaffold title={t("ageGate.title")} subtitle={t("ageGate.body")}>
       <View style={{ flex: 1, justifyContent: "space-between" }}>
         <View style={{ gap: 14, marginTop: 4 }}>
-          <Pressable
+          <AppPressable
             onPress={openPicker}
-            accessibilityRole="button"
+            feedback="opacity"
             accessibilityLabel={t("ageGate.dobPlaceholder")}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: "row",
               alignItems: "center",
               gap: 12,
@@ -100,8 +114,7 @@ export default function AgeGate() {
               backgroundColor: "rgba(255,255,255,0.1)",
               borderWidth: 1.5,
               borderColor: "rgba(255,255,255,0.28)",
-              opacity: pressed ? 0.85 : 1,
-            })}
+            }}
           >
             <CalendarBlank size={22} color="rgba(255,255,255,0.9)" weight="bold" />
             <Typography
@@ -110,7 +123,7 @@ export default function AgeGate() {
             >
               {fieldLabel}
             </Typography>
-          </Pressable>
+          </AppPressable>
 
           {Platform.OS === "ios" && iosPickerOpen ? (
             <View
@@ -129,17 +142,30 @@ export default function AgeGate() {
                 maximumDate={maxDate}
                 themeVariant="dark"
                 onChange={(_event, selected) => {
-                  if (selected) setDob(selected);
+                  if (selected) {
+                    setErrorMessage(null);
+                    setDob(selected);
+                  }
                 }}
                 style={{ alignSelf: "stretch" }}
               />
             </View>
+          ) : null}
+
+          {errorMessage ? (
+            <Typography
+              variant="body-sm"
+              style={{ color: "#FFE6B8", textAlign: "center" }}
+            >
+              {errorMessage}
+            </Typography>
           ) : null}
         </View>
 
         <GradientButton
           title={t("ageGate.cta")}
           onPress={onContinue}
+          loading={submitting}
           disabled={!dob}
         />
       </View>

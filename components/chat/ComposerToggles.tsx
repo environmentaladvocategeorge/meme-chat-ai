@@ -1,6 +1,7 @@
+import { AppPressable } from "@/components/AppPressable";
+import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
-import { tapHaptic } from "@/lib/haptics";
 import {
   Camera as CameraIcon,
   Gif as GifIcon,
@@ -8,13 +9,6 @@ import {
   Sticker,
 } from "phosphor-react-native";
 import type { ReactNode } from "react";
-import { ActivityIndicator, Pressable } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
 
 // The accessory buttons that sit just under the composer (photo · GIFs ·
 // memes · rot level). They share one quiet, conversational pill language —
@@ -47,20 +41,25 @@ function ComposerPill({
 }) {
   const theme = useTheme();
 
+  // The pill is wide, so a transform on the touch target wouldn't actually drop
+  // taps here — but routing it through AppPressable keeps every pressable in the
+  // app on one proven core (static target, scale on an inner pointerEvents="none"
+  // view) instead of a bespoke style-function transform. Sizing/flex stay on the
+  // hit target (containerStyle); the surface look scales on the inner view.
   return (
-    <Pressable
-      onPress={() => {
-        tapHaptic();
-        onPress();
-      }}
-      accessibilityRole="button"
+    <AppPressable
+      onPress={onPress}
+      haptic
+      hitSlop={6}
+      pressScale={0.04}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={expanded === undefined ? undefined : { expanded }}
-      hitSlop={6}
-      style={({ pressed }) => ({
+      containerStyle={{
         flexGrow: 1,
         flexShrink: 0,
         flexBasis: "auto",
+      }}
+      style={{
         height: PILL_HEIGHT,
         flexDirection: "row",
         alignItems: "center",
@@ -73,9 +72,7 @@ function ComposerPill({
         backgroundColor: active
           ? theme["--color-primary"]
           : theme["--color-card"],
-        transform: [{ scale: pressed ? 0.96 : 1 }],
-        opacity: pressed ? 0.92 : 1,
-      })}
+      }}
     >
       {leading}
       <Typography
@@ -91,7 +88,7 @@ function ComposerPill({
       >
         {label}
       </Typography>
-    </Pressable>
+    </AppPressable>
   );
 }
 
@@ -107,72 +104,26 @@ export function PhotoButton({
   onPress: () => void;
 }) {
   const theme = useTheme();
-  // Same fix as the menu button: the touch target is a static Pressable; the
-  // circle + press-scale live on a pointerEvents="none" child driven by
-  // onPressIn/onPressOut. Nothing animates the Pressable's own box, and the
-  // flinch makes a dropped tap visible.
-  const pressed = useSharedValue(0);
-  const visualStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 - pressed.value * 0.08 }],
-  }));
-
+  // Built on IconButton (the shared static-target + inner-feedback core). The
+  // hitSlop trims its right edge so the cushion doesn't bleed into the GIF pill
+  // packed next to it.
   return (
-    <Pressable
-      onPress={() => {
-        tapHaptic();
-        onPress();
-      }}
-      onPressIn={() => {
-        pressed.value = withTiming(1, { duration: 80 });
-      }}
-      onPressOut={() => {
-        pressed.value = withSpring(0, {
-          damping: 14,
-          stiffness: 220,
-          mass: 0.8,
-        });
-      }}
-      disabled={busy}
-      accessibilityRole="button"
+    <IconButton
+      onPress={onPress}
+      busy={busy}
+      busyColor={theme["--color-foreground-muted"]}
       accessibilityLabel={label}
-      accessibilityState={{ disabled: busy }}
+      size={PILL_HEIGHT}
       hitSlop={{ top: 14, bottom: 14, left: 14, right: 4 }}
-      style={{
-        flexGrow: 0,
-        flexShrink: 0,
-        width: PILL_HEIGHT,
-        height: PILL_HEIGHT,
-        alignItems: "center",
-        justifyContent: "center",
+      surfaceStyle={{
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+        backgroundColor: theme["--color-card"],
+        opacity: busy ? 0.7 : 1,
       }}
     >
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            width: PILL_HEIGHT,
-            height: PILL_HEIGHT,
-            borderRadius: PILL_HEIGHT / 2,
-            alignItems: "center",
-            justifyContent: "center",
-            borderWidth: 1,
-            borderColor: theme["--color-border"],
-            backgroundColor: theme["--color-card"],
-            opacity: busy ? 0.7 : 1,
-          },
-          visualStyle,
-        ]}
-      >
-        {busy ? (
-          <ActivityIndicator
-            size="small"
-            color={theme["--color-foreground-muted"]}
-          />
-        ) : (
-          <CameraIcon size={19} color={theme["--color-primary"]} weight="fill" />
-        )}
-      </Animated.View>
-    </Pressable>
+      <CameraIcon size={19} color={theme["--color-primary"]} weight="fill" />
+    </IconButton>
   );
 }
 

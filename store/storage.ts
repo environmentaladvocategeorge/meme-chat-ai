@@ -1,9 +1,12 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  CHAT_UI_COLOR_ROLES,
+  type ChatUiColorOverrides,
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
   isBackgroundId,
   isBubbleStyleId,
+  normalizeHex,
 } from "@/domain/customization";
 
 export type Appearance = "system" | "light" | "dark";
@@ -16,6 +19,7 @@ export interface PersistedSettings {
   // Local-only — never synced to the backend.
   chatBubbleStyle: string;
   chatBackground: string;
+  chatUiColors: ChatUiColorOverrides;
   // The name Brainrot Bot calls the user, captured during onboarding. Mirrored to
   // profiles/{uid} via the updateProfile callable so it survives reinstall;
   // this local copy is the fast read for the UI.
@@ -35,11 +39,38 @@ export const DEFAULT_SETTINGS: PersistedSettings = {
   language: "system",
   chatBubbleStyle: DEFAULT_BUBBLE_STYLE,
   chatBackground: DEFAULT_BACKGROUND,
+  chatUiColors: {},
   alias: "",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeChatUiColors(value: unknown): ChatUiColorOverrides {
+  if (!isRecord(value)) return {};
+  const colors: ChatUiColorOverrides = {};
+  for (const role of CHAT_UI_COLOR_ROLES) {
+    const color = value[role];
+    if (typeof color !== "string") continue;
+    const normalized = normalizeHex(color);
+    if (normalized) colors[role] = normalized;
+  }
+  if (!colors.accent && typeof value.accentText === "string") {
+    const normalized = normalizeHex(value.accentText);
+    if (normalized) colors.accent = normalized;
+  }
+  if (!colors.subtle) {
+    const legacySubtle =
+      typeof value.surface === "string"
+        ? value.surface
+        : typeof value.chatBar === "string"
+          ? value.chatBar
+          : null;
+    const normalized = legacySubtle ? normalizeHex(legacySubtle) : null;
+    if (normalized) colors.subtle = normalized;
+  }
+  return colors;
 }
 
 function normalizeSettings(value: unknown): PersistedSettings {
@@ -66,6 +97,7 @@ function normalizeSettings(value: unknown): PersistedSettings {
       isBackgroundId(value.chatBackground)
         ? value.chatBackground
         : DEFAULT_SETTINGS.chatBackground,
+    chatUiColors: normalizeChatUiColors(value.chatUiColors),
     alias:
       typeof value.alias === "string"
         ? value.alias.slice(0, MAX_ALIAS_LENGTH)
@@ -220,15 +252,13 @@ export const AgeGateStorage = {
   },
 
   async write(patch: Partial<PersistedAgeGate>): Promise<void> {
-    pendingAgeGateWrite = pendingAgeGateWrite
-      .then(async () => {
-        const current = await AgeGateStorage.read();
-        await AsyncStorage.setItem(
-          AGE_GATE_KEY,
-          JSON.stringify({ ...current, ...patch }),
-        );
-      })
-      .catch(() => {});
+    pendingAgeGateWrite = pendingAgeGateWrite.catch(() => {}).then(async () => {
+      const current = await AgeGateStorage.read();
+      await AsyncStorage.setItem(
+        AGE_GATE_KEY,
+        JSON.stringify({ ...current, ...patch }),
+      );
+    });
 
     await pendingAgeGateWrite;
   },

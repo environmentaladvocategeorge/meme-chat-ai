@@ -1,4 +1,4 @@
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
@@ -24,6 +24,76 @@ function isRcEvent(value: unknown): value is RcEvent {
     typeof v.type === "string" &&
     typeof v.app_user_id === "string"
   );
+}
+
+export async function processRevenueCatEvent(
+  db: Firestore,
+  event: RcEvent,
+): Promise<
+  | { duplicate: true }
+  | { duplicate: false; applied: true; plan: string }
+  | { duplicate: false; applied: false; reason: string }
+> {
+  const dedupRef = db.doc(`revenueCatEvents/${event.id}`);
+  const profileRef = db.doc(`profiles/${event.app_user_id}`);
+
+  return db.runTransaction(async (tx) => {
+    const dedupSnap = await tx.get(dedupRef);
+    if (dedupSnap.exists) {
+      return { duplicate: true } as const;
+    }
+
+    const profileSnap = await tx.get(profileRef);
+    if (!profileSnap.exists) {
+      tx.set(dedupRef, {
+        type: event.type,
+        productId: event.new_product_id ?? event.product_id ?? null,
+        isSandbox: isSandboxEvent(event),
+        processedAt: FieldValue.serverTimestamp(),
+        applied: false,
+        reason: "missing-profile",
+        raw: {
+          id: event.id,
+          type: event.type,
+          product_id: event.product_id ?? null,
+          new_product_id: event.new_product_id ?? null,
+          expiration_at_ms: event.expiration_at_ms ?? null,
+          environment: event.environment ?? null,
+        },
+      });
+      return {
+        duplicate: false,
+        applied: false,
+        reason: "missing-profile",
+      } as const;
+    }
+
+    const current = readProfileBilling(profileSnap.data());
+    const decision = handleRcEvent(current, event, new Date());
+
+    tx.set(dedupRef, {
+      type: event.type,
+      productId: event.new_product_id ?? event.product_id ?? null,
+      isSandbox: isSandboxEvent(event),
+      processedAt: FieldValue.serverTimestamp(),
+      applied: decision.kind === "apply",
+      raw: {
+        id: event.id,
+        type: event.type,
+        product_id: event.product_id ?? null,
+        new_product_id: event.new_product_id ?? null,
+        expiration_at_ms: event.expiration_at_ms ?? null,
+        environment: event.environment ?? null,
+      },
+    });
+
+    if (decision.kind === "apply") {
+      tx.set(profileRef, decision.next, { merge: true });
+      return { duplicate: false, applied: true, plan: decision.next.plan } as const;
+    }
+
+    return { duplicate: false, applied: false, reason: decision.reason } as const;
+  });
 }
 
 export const revenueCatWebhook = onRequest(
@@ -65,54 +135,11 @@ export const revenueCatWebhook = onRequest(
       return;
     }
 
-    const db = getFirestore();
-    const dedupRef = db.doc(`revenueCatEvents/${event.id}`);
-    const uid = event.app_user_id;
-    const profileRef = db.doc(`profiles/${uid}`);
-
     try {
-      const outcome = await db.runTransaction(async (tx) => {
-        const dedupSnap = await tx.get(dedupRef);
-        if (dedupSnap.exists) {
-          return { duplicate: true } as const;
-        }
-
-        const profileSnap = await tx.get(profileRef);
-        const current = profileSnap.exists
-          ? readProfileBilling(profileSnap.data())
-          : null;
-
-        const decision = handleRcEvent(current, event, new Date());
-
-        tx.set(dedupRef, {
-          uid,
-          type: event.type,
-          productId: event.new_product_id ?? event.product_id ?? null,
-          isSandbox: isSandboxEvent(event),
-          processedAt: FieldValue.serverTimestamp(),
-          // Store a compact echo for audit; do NOT store secrets.
-          raw: {
-            id: event.id,
-            type: event.type,
-            app_user_id: event.app_user_id,
-            product_id: event.product_id ?? null,
-            new_product_id: event.new_product_id ?? null,
-            expiration_at_ms: event.expiration_at_ms ?? null,
-            environment: event.environment ?? null,
-          },
-        });
-
-        if (decision.kind === "apply") {
-          tx.set(profileRef, decision.next, { merge: true });
-          return { duplicate: false, applied: true, plan: decision.next.plan } as const;
-        }
-
-        return { duplicate: false, applied: false, reason: decision.reason } as const;
-      });
+      const outcome = await processRevenueCatEvent(getFirestore(), event);
 
       logger.info("[rc-webhook] processed", {
         rcEventId: event.id,
-        uid,
         type: event.type,
         ...outcome,
       });

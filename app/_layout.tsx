@@ -78,6 +78,7 @@ export default function RootLayout() {
   const hydrateOnboarding = useOnboardingStore((s) => s.hydrate);
   const onboardingCompleted = useOnboardingStore((s) => s.completed);
   const hydrateAgeGate = useAgeGateStore((s) => s.hydrate);
+  const ageGateHydrated = useAgeGateStore((s) => s.hydrated);
   const ageGatePassed = useAgeGateStore((s) => s.status === "passed");
   const initializeAuthSession = useAuthStore((s) => s.initializeAuthSession);
   const authStatus = useAuthStore((s) => s.status);
@@ -124,7 +125,7 @@ export default function RootLayout() {
     authStatus !== "deleting";
 
   const isAuthenticated = authStatus === "authenticated";
-  const appReady = fontsLoaded && hydrated && authResolved;
+  const appReady = fontsLoaded && hydrated && ageGateHydrated && authResolved;
   const segs = segments as readonly string[];
   const inOnboarding = segs[0] === "onboarding";
   const atAgeGate = segs[0] === "age-gate";

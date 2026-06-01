@@ -1,3 +1,4 @@
+import { AppPressable } from "@/components/AppPressable";
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
 import { formatResetMoment } from "@/domain/usage";
@@ -5,7 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { type QuotaInfo } from "@/store/chat";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Pressable, View } from "react-native";
+import { Modal, View } from "react-native";
 import { UpgradeButton } from "./UpgradeButton";
 
 export function QuotaModal({
@@ -98,9 +99,10 @@ export function QuotaModal({
 
           <View style={{ width: "100%", gap: 8, marginTop: 2 }}>
             <UpgradeButton isTopTier={isTopTier} onPress={handleUpgrade} />
-            <Pressable
-              accessibilityRole="button"
+            <AppPressable
               onPress={onDismiss}
+              feedback="opacity"
+              accessibilityLabel={t("chat.quota.dismiss")}
               style={{
                 alignItems: "center",
                 paddingVertical: 10,
@@ -116,7 +118,7 @@ export function QuotaModal({
               >
                 {t("chat.quota.dismiss")}
               </Typography>
-            </Pressable>
+            </AppPressable>
           </View>
         </View>
       </View>

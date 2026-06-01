@@ -18,6 +18,7 @@
 // The free tier is intentionally NOT a selectable card — it's the implicit
 // baseline shown in the comparison matrix.
 
+import { AppPressable, SheetTouchableProvider } from "@/components/AppPressable";
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
 import { PLAN_RANK, type PlanId } from "@/domain/billing";
@@ -25,7 +26,6 @@ import { useTheme } from "@/hooks/useTheme";
 import { gradients, type ThemeTokens } from "@/nativewind-theme";
 import { useEffectivePlan } from "@/store/entitlement";
 import { useSubscriptionStore } from "@/store/subscription";
-import { TouchableOpacity as BottomSheetTouchableOpacity } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect, useState } from "react";
@@ -215,6 +215,7 @@ export function PlanPaywall() {
         : t("settings.plan.switchTo", { name: `${selectedName} ${PLAN_EMOJI[selected]}` });
 
   return (
+   <SheetTouchableProvider>
     <View style={{ gap: 22 }}>
       {/* Hero: avatar left, headline/subhead column right (left-aligned) */}
       <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
@@ -277,12 +278,12 @@ export function PlanPaywall() {
 
       {/* CTA — placed directly under the tier cards so the primary action is
           visible without scrolling past the details + comparison matrix. */}
-      <BottomSheetTouchableOpacity
-        accessibilityRole="button"
+      <AppPressable
         accessibilityLabel={ctaLabel}
         disabled={isCurrentSelected || busy}
         onPress={() => void handleCta()}
-        activeOpacity={0.9}
+        haptic
+        feedback="opacity"
         style={{
           height: 56,
           borderRadius: 28,
@@ -325,7 +326,7 @@ export function PlanPaywall() {
             {ctaLabel}
           </Typography>
         </View>
-      </BottomSheetTouchableOpacity>
+      </AppPressable>
 
       <Typography
         variant="caption"
@@ -358,6 +359,7 @@ export function PlanPaywall() {
         theme={theme}
       />
     </View>
+   </SheetTouchableProvider>
   );
 }
 
@@ -405,13 +407,12 @@ function TierCard({
   const BADGE_SLOT_HEIGHT = 16;
 
   return (
-    <BottomSheetTouchableOpacity
+    <AppPressable
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityState={{ selected }}
-      activeOpacity={0.9}
+      pressScale={0.04}
+      containerStyle={{ flex: 1 }}
       style={{
-        flex: 1,
         borderRadius: 16,
         overflow: "hidden",
         padding: selected ? 2 : 0,
@@ -515,7 +516,7 @@ function TierCard({
           </Typography>
         </View>
       </View>
-    </BottomSheetTouchableOpacity>
+    </AppPressable>
   );
 }
 
@@ -798,11 +799,10 @@ function RestorePurchasesButton({
   };
 
   return (
-    <BottomSheetTouchableOpacity
+    <AppPressable
       onPress={() => void handleRestore()}
       disabled={busy}
-      activeOpacity={0.6}
-      accessibilityRole="button"
+      feedback="opacity"
       accessibilityLabel={t("settings.plan.restorePurchases")}
       style={{ alignItems: "center", paddingVertical: 4 }}
     >
@@ -815,7 +815,7 @@ function RestorePurchasesButton({
       >
         {t("settings.plan.restorePurchases")}
       </Typography>
-    </BottomSheetTouchableOpacity>
+    </AppPressable>
   );
 }
 

@@ -1,3 +1,4 @@
+import { AppPressable } from "@/components/AppPressable";
 import { AuthScaffold, GradientButton } from "@/components/AuthScaffold";
 import { Input } from "@/components/Input";
 import { Typography } from "@/components/Typography";
@@ -6,7 +7,7 @@ import { useAuthStore } from "@/store/auth";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Linking, Pressable, View } from "react-native";
+import { Linking, View } from "react-native";
 
 const PRIVACY_URL = "https://meme-chat-ai.com/privacy";
 // Apple's Standard EULA — the app doesn't ship a custom one.
@@ -87,13 +88,12 @@ export default function EmailRegisterScreen() {
             disabled={email.length === 0 || password.length === 0}
           />
 
-          <Pressable
+          <AppPressable
             onPress={() => router.replace("/auth/sign-in")}
+            feedback="opacity"
             hitSlop={8}
-            style={({ pressed }) => ({
-              alignSelf: "center",
-              opacity: pressed ? 0.7 : 1,
-            })}
+            accessibilityLabel={t("auth.haveAccount")}
+            containerStyle={{ alignSelf: "center" }}
           >
             <Typography
               variant="body"
@@ -101,7 +101,7 @@ export default function EmailRegisterScreen() {
             >
               {t("auth.haveAccount")}
             </Typography>
-          </Pressable>
+          </AppPressable>
 
           {/* Legal consent — Apple requires the EULA/Terms and Privacy Policy
               to be available at account creation. */}
@@ -121,9 +121,11 @@ export default function EmailRegisterScreen() {
             >
               {t("auth.legalConsent.prefix")}
             </Typography>
-            <Pressable
+            <AppPressable
               onPress={() => void Linking.openURL(TERMS_URL)}
+              feedback="opacity"
               hitSlop={6}
+              accessibilityLabel={t("auth.legalConsent.terms")}
             >
               <Typography
                 variant="caption"
@@ -135,16 +137,18 @@ export default function EmailRegisterScreen() {
               >
                 {t("auth.legalConsent.terms")}
               </Typography>
-            </Pressable>
+            </AppPressable>
             <Typography
               variant="caption"
               style={{ color: "rgba(255,255,255,0.7)" }}
             >
               {t("auth.legalConsent.and")}
             </Typography>
-            <Pressable
+            <AppPressable
               onPress={() => void Linking.openURL(PRIVACY_URL)}
+              feedback="opacity"
               hitSlop={6}
+              accessibilityLabel={t("auth.legalConsent.privacy")}
             >
               <Typography
                 variant="caption"
@@ -156,7 +160,7 @@ export default function EmailRegisterScreen() {
               >
                 {t("auth.legalConsent.privacy")}
               </Typography>
-            </Pressable>
+            </AppPressable>
           </View>
         </View>
       </View>

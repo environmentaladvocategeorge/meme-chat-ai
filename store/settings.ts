@@ -1,4 +1,9 @@
 import i18next, { resolveLanguage } from "@/i18n";
+import {
+  type ChatUiColorOverrides,
+  type ChatUiColorRole,
+  normalizeHex,
+} from "@/domain/customization";
 import { create } from "zustand";
 import {
   Appearance,
@@ -14,12 +19,15 @@ interface SettingsState {
   language: Language;
   chatBubbleStyle: string;
   chatBackground: string;
+  chatUiColors: ChatUiColorOverrides;
   alias: string;
   hydrate: () => Promise<void>;
   setAppearance: (v: Appearance) => void;
   setLanguage: (v: Language) => void;
   setChatBubbleStyle: (v: string) => void;
   setChatBackground: (v: string) => void;
+  setChatUiColors: (v: ChatUiColorOverrides) => void;
+  setChatUiColor: (role: ChatUiColorRole, color: string | null) => void;
   resetChatAppearance: () => void;
   setAlias: (v: string) => void;
   reset: () => Promise<void>;
@@ -35,6 +43,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       language: stored.language,
       chatBubbleStyle: stored.chatBubbleStyle,
       chatBackground: stored.chatBackground,
+      chatUiColors: stored.chatUiColors,
       alias: stored.alias,
     });
     i18next.changeLanguage(resolveLanguage(stored.language));
@@ -65,10 +74,24 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     SettingsStorage.write({ chatBackground });
   },
 
+  setChatUiColors: (chatUiColors) => {
+    set({ chatUiColors });
+    SettingsStorage.write({ chatUiColors });
+  },
+
+  setChatUiColor: (role, color) => {
+    const chatUiColors = { ...get().chatUiColors };
+    const normalized = color ? normalizeHex(color) : null;
+    if (normalized) chatUiColors[role] = normalized;
+    else delete chatUiColors[role];
+    set({ chatUiColors });
+    SettingsStorage.write({ chatUiColors });
+  },
+
   resetChatAppearance: () => {
-    const { chatBubbleStyle, chatBackground } = DEFAULT_SETTINGS;
-    set({ chatBubbleStyle, chatBackground });
-    SettingsStorage.write({ chatBubbleStyle, chatBackground });
+    const { chatBubbleStyle, chatBackground, chatUiColors } = DEFAULT_SETTINGS;
+    set({ chatBubbleStyle, chatBackground, chatUiColors });
+    SettingsStorage.write({ chatBubbleStyle, chatBackground, chatUiColors });
   },
 
   setAlias: (alias) => {

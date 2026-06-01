@@ -1,4 +1,5 @@
 import { getAuth } from "firebase-admin/auth";
+import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
@@ -56,6 +57,11 @@ function writeSse(res: SseResponse, event: string, data: unknown) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+function logKey(value: string | null): string | null {
+  if (!value) return null;
+  return createHash("sha256").update(value).digest("hex").slice(0, 16);
+}
+
 async function markErroredSafely(conversationId: string, messageId: string) {
   try {
     await markAgentMessageErrored(conversationId, messageId);
@@ -77,6 +83,7 @@ export const streamAgentAnswer = onRequest(
     secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
     timeoutSeconds: 540,
     memory: "512MiB",
+    minInstances: 1,
     cors: false,
     invoker: "public",
     region: "us-central1",
@@ -96,7 +103,7 @@ export const streamAgentAnswer = onRequest(
     });
     const allowed = await checkIpRateLimit(clientIp);
     if (!allowed) {
-      logger.warn("[streamAgentAnswer] rate-limited", { ip: clientIp });
+      logger.warn("[streamAgentAnswer] rate-limited", { ipKey: logKey(clientIp) });
       res.status(429).json({ code: "rate_limited" });
       return;
     }
@@ -201,7 +208,9 @@ export const streamAgentAnswer = onRequest(
         img.source !== "upload" || isOwnedMessageImagePath(uid, img.path),
     );
     if (!ownershipOk) {
-      logger.warn("[streamAgentAnswer] rejected unowned upload path", { uid });
+      logger.warn("[streamAgentAnswer] rejected unowned upload path", {
+        userKey: logKey(uid),
+      });
       res.status(400).json({ code: "invalid_request" });
       return;
     }
@@ -315,7 +324,7 @@ export const streamAgentAnswer = onRequest(
         });
       } catch (err) {
         logger.error("[streamAgentAnswer] charge failed", {
-          uid,
+          userKey: logKey(uid),
           conversationId,
           agentMessageId,
           reason,

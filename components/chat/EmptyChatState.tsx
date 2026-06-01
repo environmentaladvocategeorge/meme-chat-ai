@@ -1,4 +1,5 @@
 import { AgentAvatar } from "@/components/AgentAvatar";
+import { AppPressable } from "@/components/AppPressable";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
@@ -7,12 +8,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -224,58 +224,43 @@ function StarterPrompt({
   onPress: (text: string) => void;
 }) {
   const theme = useTheme();
-  const scale = useSharedValue(1);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePress = () => {
-    // A quick squish for tactile feedback, then spring back. The chip stays put
-    // because tapping it now drops the text into the composer (and focuses it)
-    // instead of sending — so the empty state remains until the user hits send.
-    scale.value = withSequence(
-      withTiming(0.96, { duration: 90 }),
-      withSpring(1, { damping: 14, stiffness: 240 }),
-    );
-    onPress(text);
-  };
-
+  // The press-squish now lives on AppPressable's inner surface (scale on a
+  // pointerEvents="none" view) instead of a withSequence on an Animated.View
+  // ancestor — same tactile feel, but the touch frame never moves.
   return (
-    <Animated.View style={[{ width: "100%" }, animatedStyle]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={text}
-        onPress={handlePress}
-        style={({ pressed: isPressed }) => ({
-          minHeight: 52,
-          borderRadius: 16,
-          paddingHorizontal: 16,
-          paddingVertical: 14,
-          justifyContent: "center",
-          backgroundColor: isPressed
-            ? theme["--color-card-pressed"]
-            : theme["--color-card"],
-          borderWidth: 1,
-          borderColor:
-            index % 2 === 0
-              ? theme["--color-border"]
-              : theme["--color-primary-muted"],
-          shadowColor: "#000000",
-          shadowOpacity: 0.08,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 5 },
-          elevation: 2,
-        })}
+    <AppPressable
+      accessibilityLabel={text}
+      onPress={() => onPress(text)}
+      haptic
+      pressScale={0.04}
+      containerStyle={{ width: "100%" }}
+      style={{
+        minHeight: 52,
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        justifyContent: "center",
+        backgroundColor: theme["--color-card"],
+        borderWidth: 1,
+        borderColor:
+          index % 2 === 0
+            ? theme["--color-border"]
+            : theme["--color-primary-muted"],
+        shadowColor: "#000000",
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 5 },
+        elevation: 2,
+      }}
+    >
+      <Typography
+        variant="body-sm"
+        weight="semibold"
+        style={{ color: theme["--color-foreground"], textAlign: "center" }}
       >
-        <Typography
-          variant="body-sm"
-          weight="semibold"
-          style={{ color: theme["--color-foreground"], textAlign: "center" }}
-        >
-          {text}
-        </Typography>
-      </Pressable>
-    </Animated.View>
+        {text}
+      </Typography>
+    </AppPressable>
   );
 }

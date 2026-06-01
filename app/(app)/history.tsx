@@ -1,6 +1,8 @@
 import { AdBanner } from "@/components/ads/AdBanner";
 import { AgentAvatar } from "@/components/AgentAvatar";
 import { AppHeader } from "@/components/AppHeader";
+import { AppPressable } from "@/components/AppPressable";
+import { IconButton } from "@/components/IconButton";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { Typography } from "@/components/Typography";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -21,7 +23,6 @@ import { useTranslation } from "react-i18next";
 import {
   ActivityIndicator,
   Modal,
-  Pressable,
   SectionList,
   TextInput,
   View,
@@ -29,7 +30,6 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -223,24 +223,15 @@ export default function HistoryScreen() {
           onBack={clearSelection}
           backAccessibilityLabel={t("common.cancel")}
           right={
-            <Pressable
-              accessibilityRole="button"
+            <IconButton
               accessibilityLabel={t("history.select.confirm")}
               onPress={() => setConfirmOpen(true)}
               hitSlop={8}
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 20,
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: pressed
-                  ? theme["--color-error-muted"]
-                  : "transparent",
-              })}
+              size={40}
+              surfaceStyle={{ backgroundColor: theme["--color-error-muted"] }}
             >
               <Trash size={22} color={theme["--color-error"]} weight="bold" />
-            </Pressable>
+            </IconButton>
           }
         />
       ) : (
@@ -383,10 +374,11 @@ function DeleteConfirmModal({
               marginTop: 8,
             }}
           >
-            <Pressable
-              accessibilityRole="button"
+            <AppPressable
               onPress={onCancel}
               disabled={deleting}
+              feedback="opacity"
+              accessibilityLabel={t("history.select.cancel")}
               style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 }}
             >
               <Typography
@@ -398,13 +390,15 @@ function DeleteConfirmModal({
               >
                 {t("history.select.cancel")}
               </Typography>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ busy: deleting, disabled: deleting }}
+            </AppPressable>
+            <AppPressable
+              accessibilityState={{ busy: deleting }}
+              accessibilityLabel={t("history.select.confirm")}
               onPress={onConfirm}
               disabled={deleting}
-              style={({ pressed }) => ({
+              haptic
+              feedback="opacity"
+              style={{
                 minWidth: 96,
                 alignItems: "center",
                 justifyContent: "center",
@@ -412,8 +406,8 @@ function DeleteConfirmModal({
                 paddingVertical: 10,
                 borderRadius: 10,
                 backgroundColor: theme["--color-error"],
-                opacity: deleting ? 0.85 : pressed ? 0.9 : 1,
-              })}
+                opacity: deleting ? 0.85 : 1,
+              }}
             >
               {deleting ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -425,7 +419,7 @@ function DeleteConfirmModal({
                   {t("history.select.confirm")}
                 </Typography>
               )}
-            </Pressable>
+            </AppPressable>
           </View>
         </View>
       </View>
@@ -542,27 +536,25 @@ function SearchField({
         }}
       />
       {value.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
+        <AppPressable
           accessibilityLabel={clearLabel}
           onPress={() => {
             onChange("");
             inputRef.current?.focus();
           }}
           hitSlop={8}
-          style={({ pressed }) => ({
+          pressScale={0.12}
+          style={{
             width: 22,
             height: 22,
             borderRadius: 11,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: pressed
-              ? theme["--color-card-pressed"]
-              : theme["--color-card-muted"],
-          })}
+            backgroundColor: theme["--color-card-muted"],
+          }}
         >
           <X size={12} color={theme["--color-foreground-muted"]} weight="bold" />
-        </Pressable>
+        </AppPressable>
       ) : null}
     </Animated.View>
   );
@@ -591,25 +583,17 @@ function HistoryCard({
   const theme = useTheme();
   const relative = useRelativeTime(conversation.updatedAt);
 
-  const press = useSharedValue(1);
-  const pressStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: press.value }],
-  }));
-
+  // Press-scale now lives on AppPressable's inner pointerEvents="none" surface
+  // (the proven pattern) rather than a scaling Animated.View ancestor wrapping
+  // the touch target.
   return (
-    <Animated.View style={pressStyle}>
-      <Pressable
-        accessibilityRole="button"
+      <AppPressable
         accessibilityState={{ selected: selectionMode ? selected : undefined }}
+        accessibilityLabel={conversation.title || t("history.untitled")}
         onPress={onPress}
         onLongPress={onLongPress}
         delayLongPress={260}
-        onPressIn={() => {
-          press.value = withSpring(0.97, { damping: 18, stiffness: 320 });
-        }}
-        onPressOut={() => {
-          press.value = withSpring(1, { damping: 14, stiffness: 260 });
-        }}
+        pressScale={0.03}
         style={{
           flexDirection: "row",
           alignItems: "center",
@@ -683,8 +667,7 @@ function HistoryCard({
             </Typography>
           ) : null}
         </View>
-      </Pressable>
-    </Animated.View>
+      </AppPressable>
   );
 }
 

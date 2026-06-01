@@ -191,7 +191,7 @@
           </tr>
           <tr>
             <td>Purchase &amp; subscription data</td>
-            <td>Subscription status, product IDs, entitlement/expiry, receipts/purchase tokens, transaction metadata, RevenueCat app user ID (= your Firebase UID)</td>
+            <td>Subscription status, product IDs, entitlement/expiry, receipts/purchase tokens, transaction metadata, and RevenueCat app user ID (= your Firebase UID)</td>
             <td>RevenueCat, Apple App Store, Google Play; status mirrored in Firestore</td>
           </tr>
           <tr>
@@ -489,9 +489,10 @@
       <p>
         In your Firestore profile we store billing fields such as your plan,
         active product ID, entitlement expiry, credit balance, RevenueCat app
-        user ID, and related status. We also keep a webhook/audit record
-        (<code>revenueCatEvents</code>) of purchase events for accounting,
-        fraud-prevention, and legal purposes.
+        user ID, and related status while your account exists. We also keep a
+        compact webhook/audit record (<code>revenueCatEvents</code>) of purchase
+        events for accounting, fraud-prevention, and legal purposes; that audit
+        record does not store your Firebase UID or RevenueCat app user ID.
       </p>
       <div class="callout">
         <strong>Deleting your MeMe Chat AI account does not cancel an active
@@ -689,7 +690,7 @@
         <li><strong>Profile / account data</strong> (including alias/display name and billing fields) remains while your account exists.</li>
         <li><strong>Usage events</strong> tied to your UID are removed when you delete your account.</li>
         <li><strong>Anonymized daily usage aggregates</strong> may be retained.</li>
-        <li><strong>RevenueCat webhook / audit records</strong> may be retained for accounting, fraud-prevention, and legal purposes, including after account deletion.</li>
+        <li><strong>De-identified RevenueCat webhook / audit records</strong> may be retained for accounting, fraud-prevention, and legal purposes, including after account deletion.</li>
         <li><strong>Hashed IP rate-limit records</strong> are short-lived and swept automatically by a time-to-live policy. Raw IP that appears in our Cloud Functions diagnostic logs is retained for up to 30 days under Google Cloud Logging's default retention.</li>
         <li><strong>Local device data</strong> (settings, onboarding flag, alias, customization, rot level, session) is removed on sign-out, account deletion, or App deletion — <strong>except the age-gate status and date of birth</strong>, which are intentionally retained on the device after account deletion and cleared only by deleting the App.</li>
         <li><strong>Third parties</strong> (OpenAI, Klipy, RevenueCat, Apple, Google) retain data under their own policies.</li>
@@ -710,13 +711,15 @@
       <p>
         Account deletion is performed across separate systems, so it cannot be
         perfectly atomic. We delete your sign-in record first; if a later
-        cleanup step fails, some records may briefly remain and are handled on a
-        best-effort basis. We attempt to delete all of the data described above,
-        but cannot guarantee that every copy is removed instantly.
+        cleanup step fails, some records may briefly remain. The App is designed
+        to report that failure instead of telling you deletion fully completed,
+        so the issue can be retried or remediated. We attempt to delete all of
+        the data described above, but cannot guarantee that every copy is
+        removed instantly.
       </p>
       <p>The following are <strong>not</strong> deleted by account deletion:</p>
       <ul>
-        <li>RevenueCat webhook / audit records (<code>revenueCatEvents</code>);</li>
+        <li>de-identified RevenueCat webhook / audit records (<code>revenueCatEvents</code>);</li>
         <li>anonymized daily usage aggregates;</li>
         <li>hashed IP rate-limit records (until their time-to-live sweep);</li>
         <li>the local age-gate status and date of birth on your device;</li>

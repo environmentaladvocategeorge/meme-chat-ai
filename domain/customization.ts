@@ -20,6 +20,76 @@ const AUTO_ID = "auto" as const;
 
 type GradientStops = readonly [string, string, ...string[]];
 
+// ---- Gradient direction (linear only) ----
+//
+// A custom gradient is always linear (the app has no radial render path); the
+// only spatial knob is which way it sweeps. We model 8 compass directions and
+// map each to expo-linear-gradient start/end points. "down" (top → bottom) is
+// the default because every existing render site — message bubble, chat
+// background, the previews — paints vertically today, so legacy values and
+// presets must keep that look.
+export type GradientDirection =
+  | "down"
+  | "up"
+  | "right"
+  | "left"
+  | "down-right"
+  | "down-left"
+  | "up-right"
+  | "up-left";
+
+export const DEFAULT_GRADIENT_DIRECTION: GradientDirection = "down";
+
+// Order here is the order the picker's Direction dropdown lists them in.
+export const GRADIENT_DIRECTIONS: readonly GradientDirection[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+  "up-right",
+  "up-left",
+  "down-right",
+  "down-left",
+];
+
+export type GradientPoint = { x: number; y: number };
+
+const DIRECTION_POINTS: Record<
+  GradientDirection,
+  { start: GradientPoint; end: GradientPoint }
+> = {
+  down: { start: { x: 0, y: 0 }, end: { x: 0, y: 1 } },
+  up: { start: { x: 0, y: 1 }, end: { x: 0, y: 0 } },
+  right: { start: { x: 0, y: 0.5 }, end: { x: 1, y: 0.5 } },
+  left: { start: { x: 1, y: 0.5 }, end: { x: 0, y: 0.5 } },
+  "down-right": { start: { x: 0, y: 0 }, end: { x: 1, y: 1 } },
+  "down-left": { start: { x: 1, y: 0 }, end: { x: 0, y: 1 } },
+  "up-right": { start: { x: 0, y: 1 }, end: { x: 1, y: 0 } },
+  "up-left": { start: { x: 1, y: 1 }, end: { x: 0, y: 0 } },
+};
+
+// start/end points for a direction, used directly as the LinearGradient props.
+export function gradientDirectionPoints(direction: GradientDirection): {
+  start: GradientPoint;
+  end: GradientPoint;
+} {
+  return DIRECTION_POINTS[direction] ?? DIRECTION_POINTS.down;
+}
+
+function directionFields(direction: GradientDirection): {
+  gradientStart: GradientPoint;
+  gradientEnd: GradientPoint;
+} {
+  const { start, end } = gradientDirectionPoints(direction);
+  return { gradientStart: start, gradientEnd: end };
+}
+
+// A parsed custom gradient: 2+ evenly-spaced color stops plus a sweep direction.
+export type CustomGradient = {
+  colors: GradientStops;
+  direction: GradientDirection;
+};
+
 // ---- Message bubble styles (applied to the user's own bubbles) ----
 
 type BubblePreset =
@@ -28,6 +98,16 @@ type BubblePreset =
 
 const WHITE = "#FFFFFF";
 const INK = "#17131F";
+
+export const CHAT_UI_COLOR_ROLES = [
+  "accent",
+  "subtle",
+  "text",
+  "userText",
+] as const;
+
+export type ChatUiColorRole = (typeof CHAT_UI_COLOR_ROLES)[number];
+export type ChatUiColorOverrides = Partial<Record<ChatUiColorRole, string>>;
 
 // ---- Color math (pure, no theme) ----
 //
@@ -84,7 +164,7 @@ function mix(a: string, b: string, t: number): string {
 }
 
 // Append an 8-bit alpha to a #rrggbb color (RN understands #RRGGBBAA).
-function withAlpha(hex: string, alpha: number): string {
+export function withAlpha(hex: string, alpha: number): string {
   const base = normalizeHex(hex) ?? "#000000";
   return `${base}${toHex2(alpha * 255)}`;
 }
@@ -130,11 +210,13 @@ export function readableTextColor(hex: string): string {
 
 // ---- Custom (user-picked) colors ----
 //
-// A custom pick is stored inline as `custom:#RRGGBB` so it rides through the
-// same string setting as the presets (no schema change), while staying easy to
-// detect and validate. The resolve functions below special-case it and derive
-// every dependent color from it via the contrast helpers above.
+// A custom pick is stored inline as `custom:#RRGGBB` or
+// `custom-gradient:#RRGGBB:#RRGGBB` so it rides through the same string setting
+// as the presets (no schema change), while staying easy to detect and validate.
+// The resolve functions below special-case it and derive every dependent color
+// from it via the contrast helpers above.
 const CUSTOM_PREFIX = "custom:";
+const CUSTOM_GRADIENT_PREFIX = "custom-gradient:";
 
 export function makeCustomColorId(hex: string): string {
   return `${CUSTOM_PREFIX}${normalizeHex(hex) ?? "#000000"}`;
@@ -145,20 +227,79 @@ export function parseCustomColor(id: string): string | null {
   return normalizeHex(id.slice(CUSTOM_PREFIX.length));
 }
 
+// Short codes so the direction rides inline in the id without bloating it. The
+// default "down" direction emits NO code, so a 2-stop down gradient serializes
+// to exactly the legacy `custom-gradient:#A:#B` — old stored values and the
+// simple case stay byte-identical.
+const DIRECTION_CODES: Record<GradientDirection, string> = {
+  down: "d",
+  up: "u",
+  right: "r",
+  left: "l",
+  "down-right": "dr",
+  "down-left": "dl",
+  "up-right": "ur",
+  "up-left": "ul",
+};
+const CODE_TO_DIRECTION: Record<string, GradientDirection> = Object.fromEntries(
+  Object.entries(DIRECTION_CODES).map(([dir, code]) => [code, dir]),
+) as Record<string, GradientDirection>;
+
+export function makeCustomGradientId(
+  colors: readonly string[],
+  direction: GradientDirection = DEFAULT_GRADIENT_DIRECTION,
+): string {
+  const stops = colors.map((c) => normalizeHex(c) ?? "#000000");
+  // Guarantee at least two stops so the value is always a well-formed gradient.
+  const safe =
+    stops.length >= 2 ? stops : [stops[0] ?? "#000000", stops[0] ?? "#000000"];
+  const code =
+    direction === DEFAULT_GRADIENT_DIRECTION
+      ? ""
+      : `${DIRECTION_CODES[direction]}:`;
+  return `${CUSTOM_GRADIENT_PREFIX}${code}${safe.join(":")}`;
+}
+
+export function parseCustomGradient(id: string): CustomGradient | null {
+  if (!id.startsWith(CUSTOM_GRADIENT_PREFIX)) return null;
+  const segments = id
+    .slice(CUSTOM_GRADIENT_PREFIX.length)
+    .split(":")
+    .filter(Boolean);
+  // A leading non-hex segment is the direction code (hex stops always start with
+  // "#"); its absence means the default "down" sweep.
+  let direction = DEFAULT_GRADIENT_DIRECTION;
+  if (segments.length > 0 && CODE_TO_DIRECTION[segments[0]]) {
+    direction = CODE_TO_DIRECTION[segments[0]];
+    segments.shift();
+  }
+  if (segments.length < 2) return null;
+  const colors: string[] = [];
+  for (const seg of segments) {
+    const hex = normalizeHex(seg);
+    if (!hex) return null;
+    colors.push(hex);
+  }
+  return { colors: colors as unknown as GradientStops, direction };
+}
+
 // Order here is the order shown in the picker (after the leading "Auto" swatch):
-// gradients, then pastels (ink text), then basics (saturated, white text). Eight
-// of each — a curated, evenly-grouped set rather than a long similar-looking row.
+// rich gradients first, then a short pastel row, then saturated solids. The
+// gradient text color is picked per pair so bright neon sweeps use ink instead
+// of forcing white text onto low-contrast stops.
 export const BUBBLE_PRESETS: readonly BubblePreset[] = [
-  // Gradients — white text stays legible across the whole sweep.
-  { id: "violetPink", kind: "gradient", colors: ["#7C3AED", "#DB2777"], textColor: WHITE },
-  { id: "blueCyan", kind: "gradient", colors: ["#2563EB", "#06B6D4"], textColor: WHITE },
-  { id: "sunset", kind: "gradient", colors: ["#F97316", "#EC4899"], textColor: WHITE },
-  { id: "purpleBlue", kind: "gradient", colors: ["#8B5CF6", "#2563EB"], textColor: WHITE },
-  { id: "greenTeal", kind: "gradient", colors: ["#16A34A", "#14B8A6"], textColor: WHITE },
-  { id: "roseRed", kind: "gradient", colors: ["#F43F5E", "#DC2626"], textColor: WHITE },
-  { id: "indigoViolet", kind: "gradient", colors: ["#4F46E5", "#7C3AED"], textColor: WHITE },
-  { id: "slateBlue", kind: "gradient", colors: ["#334155", "#2563EB"], textColor: WHITE },
-  // Pastels — soft fills, so they carry dark ink text.
+  // Gradients.
+  { id: "electricNight", kind: "gradient", colors: ["#5B21B6", "#BE185D"], textColor: WHITE },
+  { id: "cyberMint", kind: "gradient", colors: ["#00B4D8", "#00F5A0"], textColor: INK },
+  { id: "sunsetPunch", kind: "gradient", colors: ["#FF416C", "#FF8A00"], textColor: INK },
+  { id: "aquaLime", kind: "gradient", colors: ["#00D9F5", "#B6FF00"], textColor: INK },
+  { id: "royalPulse", kind: "gradient", colors: ["#3B5BDB", "#7C3AED"], textColor: WHITE },
+  { id: "berryVibe", kind: "gradient", colors: ["#CC2B5E", "#753A88"], textColor: WHITE },
+  { id: "lemonPop", kind: "gradient", colors: ["#F7971E", "#FFD200"], textColor: INK },
+  { id: "bubblegumPeach", kind: "gradient", colors: ["#FFAFBD", "#FFC3A0"], textColor: INK },
+  { id: "indigoWave", kind: "gradient", colors: ["#3730A3", "#2563EB"], textColor: WHITE },
+  { id: "fuchsiaFlame", kind: "gradient", colors: ["#C026D3", "#E11D48"], textColor: WHITE },
+  // Pastels.
   { id: "lavender", kind: "solid", color: "#EDE9FE", textColor: INK },
   { id: "sky", kind: "solid", color: "#DBEAFE", textColor: INK },
   { id: "blush", kind: "solid", color: "#FCE7F3", textColor: INK },
@@ -167,7 +308,7 @@ export const BUBBLE_PRESETS: readonly BubblePreset[] = [
   { id: "peach", kind: "solid", color: "#FFEDD5", textColor: INK },
   { id: "rose", kind: "solid", color: "#FFE4E6", textColor: INK },
   { id: "sand", kind: "solid", color: "#FEF3C7", textColor: INK },
-  // Basics — saturated UI colors, white text.
+  // Basics.
   { id: "violet", kind: "solid", color: "#7C3AED", textColor: WHITE },
   { id: "blue", kind: "solid", color: "#2563EB", textColor: WHITE },
   { id: "pink", kind: "solid", color: "#DB2777", textColor: WHITE },
@@ -188,72 +329,35 @@ type BackgroundPreset =
   | { id: string; kind: "gradient"; colors: GradientStops; tone: ColorScheme };
 
 export const BACKGROUND_PRESETS: readonly BackgroundPreset[] = [
-  // Gradients (vertical, subtle — they sit behind the whole thread), ordered
-  // after the leading "Auto" swatch: airy light sweeps first, then a richer set
-  // of deep "night" gradients.
-  { id: "dawn", kind: "gradient", colors: ["#FFF7ED", "#EEF2FF"], tone: "light" },
-  { id: "cotton", kind: "gradient", colors: ["#FDF2F8", "#E0F2FE"], tone: "light" },
-  { id: "aurora", kind: "gradient", colors: ["#ECFDF5", "#EEF2FF"], tone: "light" },
-  { id: "lilac", kind: "gradient", colors: ["#F5F3FF", "#FCE7F3"], tone: "light" },
-  { id: "sunset", kind: "gradient", colors: ["#FFEDD5", "#FFE4E6"], tone: "light" },
-  { id: "ocean", kind: "gradient", colors: ["#E0F2FE", "#CCFBF1"], tone: "light" },
-  { id: "peachy", kind: "gradient", colors: ["#FFE4E6", "#FFF1E6"], tone: "light" },
-  { id: "seafoam", kind: "gradient", colors: ["#D1FAE5", "#CFFAFE"], tone: "light" },
-  { id: "grape", kind: "gradient", colors: ["#EDE9FE", "#FAE8FF"], tone: "light" },
-  { id: "skyfade", kind: "gradient", colors: ["#DBEAFE", "#EDE9FE"], tone: "light" },
-  { id: "dusk", kind: "gradient", colors: ["#312E81", "#111827"], tone: "dark" },
-  { id: "midnight", kind: "gradient", colors: ["#0F172A", "#312E81"], tone: "dark" },
-  { id: "twilight", kind: "gradient", colors: ["#1E1B4B", "#581C87"], tone: "dark" },
-  { id: "forest", kind: "gradient", colors: ["#064E3B", "#022C22"], tone: "dark" },
-  { id: "ember", kind: "gradient", colors: ["#7F1D1D", "#431407"], tone: "dark" },
-  { id: "blossom", kind: "gradient", colors: ["#FFE4F0", "#F3E8FF"], tone: "light" },
-  { id: "sherbet", kind: "gradient", colors: ["#FEF3C7", "#FFE0E9"], tone: "light" },
-  { id: "lagoon", kind: "gradient", colors: ["#CFFAFE", "#DBEAFE"], tone: "light" },
-  { id: "meadow", kind: "gradient", colors: ["#DCFCE7", "#FEF9C3"], tone: "light" },
-  { id: "bubblegum", kind: "gradient", colors: ["#FBCFE8", "#DDD6FE"], tone: "light" },
-  { id: "creamsicle", kind: "gradient", colors: ["#FFE8CC", "#FEF9C3"], tone: "light" },
-  { id: "cosmos", kind: "gradient", colors: ["#1E1B4B", "#0F172A"], tone: "dark" },
-  { id: "wine", kind: "gradient", colors: ["#4A0E26", "#1A0F14"], tone: "dark" },
-  { id: "deepsea", kind: "gradient", colors: ["#082F49", "#042F2E"], tone: "dark" },
-  { id: "aubergine", kind: "gradient", colors: ["#2E1065", "#3B0764"], tone: "dark" },
-  // Pastels — gentle full-surface tints (all light).
+  // Rich messaging gradients.
+  { id: "electricViolet", kind: "gradient", colors: ["#7F00FF", "#E100FF"], tone: "dark" },
+  { id: "cyberBlue", kind: "gradient", colors: ["#007CF0", "#00DFD8"], tone: "light" },
+  { id: "sunset", kind: "gradient", colors: ["#FF416C", "#FF4B2B"], tone: "light" },
+  { id: "aquaMint", kind: "gradient", colors: ["#00F5A0", "#00D9F5"], tone: "light" },
+  { id: "royalBlue", kind: "gradient", colors: ["#4776E6", "#8E54E9"], tone: "dark" },
+  { id: "magentaViolet", kind: "gradient", colors: ["#CC2B5E", "#753A88"], tone: "dark" },
+  { id: "lemonPunch", kind: "gradient", colors: ["#F7971E", "#FFD200"], tone: "light" },
+  { id: "bubblegum", kind: "gradient", colors: ["#FFAFBD", "#FFC3A0"], tone: "light" },
+  { id: "indigoBlue", kind: "gradient", colors: ["#4E54C8", "#8F94FB"], tone: "dark" },
+  { id: "fuchsiaRush", kind: "gradient", colors: ["#F953C6", "#B91D73"], tone: "dark" },
+  { id: "popRocks", kind: "gradient", colors: ["#FB7185", "#A78BFA"], tone: "light" },
+  { id: "tropicalSignal", kind: "gradient", colors: ["#22D3EE", "#A3E635"], tone: "light" },
+  { id: "deepSpace", kind: "gradient", colors: ["#0F172A", "#3730A3"], tone: "dark" },
+  { id: "cherryCola", kind: "gradient", colors: ["#881337", "#431407"], tone: "dark" },
+  // Pastels.
   { id: "lavender", kind: "solid", color: "#F5F3FF", tone: "light" },
   { id: "sky", kind: "solid", color: "#EFF6FF", tone: "light" },
   { id: "blush", kind: "solid", color: "#FDF2F8", tone: "light" },
   { id: "mint", kind: "solid", color: "#ECFDF5", tone: "light" },
-  { id: "sage", kind: "solid", color: "#F0FDF4", tone: "light" },
   { id: "peach", kind: "solid", color: "#FFF7ED", tone: "light" },
   { id: "butter", kind: "solid", color: "#FEFCE8", tone: "light" },
-  { id: "stone", kind: "solid", color: "#F8FAFC", tone: "light" },
-  { id: "coral", kind: "solid", color: "#FFE4E0", tone: "light" },
-  { id: "lemon", kind: "solid", color: "#FEF9C3", tone: "light" },
-  { id: "cyan", kind: "solid", color: "#CFFAFE", tone: "light" },
-  { id: "indigo", kind: "solid", color: "#E0E7FF", tone: "light" },
-  { id: "fuchsia", kind: "solid", color: "#FAE8FF", tone: "light" },
-  { id: "apricot", kind: "solid", color: "#FFE3C7", tone: "light" },
-  { id: "pistachio", kind: "solid", color: "#E8F3CC", tone: "light" },
   { id: "periwinkle", kind: "solid", color: "#DCE0FF", tone: "light" },
-  { id: "flamingo", kind: "solid", color: "#FFD6E4", tone: "light" },
   { id: "seaglass", kind: "solid", color: "#CFEFE6", tone: "light" },
-  { id: "wisteria", kind: "solid", color: "#E7DAF7", tone: "light" },
-  // Basics — muted UI colors, soft enough to read as full backgrounds.
-  { id: "violet", kind: "solid", color: "#EDE9FE", tone: "light" },
-  { id: "blue", kind: "solid", color: "#DBEAFE", tone: "light" },
-  { id: "pink", kind: "solid", color: "#FCE7F3", tone: "light" },
-  { id: "teal", kind: "solid", color: "#CCFBF1", tone: "light" },
-  { id: "green", kind: "solid", color: "#DCFCE7", tone: "light" },
-  { id: "orange", kind: "solid", color: "#FFEDD5", tone: "light" },
-  { id: "red", kind: "solid", color: "#FFE4E6", tone: "light" },
-  // Deep solids — richer "night" surfaces for users who want a dark thread.
+  // Deep solids.
   { id: "graphite", kind: "solid", color: "#111827", tone: "dark" },
   { id: "plum", kind: "solid", color: "#241733", tone: "dark" },
   { id: "navy", kind: "solid", color: "#0E1A30", tone: "dark" },
   { id: "pine", kind: "solid", color: "#0C2A22", tone: "dark" },
-  { id: "espresso", kind: "solid", color: "#211613", tone: "dark" },
-  { id: "charcoal", kind: "solid", color: "#1C1C28", tone: "dark" },
-  { id: "oxblood", kind: "solid", color: "#330A16", tone: "dark" },
-  { id: "deepteal", kind: "solid", color: "#062A2E", tone: "dark" },
-  { id: "slateblue", kind: "solid", color: "#16243A", tone: "dark" },
 ];
 
 // Valid preset ids (including "auto"). Custom values aren't enumerable, so
@@ -273,10 +377,18 @@ const BACKGROUND_SET = new Set<string>(BACKGROUND_IDS);
 
 // A stored value is valid if it's a known preset OR a well-formed custom color.
 export function isBubbleStyleId(id: string): boolean {
-  return BUBBLE_STYLE_SET.has(id) || parseCustomColor(id) !== null;
+  return (
+    BUBBLE_STYLE_SET.has(id) ||
+    parseCustomColor(id) !== null ||
+    parseCustomGradient(id) !== null
+  );
 }
 export function isBackgroundId(id: string): boolean {
-  return BACKGROUND_SET.has(id) || parseCustomColor(id) !== null;
+  return (
+    BACKGROUND_SET.has(id) ||
+    parseCustomColor(id) !== null ||
+    parseCustomGradient(id) !== null
+  );
 }
 
 export const DEFAULT_BUBBLE_STYLE = AUTO_ID;
@@ -287,6 +399,10 @@ export const DEFAULT_BACKGROUND = AUTO_ID;
 export type ResolvedBubble = {
   kind: "gradient" | "solid";
   gradientColors: GradientStops | null;
+  // LinearGradient start/end for the gradient sweep (null for solids). Derived
+  // from the custom direction; presets/auto resolve to the default "down".
+  gradientStart: GradientPoint | null;
+  gradientEnd: GradientPoint | null;
   solidColor: string | null;
   textColor: string;
   // Overlay tints derived from how dark the text is, so inline code blocks and
@@ -299,10 +415,21 @@ export type ResolvedBackground = {
   kind: "solid" | "gradient";
   color: string | null;
   gradientColors: GradientStops | null;
+  gradientStart: GradientPoint | null;
+  gradientEnd: GradientPoint | null;
   // The tone the rest of the chat should adopt. null => follow the app's
   // global light/dark scheme (the "auto" default).
   tone: ColorScheme | null;
 };
+
+export type BubbleAccentTokens = Pick<
+  Theme,
+  | "--color-primary"
+  | "--color-primary-foreground"
+  | "--color-primary-muted"
+  | "--color-primary-subtle"
+  | "--color-ring"
+>;
 
 function overlaysFor(textColor: string): {
   codeBackgroundColor: string;
@@ -318,6 +445,21 @@ function overlaysFor(textColor: string): {
   };
 }
 
+export function bubbleOverlaysForTextColor(textColor: string): {
+  codeBackgroundColor: string;
+  borderColor: string;
+} {
+  return overlaysFor(textColor);
+}
+
+export function readableGradientTextColor(colors: GradientStops): string {
+  const whiteMin = Math.min(
+    ...colors.map((color) => contrastRatio(color, WHITE)),
+  );
+  const inkMin = Math.min(...colors.map((color) => contrastRatio(color, INK)));
+  return whiteMin >= inkMin ? WHITE : INK;
+}
+
 export function resolveBubble(
   id: string,
   scheme: ColorScheme,
@@ -328,6 +470,7 @@ export function resolveBubble(
     return {
       kind: "gradient",
       gradientColors: gradients[scheme].primary.colors,
+      ...directionFields(DEFAULT_GRADIENT_DIRECTION),
       solidColor: null,
       textColor,
       ...overlaysFor(textColor),
@@ -343,7 +486,22 @@ export function resolveBubble(
     return {
       kind: "solid",
       gradientColors: null,
+      gradientStart: null,
+      gradientEnd: null,
       solidColor: custom,
+      textColor,
+      ...overlaysFor(textColor),
+    };
+  }
+
+  const customGradient = parseCustomGradient(id);
+  if (customGradient) {
+    const textColor = readableGradientTextColor(customGradient.colors);
+    return {
+      kind: "gradient",
+      gradientColors: customGradient.colors,
+      ...directionFields(customGradient.direction),
+      solidColor: null,
       textColor,
       ...overlaysFor(textColor),
     };
@@ -356,6 +514,7 @@ export function resolveBubble(
     return {
       kind: "gradient",
       gradientColors: preset.colors,
+      ...directionFields(DEFAULT_GRADIENT_DIRECTION),
       solidColor: null,
       textColor: preset.textColor,
       ...overlaysFor(preset.textColor),
@@ -365,9 +524,28 @@ export function resolveBubble(
   return {
     kind: "solid",
     gradientColors: null,
+    gradientStart: null,
+    gradientEnd: null,
     solidColor: preset.color,
     textColor: preset.textColor,
     ...overlaysFor(preset.textColor),
+  };
+}
+
+// Chat-page accent tokens for the user's explicit Accent color. Components like
+// thumbs, GIF/meme chips, camera, and selection affordances already read the
+// primary family, so overriding this family inside the chat theme makes the
+// whole page follow the chosen accent without per-component plumbing.
+export function chatUiAccentTokens(
+  accent: string,
+  textColor = readableTextColor(accent),
+): BubbleAccentTokens {
+  return {
+    "--color-primary": accent,
+    "--color-primary-foreground": textColor,
+    "--color-primary-muted": withAlpha(accent, 0.22),
+    "--color-primary-subtle": withAlpha(accent, 0.12),
+    "--color-ring": accent,
   };
 }
 
@@ -380,6 +558,8 @@ export function resolveBackground(
       kind: "solid",
       color: theme["--color-background"],
       gradientColors: null,
+      gradientStart: null,
+      gradientEnd: null,
       tone: null,
     };
   }
@@ -393,7 +573,22 @@ export function resolveBackground(
       kind: "solid",
       color: custom,
       gradientColors: null,
+      gradientStart: null,
+      gradientEnd: null,
       tone: isDarkColor(custom) ? "dark" : "light",
+    };
+  }
+
+  const customGradient = parseCustomGradient(id);
+  if (customGradient) {
+    const { colors } = customGradient;
+    const representative = mix(colors[0], colors[colors.length - 1], 0.5);
+    return {
+      kind: "gradient",
+      color: null,
+      gradientColors: colors,
+      ...directionFields(customGradient.direction),
+      tone: isDarkColor(representative) ? "dark" : "light",
     };
   }
 
@@ -405,6 +600,7 @@ export function resolveBackground(
       kind: "gradient",
       color: null,
       gradientColors: preset.colors,
+      ...directionFields(DEFAULT_GRADIENT_DIRECTION),
       tone: preset.tone,
     };
   }
@@ -412,6 +608,8 @@ export function resolveBackground(
     kind: "solid",
     color: preset.color,
     gradientColors: null,
+    gradientStart: null,
+    gradientEnd: null,
     tone: preset.tone,
   };
 }
@@ -477,6 +675,11 @@ function customSurface(hex: string): ChatSurface {
   return tunedSurface(hex, isDarkColor(hex) ? "dark" : "light");
 }
 
+function customGradientSurface(colors: GradientStops): ChatSurface {
+  const base = mix(colors[0], colors[colors.length - 1], 0.5);
+  return tunedSurface(base, isDarkColor(base) ? "dark" : "light");
+}
+
 // A single color that represents a background for surface synthesis — the fill
 // for a solid, or the midpoint of a gradient's stops.
 function representativeColor(preset: BackgroundPreset): string {
@@ -540,8 +743,36 @@ export const BACKGROUND_SURFACES: Readonly<Record<string, ChatSurface>> = {
 export function resolveBackgroundSurface(id: string): ChatSurface | null {
   const custom = parseCustomColor(id);
   if (custom) return customSurface(custom);
+  const customGradient = parseCustomGradient(id);
+  if (customGradient) return customGradientSurface(customGradient.colors);
   return BACKGROUND_SURFACES[id] ?? null;
 }
+
+// ---- Centralized picker presets ----
+//
+// The global color picker shows a short, shared row of quick-start presets (a
+// preset is just a starting point the user can immediately tweak). These are
+// intentionally generic and few — not the full preset library — so the row
+// stays minimal. Solid mode shows dots; gradient mode shows pills.
+export const PICKER_SOLID_PRESETS: readonly string[] = [
+  "#9A5CFF",
+  "#FF4FA3",
+  "#FF3B30",
+  "#FF9500",
+  "#FFD60A",
+  "#34C759",
+  "#32ADE6",
+  "#5B6CFF",
+];
+
+export const PICKER_GRADIENT_PRESETS: readonly (readonly [string, string])[] = [
+  ["#9A5CFF", "#5B6CFF"],
+  ["#FF4FA3", "#FF3B30"],
+  ["#FF9500", "#FFD60A"],
+  ["#34C759", "#A3E635"],
+  ["#32ADE6", "#5B6CFF"],
+  ["#7F00FF", "#E100FF"],
+];
 
 // ---- Swatch helpers (for the settings picker) ----
 

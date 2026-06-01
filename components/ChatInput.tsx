@@ -15,7 +15,7 @@
 //   - Focus state fades in a soft brand-gradient glow ring around the pill.
 
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
-import { useTheme } from "@/hooks/useTheme";
+import { useChatAccentGradient, useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import {
   BottomSheetBackdrop,
@@ -127,8 +127,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     ref,
   ) {
   const theme = useTheme();
+  const chatAccentGradient = useChatAccentGradient();
   const { colorScheme } = useColorScheme();
-  const gradient = gradients[colorScheme ?? "light"].primary;
+  const stockGradient = gradients[colorScheme ?? "light"].primary;
+  const gradientColors = chatAccentGradient ?? stockGradient.colors;
+  const gradientStart = chatAccentGradient ? { x: 0, y: 0 } : stockGradient.start;
+  const gradientEnd = chatAccentGradient ? { x: 1, y: 1 } : stockGradient.end;
+  const activeIconColor = theme["--color-primary-foreground"];
   const [focused, setFocused] = useState(false);
   // Overflow detection uses an offscreen "shadow" <Text> with the same
   // font + width as the visible TextInput. `shadowHeight` is that Text's
@@ -273,9 +278,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           ]}
         >
           <LinearGradient
-            colors={gradient.colors}
-            start={gradient.start}
-            end={gradient.end}
+            colors={gradientColors}
+            start={gradientStart}
+            end={gradientEnd}
             style={{
               ...StyleSheet.absoluteFillObject,
               borderRadius: PILL_RADIUS + RING_INSET,
@@ -288,7 +293,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         <View
           style={{
             borderRadius: PILL_RADIUS,
-            backgroundColor: theme["--color-card"],
+            backgroundColor: theme["--color-input"],
             flexDirection: "row",
             alignItems: "flex-end",
             paddingLeft: 20,
@@ -435,9 +440,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   style={[StyleSheet.absoluteFillObject, sendActiveStyle]}
                 >
                   <LinearGradient
-                    colors={gradient.colors}
-                    start={gradient.start}
-                    end={gradient.end}
+                    colors={gradientColors}
+                    start={gradientStart}
+                    end={gradientEnd}
                     style={StyleSheet.absoluteFillObject}
                   />
                 </Animated.View>
@@ -449,7 +454,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     sendActiveStyle,
                   ]}
                 >
-                  <ArrowFatUp size={22} color="#FFFFFF" weight="fill" />
+                  <ArrowFatUp size={22} color={activeIconColor} weight="fill" />
                 </Animated.View>
                 {/* Inactive layer: muted icon, faded out as the active
                     layer fades in. */}
@@ -588,9 +593,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 style={[StyleSheet.absoluteFillObject, sendActiveStyle]}
               >
                 <LinearGradient
-                  colors={gradient.colors}
-                  start={gradient.start}
-                  end={gradient.end}
+                  colors={gradientColors}
+                  start={gradientStart}
+                  end={gradientEnd}
                   style={StyleSheet.absoluteFillObject}
                 />
               </Animated.View>
@@ -602,7 +607,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   sendActiveStyle,
                 ]}
               >
-                <ArrowFatUp size={24} color="#FFFFFF" weight="fill" />
+                <ArrowFatUp size={24} color={activeIconColor} weight="fill" />
               </Animated.View>
               <Animated.View
                 pointerEvents="none"

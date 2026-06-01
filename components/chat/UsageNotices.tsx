@@ -1,3 +1,4 @@
+import { AppPressable } from "@/components/AppPressable";
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
 import { type UsageState } from "@/domain/usage";
@@ -6,7 +7,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { X } from "phosphor-react-native";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { UpgradeButton } from "./UpgradeButton";
 
 // Inline 90% nudge above the composer. Cute, compact, dismissible — a single
@@ -60,20 +61,20 @@ export function UsageNudge({
           })}
         </Typography>
       </View>
-      <Pressable
-        accessibilityRole="button"
+      <AppPressable
         accessibilityLabel={
           isTopTier ? t("chat.usage.seeLimits") : t("chat.usage.upgrade")
         }
         onPress={onUpgrade}
+        haptic
+        feedback="opacity"
         hitSlop={6}
-        style={({ pressed }) => ({
+        style={{
           paddingHorizontal: 12,
           paddingVertical: 8,
           borderRadius: 999,
           backgroundColor: theme["--color-primary"],
-          opacity: pressed ? 0.9 : 1,
-        })}
+        }}
       >
         <Typography
           variant="caption"
@@ -84,16 +85,16 @@ export function UsageNudge({
         >
           {isTopTier ? t("chat.usage.seeLimits") : t("chat.usage.upgrade")}
         </Typography>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
+      </AppPressable>
+      <AppPressable
         accessibilityLabel={t("chat.usage.dismiss")}
         onPress={() => setDismissed(true)}
+        feedback="opacity"
         hitSlop={8}
         style={{ paddingLeft: 2 }}
       >
         <X size={16} color={theme["--color-foreground-muted"]} weight="bold" />
-      </Pressable>
+      </AppPressable>
     </View>
   );
 }

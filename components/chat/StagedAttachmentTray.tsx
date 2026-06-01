@@ -1,3 +1,4 @@
+import { AppPressable } from "@/components/AppPressable";
 import { Typography } from "@/components/Typography";
 import { MAX_MESSAGE_IMAGES, type MessageImage } from "@/domain/memes";
 import { type MessageGif } from "@/domain/gifs";
@@ -6,7 +7,7 @@ import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { X } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 // Staged attachment tray: the row of meme thumbnails above the composer that a
 // user has picked but not yet sent. Each thumbnail keeps the KLIPY watermark
@@ -31,10 +32,16 @@ export function StagedAttachmentTray({
   const hasAny = images.length > 0 || gif !== null;
   if (!hasAny && !showMaxNotice) return null;
 
-  const removeButtonStyle = {
+  // Position lives on the static hit target (containerStyle); the circle that
+  // scales on press lives on the inner surface (style).
+  const removeContainerStyle = {
     position: "absolute" as const,
     top: -6,
     right: -6,
+    width: 22,
+    height: 22,
+  };
+  const removeSurfaceStyle = {
     width: 22,
     height: 22,
     borderRadius: 11,
@@ -85,15 +92,17 @@ export function StagedAttachmentTray({
                   />
                 </View>
               </View>
-              <Pressable
-                accessibilityRole="button"
+              <AppPressable
                 accessibilityLabel={t("chat.attachments.remove")}
                 onPress={onRemoveGif}
+                haptic
                 hitSlop={8}
-                style={removeButtonStyle}
+                pressScale={0.12}
+                containerStyle={removeContainerStyle}
+                style={removeSurfaceStyle}
               >
                 <X size={12} color={theme["--color-background"]} weight="bold" />
-              </Pressable>
+              </AppPressable>
             </View>
           ) : null}
           {images.map((image) => (
@@ -112,7 +121,7 @@ export function StagedAttachmentTray({
                 <ExpoImage
                   source={{ uri: image.url }}
                   contentFit="cover"
-                  cachePolicy="memory-disk"
+                  cachePolicy={image.source === "upload" ? "memory" : "memory-disk"}
                   transition={150}
                   recyclingKey={image.id}
                   style={{ width: "100%", height: "100%" }}
@@ -135,19 +144,21 @@ export function StagedAttachmentTray({
                   </View>
                 ) : null}
               </View>
-              <Pressable
-                accessibilityRole="button"
+              <AppPressable
                 accessibilityLabel={t("chat.attachments.remove")}
                 onPress={() => onRemove(image.id)}
+                haptic
                 hitSlop={8}
-                style={removeButtonStyle}
+                pressScale={0.12}
+                containerStyle={removeContainerStyle}
+                style={removeSurfaceStyle}
               >
                 <X
                   size={12}
                   color={theme["--color-background"]}
                   weight="bold"
                 />
-              </Pressable>
+              </AppPressable>
             </View>
           ))}
         </View>

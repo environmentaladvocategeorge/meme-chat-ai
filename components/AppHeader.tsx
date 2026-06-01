@@ -5,12 +5,13 @@
 // corners, and a row with the menu button (or a back arrow) on the left, the
 // centered title, and an optional action on the right.
 
+import { IconButton } from "@/components/IconButton";
 import { MENU_BUTTON_SIZE, MenuButton } from "@/components/MenuButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { ArrowLeft } from "phosphor-react-native";
 import type { ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface AppHeaderProps {
@@ -67,28 +68,19 @@ export function AppHeader({
         }}
       >
         {onBack ? (
-          <Pressable
+          <IconButton
             onPress={onBack}
-            accessibilityRole="button"
             accessibilityLabel={backAccessibilityLabel ?? "Back"}
+            size={MENU_BUTTON_SIZE}
             hitSlop={8}
-            style={({ pressed }) => ({
-              width: MENU_BUTTON_SIZE,
-              height: MENU_BUTTON_SIZE,
-              borderRadius: MENU_BUTTON_SIZE / 2,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: pressed
-                ? theme["--color-card-pressed"]
-                : theme["--color-card-muted"],
-            })}
+            surfaceStyle={{ backgroundColor: theme["--color-card-muted"] }}
           >
             <ArrowLeft
               size={20}
               weight="bold"
               color={theme["--color-foreground"]}
             />
-          </Pressable>
+          </IconButton>
         ) : (
           <MenuButton />
         )}

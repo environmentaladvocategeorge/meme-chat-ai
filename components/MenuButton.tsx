@@ -4,6 +4,7 @@
 // title text. State comes from `useMenuStore` so the matching overlay
 // (mounted once at the (app) layout level) stays in sync.
 
+import { useChatAccentGradient, useTheme } from "@/hooks/useTheme";
 import { tapHaptic } from "@/lib/haptics";
 import { gradients } from "@/nativewind-theme";
 import { useMenuStore } from "@/store/menu";
@@ -26,8 +27,16 @@ const TAP_SPRING = { damping: 14, stiffness: 220, mass: 0.8 } as const;
 
 export function MenuButton() {
   const { t } = useTranslation();
+  const theme = useTheme();
+  const chatAccentGradient = useChatAccentGradient();
   const { colorScheme } = useColorScheme();
   const primaryGradient = gradients[colorScheme ?? "light"].primary;
+  const gradientColors = chatAccentGradient ?? primaryGradient.colors;
+  const gradientStart = chatAccentGradient ? { x: 0, y: 0 } : primaryGradient.start;
+  const gradientEnd = chatAccentGradient ? { x: 1, y: 1 } : primaryGradient.end;
+  const iconColor = chatAccentGradient
+    ? theme["--color-primary-foreground"]
+    : "#FFFFFF";
   const open = useMenuStore((s) => s.open);
   const toggle = useMenuStore((s) => s.toggle);
 
@@ -101,9 +110,9 @@ export function MenuButton() {
         ]}
       >
         <LinearGradient
-          colors={primaryGradient.colors}
-          start={primaryGradient.start}
-          end={primaryGradient.end}
+          colors={gradientColors}
+          start={gradientStart}
+          end={gradientEnd}
           style={{
             ...StyleSheet.absoluteFillObject,
             borderRadius: MENU_BUTTON_SIZE / 2,
@@ -112,12 +121,12 @@ export function MenuButton() {
         <Animated.View
           style={[StyleSheet.absoluteFillObject, centered, listStyle]}
         >
-          <List color="#FFFFFF" size={22} weight="bold" />
+          <List color={iconColor} size={22} weight="bold" />
         </Animated.View>
         <Animated.View
           style={[StyleSheet.absoluteFillObject, centered, closeStyle]}
         >
-          <X color="#FFFFFF" size={20} weight="bold" />
+          <X color={iconColor} size={20} weight="bold" />
         </Animated.View>
       </Animated.View>
     </Pressable>

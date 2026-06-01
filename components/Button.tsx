@@ -1,27 +1,30 @@
+import { AppPressable } from "@/components/AppPressable";
 import { themes } from "@/nativewind-theme";
 import { useColorScheme } from "nativewind";
 import { IconProps } from "phosphor-react-native";
 import { ComponentType } from "react";
 import {
   ActivityIndicator,
-  TouchableOpacity,
-  TouchableOpacityProps,
+  StyleProp,
   View,
+  ViewStyle,
 } from "react-native";
 import { Typography } from "./Typography";
 
-interface ButtonProps
-  extends Pick<
-    TouchableOpacityProps,
-    "accessibilityLabel" | "disabled" | "hitSlop" | "style"
-  > {
+interface ButtonProps {
   title?: string;
-  onPress: NonNullable<TouchableOpacityProps["onPress"]>;
+  onPress: () => void;
   variant?: "primary" | "ghost" | "outline";
   size?: "default" | "small";
   startIcon?: ComponentType<IconProps>;
   endIcon?: ComponentType<IconProps>;
   loading?: boolean;
+  disabled?: boolean;
+  // Layout style for the button (flex / margin / width / alignSelf). The
+  // visual box (height / radius / fill) is owned internally.
+  style?: StyleProp<ViewStyle>;
+  hitSlop?: number;
+  accessibilityLabel?: string;
 }
 
 export function Button({
@@ -59,32 +62,29 @@ export function Button({
       : theme["--color-background-secondary"];
 
   return (
-    <TouchableOpacity
+    <AppPressable
       onPress={onPress}
       disabled={isDisabled}
-      accessibilityRole="button"
+      feedback="opacity"
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ busy: loading }}
       hitSlop={hitSlop}
-      activeOpacity={0.82}
-      style={[
-        {
-          width: iconOnly ? height : undefined,
-          height,
-          borderRadius: 14,
-          paddingHorizontal: iconOnly ? 0 : isSmall ? 10 : 14,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor,
-          borderWidth: isPrimary ? 0 : 1,
-          borderColor: isOutline
-            ? theme["--color-primary"]
-            : theme["--color-border"],
-          opacity: isDisabled ? 0.4 : 1,
-        },
-        style,
-      ]}
+      containerStyle={style}
+      style={{
+        width: iconOnly ? height : undefined,
+        height,
+        borderRadius: 14,
+        paddingHorizontal: iconOnly ? 0 : isSmall ? 10 : 14,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor,
+        borderWidth: isPrimary ? 0 : 1,
+        borderColor: isOutline
+          ? theme["--color-primary"]
+          : theme["--color-border"],
+        opacity: isDisabled ? 0.4 : 1,
+      }}
     >
       {loading ? (
         <ActivityIndicator size="small" color={foregroundColor} />
@@ -124,6 +124,6 @@ export function Button({
           )}
         </>
       )}
-    </TouchableOpacity>
+    </AppPressable>
   );
 }

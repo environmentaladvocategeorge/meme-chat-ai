@@ -80,7 +80,7 @@ attribution SDKs in the dependency tree).
 | **User Content → Photos or Videos** | Photos taken/picked and attached to a chat message (uploaded to Cloud Storage `messageImages/{uid}`, sent to OpenAI) | App Functionality |
 | **User Content → Customer Support** | Emails you send support | App Functionality / Customer Support |
 | **Search History** | Klipy meme/GIF search queries — typed **and** AI-generated from the conversation | App Functionality |
-| **Purchases → Purchase History** | Subscription status, product IDs, entitlement, transaction metadata (RevenueCat/Apple/Google) | App Functionality |
+| **Purchases → Purchase History** | Subscription status, product IDs, entitlement, transaction metadata (RevenueCat/Apple/Google); retained first-party webhook audit records are de-identified | App Functionality |
 | **Usage Data → Product Interaction** | Usage events, credits/token metering, ratings, in-app actions | App Functionality |
 | **Diagnostics → Crash Data / Performance Data / Other Diagnostic Data** | Cloud Functions logs, error strings, IP/network + rate-limit data, attachment metadata | App Functionality |
 

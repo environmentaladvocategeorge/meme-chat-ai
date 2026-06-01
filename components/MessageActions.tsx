@@ -5,6 +5,7 @@
 // Thumbs are a bound, mutually-exclusive pair and give a playful bounce on tap;
 // Copy gives a gentler pulse and briefly swaps to a check to confirm.
 
+import { AppPressable } from "@/components/AppPressable";
 import { useTheme } from "@/hooks/useTheme";
 import * as Clipboard from "expo-clipboard";
 import { Check, Copy, ThumbsDown, ThumbsUp, type IconProps } from "phosphor-react-native";
@@ -15,12 +16,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSequence,
   withSpring,
   withTiming,
 } from "react-native-reanimated";
@@ -45,30 +45,20 @@ function ActionButton({
   intensity: "playful" | "soft";
   children: ReactNode;
 }) {
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-  const handlePress = () => {
-    const peak = intensity === "playful" ? 1.18 : 1.1;
-    scale.value = withSequence(
-      withTiming(peak, { duration: 110, easing: Easing.out(Easing.quad) }),
-      withSpring(1, { damping: 13, stiffness: 320, mass: 0.5 }),
-    );
-    onPress();
-  };
-
+  // Small icon target: the press feedback lives on AppPressable's inner
+  // pointerEvents="none" surface, never on the touch box. "playful" presses a
+  // little deeper than "soft".
   return (
-    <Animated.View style={style}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel}
-        onPress={handlePress}
-        hitSlop={8}
-        style={{ paddingHorizontal: 6, paddingVertical: 4 }}
-      >
-        {children}
-      </Pressable>
-    </Animated.View>
+    <AppPressable
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      haptic
+      hitSlop={8}
+      pressScale={intensity === "playful" ? 0.14 : 0.1}
+      style={{ paddingHorizontal: 6, paddingVertical: 4 }}
+    >
+      {children}
+    </AppPressable>
   );
 }
 

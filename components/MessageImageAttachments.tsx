@@ -4,12 +4,13 @@
 // memes). Used inside message bubbles. Each image keeps the required KLIPY
 // watermark so attribution is preserved wherever a meme is shown.
 
+import { AppPressable } from "@/components/AppPressable";
 import { fitAttachment } from "@/domain/mediaLayout";
 import type { MessageImage } from "@/domain/memes";
 import { useTheme } from "@/hooks/useTheme";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 // 376×103 source wordmark — same asset the meme strip uses.
 const KLIPY_LOGO = require("../assets/images/klipy-logo-light.png");
@@ -73,35 +74,56 @@ export function MessageImageAttachments({
     >
       {images.map((image) => {
         const { width, height } = fitAttachment(image);
-        return (
-          <Pressable
-            key={image.id}
-            accessibilityRole={onPressImage ? "imagebutton" : "image"}
-            accessibilityLabel={image.attribution ? `${imageLabel}. ${image.attribution}` : imageLabel}
-            onPress={onPressImage ? () => onPressImage(image) : undefined}
-            style={({ pressed }) => ({
-              width,
-              height,
-              borderRadius: RADIUS,
-              overflow: "hidden",
-              backgroundColor: theme["--color-card-muted"],
-              borderWidth: 1,
-              borderColor: theme["--color-border"],
-              opacity: pressed && onPressImage ? 0.9 : 1,
-            })}
-          >
+        const box = {
+          width,
+          height,
+          borderRadius: RADIUS,
+          overflow: "hidden" as const,
+          backgroundColor: theme["--color-card-muted"],
+          borderWidth: 1,
+          borderColor: theme["--color-border"],
+        };
+        const label = image.attribution
+          ? `${imageLabel}. ${image.attribution}`
+          : imageLabel;
+        const media = (
+          <>
             <Image
               source={{ uri: image.url }}
               contentFit="cover"
-              // Memory+disk cache so a meme shown once renders instantly when
-              // the thread scrolls back to it. Brief fade as the CDN streams in.
-              cachePolicy="memory-disk"
+              // User uploads can contain private local media, so keep those out
+              // of the image disk cache. Public Klipy assets can still persist.
+              cachePolicy={image.source === "upload" ? "memory" : "memory-disk"}
               transition={150}
               recyclingKey={image.id}
               style={{ width: "100%", height: "100%" }}
             />
             {image.source === "klipy" ? <Watermark /> : null}
-          </Pressable>
+          </>
+        );
+        // Interactive (chat thread) routes through the shared touch core; a
+        // read-only render (no handler) stays a plain image View.
+        return onPressImage ? (
+          <AppPressable
+            key={image.id}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={label}
+            onPress={() => onPressImage(image)}
+            feedback="opacity"
+            style={box}
+          >
+            {media}
+          </AppPressable>
+        ) : (
+          <View
+            key={image.id}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={label}
+            style={box}
+          >
+            {media}
+          </View>
         );
       })}
     </View>

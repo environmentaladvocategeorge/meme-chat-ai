@@ -1,3 +1,4 @@
+import { AppPressable } from "@/components/AppPressable";
 import { AuthScaffold, GradientButton } from "@/components/AuthScaffold";
 import { Input } from "@/components/Input";
 import { Typography } from "@/components/Typography";
@@ -6,7 +7,7 @@ import { useAuthStore } from "@/store/auth";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Pressable, View } from "react-native";
+import { Alert, View } from "react-native";
 
 function errorKey(error: SignInEmailError) {
   switch (error) {
@@ -103,14 +104,14 @@ export default function SignInScreen() {
             error={errorMessage}
           />
 
-          <Pressable
+          <AppPressable
             onPress={handleForgotPassword}
             disabled={resetting}
+            feedback="opacity"
             hitSlop={8}
-            style={({ pressed }) => ({
-              alignSelf: "flex-end",
-              opacity: pressed || resetting ? 0.6 : 1,
-            })}
+            accessibilityLabel={t("auth.forgotPassword")}
+            containerStyle={{ alignSelf: "flex-end" }}
+            style={{ opacity: resetting ? 0.6 : 1 }}
           >
             <Typography
               variant="caption"
@@ -120,7 +121,7 @@ export default function SignInScreen() {
                 ? t("account.resetPassword.sending")
                 : t("auth.forgotPassword")}
             </Typography>
-          </Pressable>
+          </AppPressable>
         </View>
 
         <View style={{ marginTop: 24, gap: 16 }}>
@@ -131,13 +132,12 @@ export default function SignInScreen() {
             disabled={email.length === 0 || password.length === 0}
           />
 
-          <Pressable
+          <AppPressable
             onPress={() => router.replace("/auth/email")}
+            feedback="opacity"
             hitSlop={8}
-            style={({ pressed }) => ({
-              alignSelf: "center",
-              opacity: pressed ? 0.7 : 1,
-            })}
+            accessibilityLabel={t("auth.needAccount")}
+            containerStyle={{ alignSelf: "center" }}
           >
             <Typography
               variant="body"
@@ -145,7 +145,7 @@ export default function SignInScreen() {
             >
               {t("auth.needAccount")}
             </Typography>
-          </Pressable>
+          </AppPressable>
         </View>
       </View>
     </AuthScaffold>

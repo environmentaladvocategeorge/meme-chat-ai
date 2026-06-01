@@ -11,6 +11,7 @@
 // The optional "Powered by KLIPY" mark is intentionally omitted — the required
 // placeholder + per-meme watermark already satisfy the guidelines.
 
+import { AppPressable } from "@/components/AppPressable";
 import { Typography } from "@/components/Typography";
 import { stripCardWidth } from "@/domain/mediaLayout";
 import { useTheme } from "@/hooks/useTheme";
@@ -22,7 +23,6 @@ import { useEffect, type ReactNode } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Pressable,
   StyleSheet,
   TextInput,
   View,
@@ -236,11 +236,13 @@ function MemeCard<T extends StripMedia>({
 
   return (
     <Animated.View style={enterStyle}>
-      <Pressable
+      <AppPressable
         accessibilityRole="imagebutton"
         accessibilityLabel={meme.title || meme.slug || "meme"}
         onPress={onSelect ? () => onSelect(meme) : undefined}
-        style={({ pressed }) => ({
+        haptic
+        feedback="opacity"
+        style={{
           width,
           height: STRIP_HEIGHT,
           borderRadius: 14,
@@ -248,8 +250,7 @@ function MemeCard<T extends StripMedia>({
           backgroundColor: theme["--color-card-muted"],
           borderWidth: 1,
           borderColor: theme["--color-border"],
-          opacity: pressed ? 0.82 : 1,
-        })}
+        }}
       >
         {animated ? (
           // GIFs: expo-image plays animated webp/gif and shows the tiny base64
@@ -279,7 +280,7 @@ function MemeCard<T extends StripMedia>({
           />
         )}
         <CardWatermark />
-      </Pressable>
+      </AppPressable>
     </Animated.View>
   );
 }
@@ -335,14 +336,14 @@ function SearchBox({
       {searching ? (
         <ActivityIndicator size="small" color={theme["--color-primary"]} />
       ) : value.length > 0 ? (
-        <Pressable
-          accessibilityRole="button"
+        <AppPressable
           accessibilityLabel="clear"
           onPress={onClear}
+          feedback="opacity"
           hitSlop={8}
         >
           <X size={16} color={theme["--color-foreground-muted"]} weight="bold" />
-        </Pressable>
+        </AppPressable>
       ) : null}
     </View>
   );
@@ -389,12 +390,12 @@ export function TrendingMemeStrip<T extends StripMedia>({
           {labels.error}
         </Typography>
         {onRetry ? (
-          <Pressable
-            accessibilityRole="button"
+          <AppPressable
             accessibilityLabel={labels.retry}
             onPress={onRetry}
+            feedback="opacity"
             hitSlop={8}
-            style={({ pressed }) => ({
+            style={{
               flexDirection: "row",
               alignItems: "center",
               gap: 4,
@@ -402,8 +403,7 @@ export function TrendingMemeStrip<T extends StripMedia>({
               paddingVertical: 6,
               borderRadius: 999,
               backgroundColor: theme["--color-background-secondary"],
-              opacity: pressed ? 0.85 : 1,
-            })}
+            }}
           >
             <ArrowClockwise
               size={14}
@@ -416,7 +416,7 @@ export function TrendingMemeStrip<T extends StripMedia>({
             >
               {labels.retry}
             </Typography>
-          </Pressable>
+          </AppPressable>
         ) : null}
       </View>
     );

@@ -291,6 +291,7 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
   signOut: async () => {
     const firebase = getFirebaseServices();
     if (!firebase.available) {
+      await clearSignedOutLocalData();
       set({ status: "signedOut", ...SIGNED_OUT_STATE });
       return;
     }
@@ -302,9 +303,18 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
     // onAuthStateChanged handler once firebaseSignOut fires.
     useChatStore.getState().startNewConversation();
 
+    let signOutError: unknown;
     try {
       await firebaseSignOut(firebase.services.auth);
-    } catch {}
+    } catch (err) {
+      signOutError = err;
+    }
+
+    await clearSignedOutLocalData();
+
+    if (signOutError) {
+      console.warn("[auth] firebase sign-out failed:", signOutError);
+    }
 
     set({ status: "signedOut", ...SIGNED_OUT_STATE });
   },
@@ -419,13 +429,32 @@ async function finalizeAccountDeletion(
   useEntitlementStore.getState().bindUid(null);
   void useSubscriptionStore.getState().setRcUser(null);
 
-  await firebaseSignOut(auth).catch(() => {});
+  let signOutError: unknown;
+  try {
+    await firebaseSignOut(auth);
+  } catch (err) {
+    signOutError = err;
+  }
 
-  await wipeLocalAppData().catch(() => {});
-  await useOnboardingStore.getState().reset().catch(() => {});
-  await useSettingsStore.getState().reset().catch(() => {});
+  await clearSignedOutLocalData();
+
+  if (signOutError) {
+    console.warn("[deleteAccount] firebase sign-out failed:", signOutError);
+  }
 
   set({ status: "signedOut", ...SIGNED_OUT_STATE });
 
   return { success: true as const };
+}
+
+async function clearSignedOutLocalData(): Promise<void> {
+  useChatStore.getState().startNewConversation();
+  useEntitlementStore.getState().bindUid(null);
+
+  await Promise.all([
+    useSubscriptionStore.getState().setRcUser(null).catch(() => {}),
+    wipeLocalAppData().catch(() => {}),
+    useOnboardingStore.getState().reset().catch(() => {}),
+    useSettingsStore.getState().reset().catch(() => {}),
+  ]);
 }

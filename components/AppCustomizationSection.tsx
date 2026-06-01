@@ -1,10 +1,11 @@
+import { AppPressable } from "@/components/AppPressable";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
 import { useChatCustomizationSheetStore } from "@/store/chatCustomizationSheet";
 import { CaretRight, LockSimple, Palette } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { Typography } from "./Typography";
 
 // Clean "Customize Chat" trigger row, slotted inside the Appearance settings
@@ -22,15 +23,15 @@ export function AppCustomizationSection() {
   const onPress = canCustomize ? openSheet : openPlan;
 
   return (
-    <Pressable
+    <AppPressable
       onPress={onPress}
-      accessibilityRole="button"
+      feedback="opacity"
       accessibilityLabel={
         canCustomize
           ? t("settings.customization.title")
           : t("settings.customization.unlockCta")
       }
-      style={({ pressed }) => ({
+      style={{
         marginTop: 4,
         borderTopWidth: 1,
         borderTopColor: theme["--color-border"],
@@ -38,8 +39,7 @@ export function AppCustomizationSection() {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
-        opacity: pressed ? 0.7 : 1,
-      })}
+      }}
     >
       <Palette size={20} weight="regular" color={theme["--color-foreground"]} />
       <Typography
@@ -81,6 +81,6 @@ export function AppCustomizationSection() {
           </Typography>
         </View>
       )}
-    </Pressable>
+    </AppPressable>
   );
 }

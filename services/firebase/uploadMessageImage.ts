@@ -1,4 +1,5 @@
 import type { UploadedMessageImage } from "@/domain/memes";
+import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -112,5 +113,9 @@ export async function captureAndUploadImage(
     };
   } catch {
     throw new CaptureImageError("upload-failed");
+  } finally {
+    await FileSystem.deleteAsync(compressed.uri, { idempotent: true }).catch(
+      () => {},
+    );
   }
 }

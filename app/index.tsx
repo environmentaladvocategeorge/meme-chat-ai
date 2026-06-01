@@ -1,3 +1,4 @@
+import { AppPressable } from "@/components/AppPressable";
 import { Typography } from "@/components/Typography";
 import { gradients } from "@/nativewind-theme";
 import { useAuthStore } from "@/store/auth";
@@ -20,7 +21,6 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
-  Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -454,12 +454,13 @@ function CtaButton({
   );
 
   return (
-    <Pressable
+    <AppPressable
       onPress={onPress}
       disabled={loading}
-      accessibilityRole="button"
+      haptic
+      pressScale={0.015}
       accessibilityLabel={title}
-      style={({ pressed }) => [
+      style={[
         styles.cta,
         isAccent
           ? {
@@ -474,7 +475,6 @@ function CtaButton({
               borderWidth: 1.5,
               borderColor: "rgba(255,255,255,0.4)",
             },
-        { opacity: pressed ? 0.88 : 1, transform: [{ scale: pressed ? 0.985 : 1 }] },
       ]}
     >
       {isAccent ? (
@@ -486,7 +486,7 @@ function CtaButton({
         />
       ) : null}
       {content}
-    </Pressable>
+    </AppPressable>
   );
 }
 

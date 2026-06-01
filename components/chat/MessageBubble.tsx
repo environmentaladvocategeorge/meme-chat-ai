@@ -17,11 +17,14 @@ import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
 import { useColorScheme } from "nativewind";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import Markdown from "react-native-markdown-display";
+import Markdown, {
+  type RenderRules,
+} from "react-native-markdown-display";
 import {
   Platform,
   Pressable,
   StyleSheet,
+  Text,
   useWindowDimensions,
   View,
 } from "react-native";
@@ -122,6 +125,7 @@ export function MessageBubble({
     : theme["--color-background-secondary"];
 
   const borderColor = mine ? bubble.borderColor : theme["--color-border"];
+  const selectionColor = theme["--color-primary-muted"];
 
   const markdownStyles = useMemo(
     () =>
@@ -289,6 +293,146 @@ export function MessageBubble({
         },
       }),
     [borderColor, codeBackgroundColor, messageColor, mutedMessageColor],
+  );
+
+  const selectableMarkdownRules = useMemo<RenderRules>(
+    () => ({
+      strong: (node, children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.strong}
+        >
+          {children}
+        </Text>
+      ),
+      em: (node, children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.em}
+        >
+          {children}
+        </Text>
+      ),
+      s: (node, children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.s}
+        >
+          {children}
+        </Text>
+      ),
+      code_inline: (node, _children, _parent, styles, inheritedStyles = {}) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={[inheritedStyles, styles.code_inline]}
+        >
+          {node.content}
+        </Text>
+      ),
+      code_block: (node, _children, _parent, styles, inheritedStyles = {}) => {
+        const content =
+          typeof node.content === "string" && node.content.endsWith("\n")
+            ? node.content.slice(0, -1)
+            : node.content;
+
+        return (
+          <Text
+            key={node.key}
+            selectable
+            selectionColor={selectionColor}
+            style={[inheritedStyles, styles.code_block]}
+          >
+            {content}
+          </Text>
+        );
+      },
+      fence: (node, _children, _parent, styles, inheritedStyles = {}) => {
+        const content =
+          typeof node.content === "string" && node.content.endsWith("\n")
+            ? node.content.slice(0, -1)
+            : node.content;
+
+        return (
+          <Text
+            key={node.key}
+            selectable
+            selectionColor={selectionColor}
+            style={[inheritedStyles, styles.fence]}
+          >
+            {content}
+          </Text>
+        );
+      },
+      text: (node, _children, _parent, styles, inheritedStyles = {}) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={[inheritedStyles, styles.text]}
+        >
+          {node.content}
+        </Text>
+      ),
+      textgroup: (node, children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.textgroup}
+        >
+          {children}
+        </Text>
+      ),
+      hardbreak: (node, _children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.hardbreak}
+        >
+          {"\n"}
+        </Text>
+      ),
+      softbreak: (node, _children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.softbreak}
+        >
+          {"\n"}
+        </Text>
+      ),
+      inline: (node, children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.inline}
+        >
+          {children}
+        </Text>
+      ),
+      span: (node, children, _parent, styles) => (
+        <Text
+          key={node.key}
+          selectable
+          selectionColor={selectionColor}
+          style={styles.span}
+        >
+          {children}
+        </Text>
+      ),
+    }),
+    [selectionColor],
   );
 
   // Entering animation. Plays once on mount: a quick opacity + tiny scale
@@ -542,13 +686,9 @@ export function MessageBubble({
                   ? `${messageText}. ${timestampLabel}`
                   : messageText
               }
-              onLongPress={() => {
+              onPress={() => {
                 if (timestampLabel) setShowTimestamp((current) => !current);
               }}
-              onPress={() => {
-                if (showTimestamp) setShowTimestamp(false);
-              }}
-              delayLongPress={260}
               style={({ pressed }) => ({
                 maxWidth: "100%",
                 borderRadius: BUBBLE_RADIUS,
@@ -579,8 +719,8 @@ export function MessageBubble({
                 >
                   <LinearGradient
                     colors={bubble.gradientColors ?? primaryGradient.colors}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 0, y: 1 }}
+                    start={bubble.gradientStart ?? { x: 0, y: 0 }}
+                    end={bubble.gradientEnd ?? { x: 0, y: 1 }}
                     style={{ width: "100%", height: windowHeight }}
                   />
                 </Animated.View>
@@ -592,10 +732,14 @@ export function MessageBubble({
                   gradient={primaryGradient.colors}
                 />
               ) : shouldRenderMarkdown(messageText) ? (
-                <Markdown style={markdownStyles}>{messageText}</Markdown>
+                <Markdown rules={selectableMarkdownRules} style={markdownStyles}>
+                  {messageText}
+                </Markdown>
               ) : (
                 <Typography
                   variant="body"
+                  selectable
+                  selectionColor={selectionColor}
                   style={{
                     color: messageColor,
                     fontSize: 17,

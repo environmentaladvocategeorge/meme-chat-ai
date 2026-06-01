@@ -10,6 +10,8 @@
 // Pair it with the glass-toned <Input tone="glass" /> and the <GradientButton>
 // exported here so form controls read cleanly over the gradient.
 
+import { AppPressable } from "@/components/AppPressable";
+import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { gradients } from "@/nativewind-theme";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,7 +23,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   View,
 } from "react-native";
@@ -82,19 +83,18 @@ export function AuthScaffold({
             }}
           >
             {onBack ? (
-              <Animated.View entering={FadeIn.duration(500)}>
-                <Pressable
-                  onPress={onBack}
-                  accessibilityRole="button"
-                  hitSlop={12}
-                  style={({ pressed }) => [
-                    styles.back,
-                    { opacity: pressed ? 0.7 : 1 },
-                  ]}
-                >
-                  <CaretLeft size={22} color="#FFFFFF" weight="bold" />
-                </Pressable>
-              </Animated.View>
+              // Small target: no `entering` wrapper here. Wrapping a ~40px
+              // touch target in a layout animation desyncs Fabric's hit frame
+              // in release builds; the title/children below keep their fade.
+              <IconButton
+                onPress={onBack}
+                accessibilityLabel="Back"
+                hitSlop={12}
+                size={40}
+                surfaceStyle={styles.back}
+              >
+                <CaretLeft size={22} color="#FFFFFF" weight="bold" />
+              </IconButton>
             ) : null}
 
             <Animated.View
@@ -150,13 +150,14 @@ export function GradientButton({
   const isDisabled = disabled || loading;
 
   return (
-    <Pressable
+    <AppPressable
       onPress={onPress}
       disabled={isDisabled}
-      accessibilityRole="button"
+      haptic
+      pressScale={0.015}
       accessibilityLabel={title}
-      accessibilityState={{ busy: loading, disabled: isDisabled }}
-      style={({ pressed }) => [
+      accessibilityState={{ busy: loading }}
+      style={[
         styles.button,
         isAccent
           ? {
@@ -171,10 +172,7 @@ export function GradientButton({
               borderWidth: 1.5,
               borderColor: "rgba(255,255,255,0.4)",
             },
-        {
-          opacity: isDisabled ? 0.45 : pressed ? 0.9 : 1,
-          transform: [{ scale: pressed ? 0.985 : 1 }],
-        },
+        { opacity: isDisabled ? 0.45 : 1 },
       ]}
     >
       {isAccent ? (
@@ -204,7 +202,7 @@ export function GradientButton({
           </>
         )}
       </View>
-    </Pressable>
+    </AppPressable>
   );
 }
 

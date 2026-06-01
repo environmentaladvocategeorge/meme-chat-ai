@@ -3,8 +3,13 @@ import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { logger } from "firebase-functions";
+import { createHash } from "crypto";
 
 const REAUTH_MAX_AGE_SECONDS = 5 * 60;
+
+function logUserKey(uid: string): string {
+  return createHash("sha256").update(uid).digest("hex").slice(0, 16);
+}
 
 // Removes every Firestore record tied to a user. Kept separate from the
 // callable so it's unit-testable and reusable.
@@ -48,12 +53,9 @@ export async function deleteUserData(uid: string, db: Firestore): Promise<void> 
 
   // Remove all of the user's uploaded chat images (catch-all by prefix — covers
   // every upload folder, including drafts not tied to a surviving conversation).
-  // Best-effort: a Storage failure here shouldn't fail the account deletion.
-  try {
-    await getStorage().bucket().deleteFiles({ prefix: `messageImages/${uid}/` });
-  } catch (err) {
-    logger.warn("[deleteMyAccount] storage image cleanup failed", { uid, err });
-  }
+  // Storage is part of the deletion guarantee, so failures propagate to the
+  // callable instead of being hidden from the client.
+  await getStorage().bucket().deleteFiles({ prefix: `messageImages/${uid}/` });
 }
 
 // Auth + Firestore live in different systems, so the deletion can't be
@@ -86,7 +88,10 @@ export const deleteMyAccount = onCall(
   try {
     await getAuth().deleteUser(uid);
   } catch (err) {
-    logger.error("[deleteMyAccount] auth delete failed", { uid, err });
+    logger.error("[deleteMyAccount] auth delete failed", {
+      userKey: logUserKey(uid),
+      err,
+    });
     throw new HttpsError("internal", "delete-failed");
   }
 
@@ -94,12 +99,13 @@ export const deleteMyAccount = onCall(
     await deleteUserData(uid, getFirestore());
   } catch (err) {
     // Auth deletion already succeeded — surface the orphaned-data state
-    // loudly for manual cleanup, but report success to the client because
-    // the user-visible "my account is gone" guarantee holds.
+    // loudly for manual cleanup, and report failure to the client so the user
+    // is not told the deletion fully completed while orphaned records may remain.
     logger.error("[deleteMyAccount] data cleanup failed; orphaned records", {
-      uid,
+      userKey: logUserKey(uid),
       err,
     });
+    throw new HttpsError("internal", "data-delete-failed");
   }
 
   return { success: true };

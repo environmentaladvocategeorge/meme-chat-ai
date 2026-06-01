@@ -2,6 +2,7 @@ import Constants from "expo-constants";
 import { AdBanner } from "@/components/ads/AdBanner";
 import { AppCustomizationSection } from "@/components/AppCustomizationSection";
 import { AppHeader } from "@/components/AppHeader";
+import { AppPressable } from "@/components/AppPressable";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { SettingsRow } from "@/components/SettingsRow";
 import { Typography } from "@/components/Typography";
@@ -26,7 +27,7 @@ import {
 } from "phosphor-react-native";
 import { type ComponentType, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Linking, Pressable, ScrollView, Switch, View } from "react-native";
+import { Alert, Linking, ScrollView, Switch, View } from "react-native";
 import type { IconProps } from "phosphor-react-native";
 
 const SUPPORT_URL = "https://meme-chat-ai.com/support";
@@ -48,15 +49,14 @@ function LinkRow({
 }) {
   const theme = useTheme();
   return (
-    <Pressable
+    <AppPressable
       onPress={onPress}
       accessibilityRole="link"
+      feedback="opacity"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      style={{
         borderRadius: 16,
-        backgroundColor: pressed
-          ? theme["--color-card-pressed"]
-          : theme["--color-card"],
+        backgroundColor: theme["--color-card"],
         borderWidth: 1,
         borderColor: theme["--color-border"],
         paddingVertical: 14,
@@ -64,7 +64,7 @@ function LinkRow({
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
-      })}
+      }}
     >
       <Icon size={20} color={theme["--color-foreground"]} weight="regular" />
       <Typography
@@ -79,7 +79,7 @@ function LinkRow({
         weight="bold"
         color={theme["--color-foreground-muted"]}
       />
-    </Pressable>
+    </AppPressable>
   );
 }
 
@@ -184,22 +184,20 @@ export default function SettingsScreen() {
         }}
         keyboardShouldPersistTaps="handled"
       >
-        <Pressable
+        <AppPressable
           onPress={openPlan}
-          accessibilityRole="button"
+          feedback="opacity"
           accessibilityLabel={t("settings.plan.heading")}
-          style={({ pressed }) => ({
+          style={{
             borderRadius: 16,
-            backgroundColor: pressed
-              ? theme["--color-card-pressed"]
-              : theme["--color-card"],
+            backgroundColor: theme["--color-card"],
             borderWidth: 1,
             borderColor: theme["--color-border"],
             padding: 16,
             flexDirection: "row",
             alignItems: "center",
             gap: 12,
-          })}
+          }}
         >
           <View style={{ flex: 1, gap: 4 }}>
             <Typography
@@ -220,26 +218,24 @@ export default function SettingsScreen() {
             weight="bold"
             color={theme["--color-foreground-muted"]}
           />
-        </Pressable>
+        </AppPressable>
 
         {/* Account hub — all credential/session/deletion controls live behind
             this row so the settings page stays short and to the point. */}
-        <Pressable
+        <AppPressable
           onPress={() => openAccount()}
-          accessibilityRole="button"
+          feedback="opacity"
           accessibilityLabel={t("settings.account.label")}
-          style={({ pressed }) => ({
+          style={{
             borderRadius: 16,
-            backgroundColor: pressed
-              ? theme["--color-card-pressed"]
-              : theme["--color-card"],
+            backgroundColor: theme["--color-card"],
             borderWidth: 1,
             borderColor: theme["--color-border"],
             padding: 16,
             flexDirection: "row",
             alignItems: "center",
             gap: 12,
-          })}
+          }}
         >
           <UserCircle
             size={22}
@@ -265,7 +261,7 @@ export default function SettingsScreen() {
             weight="bold"
             color={theme["--color-foreground-muted"]}
           />
-        </Pressable>
+        </AppPressable>
 
         {/* Notifications — wired to the real OS permission. */}
         <View

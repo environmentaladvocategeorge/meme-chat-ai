@@ -14,7 +14,7 @@ export type HandleDecision =
   // `skip` events are valid but require no state change (BILLING_ISSUE etc.)
   // The caller still writes the idempotency dedup doc so a replay is a no-op.
   | { kind: "skip"; reason: string }
-  | { kind: "apply"; next: Partial<ProfileBilling> };
+  | { kind: "apply"; next: Partial<ProfileBilling> & Pick<ProfileBilling, "plan"> };
 
 // Pure event → profile-patch transformer. Doesn't touch Firestore. Doesn't
 // know about idempotency or sandbox gating — caller handles both before calling.
@@ -39,7 +39,7 @@ export function handleRcEvent(
       // anchors, and zero any daily spend so the new caps are fully available.
       // Per the exec summary, downgrades take effect through RC's natural
       // cycle — PRODUCT_CHANGE fires before the next RENEWAL.
-      const next: Partial<ProfileBilling> = {
+      const next = {
         plan,
         planSource: "revenuecat",
         rcAppUserId: event.app_user_id,
@@ -49,7 +49,7 @@ export function handleRcEvent(
             ? Timestamp.fromMillis(event.expiration_at_ms)
             : null,
         ...planActivationFields(plan, now),
-      };
+      } satisfies Partial<ProfileBilling> & Pick<ProfileBilling, "plan">;
       return { kind: "apply", next };
     }
 
@@ -59,14 +59,14 @@ export function handleRcEvent(
       // remaining credits — the user paid for the cycle, let them spend
       // what's left until the next monthly reset. The displayed/ enforced caps
       // do move to free now (the daily gate already computes off the free plan).
-      const next: Partial<ProfileBilling> = {
+      const next = {
         plan: "free",
         planSource: "revenuecat",
         rcActiveProductId: null,
         rcEntitlementExpiresAt: null,
         monthlyCredits: PLANS.free.monthlyCredits,
         softDailyCredits: computeDailyCap(PLANS.free.monthlyCredits, now),
-      };
+      } satisfies Partial<ProfileBilling> & Pick<ProfileBilling, "plan">;
       return { kind: "apply", next };
     }
 

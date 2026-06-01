@@ -3,6 +3,8 @@
 // switch the active view in place — so the whole account flow surfaces as a
 // paywall-style bottom sheet instead of pushing full-screen stack pages.
 
+import { SheetTouchableProvider } from "@/components/AppPressable";
+import { IconButton } from "@/components/IconButton";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { AccountHubContent } from "@/components/account/AccountHubContent";
 import { ChangeNameForm } from "@/components/account/ChangeNameForm";
@@ -24,7 +26,7 @@ import {
 import { ArrowLeft, X } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
 export function AccountSheet() {
   const { t } = useTranslation();
@@ -68,16 +70,9 @@ export function AccountSheet() {
   const showBack = view !== "hub" && !busy;
   const showClose = !busy;
 
-  const circleButton = ({ pressed }: { pressed: boolean }) => ({
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center" as const,
-    justifyContent: "center" as const,
-    backgroundColor: pressed
-      ? theme["--color-card-pressed"]
-      : theme["--color-card-muted"],
-  });
+  const circleSurface = {
+    backgroundColor: theme["--color-card-muted"],
+  };
 
   return (
     <BottomSheetModal
@@ -112,6 +107,7 @@ export function AccountSheet() {
           alignSelf: "center",
         }}
       >
+       <SheetTouchableProvider>
         {/* Header: back (non-hub) / title / close, each in a fixed-width slot
             so the title stays centered. */}
         <View
@@ -126,19 +122,19 @@ export function AccountSheet() {
         >
           <View style={{ width: 36, height: 36 }}>
             {showBack ? (
-              <Pressable
+              <IconButton
                 onPress={() => navigate("hub")}
                 hitSlop={8}
-                accessibilityRole="button"
+                size={36}
+                surfaceStyle={circleSurface}
                 accessibilityLabel={t("common.back")}
-                style={circleButton}
               >
                 <ArrowLeft
                   size={18}
                   weight="bold"
                   color={theme["--color-foreground"]}
                 />
-              </Pressable>
+              </IconButton>
             ) : null}
           </View>
           <Typography
@@ -154,15 +150,15 @@ export function AccountSheet() {
           </Typography>
           <View style={{ width: 36, height: 36 }}>
             {showClose ? (
-              <Pressable
+              <IconButton
                 onPress={close}
                 hitSlop={8}
-                accessibilityRole="button"
+                size={36}
+                surfaceStyle={circleSurface}
                 accessibilityLabel={t("common.close")}
-                style={circleButton}
               >
                 <X size={18} weight="bold" color={theme["--color-foreground"]} />
-              </Pressable>
+              </IconButton>
             ) : null}
           </View>
         </View>
@@ -183,6 +179,7 @@ export function AccountSheet() {
         {view === "delete-account" ? (
           <DeleteAccountForm onBusyChange={setBusy} onDone={close} />
         ) : null}
+       </SheetTouchableProvider>
       </View>
     </BottomSheetModal>
   );

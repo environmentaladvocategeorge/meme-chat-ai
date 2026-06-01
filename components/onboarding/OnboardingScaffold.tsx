@@ -7,7 +7,9 @@
 // footer with the app's primary Button plus an optional small secondary action.
 // Entrances are simple opacity fades only — no spring/jitter.
 
+import { AppPressable } from "@/components/AppPressable";
 import { Button } from "@/components/Button";
+import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { StatusBar } from "expo-status-bar";
@@ -17,7 +19,6 @@ import { ReactNode } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   View,
 } from "react-native";
@@ -86,29 +87,23 @@ export function OnboardingScaffold({
               }}
             >
               {onBack ? (
-                <Pressable
+                <IconButton
                   onPress={onBack}
-                  accessibilityRole="button"
                   accessibilityLabel="Back"
                   hitSlop={12}
-                  style={({ pressed }) => ({
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
-                    alignItems: "center",
-                    justifyContent: "center",
+                  size={38}
+                  surfaceStyle={{
                     backgroundColor: theme["--color-card-muted"],
                     borderWidth: 1,
                     borderColor: theme["--color-border"],
-                    opacity: pressed ? 0.7 : 1,
-                  })}
+                  }}
                 >
                   <CaretLeft
                     size={20}
                     color={theme["--color-foreground"]}
                     weight="bold"
                   />
-                </Pressable>
+                </IconButton>
               ) : null}
               <ProgressDots
                 step={step}
@@ -173,15 +168,15 @@ export function OnboardingScaffold({
                 />
               ) : null}
               {secondaryLabel ? (
-                <Pressable
+                <AppPressable
                   onPress={onSecondary}
-                  accessibilityRole="button"
+                  feedback="opacity"
                   hitSlop={8}
-                  style={({ pressed }) => ({
+                  accessibilityLabel={secondaryLabel}
+                  style={{
                     alignItems: "center",
                     paddingVertical: 10,
-                    opacity: pressed ? 0.6 : 1,
-                  })}
+                  }}
                 >
                   <Typography
                     variant="caption"
@@ -189,7 +184,7 @@ export function OnboardingScaffold({
                   >
                     {secondaryLabel}
                   </Typography>
-                </Pressable>
+                </AppPressable>
               ) : null}
             </View>
           </View>

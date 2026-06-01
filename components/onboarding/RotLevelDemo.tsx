@@ -5,10 +5,11 @@
 // the flow. Levels map to the app's 1–3 rot dial so the selection seeds the real
 // chat preference. Styled with the app theme surfaces.
 
+import { AppPressable } from "@/components/AppPressable";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
 // Display order + their rot-dial value (1 = lightly cooked … 3 = goblin).
@@ -53,13 +54,15 @@ export function RotLevelDemo({
         {LEVELS.map((level) => {
           const active = level.value === selected.value;
           return (
-            <Pressable
+            <AppPressable
               key={level.key}
               onPress={() => onChange(level.value)}
-              accessibilityRole="button"
+              haptic
+              pressScale={0.04}
+              accessibilityLabel={t(`onboarding.rot.levels.${level.key}.label`)}
               accessibilityState={{ selected: active }}
-              style={({ pressed }) => ({
-                flex: 1,
+              containerStyle={{ flex: 1 }}
+              style={{
                 alignItems: "center",
                 gap: 6,
                 paddingVertical: 12,
@@ -71,8 +74,7 @@ export function RotLevelDemo({
                 borderColor: active
                   ? theme["--color-primary"]
                   : theme["--color-border"],
-                opacity: pressed ? 0.85 : 1,
-              })}
+              }}
             >
               <Typography style={{ fontSize: 26, lineHeight: 30 }}>
                 {t(`onboarding.rot.levels.${level.key}.emoji`)}
@@ -90,7 +92,7 @@ export function RotLevelDemo({
               >
                 {t(`onboarding.rot.levels.${level.key}.label`)}
               </Typography>
-            </Pressable>
+            </AppPressable>
           );
         })}
       </View>

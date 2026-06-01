@@ -2,19 +2,18 @@
 // driven by useChatCustomizationSheetStore, so the settings "Customize Chat"
 // row can summon it in place and keep the settings page itself clean.
 //
-// Two-level UI: a "hub" showing the live preview + an entry button per control
-// (message bubbles / background), each drilling into the full set of color
-// options for that control. This keeps the first screen calm — you see how the
-// chat looks now and pick what to change — instead of two color rows at once.
+// A calm "hub": the live preview + one entry button per control (background,
+// message bubbles, accent, chat surfaces). Tapping any of them opens the single
+// centralized color picker (CustomColorSheet) directly — presets and custom
+// editing live together in there, so there's no separate swatch-grid step.
 
 import {
-  backgroundSwatches,
-  bubbleSwatches,
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
-  makeCustomColorId,
   parseCustomColor,
+  parseCustomGradient,
 } from "@/domain/customization";
+import { AppPressable, SheetTouchableProvider } from "@/components/AppPressable";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
@@ -25,15 +24,9 @@ import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
   BottomSheetScrollView,
-  TouchableOpacity as BottomSheetTouchableOpacity,
 } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
-import {
-  ArrowCounterClockwise,
-  CaretLeft,
-  CaretRight,
-} from "phosphor-react-native";
-import { useColorScheme } from "nativewind";
+import { ArrowCounterClockwise, CaretRight } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
@@ -43,19 +36,13 @@ import {
   CustomColorSheet,
   type CustomColorTarget,
 } from "./CustomColorSheet";
-import { SwatchPicker } from "./SwatchPicker";
 import { Typography } from "./Typography";
 
 type Gradient = readonly [string, string, ...string[]];
 
-// Which screen of the sheet is showing: the hub, or one control's options.
-type SheetView = "hub" | "bubble" | "background";
-
 export function ChatCustomizationSheet() {
   const { t } = useTranslation();
   const theme = useTheme();
-  const { colorScheme } = useColorScheme();
-  const scheme = colorScheme ?? "light";
   const insets = useSafeAreaInsets();
 
   const isOpen = useChatCustomizationSheetStore((s) => s.isOpen);
@@ -65,32 +52,44 @@ export function ChatCustomizationSheet() {
   const setChatBubbleStyle = useSettingsStore((s) => s.setChatBubbleStyle);
   const chatBackground = useSettingsStore((s) => s.chatBackground);
   const setChatBackground = useSettingsStore((s) => s.setChatBackground);
+  const chatUiColors = useSettingsStore((s) => s.chatUiColors);
   const resetChatAppearance = useSettingsStore((s) => s.resetChatAppearance);
 
   // Resolved look (for the little "current selection" chips on the hub buttons).
-  const { bubble, background } = useChatAppearance();
+  const { bubble, background, surface, chatTheme } = useChatAppearance();
 
   const isDefault =
     chatBubbleStyle === DEFAULT_BUBBLE_STYLE &&
-    chatBackground === DEFAULT_BACKGROUND;
+    chatBackground === DEFAULT_BACKGROUND &&
+    Object.keys(chatUiColors).length === 0;
 
-  // Which screen is showing, and which control (if any) the custom color picker
-  // is open for.
-  const [view, setView] = useState<SheetView>("hub");
+  // Which control (if any) the centralized color picker is open for.
   const [pickerTarget, setPickerTarget] = useState<CustomColorTarget | null>(
     null,
   );
 
   // Seed the picker with the current custom pick when there is one, otherwise a
   // pleasant on-brand starting color.
+  const bubbleCustomGradient = parseCustomGradient(chatBubbleStyle);
+  const backgroundCustomGradient = parseCustomGradient(chatBackground);
   const bubbleSeed =
-    parseCustomColor(chatBubbleStyle) ?? theme["--color-primary"];
+    parseCustomColor(chatBubbleStyle) ??
+    bubbleCustomGradient?.colors[0] ??
+    theme["--color-primary"];
   const backgroundSeed =
-    parseCustomColor(chatBackground) ?? theme["--color-primary"];
+    parseCustomColor(chatBackground) ??
+    backgroundCustomGradient?.colors[0] ??
+    theme["--color-primary"];
+  const accentSeed =
+    chatUiColors.accent ??
+    chatTheme["--color-primary"] ??
+    theme["--color-primary"];
+  const subtleSeed =
+    chatUiColors.subtle ?? surface?.surface ?? theme["--color-card"];
+  const textSeed = chatUiColors.text ?? chatTheme["--color-foreground"];
 
   const applyCustomColor = useCallback(
-    (hex: string) => {
-      const id = makeCustomColorId(hex);
+    (id: string) => {
       if (pickerTarget === "bubble") setChatBubbleStyle(id);
       else if (pickerTarget === "background") setChatBackground(id);
     },
@@ -98,15 +97,11 @@ export function ChatCustomizationSheet() {
   );
 
   const sheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["75%"], []);
+  const snapPoints = useMemo(() => ["90%"], []);
 
   useEffect(() => {
-    if (isOpen) {
-      sheetRef.current?.present();
-      setView("hub"); // always (re)open on the hub
-    } else {
-      sheetRef.current?.dismiss();
-    }
+    if (isOpen) sheetRef.current?.present();
+    else sheetRef.current?.dismiss();
   }, [isOpen]);
 
   const renderBackdrop = useCallback(
@@ -151,8 +146,8 @@ export function ChatCustomizationSheet() {
             gap: 24,
           }}
         >
-          {/* Header: hub shows title + Reset; a detail view shows a back row. */}
-          {view === "hub" ? (
+          <SheetTouchableProvider>
+            {/* Header: title + Reset. */}
             <View
               style={{
                 flexDirection: "row",
@@ -171,12 +166,11 @@ export function ChatCustomizationSheet() {
                 {t("settings.customization.title")}
               </Typography>
 
-              <BottomSheetTouchableOpacity
+              <AppPressable
                 onPress={resetChatAppearance}
                 disabled={isDefault}
-                accessibilityRole="button"
+                feedback="opacity"
                 accessibilityLabel={t("settings.customization.reset")}
-                activeOpacity={0.8}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -199,92 +193,78 @@ export function ChatCustomizationSheet() {
                 >
                   {t("settings.customization.reset")}
                 </Typography>
-              </BottomSheetTouchableOpacity>
+              </AppPressable>
             </View>
-          ) : (
-            <BottomSheetTouchableOpacity
-              onPress={() => setView("hub")}
-              accessibilityRole="button"
-              accessibilityLabel={t("settings.customization.back")}
-              activeOpacity={0.7}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 6,
-                alignSelf: "flex-start",
-              }}
-            >
-              <CaretLeft
-                size={20}
-                weight="bold"
-                color={theme["--color-foreground"]}
-              />
+
+            {/* Live preview of the picked look. */}
+            <View style={{ gap: 10 }}>
               <Typography
-                variant="title-lg"
-                style={{
-                  color: theme["--color-foreground"],
-                  fontWeight: "800",
-                }}
+                variant="title-sm"
+                style={{ color: theme["--color-foreground"] }}
               >
-                {view === "background"
-                  ? t("settings.customization.customizeBackground")
-                  : t("settings.customization.customizeMessages")}
+                {t("settings.customization.preview")}
               </Typography>
-            </BottomSheetTouchableOpacity>
-          )}
+              <ChatAppearancePreview />
+            </View>
 
-          {/* Live preview of the picked look — shown on every screen. */}
-          <View style={{ gap: 10 }}>
-            <Typography
-              variant="title-sm"
-              style={{ color: theme["--color-foreground"] }}
-            >
-              {t("settings.customization.preview")}
-            </Typography>
-            <ChatAppearancePreview />
-          </View>
-
-          {view === "hub" ? (
-            // Hub: one entry button per control, each previewing its current pick.
+            {/* Hub: one entry button per control. Each opens the centralized
+              color picker directly — presets + custom editing live in there. */}
             <View style={{ gap: 12 }}>
               <CustomizeRow
                 label={t("settings.customization.customizeBackground")}
                 gradient={background.gradientColors}
                 solid={background.color}
-                onPress={() => setView("background")}
+                onPress={() => setPickerTarget("background")}
               />
               <CustomizeRow
                 label={t("settings.customization.customizeMessages")}
                 gradient={bubble.gradientColors}
                 solid={bubble.solidColor}
-                onPress={() => setView("bubble")}
+                onPress={() => setPickerTarget("bubble")}
+              />
+              <CustomizeRow
+                label={t("settings.customization.customizeAccent")}
+                gradient={null}
+                solid={accentSeed}
+                onPress={() => setPickerTarget("accent")}
+              />
+              <CustomizeRow
+                label={t("settings.customization.customizeSubtle")}
+                gradient={null}
+                solid={subtleSeed}
+                onPress={() => setPickerTarget("subtle")}
+              />
+              <CustomizeRow
+                label={t("settings.customization.customizeText")}
+                gradient={null}
+                solid={textSeed}
+                onPress={() => setPickerTarget("text")}
               />
             </View>
-          ) : view === "background" ? (
-            <SwatchPicker
-              options={backgroundSwatches(theme)}
-              value={chatBackground}
-              onChange={setChatBackground}
-              onCustomPress={() => setPickerTarget("background")}
-              labelPrefix={t("settings.customization.background")}
-              customLabel={t("settings.customization.customBackgroundTitle")}
-            />
-          ) : (
-            <SwatchPicker
-              options={bubbleSwatches(scheme)}
-              value={chatBubbleStyle}
-              onChange={setChatBubbleStyle}
-              onCustomPress={() => setPickerTarget("bubble")}
-              labelPrefix={t("settings.customization.messageStyle")}
-              customLabel={t("settings.customization.customBubbleTitle")}
-            />
-          )}
+          </SheetTouchableProvider>
         </BottomSheetScrollView>
       </BottomSheetModal>
 
       <CustomColorSheet
         target={pickerTarget}
-        seedColor={pickerTarget === "background" ? backgroundSeed : bubbleSeed}
+        seedColor={
+          pickerTarget === "background"
+            ? backgroundSeed
+            : pickerTarget === "accent"
+              ? accentSeed
+              : pickerTarget === "subtle"
+                ? subtleSeed
+                : pickerTarget === "text"
+                  ? textSeed
+                  : bubbleSeed
+        }
+        seedGradient={
+          pickerTarget === "background"
+            ? backgroundCustomGradient
+            : pickerTarget === "bubble"
+              ? bubbleCustomGradient
+              : null
+        }
         onApply={applyCustomColor}
         onClose={() => setPickerTarget(null)}
       />
@@ -307,26 +287,25 @@ function CustomizeRow({
 }) {
   const theme = useTheme();
   return (
-    <BottomSheetTouchableOpacity
+    <AppPressable
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={label}
-      activeOpacity={0.85}
+      pressScale={0.02}
       style={{
         flexDirection: "row",
         alignItems: "center",
-        gap: 14,
-        paddingVertical: 14,
-        paddingHorizontal: 16,
+        gap: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
         borderRadius: 16,
         backgroundColor: theme["--color-card-muted"],
       }}
     >
       <View
         style={{
-          width: 52,
+          width: 34,
           height: 34,
-          borderRadius: 9,
+          borderRadius: 17,
           overflow: "hidden",
           borderWidth: 1,
           borderColor: theme["--color-border"],
@@ -354,6 +333,6 @@ function CustomizeRow({
         weight="bold"
         color={theme["--color-foreground-muted"]}
       />
-    </BottomSheetTouchableOpacity>
+    </AppPressable>
   );
 }

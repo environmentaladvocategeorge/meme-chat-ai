@@ -10,6 +10,7 @@
 // by useRotLevelSheetStore, so the sheet spans the full screen width and stays
 // centered on wide screens. The composer's RotLevelButton opens it via open().
 
+import { AppPressable, SheetTouchableProvider } from "@/components/AppPressable";
 import { useTheme } from "@/hooks/useTheme";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { SheetBackdrop } from "@/components/SheetBackdrop";
@@ -23,16 +24,11 @@ import {
 } from "@gorhom/bottom-sheet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
-  useAnimatedStyle,
   useReducedMotion,
-  useSharedValue,
-  withSequence,
-  withSpring,
-  withTiming,
 } from "react-native-reanimated";
 
 type RotLevelConfig = {
@@ -51,81 +47,67 @@ const LEVEL_COUNT = ROT_LEVELS.length;
 // Fixed height for the preview — tall enough for the longest tier reply.
 const PREVIEW_HEIGHT = 220;
 
-const POP_SPRING = { damping: 12, stiffness: 320, mass: 0.6 } as const;
-
 function clampLevel(level: number): number {
   return Math.min(Math.max(Math.round(level), 1), LEVEL_COUNT);
 }
 
+// Tone tile. Built on AppPressable: inside the sheet it resolves to the
+// gesture-handler touch core (so it doesn't fight the pan gesture), and the
+// press-pop lives on the inner pointerEvents="none" surface rather than a
+// scaling ancestor that would shift the hit frame.
 function ToneCard({
   emoji,
   name,
   isSelected,
   a11yLabel,
   onPress,
-  reduceMotion,
 }: {
   emoji: string;
   name: string;
   isSelected: boolean;
   a11yLabel: string;
   onPress: () => void;
-  reduceMotion: boolean;
 }) {
   const theme = useTheme();
-  const scale = useSharedValue(1);
-  const animStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePress = useCallback(() => {
-    if (!reduceMotion) {
-      scale.value = withSequence(
-        withTiming(0.93, { duration: 80 }),
-        withSpring(1, POP_SPRING),
-      );
-    }
-    onPress();
-  }, [onPress, reduceMotion, scale]);
 
   return (
-    <Animated.View style={[{ flex: 1 }, animStyle]}>
-      <Pressable
-        onPress={handlePress}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isSelected }}
-        accessibilityLabel={a11yLabel}
+    <AppPressable
+      onPress={onPress}
+      haptic
+      pressScale={0.05}
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ selected: isSelected }}
+      containerStyle={{ flex: 1 }}
+      style={{
+        alignItems: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 6,
+        borderRadius: 14,
+        borderWidth: isSelected ? 2 : 1,
+        borderColor: isSelected
+          ? theme["--color-primary"]
+          : theme["--color-border"],
+        backgroundColor: isSelected
+          ? theme["--color-primary-subtle"]
+          : theme["--color-card"],
+        gap: 7,
+      }}
+    >
+      <Text style={{ fontSize: 26, lineHeight: 30 }}>{emoji}</Text>
+      <Typography
+        variant="caption"
+        numberOfLines={2}
         style={{
-          alignItems: "center",
-          paddingVertical: 14,
-          paddingHorizontal: 6,
-          borderRadius: 14,
-          borderWidth: isSelected ? 2 : 1,
-          borderColor: isSelected
+          textAlign: "center",
+          fontWeight: isSelected ? "700" : "500",
+          color: isSelected
             ? theme["--color-primary"]
-            : theme["--color-border"],
-          backgroundColor: isSelected
-            ? theme["--color-primary-subtle"]
-            : theme["--color-card"],
-          gap: 7,
+            : theme["--color-foreground-secondary"],
         }}
       >
-        <Text style={{ fontSize: 26, lineHeight: 30 }}>{emoji}</Text>
-        <Typography
-          variant="caption"
-          numberOfLines={2}
-          style={{
-            textAlign: "center",
-            fontWeight: isSelected ? "700" : "500",
-            color: isSelected
-              ? theme["--color-primary"]
-              : theme["--color-foreground-secondary"],
-          }}
-        >
-          {name}
-        </Typography>
-      </Pressable>
-    </Animated.View>
+        {name}
+      </Typography>
+    </AppPressable>
   );
 }
 
@@ -186,6 +168,7 @@ export function RotLevelSheet() {
       }}
     >
       <BottomSheetView style={{ flex: 1, width: "100%", alignItems: "center" }}>
+       <SheetTouchableProvider>
         {/* The sheet itself is full-width; on wide screens (iPad) constrain and
             center the content to the same column as the rest of the app,
             matching the PlanSheet. */}
@@ -229,7 +212,6 @@ export function RotLevelSheet() {
                     name,
                   })}
                   onPress={() => handleSelect(cfg.level)}
-                  reduceMotion={reduceMotion}
                 />
               );
             })}
@@ -335,6 +317,7 @@ export function RotLevelSheet() {
             </Animated.View>
           </View>
         </View>
+       </SheetTouchableProvider>
       </BottomSheetView>
     </BottomSheetModal>
   );

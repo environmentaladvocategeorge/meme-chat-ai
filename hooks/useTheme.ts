@@ -23,11 +23,14 @@ export type ChatThemeContextValue = {
   // Per-background token overrides merged over the toned theme. null => use the
   // theme as-is (the "auto" default).
   overrides: Partial<Theme> | null;
+  // Chat-only primary gradient override. null => use the stock system gradient.
+  accentGradient: readonly [string, string, ...string[]] | null;
 };
 
 const DEFAULT_CHAT_THEME_CONTEXT: ChatThemeContextValue = {
   tone: null,
   overrides: null,
+  accentGradient: null,
 };
 
 export const ChatToneContext = createContext<ChatThemeContextValue>(
@@ -44,4 +47,10 @@ export function useTheme(): Theme {
     () => (overrides ? { ...base, ...overrides } : base),
     [base, overrides],
   );
+}
+
+export function useChatAccentGradient():
+  | readonly [string, string, ...string[]]
+  | null {
+  return useContext(ChatToneContext).accentGradient;
 }

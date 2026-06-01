@@ -4,12 +4,13 @@
 // animated asset via expo-image. Mirrors MessageImageAttachments (memes) but
 // for the single GIF a turn may carry. Keeps the required KLIPY watermark.
 
+import { AppPressable } from "@/components/AppPressable";
 import type { MessageGif } from "@/domain/gifs";
 import { fitAttachment } from "@/domain/mediaLayout";
 import { useTheme } from "@/hooks/useTheme";
 import { Image as ExpoImage } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 const KLIPY_LOGO = require("../assets/images/klipy-logo-light.png");
 const KLIPY_LOGO_RATIO = 376 / 103;
@@ -71,25 +72,20 @@ export function MessageGifAttachments({
     >
       {gifs.map((gif) => {
         const { width, height } = fitAttachment(gif);
-        return (
-          <Pressable
-            key={gif.id}
-            accessibilityRole={onPressGif ? "imagebutton" : "image"}
-            accessibilityLabel={
-              gif.attribution ? `${gifLabel}. ${gif.attribution}` : gifLabel
-            }
-            onPress={onPressGif ? () => onPressGif(gif) : undefined}
-            style={({ pressed }) => ({
-              width,
-              height,
-              borderRadius: RADIUS,
-              overflow: "hidden",
-              backgroundColor: theme["--color-card-muted"],
-              borderWidth: 1,
-              borderColor: theme["--color-border"],
-              opacity: pressed && onPressGif ? 0.9 : 1,
-            })}
-          >
+        const box = {
+          width,
+          height,
+          borderRadius: RADIUS,
+          overflow: "hidden" as const,
+          backgroundColor: theme["--color-card-muted"],
+          borderWidth: 1,
+          borderColor: theme["--color-border"],
+        };
+        const label = gif.attribution
+          ? `${gifLabel}. ${gif.attribution}`
+          : gifLabel;
+        const media = (
+          <>
             <ExpoImage
               source={{ uri: gif.url }}
               placeholder={gif.previewUrl ? { uri: gif.previewUrl } : undefined}
@@ -97,7 +93,31 @@ export function MessageGifAttachments({
               style={{ width: "100%", height: "100%" }}
             />
             <Watermark />
-          </Pressable>
+          </>
+        );
+        // Interactive (chat thread) routes through the shared touch core; a
+        // read-only render (no handler) stays a plain image View.
+        return onPressGif ? (
+          <AppPressable
+            key={gif.id}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={label}
+            onPress={() => onPressGif(gif)}
+            feedback="opacity"
+            style={box}
+          >
+            {media}
+          </AppPressable>
+        ) : (
+          <View
+            key={gif.id}
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={label}
+            style={box}
+          >
+            {media}
+          </View>
         );
       })}
     </View>

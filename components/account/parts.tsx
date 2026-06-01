@@ -2,6 +2,7 @@
 // inside a BottomSheetScrollView (so scrolling coordinates with the sheet's pan
 // gesture) and reuses the same cards/rows the old account stack pages used.
 
+import { AppPressable } from "@/components/AppPressable";
 import { Button } from "@/components/Button";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
@@ -17,7 +18,7 @@ import {
 } from "phosphor-react-native";
 import { type ComponentType, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Scrollable body shared by every account view inside the sheet.
@@ -138,15 +139,13 @@ export function ActionRow({
   const accent = danger ? theme["--color-error"] : theme["--color-primary"];
 
   return (
-    <Pressable
+    <AppPressable
       onPress={onPress}
-      accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => ({
+      pressScale={0.02}
+      style={{
         borderRadius: 16,
-        backgroundColor: pressed
-          ? theme["--color-card-pressed"]
-          : theme["--color-card"],
+        backgroundColor: theme["--color-card"],
         borderWidth: 1,
         borderColor: danger ? theme["--color-error"] : theme["--color-border"],
         paddingVertical: 14,
@@ -154,7 +153,7 @@ export function ActionRow({
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
-      })}
+      }}
     >
       <View
         style={{
@@ -185,7 +184,7 @@ export function ActionRow({
         weight="bold"
         color={theme["--color-foreground-muted"]}
       />
-    </Pressable>
+    </AppPressable>
   );
 }
 

@@ -8,6 +8,8 @@
 // Mount <AttachmentViewerProvider> once around the chat tree, then call
 // useAttachmentViewer().open(...) from any attachment in the thread.
 
+import { AppPressable } from "@/components/AppPressable";
+import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { watermarkAttachmentCallable } from "@/services/firebase/callables";
@@ -80,27 +82,35 @@ function isUploadAttachment(payload: ViewerPayload): boolean {
 // the watermark service (required attribution); user uploads are downloaded and
 // saved as-is. Throws "permission-denied" when the user declines library access.
 async function saveAttachment(payload: ViewerPayload): Promise<void> {
-  let fileUri: string;
-
-  if (isUploadAttachment(payload)) {
-    // User photo: download the display asset directly (no watermark).
-    const target = `${FileSystem.cacheDirectory}photo-${Date.now()}.jpg`;
-    const { uri } = await FileSystem.downloadAsync(payload.displayUrl, target);
-    fileUri = uri;
-  } else {
-    const { dataBase64 } = await watermarkAttachmentCallable(payload.sourceUrl);
-    fileUri = `${FileSystem.cacheDirectory}klipy-${payload.kind}-${Date.now()}.png`;
-    await FileSystem.writeAsStringAsync(fileUri, dataBase64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-  }
-
-  // Add-only permission is enough to save into the library.
+  // Add-only permission is enough to save into the library. Ask before creating
+  // temp files so a denied permission leaves no attachment artifact behind.
   const perm = await MediaLibrary.requestPermissionsAsync(true);
   if (!perm.granted) {
     throw new Error("permission-denied");
   }
-  await MediaLibrary.saveToLibraryAsync(fileUri);
+
+  let fileUri: string | null = null;
+
+  try {
+    if (isUploadAttachment(payload)) {
+      // User photo: download the display asset directly (no watermark).
+      const target = `${FileSystem.cacheDirectory}photo-${Date.now()}.jpg`;
+      const { uri } = await FileSystem.downloadAsync(payload.displayUrl, target);
+      fileUri = uri;
+    } else {
+      const { dataBase64 } = await watermarkAttachmentCallable(payload.sourceUrl);
+      fileUri = `${FileSystem.cacheDirectory}klipy-${payload.kind}-${Date.now()}.png`;
+      await FileSystem.writeAsStringAsync(fileUri, dataBase64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    }
+
+    await MediaLibrary.saveToLibraryAsync(fileUri);
+  } finally {
+    if (fileUri) {
+      await FileSystem.deleteAsync(fileUri, { idempotent: true }).catch(() => {});
+    }
+  }
 }
 
 export function AttachmentViewerProvider({ children }: { children: ReactNode }) {
@@ -193,25 +203,19 @@ export function AttachmentViewerProvider({ children }: { children: ReactNode }) 
           ) : null}
 
           {/* Close button, top-right. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("common.close")}
-            onPress={close}
-            hitSlop={10}
-            style={{
-              position: "absolute",
-              top: insets.top + 8,
-              right: 16,
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(255,255,255,0.16)",
-            }}
+          <View
+            style={{ position: "absolute", top: insets.top + 8, right: 16 }}
           >
-            <X size={22} color="#FFFFFF" weight="bold" />
-          </Pressable>
+            <IconButton
+              accessibilityLabel={t("common.close")}
+              onPress={close}
+              hitSlop={10}
+              size={40}
+              surfaceStyle={{ backgroundColor: "rgba(255,255,255,0.16)" }}
+            >
+              <X size={22} color="#FFFFFF" weight="bold" />
+            </IconButton>
+          </View>
 
           {/* Download action, bottom. */}
           <View
@@ -231,12 +235,12 @@ export function AttachmentViewerProvider({ children }: { children: ReactNode }) 
                 {t(errorKey)}
               </Typography>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
+            <AppPressable
               accessibilityLabel={t("chat.attachments.download.button")}
               onPress={handleDownload}
               disabled={download === "saving"}
-              style={({ pressed }) => ({
+              feedback="opacity"
+              style={{
                 height: 52,
                 borderRadius: 26,
                 flexDirection: "row",
@@ -244,8 +248,8 @@ export function AttachmentViewerProvider({ children }: { children: ReactNode }) 
                 justifyContent: "center",
                 gap: 10,
                 backgroundColor: theme["--color-primary"],
-                opacity: pressed || download === "saving" ? 0.85 : 1,
-              })}
+                opacity: download === "saving" ? 0.85 : 1,
+              }}
             >
               {download === "saving" ? (
                 <ActivityIndicator color={theme["--color-primary-foreground"]} />
@@ -266,7 +270,7 @@ export function AttachmentViewerProvider({ children }: { children: ReactNode }) 
                     ? t("chat.attachments.download.saved")
                     : t("chat.attachments.download.button")}
               </Typography>
-            </Pressable>
+            </AppPressable>
           </View>
         </View>
       </Modal>
