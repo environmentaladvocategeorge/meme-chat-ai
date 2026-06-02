@@ -167,7 +167,10 @@ describe("assembleFromInputs", () => {
     expect(result.inputTokens).toBeLessThanOrEqual(4000);
   });
 
-  it("respects the RECENT_TARGET ceiling (caps the visible window even when more is available)", () => {
+  it("keeps the whole supplied window verbatim when the token budget allows (no fixed count cap)", () => {
+    // The pure assembler no longer imposes a fixed-count ceiling — the verbatim
+    // window is governed by the token budget (and, upstream, by the plan-scaled
+    // load limit). With a huge budget every recent turn we feed it survives.
     const recent = mkMessages(25);
     const result = assembleFromInputs({
       summary: null,
@@ -175,10 +178,9 @@ describe("assembleFromInputs", () => {
       currentText: "ok",
       maxInputTokens: 100_000,
     });
-    // assembler caps the visible window: far fewer than the 25 recent we fed,
-    // i.e. the RECENT_TARGET ceiling + system + current.
-    expect(result.messages.length).toBeLessThanOrEqual(14);
-    expect(result.messages.length).toBeLessThan(25);
+    // system + 25 recent + current
+    expect(result.recentMessageCount).toBe(25);
+    expect(result.messages.length).toBe(27);
   });
 
   it("maps user → user and agent → assistant", () => {

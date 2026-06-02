@@ -357,6 +357,9 @@ export const streamAgentAnswer = onRequest(
         images: images.length > 0 ? images : undefined,
         gifs: gifs.length > 0 ? gifs : undefined,
         levelOfRot,
+        // Denormalize the owner's plan onto the conversation so the background
+        // summarizer can size its verbatim window to this plan's token budget.
+        plan: entitlement.plan,
       });
 
       if (newConversation) {

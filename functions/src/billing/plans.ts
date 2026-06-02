@@ -70,7 +70,13 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
     monthlyCredits: 500,
-    maxInputTokens: 4000,
+    // The static persona/platform prompt is ~4k tokens on its own, so a 4k input
+    // budget left free with literally zero room for conversational memory — every
+    // turn was persona + current message only. 6k gives ~2k of working headroom
+    // (a summary + a handful of verbatim turns), the funnel tier's first real
+    // short-term memory. Cost impact is small: the extra tokens are cached on hot
+    // turns; only cold returns re-bill them fresh.
+    maxInputTokens: 6000,
     maxOutputTokens: 512,
   },
   basic: {

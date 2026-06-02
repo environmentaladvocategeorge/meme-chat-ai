@@ -4,7 +4,8 @@ import { defineSecret } from "firebase-functions/params";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import OpenAI from "openai";
 import { UTILITY_MODEL } from "../billing/models";
-import { planCompaction } from "./compaction";
+import { PLANS, type PlanId } from "../billing/plans";
+import { planCompaction, verbatimBudgetTokens } from "./compaction";
 import { countTokens } from "./tokens";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -82,13 +83,25 @@ export const summarizeConversation = onDocumentWritten(
 
     const conversationSnap = await conversationRef.get();
     const data = conversationSnap.data() as
-      | { summary?: string; summaryUpToMessageId?: string | null }
+      | {
+          summary?: string;
+          summaryUpToMessageId?: string | null;
+          plan?: PlanId;
+        }
       | undefined;
+
+    // Size the verbatim window from the conversation owner's plan (denormalized
+    // onto the conversation doc by the turn handler). Default to "free" — the
+    // most conservative window — for any conversation written before the field
+    // existed, or in the rare race where the plan stamp hasn't landed yet.
+    const planId: PlanId =
+      data?.plan && data.plan in PLANS ? data.plan : "free";
 
     const plan = planCompaction({
       messageIds: docs.map((d) => d.id),
       messageTokens: docs.map((d) => d.tokens),
       lastSummarizedId: data?.summaryUpToMessageId ?? null,
+      verbatimBudgetTokens: verbatimBudgetTokens(PLANS[planId].maxInputTokens),
     });
     if (!plan.summarize) return;
 

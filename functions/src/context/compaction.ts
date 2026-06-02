@@ -13,23 +13,58 @@
 //     re-reading the whole transcript every time.
 //   - Prompt-cache friendly: the big static persona prompt stays first and
 //     byte-identical across turns, and the summary only changes when we
-//     re-summarize (every SUMMARIZE_BATCH_MESSAGES turns), so the
-//     [persona][summary] prefix stays cacheable between compactions. Modern
-//     providers price cached input tokens at a large discount, so a stable
-//     prefix matters as much as a small one.
+//     re-summarize, so the [persona][summary] prefix stays cacheable between
+//     compactions. Modern providers price cached input tokens at a large
+//     discount, so a stable prefix matters as much as a small one.
 //
-// The summarizer runs as a background trigger (cost absorbed by us, on the
-// cheap utility model), decoupled from request assembly. The constants below
-// are coupled by one invariant — see RECENT_WINDOW.
+// SIZING IS PLAN-AWARE. The verbatim window is sized from the plan's input-token
+// budget rather than a flat message count, so higher tiers (which buy a much
+// larger maxInputTokens) keep far more turns at full fidelity before anything is
+// folded into a summary. A flat count made paid plans summarize as eagerly as
+// free even though they had budget to spare — that's the bug this fixes.
+//
+// The summarizer runs as a background trigger (cost absorbed by us, on the cheap
+// utility model), decoupled from request assembly.
 
-// Don't compact at all until a conversation is genuinely long. Short threads
-// fit verbatim and a summary would only add noise + a wasted LLM call.
-export const MESSAGES_BEFORE_SUMMARIZE = 12;
+// Fixed, non-history overhead that lives in every prompt: the (large) static
+// persona/platform prompt, the second system message (alias + language), the
+// running summary, the current user turn, and per-message chat overhead. This
+// is the part of maxInputTokens that is NOT available for verbatim history, so
+// the verbatim window must be sized against what's LEFT after it — sizing
+// against gross maxInputTokens is wrong because the persona prompt alone is ~4k
+// and would swallow a free plan's entire budget.
+//
+// TUNING: the persona/platform prompt is the dominant term (~4k tokens, served
+// from Firestore). Bias this slightly HIGH — overestimating only makes the
+// window a touch conservative, while underestimating lets the summarizer keep
+// more than assembly can fit and forces truncation. After deploy, read a
+// cold-turn's `inputTokens` from the charge logs (≈ persona + current) to dial
+// this in precisely.
+export const PROMPT_OVERHEAD_TOKENS = 4800;
 
-// Newest complete messages the summarizer always leaves OUT of the summary, so
-// recent turns stay verbatim (full fidelity is what users feel as "it
-// remembers what I just said"). The summary covers everything older.
-export const SUMMARY_KEEP_RECENT = 6;
+// Fraction of the REMAINING headroom (maxInputTokens − PROMPT_OVERHEAD_TOKENS)
+// the verbatim tail may fill before older turns fold into the summary. < 1 so a
+// tokenizer-estimate drift between our count and OpenAI's doesn't push the
+// assembled prompt over the model's input budget.
+export const VERBATIM_BUDGET_FRACTION = 0.85;
+
+// Verbatim-tail token allowance for a given plan input budget. This is the knob
+// that makes compaction plan-aware: it's the headroom left after the fixed
+// prompt overhead, so free (small headroom) keeps a short tail and power (large
+// headroom) keeps a long one. Floors at 0 for any plan whose budget barely
+// clears the overhead.
+export function verbatimBudgetTokens(maxInputTokens: number): number {
+  const headroom = maxInputTokens - PROMPT_OVERHEAD_TOKENS;
+  if (headroom <= 0) return 0;
+  return Math.round(headroom * VERBATIM_BUDGET_FRACTION);
+}
+
+// Hard guardrail on how many recent messages stay verbatim regardless of the
+// token budget, so a flood of tiny turns can't balloon Firestore reads or the
+// prompt. In normal use the token budget gates first; this only bites on
+// pathologically short turns. Uniform across plans on purpose — it's a safety
+// bound, not a tier feature (the token budget is what scales per plan).
+export const MAX_VERBATIM_MESSAGES = 80;
 
 // Batch the (background, but still billable-to-us) summary LLM call: only fold
 // newly-aged-out turns in once enough of them have accumulated, by count OR by
@@ -39,16 +74,16 @@ export const SUMMARY_KEEP_RECENT = 6;
 export const SUMMARIZE_BATCH_MESSAGES = 4;
 export const SUMMARIZE_BATCH_TOKENS = 1500;
 
-// Verbatim window assembly keeps after the summary cutoff. INVARIANT:
-//   RECENT_WINDOW >= SUMMARY_KEEP_RECENT + SUMMARIZE_BATCH_MESSAGES
-// The background summarizer lets the un-summarized tail grow up to
-// SUMMARY_KEEP_RECENT + SUMMARIZE_BATCH_MESSAGES before it folds the oldest of
-// them into the summary. Assembly must keep at least that many recent messages
-// verbatim, otherwise a turn that has aged past the cutoff but hasn't been
-// summarized yet would be dropped by the window slice AND absent from the
-// summary — i.e. lost. 12 >= 6 + 4 holds with headroom for the in-flight
-// streaming placeholder.
-export const RECENT_WINDOW = 12;
+// How many recent message docs assembly loads from Firestore. INVARIANT:
+//   RECENT_LOAD_LIMIT >= MAX_VERBATIM_MESSAGES + SUMMARIZE_BATCH_MESSAGES
+// The background summarizer lets the un-summarized tail grow to the verbatim
+// allowance (≤ MAX_VERBATIM_MESSAGES) plus one batch before it folds the oldest
+// in. Assembly must load at least that many messages, otherwise a turn that has
+// aged past the verbatim allowance but hasn't been summarized yet would be
+// absent from the loaded window AND from the summary — i.e. lost. The extra
+// buffer covers filtered docs (streaming/errored/empty/replay-excluded).
+export const RECENT_LOAD_LIMIT =
+  MAX_VERBATIM_MESSAGES + SUMMARIZE_BATCH_MESSAGES + 8;
 
 export type CompactionPlan =
   | { summarize: false }
@@ -69,17 +104,45 @@ export type CompactionPlan =
 // Operates on COMPLETE messages only (oldest → newest); the caller is
 // responsible for filtering out streaming/errored docs first so the boundary
 // can never land on a message whose id or text is still changing.
+//
+// The verbatim tail is the newest run of messages that fits within BOTH the
+// plan's token budget and the message-count guardrail; everything older is
+// eligible to fold. We always keep at least the newest message (a single
+// oversized turn can't be folded to nothing).
 export function planCompaction(input: {
   messageIds: string[]; // complete messages, oldest → newest
   messageTokens: number[]; // per-message token counts, parallel to messageIds
   lastSummarizedId: string | null;
+  // Verbatim-tail token allowance for this conversation's plan
+  // (see verbatimBudgetTokens).
+  verbatimBudgetTokens: number;
+  // Count guardrail; defaults to MAX_VERBATIM_MESSAGES.
+  maxVerbatimMessages?: number;
 }): CompactionPlan {
   const total = input.messageIds.length;
-  if (total <= MESSAGES_BEFORE_SUMMARIZE) return { summarize: false };
+  if (total === 0) return { summarize: false };
 
-  // Newest message we're allowed to fold in: everything after it is the
-  // verbatim tail we deliberately leave alone.
-  const boundaryIdx = total - 1 - SUMMARY_KEEP_RECENT;
+  const maxVerbatim = input.maxVerbatimMessages ?? MAX_VERBATIM_MESSAGES;
+
+  // Walk newest → oldest, growing the verbatim tail until adding the next-oldest
+  // message would exceed either the token budget or the count guardrail. The
+  // newest message is always kept (the `i < total - 1` guard).
+  let tailTokens = 0;
+  let keepFromIdx = total - 1; // index of the oldest message still in the tail
+  for (let i = total - 1; i >= 0; i--) {
+    const t = input.messageTokens[i] ?? 0;
+    const keptIfAdded = total - i; // tail size including message i
+    const exceedsTokens = tailTokens + t > input.verbatimBudgetTokens;
+    const exceedsCount = keptIfAdded > maxVerbatim;
+    if (i < total - 1 && (exceedsTokens || exceedsCount)) break;
+    tailTokens += t;
+    keepFromIdx = i;
+  }
+
+  // Newest message we're allowed to fold in: everything from keepFromIdx on is
+  // the verbatim tail we deliberately leave alone.
+  const boundaryIdx = keepFromIdx - 1;
+  // Whole thread fits within the verbatim tail — nothing has aged out yet.
   if (boundaryIdx < 0) return { summarize: false };
 
   const lastIdx = input.lastSummarizedId

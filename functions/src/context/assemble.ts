@@ -7,7 +7,7 @@ import {
 } from "../gifs/extractFrames";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
-import { RECENT_WINDOW } from "./compaction";
+import { RECENT_LOAD_LIMIT } from "./compaction";
 import { countMessagesTokens } from "./tokens";
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -55,10 +55,6 @@ export type AssembleArgs = {
   currentGifFrames?: ExtractedGifFrames;
   maxInputTokens: number;
 };
-
-// Verbatim recent-turn window. Sourced from the shared compaction module so it
-// stays coupled to the summarizer's keep-tail invariant (see RECENT_WINDOW).
-const RECENT_TARGET = RECENT_WINDOW;
 
 // Friendly names for the app's supported language codes so the language
 // instruction reads naturally to the model. Falls back to the raw code for any
@@ -181,7 +177,11 @@ export function buildCurrentUserContent(
 // token count it computed so the caller doesn't tokenize twice.
 export function assembleFromInputs(args: AssembleArgs): AssembledContext {
   const systemPrompt = args.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
-  const recent = args.recent.slice(-RECENT_TARGET);
+  // The caller hands us the already-bounded verbatim tail (everything after the
+  // summary cutoff, capped at RECENT_LOAD_LIMIT docs). We don't impose a second
+  // fixed-count ceiling here — the token-budget truncation below is what trims
+  // the window to fit, so higher plans keep more turns verbatim.
+  const recent = args.recent;
   const summaryUsed = Boolean(args.summary && args.summary.trim().length > 0);
 
   const build = (recentSlice: ChatMessage[]): OpenAIMessage[] => {
@@ -307,7 +307,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
   let query = db
     .collection(`conversations/${args.conversationId}/messages`)
     .orderBy("createdAt", "desc")
-    .limit(RECENT_TARGET * 2);
+    .limit(RECENT_LOAD_LIMIT);
 
   const recentSnap = await query.get();
   // Filter out any excluded docs (replay) up front so every downstream path —

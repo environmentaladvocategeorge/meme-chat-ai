@@ -4,6 +4,7 @@ import {
   getFirestore,
 } from "firebase-admin/firestore";
 import type { ChatMessage, ChatRole } from "../agent/types";
+import type { PlanId } from "../billing/plans";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
 
@@ -110,6 +111,11 @@ export async function appendMessage(
     // Brainrot intensity selected for this turn (1–3). Stored as-is on the
     // message; nothing downstream consumes it yet.
     levelOfRot?: number;
+    // The conversation owner's current plan, denormalized onto the conversation
+    // doc so the background summarizer (which only sees the conversation, not
+    // the user) can size the verbatim window to the plan's token budget. Stamped
+    // every turn so it tracks upgrades/downgrades.
+    plan?: PlanId;
   },
 ): Promise<{ messageId: string }> {
   const db = getFirestore();
@@ -160,6 +166,10 @@ export async function appendMessage(
   const conversationUpdate: Record<string, unknown> = {
     updatedAt: FieldValue.serverTimestamp(),
   };
+
+  if (message.plan) {
+    conversationUpdate.plan = message.plan;
+  }
 
   if (message.persona) {
     conversationUpdate.lastPersonaId = message.persona.id;

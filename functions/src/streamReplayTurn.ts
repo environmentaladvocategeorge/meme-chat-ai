@@ -349,6 +349,8 @@ export const streamReplayTurn = onRequest(
         text: "",
         status: "streaming",
         inReplyToClientMessageId: userTurn.clientMessageId,
+        // Keep the conversation's denormalized plan fresh on replay too.
+        plan: entitlement.plan,
         persona: resolvedPersona
           ? {
               id: resolvedPersona.id,
