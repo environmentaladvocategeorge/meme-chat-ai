@@ -8,16 +8,23 @@
 // editing live together in there, so there's no separate swatch-grid step.
 
 import {
+  buildThemePresets,
+  type ChatThemePreset,
+  chatThemePresetKey,
+  currentChatThemeKey,
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
   parseCustomColor,
   parseCustomGradient,
+  readableTextColor,
+  themePresetSwatchColors,
 } from "@/domain/customization";
 import { AppPressable, SheetTouchableProvider } from "@/components/AppPressable";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useTheme } from "@/hooks/useTheme";
+import { themes } from "@/nativewind-theme";
 import { useChatCustomizationSheetStore } from "@/store/chatCustomizationSheet";
 import { useSettingsStore } from "@/store/settings";
 import {
@@ -26,10 +33,18 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowCounterClockwise, CaretRight } from "phosphor-react-native";
+import { useColorScheme } from "nativewind";
+import {
+  ArrowCounterClockwise,
+  CaretRight,
+  Check,
+  Plus,
+  Sparkle,
+  X,
+} from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ChatAppearancePreview } from "./ChatAppearancePreview";
 import {
@@ -53,7 +68,46 @@ export function ChatCustomizationSheet() {
   const chatBackground = useSettingsStore((s) => s.chatBackground);
   const setChatBackground = useSettingsStore((s) => s.setChatBackground);
   const chatUiColors = useSettingsStore((s) => s.chatUiColors);
+  const chatThemePresets = useSettingsStore((s) => s.chatThemePresets);
+  const applyChatThemePreset = useSettingsStore((s) => s.applyChatThemePreset);
+  const addChatThemePreset = useSettingsStore((s) => s.addChatThemePreset);
+  const deleteChatThemePreset = useSettingsStore((s) => s.deleteChatThemePreset);
   const resetChatAppearance = useSettingsStore((s) => s.resetChatAppearance);
+
+  const { colorScheme } = useColorScheme();
+  const scheme = colorScheme ?? "light";
+
+  // The full themes row: the user's saved looks first, then the built-in
+  // starters. Only the user's own saves are deletable (matched by key).
+  const themePresets = useMemo(
+    () => buildThemePresets(chatThemePresets),
+    [chatThemePresets],
+  );
+  const savedKeys = useMemo(
+    () => new Set(chatThemePresets.map((p) => chatThemePresetKey(p))),
+    [chatThemePresets],
+  );
+  // The key of the look currently applied, so the matching preset gets a ring.
+  const currentKey = currentChatThemeKey(
+    chatBubbleStyle,
+    chatBackground,
+    chatUiColors,
+  );
+
+  // Long-press a saved preset to enter delete mode (tap elsewhere to leave).
+  const [presetDeleteMode, setPresetDeleteMode] = useState(false);
+  const hasSavedPresets = chatThemePresets.length > 0;
+  useEffect(() => {
+    if (presetDeleteMode && !hasSavedPresets) setPresetDeleteMode(false);
+  }, [presetDeleteMode, hasSavedPresets]);
+
+  const handleSaveCurrentTheme = useCallback(() => {
+    addChatThemePreset({
+      bubbleStyle: chatBubbleStyle,
+      background: chatBackground,
+      uiColors: chatUiColors,
+    });
+  }, [addChatThemePreset, chatBubbleStyle, chatBackground, chatUiColors]);
 
   // Resolved look (for the little "current selection" chips on the hub buttons).
   const { bubble, background, surface, chatTheme } = useChatAppearance();
@@ -118,6 +172,11 @@ export function ChatCustomizationSheet() {
         snapPoints={snapPoints}
         enableDynamicSizing={false}
         enablePanDownToClose
+        // Drag the sheet from its handle only. With content panning on, the
+        // sheet's pan gesture fights the nested horizontal themes ScrollView and
+        // the BottomSheetScrollView, which makes left/right swipes stutter.
+        // Matches CustomColorSheet, which does the same for the same reason.
+        enableContentPanningGesture={false}
         backdropComponent={renderBackdrop}
         onDismiss={close}
         backgroundStyle={{
@@ -205,6 +264,82 @@ export function ChatCustomizationSheet() {
                 {t("settings.customization.preview")}
               </Typography>
               <ChatAppearancePreview />
+            </View>
+
+            {/* Themes: whole-look presets. The message bubble is each preset's
+              indicator. Tapping one applies the entire look; long-pressing a
+              saved one enters delete mode. Reuses the same add/delete/dedup
+              logic as the color picker's saved picks. */}
+            <View style={{ gap: 10 }}>
+              <Typography
+                variant="title-sm"
+                style={{ color: theme["--color-foreground"] }}
+              >
+                {t("settings.customization.themesTitle")}
+              </Typography>
+
+              <View>
+                {/* Section-scoped tap target to leave delete mode. */}
+                {presetDeleteMode ? (
+                  <Pressable
+                    onPress={() => setPresetDeleteMode(false)}
+                    accessibilityLabel={t("common.done")}
+                    style={{ ...StyleFill, zIndex: 1 }}
+                  />
+                ) : null}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{
+                    gap: 10,
+                    paddingVertical: 8,
+                    paddingRight: 4,
+                  }}
+                  style={{ zIndex: presetDeleteMode ? 2 : 0 }}
+                >
+                  {/* Return to the system default look. */}
+                  <SystemThemeSwatch
+                    selected={isDefault}
+                    onPress={
+                      presetDeleteMode
+                        ? () => setPresetDeleteMode(false)
+                        : resetChatAppearance
+                    }
+                  />
+                  {/* Save the current look as a new preset. */}
+                  <AddThemeButton
+                    disabled={isDefault}
+                    onPress={
+                      presetDeleteMode
+                        ? () => setPresetDeleteMode(false)
+                        : handleSaveCurrentTheme
+                    }
+                  />
+                  {themePresets.map((preset) => {
+                    const key = chatThemePresetKey(preset);
+                    const saved = savedKeys.has(key);
+                    return (
+                      <ThemePresetSwatch
+                        key={key}
+                        preset={preset}
+                        scheme={scheme}
+                        selected={!presetDeleteMode && key === currentKey}
+                        showDeleteBadge={presetDeleteMode && saved}
+                        onPress={
+                          presetDeleteMode
+                            ? saved
+                              ? () => deleteChatThemePreset(key)
+                              : () => setPresetDeleteMode(false)
+                            : () => applyChatThemePreset(preset)
+                        }
+                        onLongPress={
+                          saved ? () => setPresetDeleteMode(true) : undefined
+                        }
+                      />
+                    );
+                  })}
+                </ScrollView>
+              </View>
             </View>
 
             {/* Hub: one entry button per control. Each opens the centralized
@@ -336,3 +471,188 @@ function CustomizeRow({
     </AppPressable>
   );
 }
+
+const THEME_SWATCH = 44;
+
+// The leading "system default" chip in the themes row — reverts the whole look
+// to defaults. Mirrors the color picker's Default swatch (a Sparkle on a muted
+// fill) so the two rows read as the same family.
+function SystemThemeSwatch({
+  selected,
+  onPress,
+}: {
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={onPress}
+      feedback="scale"
+      pressScale={0.1}
+      accessibilityLabel={t("settings.customization.systemTheme")}
+      accessibilityState={{ selected }}
+      style={{
+        width: THEME_SWATCH,
+        height: THEME_SWATCH,
+        borderRadius: THEME_SWATCH / 2,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: theme["--color-card"],
+        borderWidth: 2,
+        borderColor: selected
+          ? theme["--color-primary"]
+          : theme["--color-border"],
+      }}
+    >
+      <Sparkle
+        size={18}
+        weight="fill"
+        color={theme["--color-foreground-secondary"]}
+      />
+    </AppPressable>
+  );
+}
+
+// The "+" chip that saves the current look as a new preset. Disabled (and dimmed)
+// when the look is the system default — there's nothing custom to save yet.
+function AddThemeButton({
+  disabled,
+  onPress,
+}: {
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={onPress}
+      disabled={disabled}
+      haptic
+      feedback="scale"
+      pressScale={0.1}
+      accessibilityLabel={t("settings.customization.saveTheme")}
+      style={{
+        width: THEME_SWATCH,
+        height: THEME_SWATCH,
+        borderRadius: THEME_SWATCH / 2,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: theme["--color-card"],
+        borderWidth: 2,
+        borderStyle: "dashed",
+        borderColor: theme["--color-border"],
+        opacity: disabled ? 0.4 : 1,
+      }}
+    >
+      <Plus size={18} weight="bold" color={theme["--color-foreground-secondary"]} />
+    </AppPressable>
+  );
+}
+
+// A saved/built-in theme chip. The preset's MESSAGE BUBBLE is the indicator:
+// gradient bubbles sweep diagonally, solids fill flat. Selected (the live look
+// matches) gets the accent ring + check; in delete mode a saved chip shows the
+// red remove badge.
+function ThemePresetSwatch({
+  preset,
+  scheme,
+  selected,
+  showDeleteBadge,
+  onPress,
+  onLongPress,
+}: {
+  preset: ChatThemePreset;
+  scheme: "light" | "dark";
+  selected: boolean;
+  showDeleteBadge: boolean;
+  onPress: () => void;
+  onLongPress?: () => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const { gradient, solid } = themePresetSwatchColors(
+    preset,
+    scheme,
+    themes[scheme],
+  );
+  const indicator = gradient ?? (solid ? [solid] : null);
+  const onColor = readableTextColor(
+    indicator ? indicator[0] : theme["--color-primary"],
+  );
+
+  return (
+    <AppPressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      feedback="scale"
+      pressScale={0.1}
+      accessibilityLabel={t("settings.customization.applyTheme")}
+      accessibilityState={{ selected }}
+      style={{ width: THEME_SWATCH, height: THEME_SWATCH }}
+    >
+      {/* Circular clip layer; the badge sits outside it so it isn't clipped. */}
+      <View
+        style={{
+          ...StyleFill,
+          borderRadius: THEME_SWATCH / 2,
+          overflow: "hidden",
+          backgroundColor: solid ?? undefined,
+          borderWidth: 2,
+          borderColor: selected
+            ? theme["--color-primary"]
+            : theme["--color-border"],
+        }}
+      >
+        {gradient ? (
+          <LinearGradient
+            colors={gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleFill}
+          />
+        ) : null}
+        {selected && !showDeleteBadge ? (
+          <View
+            style={{
+              ...StyleFill,
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.22)",
+            }}
+          >
+            <Check size={16} weight="bold" color={onColor} />
+          </View>
+        ) : null}
+      </View>
+      {showDeleteBadge ? (
+        <View
+          pointerEvents="none"
+          style={{
+            position: "absolute",
+            top: -5,
+            right: -5,
+            width: 18,
+            height: 18,
+            borderRadius: 9,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "#FF3B30",
+          }}
+        >
+          <X size={11} weight="bold" color="#FFFFFF" />
+        </View>
+      ) : null}
+    </AppPressable>
+  );
+}
+
+const StyleFill = {
+  position: "absolute" as const,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+};

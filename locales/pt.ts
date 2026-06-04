@@ -609,6 +609,10 @@ const pt = {
       customGradientStart: "Cor 1",
       customGradientEnd: "Cor 2",
       customPresets: "Predefinições",
+      themesTitle: "Temas",
+      systemTheme: "Padrão",
+      saveTheme: "Salvar tema atual",
+      applyTheme: "Aplicar tema",
       customDefault: "Padrão",
       customSavePick: "Salvar cor atual",
       customColorEditor: "Editor de cor",
@@ -661,7 +665,6 @@ const pt = {
       ja: "Japonês",
       hi: "Hindi",
       ru: "Russo",
-      bn: "Bengali",
     },
     deleteData: {
       label: "Excluir todos os dados",

@@ -846,6 +846,136 @@ export function buildPickerGradientSwatches(
   return out;
 }
 
+// ---- Chat view presets (whole-look themes) ----
+//
+// A "chat view preset" bundles the ENTIRE customized look — message bubble,
+// background, and the accent/surface/text UI colors — into one value so a user
+// can flip between complete themes in a single tap. It reuses the exact same
+// add / delete / move-to-front / dedup approach as the color picker's saved
+// picks above, just over this richer object instead of a hex/gradient.
+//
+// The message bubble is the preset's visual indicator (per the UI), so a preset
+// always carries a resolvable bubbleStyle. uiColors mirrors ChatUiColorOverrides
+// (accent/subtle/text/userText) and is applied wholesale on selection so a swap
+// never leaves a stale color from a previous theme behind.
+export type ChatThemePreset = {
+  bubbleStyle: string;
+  background: string;
+  uiColors: ChatUiColorOverrides;
+};
+
+// The starter themes shipped with the feature. Authored in the natural "design
+// token" shape (a dark backdrop, a 2- or 3-stop bubble gradient, plus accent /
+// surface / text) and converted once into our stored id/override model.
+//
+// The first five are single-family looks but with RICH gradients — each sweeps
+// from a deep, saturated stop to a bright one (e.g. deep crimson → soft rose)
+// rather than two near-identical shades, so they read as vivid rather than flat.
+// The last two are multi-hue BLENDS (3-stop) that travel across the color wheel
+// for a more eye-catching, premium feel.
+const BUILT_IN_THEME_SOURCES: readonly {
+  background: string;
+  bubble: readonly string[];
+  primary: string;
+  surface: string;
+  foreground: string;
+}[] = [
+  // Crimson — deep crimson → soft rose.
+  { background: "#160A0D", bubble: ["#BE123C", "#FB7185"], primary: "#FB7185", surface: "#2C151B", foreground: "#FFFDF7" },
+  // Emerald — forest → mint.
+  { background: "#07140D", bubble: ["#047857", "#34D399"], primary: "#34D399", surface: "#0F2419", foreground: "#F3FFF9" },
+  // Azure — royal blue → sky.
+  { background: "#070F1E", bubble: ["#1D4ED8", "#38BDF8"], primary: "#60A5FA", surface: "#0F1D34", foreground: "#F4F9FF" },
+  // Amber — burnt orange → gold.
+  { background: "#170D04", bubble: ["#C2410C", "#FBBF24"], primary: "#FB923C", surface: "#28170A", foreground: "#FFFAF0" },
+  // Teal — deep teal → aqua.
+  { background: "#04140F", bubble: ["#0F766E", "#2DD4BF"], primary: "#2DD4BF", surface: "#0C2420", foreground: "#F1FFFC" },
+  // Aurora — green → cyan → indigo blend.
+  { background: "#06121C", bubble: ["#22C55E", "#06B6D4", "#6366F1"], primary: "#22D3EE", surface: "#0D2231", foreground: "#F1FBFF" },
+  // Twilight — violet → magenta → warm orange blend.
+  { background: "#150A1C", bubble: ["#7C3AED", "#DB2777", "#FB923C"], primary: "#C084FC", surface: "#241436", foreground: "#FFF6FB" },
+];
+
+export const BUILT_IN_THEME_PRESETS: readonly ChatThemePreset[] =
+  BUILT_IN_THEME_SOURCES.map((s) => ({
+    background: makeCustomColorId(s.background),
+    bubbleStyle: makeCustomGradientId(s.bubble),
+    uiColors: {
+      accent: normalizeHex(s.primary) ?? s.primary,
+      subtle: normalizeHex(s.surface) ?? s.surface,
+      text: normalizeHex(s.foreground) ?? s.foreground,
+    },
+  }));
+
+// A stable identity for a preset — used for dedup, delete-by-key, and detecting
+// which preset (if any) matches the user's current live appearance. Ordering the
+// UI roles makes the key independent of object key order.
+export function chatThemePresetKey(preset: ChatThemePreset): string {
+  const ui = CHAT_UI_COLOR_ROLES.map(
+    (role) => `${role}=${preset.uiColors[role] ?? ""}`,
+  ).join(",");
+  return `${preset.background}|${preset.bubbleStyle}|${ui}`;
+}
+
+// The key for the user's CURRENT live appearance, so the row can ring the
+// matching preset. Mirrors chatThemePresetKey over the loose settings fields.
+export function currentChatThemeKey(
+  bubbleStyle: string,
+  background: string,
+  uiColors: ChatUiColorOverrides,
+): string {
+  return chatThemePresetKey({ bubbleStyle, background, uiColors });
+}
+
+// Prepend a preset to the saved list; if an identical look is already there,
+// move it to the front (never duplicate). Same contract as addGradientPreset.
+export function addThemePreset(
+  preset: ChatThemePreset,
+  existing: readonly ChatThemePreset[],
+): ChatThemePreset[] {
+  const key = chatThemePresetKey(preset);
+  return [preset, ...existing.filter((p) => chatThemePresetKey(p) !== key)];
+}
+
+// Remove one saved preset (matched by chatThemePresetKey) from the list.
+export function deleteThemePreset(
+  key: string,
+  existing: readonly ChatThemePreset[],
+): ChatThemePreset[] {
+  return existing.filter((p) => chatThemePresetKey(p) !== key);
+}
+
+// Build the full themes row: the user's saved presets first, then the built-in
+// starters, deduped so a saved theme that matches a built-in shows only once.
+export function buildThemePresets(
+  added: readonly ChatThemePreset[],
+): ChatThemePreset[] {
+  const seen = new Set<string>();
+  const out: ChatThemePreset[] = [];
+  for (const preset of [...added, ...BUILT_IN_THEME_PRESETS]) {
+    const key = chatThemePresetKey(preset);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(preset);
+  }
+  return out;
+}
+
+// The colors that visually represent a preset in the row: its message bubble,
+// resolved through the same path the real bubble uses (so "auto" picks up the
+// live theme gradient, and custom/preset bubbles render exactly as they will).
+export function themePresetSwatchColors(
+  preset: ChatThemePreset,
+  scheme: ColorScheme,
+  theme: Theme,
+): { gradient: GradientStops | null; solid: string | null } {
+  const resolved = resolveBubble(preset.bubbleStyle, scheme, theme);
+  if (resolved.kind === "gradient" && resolved.gradientColors) {
+    return { gradient: resolved.gradientColors, solid: null };
+  }
+  return { gradient: null, solid: resolved.solidColor };
+}
+
 // ---- Swatch helpers (for the settings picker) ----
 
 // Sentinel id for the trailing "pick your own" swatch. Distinct from a stored

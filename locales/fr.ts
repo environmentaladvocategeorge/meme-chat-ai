@@ -609,6 +609,10 @@ const fr = {
       customGradientStart: "Couleur 1",
       customGradientEnd: "Couleur 2",
       customPresets: "Préréglages",
+      themesTitle: "Thèmes",
+      systemTheme: "Par défaut",
+      saveTheme: "Enregistrer le thème actuel",
+      applyTheme: "Appliquer le thème",
       customDefault: "Par défaut",
       customSavePick: "Enregistrer la couleur actuelle",
       customColorEditor: "Éditeur de couleur",
@@ -661,7 +665,6 @@ const fr = {
       ja: "Japonais",
       hi: "Hindi",
       ru: "Russe",
-      bn: "Bengali",
     },
     deleteData: {
       label: "Supprimer toutes les données",

@@ -26,6 +26,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { gradients, type ThemeTokens } from "@/nativewind-theme";
 import { useEffectivePlan } from "@/store/entitlement";
 import { useSubscriptionStore } from "@/store/subscription";
+import { deriveFromCustomerInfo } from "@/store/subscriptionDerive";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect, useState } from "react";
@@ -779,14 +780,19 @@ function RestorePurchasesButton({
   theme: Theme;
 }) {
   const { t } = useTranslation();
+  const entitlementId = useSubscriptionStore((s) => s.entitlementId);
 
   const handleRestore = async () => {
     setBusy(true);
     try {
       const info = await Purchases.restorePurchases();
       await refresh();
-      const active = Object.values(info.entitlements?.active ?? {});
-      if (active.length > 0) {
+      // Use the resilient resolver, not info.entitlements.active directly: an
+      // active subscription whose product isn't attached to an entitlement in
+      // the RC dashboard leaves entitlements.active empty, which would wrongly
+      // report "no active subscription" right after a successful restore.
+      const { hasActiveEntitlement } = deriveFromCustomerInfo(info, entitlementId);
+      if (hasActiveEntitlement) {
         Alert.alert(t("settings.plan.heading"), t("settings.plan.restoreSuccess"));
       } else {
         Alert.alert(t("settings.plan.heading"), t("settings.plan.restoreNone"));

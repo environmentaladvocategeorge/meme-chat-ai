@@ -608,6 +608,10 @@ const ja = {
       customGradientStart: "カラー1",
       customGradientEnd: "カラー2",
       customPresets: "プリセット",
+      themesTitle: "テーマ",
+      systemTheme: "デフォルト",
+      saveTheme: "現在のテーマを保存",
+      applyTheme: "テーマを適用",
       customDefault: "デフォルト",
       customSavePick: "現在の色を保存",
       customColorEditor: "カラーエディタ",
@@ -660,7 +664,6 @@ const ja = {
       ja: "日本語",
       hi: "ヒンディー語",
       ru: "ロシア語",
-      bn: "ベンガル語",
     },
     deleteData: {
       label: "全データを削除",

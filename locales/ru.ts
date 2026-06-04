@@ -610,6 +610,10 @@ const ru = {
       customGradientStart: "Цвет 1",
       customGradientEnd: "Цвет 2",
       customPresets: "Пресеты",
+      themesTitle: "Темы",
+      systemTheme: "По умолчанию",
+      saveTheme: "Сохранить текущую тему",
+      applyTheme: "Применить тему",
       customDefault: "По умолчанию",
       customSavePick: "Сохранить текущий цвет",
       customColorEditor: "Редактор цветов",
@@ -662,7 +666,6 @@ const ru = {
       ja: "Japanese",
       hi: "Hindi",
       ru: "Russian",
-      bn: "Bengali",
     },
     deleteData: {
       label: "Удалить все данные",
