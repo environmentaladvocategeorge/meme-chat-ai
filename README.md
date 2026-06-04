@@ -1,8 +1,8 @@
 # Meme Chat AI
 
-React Native + Expo app, derived from `react-native-app-template`.
+An AI chat app powered by Claude. Send a message, get back a reply — sometimes with a meme attached. Features a Brainrot Bot persona with a configurable Rot Level dial, multimodal input (photos + GIFs), conversation history, and a 4-tier subscription model.
 
-**Identity (already bound, do not change unless you mean it):**
+**App identity (do not change unless you mean it):**
 
 | Field | Value |
 |---|---|
@@ -11,92 +11,60 @@ React Native + Expo app, derived from `react-native-app-template`.
 | iOS bundle ID | com.jorgejimenez.memeai |
 | Android package | com.jorgejimenez.memeai |
 | Deep-link scheme | memechatai |
-| App Store Connect SKU | `memeai-001` _(enter when creating the app record in App Store Connect; not stored in code)_ |
-
-App features go on top of the shell below — start by editing
-`app/(tabs)/index.tsx` (Home) and adding new screens under `app/`.
 
 ---
 
-## What ships out of the box
+## What's built
 
-The shell has zero feature functionality. It gives you:
+**Screens**
 
-- Email + Apple Sign-In (with verify-email gate for password users)
-- One-step onboarding gate (placeholder Welcome screen)
-- Two tabs: **Home** (placeholder) and **Settings** (delete data, theme,
-  language)
-- English + Spanish localization
-- Light + dark themes via NativeWind, controlled by a single palette file
-- Cloud Functions for App Store-compliant account deletion + new-user
-  profile bootstrap
-- Marketing website skeleton (`/`, `/privacy`, `/support`, `/404`)
-- RevenueCat scaffolding (no-op until you wire keys)
+- Landing → Age gate (16+) → Sign up / Sign in → Email verification → Onboarding
+- **Chat** — text + photo + GIF input, AI replies with optional meme/GIF attachments, usage bar, AdMob banner for Free users
+- **History** — conversation list with search
+- **Settings** — theme, language (9 supported), account management
+- **Plan** — subscription tiers, RevenueCat paywall
 
-Leave the auth, onboarding, routing, and settings chrome alone unless
-you explicitly want to change behavior.
+**Cloud Functions** (16 total)
 
----
+| Group | Functions |
+|---|---|
+| Account | `onUserCreated`, `deleteMyAccount`, `updateProfile` |
+| Chat | `streamAgentAnswer`, `streamReplayTurn`, `rateMessage`, `setMessageEmoji` |
+| Conversations | `deleteConversations`, `summarizeConversation`, `generateConversationTitle` |
+| Media | `getTrendingMemes`, `searchMemes`, `getTrendingGifs`, `searchGifs`, `watermarkAttachment` |
+| Billing | `devSetPlan`, `syncRevenueCatPlan`, `revenueCatWebhook`, `aggregateDailyUsage` |
 
-## 1. What you're editing first
+**Subscription tiers** — same Claude model on all plans; tiers differ by monthly credit budget (1 credit ≈ $0.001 of API cost):
 
-In order, the three files that turn this template into _your_ app:
-
-1. **`app.json`** — app name, slug, bundle ID, scheme, EAS project ID.
-2. **`nativewind-theme.ts`** — brand colors. Touching this one file
-   reskins the whole app.
-3. **`.env.example` → `.env`** — Firebase + RevenueCat keys.
-
-Everything else can wait.
-
----
-
-## 2. External accounts you must create
-
-| # | Account | What you create | What you copy back |
-|---|---------|-----------------|--------------------|
-| 1 | **Firebase project** ([console.firebase.google.com](https://console.firebase.google.com)) | New project. Enable Authentication (Email/Password + Apple providers), Cloud Firestore, Cloud Functions (requires upgrading to the **Blaze plan** — Functions are not available on Spark). Register a Web app under Project Settings → General. | The 6 `EXPO_PUBLIC_FIREBASE_*` values into `.env`. |
-| 2 | **Apple Developer** ([developer.apple.com](https://developer.apple.com)) | App ID matching `com.jorgejimenez.memeai` with **Sign in with Apple** capability enabled. Services ID + Apple-private auth key for the Firebase Apple provider. | Services ID + Key ID + Team ID + the `.p8` private key — paste them into Firebase Console → Authentication → Apple provider. |
-| 3 | **Expo + EAS** ([expo.dev](https://expo.dev)) | Run `eas init` in the project root. | `%EAS_PROJECT_ID%` (auto-written into `app.json` by `eas init`). |
-| 4 | **RevenueCat** ([app.revenuecat.com](https://app.revenuecat.com)) — _optional_ | New project + iOS/Android apps, hooked up to App Store Connect and Google Play. Create at least one Offering. | The `EXPO_PUBLIC_REVENUECAT_*` values into `.env` (platform keys, plus optional test-store key / entitlement / offering). Leave the platform keys blank to disable; the subscription store no-ops. |
-| 5 | **Domain + Firebase Hosting** ([firebase.google.com/docs/hosting](https://firebase.google.com/docs/hosting)) | Buy a domain for the marketing site. Apple **requires** a working privacy URL and support URL when you submit to the App Store. From the `website/` folder run `firebase init hosting` (use the existing project from #1, set public dir to `public`). | Domain into `%APP_DOMAIN%` placeholder. |
-
-You only need #1, #2, #3, #5 to ship. RevenueCat is optional until you
-add a paywall.
-
----
-
-## 3. Remaining placeholders
-
-App identity is already bound (see the top of this README). What's still
-templated, scoped to the marketing site + legal copy:
-
-| Placeholder | Where it appears | What you fill in |
+| Plan | Monthly credits | Approx. messages/month |
 |---|---|---|
-| `%EAS_PROJECT_ID%` | `app.json` | Output of `eas init` — auto-written for you |
-| `%APP_DESCRIPTION%` | `website/public/index.html` | One-sentence pitch for Meme Chat AI |
-| `%APP_DOMAIN%` | `website/public/*.html`, `website/public/robots.txt`, `website/public/sitemap.xml` | Bare host, e.g. `memechatai.app` |
-| `%APP_STORE_URL%` | `website/public/index.html` | App Store listing URL (fill in after first ship) |
-| `%SUPPORT_EMAIL%` | `website/public/support.html`, `website/public/privacy.html` | An inbox you actually check |
-| `%COMPANY_NAME%` | `website/public/index.html`, `website/public/privacy.html`, `website/public/404.html` | Legal entity name |
-| `%COMPANY_ADDRESS%` | `website/public/privacy.html` | Mailing address (some GDPR contexts require it) |
-| `%PRIVACY_LAST_UPDATED%` | `website/public/privacy.html` | ISO date, e.g. `2026-05-28` |
-
-**Brand colors live in one file.** Edit `nativewind-theme.ts` —
-specifically `--color-primary` (and the `primary-*` family) — and the
-whole app reskins. The placeholder palette is intentionally indigo so it
-looks "this needs replacing" rather than "this is shipping."
+| Free | 276 | ~110 |
+| Basic | 1,658 | ~660 |
+| Plus | 4,463 | ~1,770 |
+| Power | 9,520 | ~3,780 |
 
 ---
 
-## 4. Environment variables
+## External services
 
-Copy `.env.example` to `.env` and fill in:
+| Service | Purpose | Keys |
+|---|---|---|
+| **Firebase** | Auth, Firestore, Storage, Functions, Hosting | `EXPO_PUBLIC_FIREBASE_*` (6) |
+| **Claude API** | AI replies (via OpenAI-compatible SDK) | `OPENAI_API_KEY` — Firebase secret |
+| **Klipy** | Meme + GIF search for agent tool use | `KLIPY_APP_KEY` — Firebase secret (optional; graceful no-op if absent) |
+| **RevenueCat** | Subscription management + webhooks | `EXPO_PUBLIC_REVENUECAT_*` (7, all optional) |
+| **AdMob** | Banner ads on Free tier | `EXPO_PUBLIC_ADMOB_*` (optional) |
+
+---
+
+## Environment variables
+
+### Production (real project)
+
+Copy `.env.example` → `.env` and fill in the values.
 
 ```bash
-# Firebase web SDK config — Firebase Console → Project Settings → General →
-# Your apps → Web app → SDK setup and configuration. The 6 fields below
-# come straight from the firebaseConfig snippet.
+# Firebase Web SDK — Project Settings → General → Your apps → Web app
 EXPO_PUBLIC_FIREBASE_API_KEY=
 EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=
 EXPO_PUBLIC_FIREBASE_PROJECT_ID=
@@ -104,133 +72,209 @@ EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=
 EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
 EXPO_PUBLIC_FIREBASE_APP_ID=
 
-# RevenueCat config — RevenueCat Dashboard → Project Settings → API Keys.
-# Leave the platform keys blank to disable the subscription store; it will
-# no-op rather than crash, and the rest of the app keeps working.
-# Flip USE_TEST_STORE=true with a TEST_API_KEY to run local builds against
-# RevenueCat's test store instead of the real App Store / Play Store.
-EXPO_PUBLIC_REVENUECAT_USE_TEST_STORE=
-EXPO_PUBLIC_REVENUECAT_ENABLE_CUSTOMER_CENTER=
-EXPO_PUBLIC_REVENUECAT_TEST_API_KEY=
+# RevenueCat — optional; leave blank to disable the paywall (app still works)
 EXPO_PUBLIC_REVENUECAT_IOS_API_KEY=
 EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=
 EXPO_PUBLIC_REVENUECAT_ENTITLEMENT_ID=
 EXPO_PUBLIC_REVENUECAT_OFFERING_ID=default
+# Test store: set USE_TEST_STORE=true + TEST_API_KEY to hit RC sandbox
+EXPO_PUBLIC_REVENUECAT_USE_TEST_STORE=
+EXPO_PUBLIC_REVENUECAT_TEST_API_KEY=
+EXPO_PUBLIC_REVENUECAT_ENABLE_CUSTOMER_CENTER=
+
+# AdMob — optional; blank falls back to Google test ads in dev builds
+EXPO_PUBLIC_ADS_ENABLED=true
+EXPO_PUBLIC_ADMOB_IOS_BANNER_ID=
+EXPO_PUBLIC_ADMOB_ANDROID_BANNER_ID=
 ```
 
-`services/firebase/app.ts` treats any value starting with
-`REPLACE_WITH_`, containing `YOUR_`, or containing `PLACEHOLDER` as
-empty, so leftover hints don't accidentally try to initialise Firebase.
-
-The OpenAI API key is a Firebase Functions secret, not an Expo env var:
+Functions secrets live in Google Secret Manager, not `.env`:
 
 ```bash
 firebase functions:secrets:set OPENAI_API_KEY
+firebase functions:secrets:set KLIPY_APP_KEY           # optional
+firebase functions:secrets:set REVENUECAT_WEBHOOK_AUTH # optional
 ```
+
+### Local / emulator mode
+
+Three gitignored files layer on top of `.env`. Create them to switch into emulator mode:
+
+**Root `.env.local`** — routes the app at the local emulator instead of the real project:
+```bash
+EXPO_PUBLIC_USE_FIREBASE_EMULATOR=true
+# Optional: force a host (needed for physical devices — auto-detected from Metro otherwise)
+# EXPO_PUBLIC_EMULATOR_HOST=192.168.1.20
+```
+
+**`functions/.secret.local`** — function secrets for the emulator (see `.secret.local.example`):
+```bash
+OPENAI_API_KEY=           # needed for real AI replies locally
+KLIPY_APP_KEY=            # optional
+REVENUECAT_WEBHOOK_AUTH=  # optional
+```
+
+**`functions/.env.local`** — dev-only function flags (loaded by emulator only, never deployed):
+```bash
+ALLOW_DEV_SETPLAN=true    # enables the devSetPlan callable locally
+ALLOW_RC_SANDBOX=true     # allows RevenueCat sandbox webhook events
+```
+
+**To go back to prod:** delete `.env.local`. The base `.env` is never touched.
 
 ---
 
-## 5. First-run checklist
+## Local development
+
+### Prerequisites
+
+- Firebase CLI: `npm i -g firebase-tools`
+- Java 11+ (Firestore/Auth/Storage emulators require a JRE; Functions alone does not):
+  - Windows: `winget install EclipseAdoptium.Temurin.21.JDK` then open a new terminal
+  - macOS: `brew install temurin`
+
+### Commands
 
 ```bash
-# From the template root:
-cp .env.example .env                    # then fill in Firebase keys
+npm run emulators:fresh   # first run — starts with empty state
+npm run emulators         # subsequent runs — imports/exports ./.emulator-data
+npm run dev:functions     # second terminal — recompiles functions on save
+npm run seed              # seeds a test account + sample conversations (while emulators are running)
+npm start                 # app in emulator mode (requires .env.local above)
 
+npm run dashboard         # local admin dashboard (builds functions first)
+npm run dashboard:install # install dashboard dependencies
+```
+
+The seed script creates a Power-plan test account you can sign in with immediately:
+
+```
+email:    test@local.dev
+password: test1234
+```
+
+Emulator UI at http://localhost:4000. State persists in `./.emulator-data/` (gitignored). Delete it to reset to a clean slate.
+
+Full walkthrough: [docs/local-dev.md](docs/local-dev.md).
+
+---
+
+## Monitoring dashboard (local, internal)
+
+`dashboard/` is a **local-only, read-only** monitoring tool. It reads **production**
+Firestore + Firebase Auth and surfaces users, conversations, messages, plans, AI
+spend, per-turn OpenAI request/response/token reconstruction, user feedback
+(👍/👎), and a content-moderation feed. It is **never deployed**, is gitignored,
+and is blocked from Metro/EAS bundling — nothing from it can end up in an app
+build or the App Store.
+
+### Run it
+
+```bash
+firebase login            # one-time, if not already (no service-account key needed)
+
+npm run dashboard:install # one-time — installs the dashboard's own deps
+npm run dashboard         # builds functions/lib, then starts API + web
+```
+
+Then open **http://127.0.0.1:5173**. Stop with `Ctrl+C`.
+
+- API server runs on `127.0.0.1:8787` (localhost-only, read-only against Firestore).
+- Web UI (Vite) runs on `127.0.0.1:5173` and proxies `/api` to the server.
+- Auth reuses your Firebase CLI login (the same credentials `firebase deploy`
+  uses) — no service-account JSON.
+
+### What's in it
+
+| Tab | Shows |
+|---|---|
+| **Overview** | user/plan counts, AI spend (24h/7d/30d, in $), daily message & cost charts, signups, top users by cost |
+| **Users** | searchable/sortable table → click a user → profile, billing, activity, conversations |
+| **Conversation** | full message thread + an **inspector** that rebuilds the exact OpenAI request, response, and token cost for any turn |
+| **Feedback** | every message a user rated 👍/👎, with input/output, filterable; click → conversation |
+| **Flagged** | messages with sexual/illegal/suicidal/hateful language; unflag to dismiss, toggle Flagged ↔ Dismissed |
+
+There's an **Anonymous** toggle (top-left, off by default) that excludes
+RevenueCat `$RCAnonymousID` stub profiles from user counts. Spend is shown in
+**dollars** (the cost to you); credits appear only as a secondary internal metric.
+
+Full details and architecture: [dashboard/README.md](dashboard/README.md).
+
+> **Note:** `dashboard/` is excluded from git, so a fresh clone won't include it.
+> It lives only on the machine where it was created.
+
+---
+
+## Deploying
+
+```bash
 npm install
 cd functions && npm install && cd ..
 
-# Drop fonts into assets/fonts/ (see assets/fonts/README.md).
-
-# Deploy backend bits to your Firebase project:
+# Backend (rules + functions):
 firebase deploy --only firestore:rules,storage:rules,functions
 
-# Launch the app:
-npm run ios       # or: npm run android
+# Marketing site:
+firebase deploy --only hosting
 ```
 
-Then in the simulator:
+App builds via EAS:
 
-1. Cold start → lands on the landing screen.
-2. Tap **Sign up** → enter email + password → routes to **Verify your email**.
-3. Click the link in the verification email → tap **I've verified** →
-   routes to the onboarding welcome screen.
-4. Tap **Get started** → lands on the Home tab.
-5. **Settings → Appearance** toggles theme instantly.
-6. **Settings → Language** toggles strings instantly.
-7. **Settings → Delete everything** → confirm → account is wiped from
-   Firebase Auth and the profile doc is deleted; app returns to landing.
+```bash
+eas build --platform ios --profile production
+eas submit --platform ios
+```
 
 ---
 
-## 6. App Store pre-flight
+## App Store notes
 
-Apple submission gotchas this template already handles, plus what you
-still need to do:
-
-- [x] **Account deletion in-app** (5.1.1(v)) — wired via
-      `deleteMyAccount` callable.
-- [x] **Sign in with Apple** if you offer any other social login (4.8) —
-      enabled in `app.json` and `services/firebase/appleAuth.ts`.
-- [x] **Privacy policy + Support URL** — Hosting site under `website/`.
-- [x] **Encryption export compliance** — `ITSAppUsesNonExemptEncryption:
-      false` set in `app.json`.
-- [ ] **App Privacy data types** — declare in App Store Connect: Email
-      Address linked to user, used for App Functionality only.
-- [ ] **Demo account** — App Review wants login credentials. Create a
-      throwaway account once you ship a build.
-- [ ] **Marketing screenshots** — generate per device size before
-      submitting.
+- [x] **Account deletion** (5.1.1(v)) — `deleteMyAccount` callable
+- [x] **Sign in with Apple** (4.8) — required since email/password is offered
+- [x] **Privacy policy + support URL** — `website/`
+- [x] **Non-exempt encryption** — `ITSAppUsesNonExemptEncryption: false` in `app.json`
+- [ ] **App Privacy** — declare in App Store Connect: Email Address, linked to user, App Functionality
+- [ ] **Demo account** — App Review needs login credentials; use the seeded account or create a throwaway after first build
+- [ ] **Marketing screenshots** — generate per device size before submitting
 
 ---
 
-## 7. What's deliberately out of scope
+## Website placeholders
 
-This template is **not** a CMS, ecommerce kit, or social app starter.
-The following intentionally aren't included; add them per-product when
-you actually need them:
+The marketing site under `website/public/` still has template values to replace:
 
-- Forgot-password screen (the `sendPasswordResetEmail` action exists on
-  the auth store — wire a screen when you want it).
-- Streaming chat v1 intentionally excludes App Check enforcement, per-uid
-  rate limiting, automatic title summarization, multi-provider model
-  abstraction, web streaming verification, tool/function calling, message
-  editing/regeneration, and conversation deletion.
-- Profile photo upload (Storage rules deny by default; open them when you
-  add the feature).
-- Push notifications (no `expo-notifications` dependency).
-- Analytics, ads, in-app review prompts, update prompts.
-- Multi-step onboarding (single placeholder step — replace
-  `app/onboarding/index.tsx` or add sibling routes).
-- Age gate.
-- Localization beyond English + Spanish — add languages by dropping new
-  files into `locales/` and registering them in `i18n.ts`,
-  `SUPPORTED_LANGUAGES`, and `app.json > ios.infoPlist.CFBundleLocalizations`.
+| Placeholder | Files |
+|---|---|
+| `%APP_DESCRIPTION%` | `index.html` |
+| `%APP_DOMAIN%` | `index.html`, `privacy.html`, `support.html`, `404.html`, `robots.txt`, `sitemap.xml` |
+| `%APP_STORE_URL%` | `index.html` (fill in after first ship) |
+| `%SUPPORT_EMAIL%` | `privacy.html`, `support.html` |
+| `%COMPANY_NAME%` | `index.html`, `privacy.html`, `404.html` |
+| `%COMPANY_ADDRESS%` | `privacy.html` |
+| `%PRIVACY_LAST_UPDATED%` | `privacy.html` |
 
 ---
 
-## 8. Project layout
+## Project layout
 
 ```
-app/                  Expo Router screens
-  _layout.tsx         Sole routing dispatcher — do not navigate from screens
-  index.tsx           Landing
-  auth/               Sign-in, sign-up, verify-email
-  onboarding/         Placeholder welcome step
-  (tabs)/             Home + Settings (the actual app)
-components/           Typography, Button, Input, etc.
-domain/
-  routing/authRoute.ts  Pure reducer for auth/onboarding routing
-  appleNonce.ts         Crypto helpers for Sign in with Apple
-hooks/                useTheme
-services/firebase/    Firebase init, email auth, Apple auth, callables
-store/                Zustand stores (auth, onboarding, settings, subscription, storage)
-locales/              en.ts, es.ts
-functions/            Cloud Functions (deleteMyAccount, onUserCreated)
-website/              Marketing site (Firebase Hosting)
-nativewind-theme.ts   Color tokens — edit to rebrand
-i18n.ts               i18next setup
-app.json              Expo config (placeholders here)
-firebase.json         Firestore + Storage + Functions config
-firestore.rules       uid-gated reads on profiles/{uid}
-storage.rules         Deny-all by default
+app/
+  index.tsx               Landing
+  age-gate.tsx            16+ gate
+  auth/                   Sign-in, sign-up, verify-email
+  onboarding/             Welcome step
+  (app)/                  Main tabs — chat, history, settings, plan
+components/               UI components (chat, account, ads, onboarding)
+domain/                   Pure business logic (billing, memes, GIFs, usage)
+services/firebase/        Firebase init, auth, callables, streaming agent client
+store/                    Zustand stores (auth, chat, entitlement, settings…)
+functions/src/            Cloud Functions (TypeScript)
+  scripts/                Admin/seed scripts (seed-emulator.cjs)
+docs/                     local-dev.md — emulator workflow
+website/                  Marketing site (Firebase Hosting)
+nativewind-theme.ts       Color tokens — edit to rebrand
+firestore.rules           Uid-gated reads; server-side writes only
+storage.rules             User message images only (JPEG/PNG ≤ 8 MB)
+firebase.json             Emulator ports + deploy config
+.env.example              All EXPO_PUBLIC_* keys documented
 ```

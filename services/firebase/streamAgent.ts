@@ -1,6 +1,11 @@
 import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
 import { getFirebaseServices } from "./app";
+import {
+  EMULATOR_PORTS,
+  getEmulatorHost,
+  USE_FIREBASE_EMULATOR,
+} from "./emulator";
 import { SessionExpiredError } from "./sessionErrors";
 
 // Re-exported so existing importers can reach the error type via this module.
@@ -233,6 +238,12 @@ function parseSSEFrame(frame: string): StreamEvent | null {
 function getFunctionUrl(functionName: string) {
   const projectId = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID;
   if (!projectId) throw new Error("firebase-project-missing");
+  // httpsCallable picks up the emulator via connectFunctionsEmulator, but these
+  // streaming onRequest endpoints build their own URL, so redirect them here.
+  if (USE_FIREBASE_EMULATOR) {
+    const host = getEmulatorHost();
+    return `http://${host}:${EMULATOR_PORTS.functions}/${projectId}/us-central1/${functionName}`;
+  }
   return `https://us-central1-${projectId}.cloudfunctions.net/${functionName}`;
 }
 

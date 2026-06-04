@@ -2,10 +2,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import * as FirebaseAuth from "@firebase/auth";
 import { FirebaseError } from "firebase/app";
-import type { Auth, Persistence } from "firebase/auth";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getFunctions, type Functions } from "firebase/functions";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
+import { connectAuthEmulator, type Auth, type Persistence } from "firebase/auth";
+import {
+  connectFirestoreEmulator,
+  getFirestore,
+  type Firestore,
+} from "firebase/firestore";
+import {
+  connectFunctionsEmulator,
+  getFunctions,
+  type Functions,
+} from "firebase/functions";
+import {
+  connectStorageEmulator,
+  getStorage,
+  type FirebaseStorage,
+} from "firebase/storage";
+import {
+  EMULATOR_PORTS,
+  getEmulatorHost,
+  USE_FIREBASE_EMULATOR,
+} from "./emulator";
 
 type FirebaseServices = {
   app: FirebaseApp;
@@ -24,6 +41,23 @@ type FirebaseServiceResult =
     };
 
 let cachedServices: FirebaseServiceResult | null = null;
+let emulatorsConnected = false;
+
+// Point every SDK at the local Emulator Suite. Runs once, only when the build
+// flag is set; the connect* calls throw if the SDK has already issued requests,
+// so this must happen immediately after the services are created.
+function connectEmulators(services: FirebaseServices) {
+  if (emulatorsConnected) return;
+  emulatorsConnected = true;
+
+  const host = getEmulatorHost();
+  connectAuthEmulator(services.auth, `http://${host}:${EMULATOR_PORTS.auth}`, {
+    disableWarnings: true,
+  });
+  connectFirestoreEmulator(services.firestore, host, EMULATOR_PORTS.firestore);
+  connectFunctionsEmulator(services.functions, host, EMULATOR_PORTS.functions);
+  connectStorageEmulator(services.storage, host, EMULATOR_PORTS.storage);
+}
 
 function cleanEnv(value: string | undefined) {
   const trimmed = value?.trim() ?? "";
@@ -104,11 +138,17 @@ export function getFirebaseServices(): FirebaseServiceResult {
     const firestore = getFirestore(app);
     const functions = getFunctions(app);
     const storage = getStorage(app);
-
-    cachedServices = {
-      available: true,
-      services: { app, auth, firestore, functions, storage },
+    const services: FirebaseServices = {
+      app,
+      auth,
+      firestore,
+      functions,
+      storage,
     };
+
+    if (USE_FIREBASE_EMULATOR) connectEmulators(services);
+
+    cachedServices = { available: true, services };
     return cachedServices;
   } catch (error) {
     cachedServices = {
@@ -122,4 +162,5 @@ export function getFirebaseServices(): FirebaseServiceResult {
 
 export function resetFirebaseServicesForTests() {
   cachedServices = null;
+  emulatorsConnected = false;
 }
