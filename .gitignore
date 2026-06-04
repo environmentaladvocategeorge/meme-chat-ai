@@ -45,6 +45,10 @@ coverage/
 .env
 .env*.local
 
+# one-off admin-script output (may contain real user data / prompts)
+profile-snapshots/
+prompt-snapshots/
+
 # typescript
 *.tsbuildinfo
 

@@ -1,16 +1,9 @@
 import { Linking, Platform } from "react-native";
-import Purchases, {
-  type CustomerInfo,
-  type PurchasesEntitlementInfo,
-} from "react-native-purchases";
+import Purchases from "react-native-purchases";
 import { create } from "zustand";
-import {
-  REVENUECAT_PRODUCT_TO_PLAN,
-  isKnownRcProduct,
-  resolvePlanFromRcProductIds,
-  type PlanId,
-} from "@/domain/billing";
+import { type PlanId } from "@/domain/billing";
 import { syncRevenueCatPlanCallable } from "@/services/firebase/callables";
+import { deriveFromCustomerInfo } from "@/store/subscriptionDerive";
 
 type SubscriptionMode = "test" | "production";
 type SubscriptionStatus = "idle" | "ready" | "unavailable";
@@ -94,60 +87,6 @@ function getApiConfig(): { apiKey: string; mode: SubscriptionMode } | null {
   }
 
   return null;
-}
-
-type DerivedRc = {
-  plan: PlanId;
-  activeProductId: string | null;
-  expiresAt: Date | null;
-  hasActiveEntitlement: boolean;
-  managementUrl: string | null;
-};
-
-// Picks the highest-rank active product identifier, then resolves to a plan
-// via the shared mapping. Pre-RC-purchase / unentitled users land on "free".
-function deriveFromCustomerInfo(
-  info: CustomerInfo | null | undefined,
-  entitlementId: string,
-): DerivedRc {
-  if (!info) {
-    return {
-      plan: "free",
-      activeProductId: null,
-      expiresAt: null,
-      hasActiveEntitlement: false,
-      managementUrl: null,
-    };
-  }
-
-  const active = info.entitlements?.active ?? {};
-  const entitlements: PurchasesEntitlementInfo[] = Object.values(active);
-  const productIds = entitlements
-    .map((e) => e.productIdentifier)
-    .filter((id): id is string => typeof id === "string" && id.length > 0);
-
-  const plan = resolvePlanFromRcProductIds(productIds);
-  const dominantProductId =
-    productIds.find((id) => isKnownRcProduct(id) && REVENUECAT_PRODUCT_TO_PLAN[id] === plan) ??
-    null;
-
-  const dominant =
-    dominantProductId !== null
-      ? entitlements.find((e) => e.productIdentifier === dominantProductId)
-      : entitlements[0];
-
-  const expiresAt = dominant?.expirationDate ? new Date(dominant.expirationDate) : null;
-
-  const hasActiveEntitlement =
-    plan !== "free" || Boolean(active[entitlementId]?.isActive);
-
-  return {
-    plan,
-    activeProductId: dominantProductId,
-    expiresAt,
-    hasActiveEntitlement,
-    managementUrl: info.managementURL ?? null,
-  };
 }
 
 async function maybeSyncToServer(plan: PlanId, activeProductId: string | null) {
