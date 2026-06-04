@@ -188,7 +188,7 @@ export function DeleteAccountForm({
         loading={isSubmitting}
         disabled={!canSubmit || isSubmitting}
         onPress={handleDelete}
-        style={{ marginTop: 8, backgroundColor: theme["--color-error"] }}
+        style={{ marginTop: 8 }}
       />
     </AccountBody>
   );
