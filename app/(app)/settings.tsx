@@ -9,10 +9,10 @@ import { Typography } from "@/components/Typography";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
 import { useAccountSheetStore } from "@/store/accountSheet";
+import { useLanguageSheetStore } from "@/store/languageSheet";
 import { useNotificationsStore } from "@/store/notifications";
 import {
   type Appearance,
-  type Language,
   useSettingsStore,
 } from "@/store/settings";
 import { useFocusEffect } from "expo-router";
@@ -89,8 +89,8 @@ export default function SettingsScreen() {
   const appearance = useSettingsStore((s) => s.appearance);
   const setAppearance = useSettingsStore((s) => s.setAppearance);
   const language = useSettingsStore((s) => s.language);
-  const setLanguage = useSettingsStore((s) => s.setLanguage);
   const openAccount = useAccountSheetStore((s) => s.open);
+  const openLanguageSheet = useLanguageSheetStore((s) => s.open);
   const openPlan = useOpenPlan();
 
   // Notifications are gated by the OS permission, so the toggle reflects the
@@ -156,12 +156,6 @@ export default function SettingsScreen() {
     { value: "system", label: t("settings.appearance.system") },
     { value: "light", label: t("settings.appearance.light") },
     { value: "dark", label: t("settings.appearance.dark") },
-  ];
-
-  const languageOptions: readonly { value: Language; label: string }[] = [
-    { value: "system", label: t("settings.language.system") },
-    { value: "en", label: t("settings.language.en") },
-    { value: "es", label: t("settings.language.es") },
   ];
 
   const openUrl = async (url: string) => {
@@ -321,11 +315,32 @@ export default function SettingsScreen() {
         </SettingsRow>
 
         <SettingsRow label={t("settings.language.label")}>
-          <SegmentedControl
-            options={languageOptions}
-            value={language}
-            onChange={setLanguage}
-          />
+          <AppPressable
+            onPress={openLanguageSheet}
+            feedback="opacity"
+            accessibilityRole="button"
+            accessibilityLabel={t("settings.language.label")}
+            style={{
+              borderTopWidth: 1,
+              borderTopColor: theme["--color-border"],
+              paddingTop: 14,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 10,
+            }}
+          >
+            <Typography
+              variant="body"
+              style={{ flex: 1, color: theme["--color-foreground"] }}
+            >
+              {t(`settings.language.${language}` as const)}
+            </Typography>
+            <CaretRight
+              size={18}
+              weight="bold"
+              color={theme["--color-foreground-muted"]}
+            />
+          </AppPressable>
         </SettingsRow>
 
         <View style={{ gap: 10 }}>

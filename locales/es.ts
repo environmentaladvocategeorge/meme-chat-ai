@@ -438,6 +438,7 @@ const es = {
       thumbsUp: "Buena respuesta",
       thumbsDown: "Mala respuesta",
       regenerate: "Regenerar respuesta",
+      react: "Añadir una reacción",
     },
   },
   history: {
@@ -675,6 +676,14 @@ const es = {
       system: "Sistema",
       en: "Inglés",
       es: "Español",
+      fr: "Francés",
+      pt: "Portugués",
+      de: "Alemán",
+      zh: "Chino",
+      ja: "Japonés",
+      hi: "Hindi",
+      ru: "Ruso",
+      bn: "Bengalí",
     },
     deleteData: {
       label: "Eliminar todos los datos",
