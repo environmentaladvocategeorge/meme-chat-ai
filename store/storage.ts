@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   CHAT_UI_COLOR_ROLES,
+  type ChatThemePreset,
   type ChatUiColorOverrides,
   DEFAULT_BACKGROUND,
   DEFAULT_BUBBLE_STYLE,
@@ -20,6 +21,11 @@ export interface PersistedSettings {
   chatBubbleStyle: string;
   chatBackground: string;
   chatUiColors: ChatUiColorOverrides;
+  // User-saved whole-look themes (message bubble + background + UI colors),
+  // shown in the Customize Chat themes row. Local-only, like the rest of the
+  // appearance state. The built-in starters are NOT stored here — they're
+  // appended at render time, so this only ever holds the user's own saves.
+  chatThemePresets: ChatThemePreset[];
   // The name Brainrot Bot calls the user, captured during onboarding. Mirrored to
   // profiles/{uid} via the updateProfile callable so it survives reinstall;
   // this local copy is the fast read for the UI.
@@ -40,6 +46,7 @@ export const DEFAULT_SETTINGS: PersistedSettings = {
   chatBubbleStyle: DEFAULT_BUBBLE_STYLE,
   chatBackground: DEFAULT_BACKGROUND,
   chatUiColors: {},
+  chatThemePresets: [],
   alias: "",
 };
 
@@ -73,6 +80,27 @@ function normalizeChatUiColors(value: unknown): ChatUiColorOverrides {
   return colors;
 }
 
+// Each stored preset must carry a resolvable bubble + background; otherwise it's
+// dropped. UI colors run through the same normalizer as the live overrides.
+function normalizeThemePresets(value: unknown): ChatThemePreset[] {
+  if (!Array.isArray(value)) return [];
+  const out: ChatThemePreset[] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const { bubbleStyle, background } = item;
+    if (typeof bubbleStyle !== "string" || !isBubbleStyleId(bubbleStyle)) {
+      continue;
+    }
+    if (typeof background !== "string" || !isBackgroundId(background)) continue;
+    out.push({
+      bubbleStyle,
+      background,
+      uiColors: normalizeChatUiColors(item.uiColors),
+    });
+  }
+  return out;
+}
+
 function normalizeSettings(value: unknown): PersistedSettings {
   if (!isRecord(value)) return DEFAULT_SETTINGS;
 
@@ -98,6 +126,7 @@ function normalizeSettings(value: unknown): PersistedSettings {
         ? value.chatBackground
         : DEFAULT_SETTINGS.chatBackground,
     chatUiColors: normalizeChatUiColors(value.chatUiColors),
+    chatThemePresets: normalizeThemePresets(value.chatThemePresets),
     alias:
       typeof value.alias === "string"
         ? value.alias.slice(0, MAX_ALIAS_LENGTH)

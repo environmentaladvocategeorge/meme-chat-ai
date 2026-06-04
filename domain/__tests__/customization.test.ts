@@ -1,17 +1,24 @@
 import {
   addGradientPreset,
   addSolidPreset,
+  addThemePreset,
   BACKGROUND_PRESETS,
   BACKGROUND_SURFACES,
   backgroundSwatches,
   buildPickerGradientSwatches,
   buildPickerSolidSwatches,
+  buildThemePresets,
   BUBBLE_PRESETS,
+  BUILT_IN_THEME_PRESETS,
   bubbleSwatches,
+  type ChatThemePreset,
+  chatThemePresetKey,
   chatUiAccentTokens,
+  currentChatThemeKey,
   CUSTOM_SWATCH_ID,
   deleteGradientPreset,
   deleteSolidPreset,
+  deleteThemePreset,
   isBackgroundId,
   isBubbleStyleId,
   isDarkColor,
@@ -27,6 +34,7 @@ import {
   resolveBackground,
   resolveBackgroundSurface,
   resolveBubble,
+  themePresetSwatchColors,
 } from "@/domain/customization";
 import { themes } from "@/nativewind-theme";
 
@@ -407,5 +415,143 @@ describe("buildPickerGradientSwatches", () => {
     const g = ["#AABBCC", "#DDEEFF"];
     const swatches = buildPickerGradientSwatches([g]);
     expect(swatches).toHaveLength(PICKER_GRADIENT_PRESETS.length + 1);
+  });
+});
+
+// ---- Chat view (whole-look) preset helpers ----
+
+const makePreset = (over: Partial<ChatThemePreset> = {}): ChatThemePreset => ({
+  bubbleStyle: makeCustomGradientId(["#E11D48", "#F43F5E"]),
+  background: makeCustomColorId("#150A0C"),
+  uiColors: { accent: "#FB7185", subtle: "#2A1419", text: "#FFFDF7" },
+  ...over,
+});
+
+describe("BUILT_IN_THEME_PRESETS", () => {
+  it("ships the starter themes as resolvable id/override values", () => {
+    expect(BUILT_IN_THEME_PRESETS).toHaveLength(7);
+    for (const preset of BUILT_IN_THEME_PRESETS) {
+      expect(isBubbleStyleId(preset.bubbleStyle)).toBe(true);
+      expect(isBackgroundId(preset.background)).toBe(true);
+      expect(preset.uiColors.accent).toMatch(/^#[0-9A-F]{6}$/);
+    }
+  });
+
+  it("maps the first source theme onto the expected stored values", () => {
+    const crimson = BUILT_IN_THEME_PRESETS[0];
+    expect(crimson.background).toBe(makeCustomColorId("#160A0D"));
+    expect(crimson.bubbleStyle).toBe(
+      makeCustomGradientId(["#BE123C", "#FB7185"]),
+    );
+    expect(crimson.uiColors).toEqual({
+      accent: "#FB7185",
+      subtle: "#2C151B",
+      text: "#FFFDF7",
+    });
+  });
+
+  it("includes multi-hue blends (3-stop bubble gradients)", () => {
+    const triStop = BUILT_IN_THEME_PRESETS.filter(
+      (p) => (parseCustomGradient(p.bubbleStyle)?.colors.length ?? 0) >= 3,
+    );
+    expect(triStop.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("chatThemePresetKey", () => {
+  it("is stable regardless of uiColors key order", () => {
+    const a = makePreset({ uiColors: { accent: "#111111", text: "#222222" } });
+    const b = makePreset({ uiColors: { text: "#222222", accent: "#111111" } });
+    expect(chatThemePresetKey(a)).toBe(chatThemePresetKey(b));
+  });
+
+  it("differs when any part differs", () => {
+    expect(chatThemePresetKey(makePreset())).not.toBe(
+      chatThemePresetKey(makePreset({ background: makeCustomColorId("#000000") })),
+    );
+  });
+
+  it("matches currentChatThemeKey over the same loose fields", () => {
+    const p = makePreset();
+    expect(currentChatThemeKey(p.bubbleStyle, p.background, p.uiColors)).toBe(
+      chatThemePresetKey(p),
+    );
+  });
+});
+
+describe("addThemePreset", () => {
+  it("prepends a new preset", () => {
+    const a = makePreset();
+    expect(addThemePreset(a, [])).toEqual([a]);
+  });
+
+  it("moves an identical look to the front without duplicating it", () => {
+    const a = makePreset();
+    const b = makePreset({ background: makeCustomColorId("#000000") });
+    const result = addThemePreset(a, [b, makePreset()]);
+    expect(result).toHaveLength(2);
+    expect(chatThemePresetKey(result[0])).toBe(chatThemePresetKey(a));
+  });
+
+  it("does not mutate the existing array", () => {
+    const existing = [makePreset({ background: makeCustomColorId("#000000") })];
+    addThemePreset(makePreset(), existing);
+    expect(existing).toHaveLength(1);
+  });
+});
+
+describe("deleteThemePreset", () => {
+  it("removes the preset matching the key", () => {
+    const a = makePreset();
+    const b = makePreset({ background: makeCustomColorId("#000000") });
+    expect(deleteThemePreset(chatThemePresetKey(a), [a, b])).toEqual([b]);
+  });
+
+  it("returns the list unchanged when nothing matches", () => {
+    const a = makePreset();
+    expect(deleteThemePreset("nope", [a])).toEqual([a]);
+  });
+});
+
+describe("buildThemePresets", () => {
+  it("includes only the built-ins when nothing is saved", () => {
+    expect(buildThemePresets([])).toHaveLength(BUILT_IN_THEME_PRESETS.length);
+  });
+
+  it("puts saved presets before the built-ins", () => {
+    const saved = makePreset({ background: makeCustomColorId("#0A0A0A") });
+    const built = buildThemePresets([saved]);
+    expect(chatThemePresetKey(built[0])).toBe(chatThemePresetKey(saved));
+    expect(built).toHaveLength(BUILT_IN_THEME_PRESETS.length + 1);
+  });
+
+  it("deduplicates a saved preset that matches a built-in", () => {
+    const saved = BUILT_IN_THEME_PRESETS[0];
+    const built = buildThemePresets([saved]);
+    expect(built).toHaveLength(BUILT_IN_THEME_PRESETS.length);
+    const key = chatThemePresetKey(saved);
+    expect(built.filter((p) => chatThemePresetKey(p) === key)).toHaveLength(1);
+  });
+});
+
+describe("themePresetSwatchColors", () => {
+  it("returns the bubble gradient for a gradient-bubble preset", () => {
+    const { gradient, solid } = themePresetSwatchColors(
+      BUILT_IN_THEME_PRESETS[0],
+      "dark",
+      themes.dark,
+    );
+    expect(solid).toBeNull();
+    expect(gradient).toEqual(["#BE123C", "#FB7185"]);
+  });
+
+  it("returns a solid for a solid-bubble preset", () => {
+    const { gradient, solid } = themePresetSwatchColors(
+      makePreset({ bubbleStyle: makeCustomColorId("#123456") }),
+      "dark",
+      themes.dark,
+    );
+    expect(gradient).toBeNull();
+    expect(solid).toBe("#123456");
   });
 });

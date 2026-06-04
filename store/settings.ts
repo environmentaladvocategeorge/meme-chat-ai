@@ -1,7 +1,10 @@
 import i18next, { resolveLanguage } from "@/i18n";
 import {
+  addThemePreset,
+  type ChatThemePreset,
   type ChatUiColorOverrides,
   type ChatUiColorRole,
+  deleteThemePreset,
   normalizeHex,
 } from "@/domain/customization";
 import { create } from "zustand";
@@ -20,6 +23,7 @@ interface SettingsState {
   chatBubbleStyle: string;
   chatBackground: string;
   chatUiColors: ChatUiColorOverrides;
+  chatThemePresets: ChatThemePreset[];
   alias: string;
   hydrate: () => Promise<void>;
   setAppearance: (v: Appearance) => void;
@@ -28,6 +32,9 @@ interface SettingsState {
   setChatBackground: (v: string) => void;
   setChatUiColors: (v: ChatUiColorOverrides) => void;
   setChatUiColor: (role: ChatUiColorRole, color: string | null) => void;
+  applyChatThemePreset: (preset: ChatThemePreset) => void;
+  addChatThemePreset: (preset: ChatThemePreset) => void;
+  deleteChatThemePreset: (key: string) => void;
   resetChatAppearance: () => void;
   setAlias: (v: string) => void;
   reset: () => Promise<void>;
@@ -44,6 +51,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       chatBubbleStyle: stored.chatBubbleStyle,
       chatBackground: stored.chatBackground,
       chatUiColors: stored.chatUiColors,
+      chatThemePresets: stored.chatThemePresets,
       alias: stored.alias,
     });
     i18next.changeLanguage(resolveLanguage(stored.language));
@@ -88,6 +96,37 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     SettingsStorage.write({ chatUiColors });
   },
 
+  // Applying a preset swaps the whole look in one write. uiColors is REPLACED
+  // (not merged) so a theme that doesn't set, say, userText doesn't inherit a
+  // stale value from the previous theme. Saved presets are untouched.
+  applyChatThemePreset: ({ bubbleStyle, background, uiColors }) => {
+    const chatUiColors = { ...uiColors };
+    set({
+      chatBubbleStyle: bubbleStyle,
+      chatBackground: background,
+      chatUiColors,
+    });
+    SettingsStorage.write({
+      chatBubbleStyle: bubbleStyle,
+      chatBackground: background,
+      chatUiColors,
+    });
+  },
+
+  addChatThemePreset: (preset) => {
+    const chatThemePresets = addThemePreset(preset, get().chatThemePresets);
+    set({ chatThemePresets });
+    SettingsStorage.write({ chatThemePresets });
+  },
+
+  deleteChatThemePreset: (key) => {
+    const chatThemePresets = deleteThemePreset(key, get().chatThemePresets);
+    set({ chatThemePresets });
+    SettingsStorage.write({ chatThemePresets });
+  },
+
+  // Reverts the live look to system defaults. Deliberately leaves the user's
+  // saved presets in place — "reset" is about the current chat, not a wipe.
   resetChatAppearance: () => {
     const { chatBubbleStyle, chatBackground, chatUiColors } = DEFAULT_SETTINGS;
     set({ chatBubbleStyle, chatBackground, chatUiColors });

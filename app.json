@@ -16,7 +16,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleLocalizations": ["en", "es", "fr", "pt", "de", "zh", "ja"],
+        "CFBundleLocalizations": ["en", "es", "fr", "pt", "de", "zh", "ja", "hi", "ru"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -117,6 +117,16 @@
         }
       },
       "ja": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "hi": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "ru": {
         "ios": {
           "CFBundleDisplayName": "Meme Chat AI"
         }

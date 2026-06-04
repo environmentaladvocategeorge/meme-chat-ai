@@ -610,6 +610,10 @@ const hi = {
       customGradientStart: "Color 1",
       customGradientEnd: "Color 2",
       customPresets: "Presets",
+      themesTitle: "थीम",
+      systemTheme: "डिफ़ॉल्ट",
+      saveTheme: "वर्तमान थीम सहेजें",
+      applyTheme: "थीम लागू करें",
       customDefault: "Default",
       customSavePick: "Current color save करो",
       customColorEditor: "Color editor",
@@ -662,7 +666,6 @@ const hi = {
       ja: "Japanese",
       hi: "Hindi",
       ru: "Russian",
-      bn: "Bengali",
     },
     deleteData: {
       label: "सारा data delete करो",

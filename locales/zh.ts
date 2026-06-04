@@ -609,6 +609,10 @@ const zh = {
       customGradientStart: "颜色1",
       customGradientEnd: "颜色2",
       customPresets: "预设",
+      themesTitle: "主题",
+      systemTheme: "默认",
+      saveTheme: "保存当前主题",
+      applyTheme: "应用主题",
       customDefault: "默认",
       customSavePick: "保存当前颜色",
       customColorEditor: "颜色编辑器",
@@ -661,7 +665,6 @@ const zh = {
       ja: "日语",
       hi: "印地语",
       ru: "俄语",
-      bn: "孟加拉语",
     },
     deleteData: {
       label: "删除所有数据",
