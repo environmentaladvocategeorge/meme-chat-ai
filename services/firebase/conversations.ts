@@ -137,6 +137,8 @@ export type StoredChatMessage = {
   images?: MessageImage[];
   gifs?: MessageGif[];
   reaction?: "up" | "down";
+  // Emoji reaction stored on an agent reply (independent of the thumbs rating).
+  emojiReaction?: string;
   // Brainrot intensity stored on a user turn (1–3).
   levelOfRot?: number;
   status: "complete" | "streaming" | "error";
@@ -220,6 +222,11 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
   const reaction =
     data.reaction === "up" || data.reaction === "down" ? data.reaction : undefined;
 
+  const emojiReaction =
+    typeof data.emojiReaction === "string" && data.emojiReaction.length > 0
+      ? data.emojiReaction
+      : undefined;
+
   const levelOfRot =
     typeof data.levelOfRot === "number" ? data.levelOfRot : undefined;
 
@@ -230,6 +237,7 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
     images,
     gifs,
     reaction,
+    emojiReaction,
     levelOfRot,
     status,
     createdAt: asDate(data.createdAt),

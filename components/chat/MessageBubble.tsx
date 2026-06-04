@@ -60,6 +60,7 @@ export function MessageBubble({
   thinkingLabel,
   onRetry,
   onRate,
+  onEmoji,
   isLastAgent = false,
   onReplay,
 }: {
@@ -69,6 +70,7 @@ export function MessageBubble({
   thinkingLabel: string;
   onRetry: () => void;
   onRate: (serverId: string, reaction: MessageReaction) => void;
+  onEmoji: (serverId: string, emoji: string) => void;
   // True only for the conversation's most recent agent reply — the one turn
   // replay is allowed to regenerate.
   isLastAgent?: boolean;
@@ -775,6 +777,8 @@ export function MessageBubble({
               text={messageText}
               reaction={message.reaction}
               onRate={(reaction) => onRate(message.serverId!, reaction)}
+              emojiReaction={message.emojiReaction}
+              onEmoji={(emoji) => onEmoji(message.serverId!, emoji)}
               onReplay={
                 isLastAgent ? () => onReplay(message.serverId!) : undefined
               }
@@ -784,6 +788,7 @@ export function MessageBubble({
                 up: t("chat.actions.thumbsUp"),
                 down: t("chat.actions.thumbsDown"),
                 replay: t("chat.actions.regenerate"),
+                react: t("chat.actions.react"),
               }}
               timestamp={timestampLabel}
               showTimestamp={showTimestamp}

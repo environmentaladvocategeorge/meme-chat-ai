@@ -1,6 +1,9 @@
 import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
-import { rateMessageCallable } from "@/services/firebase/callables";
+import {
+  rateMessageCallable,
+  setMessageEmojiCallable,
+} from "@/services/firebase/callables";
 import {
   subscribeToMessages,
   type StoredChatMessage,
@@ -29,6 +32,9 @@ export type ChatMessage = {
   gifs?: MessageGif[];
   // Thumbs rating on an agent reply (persisted server-side).
   reaction?: MessageReaction;
+  // Emoji reaction on an agent reply (persisted server-side). Independent of the
+  // thumbs rating — a message can have both.
+  emojiReaction?: string;
   // Brainrot intensity selected for a user turn (1–3). Absent on agent turns.
   levelOfRot?: number;
   status: "complete" | "streaming" | "error";
@@ -107,6 +113,9 @@ type ChatState = {
   // Optimistically set/toggle a thumbs rating on an agent message, then persist
   // it. Tapping the already-active thumb clears the rating.
   rateMessage: (serverId: string, reaction: MessageReaction) => void;
+  // Optimistically set/toggle an emoji reaction on an agent message, then
+  // persist it. Tapping the already-active emoji clears it.
+  setMessageEmoji: (serverId: string, emoji: string) => void;
   loadConversation: (id: string) => void;
   startNewConversation: () => void;
   cancelStreaming: () => void;
@@ -704,6 +713,39 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       reaction: resolved,
     }).catch(() => {
       applyReaction(previous);
+    });
+  },
+
+  setMessageEmoji: (serverId, emoji) => {
+    const conversationId = get().conversationId;
+    if (!conversationId) return;
+
+    const target = get().messages.find((message) => message.serverId === serverId);
+    if (!target) return;
+
+    const previous = target.emojiReaction ?? null;
+    // Toggle: tapping the active emoji clears it; otherwise switch to it.
+    const resolved: string | null = previous === emoji ? null : emoji;
+
+    const applyEmoji = (value: string | null) =>
+      set((state) => ({
+        messages: state.messages.map((message) =>
+          message.serverId === serverId
+            ? { ...message, emojiReaction: value ?? undefined }
+            : message,
+        ),
+      }));
+
+    // Optimistic: reflect it immediately; the Firestore snapshot confirms it, or
+    // we roll back on failure.
+    applyEmoji(resolved);
+
+    void setMessageEmojiCallable({
+      conversationId,
+      messageId: serverId,
+      emoji: resolved,
+    }).catch(() => {
+      applyEmoji(previous);
     });
   },
 

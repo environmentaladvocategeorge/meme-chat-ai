@@ -7,11 +7,34 @@ import { z } from "zod";
 export const MESSAGE_REACTIONS = ["up", "down"] as const;
 export type MessageReaction = (typeof MESSAGE_REACTIONS)[number];
 
+// The emoji-reaction picker's allowlist. A separate axis from the thumbs — a
+// message can have both. MUST stay in sync with the client picker set in
+// components/MessageActions.tsx (EMOJI_REACTIONS). Validating against a fixed
+// set keeps a client from writing arbitrary strings onto the message doc.
+export const MESSAGE_EMOJI_REACTIONS = [
+  "😂",
+  "💀",
+  "🔥",
+  "😭",
+  "🫡",
+  "🤔",
+  "🥀",
+  "✨",
+] as const;
+export type MessageEmojiReaction = (typeof MESSAGE_EMOJI_REACTIONS)[number];
+
 const schema = z.object({
   conversationId: z.string().trim().min(1).max(128),
   messageId: z.string().trim().min(1).max(128),
   // null un-rates the message (toggle off).
   reaction: z.enum(MESSAGE_REACTIONS).nullable(),
+});
+
+const emojiSchema = z.object({
+  conversationId: z.string().trim().min(1).max(128),
+  messageId: z.string().trim().min(1).max(128),
+  // null clears the emoji reaction (toggle off).
+  emoji: z.enum(MESSAGE_EMOJI_REACTIONS).nullable(),
 });
 
 type Db = ReturnType<typeof getFirestore>;
@@ -74,6 +97,70 @@ export const rateMessage = onCall(async (request) => {
     conversationId: parsed.data.conversationId,
     messageId: parsed.data.messageId,
     reaction: parsed.data.reaction,
+  });
+
+  return { success: true as const, ...result };
+});
+
+// Pure core (testable): sets (or clears) the caller's emoji reaction on a single
+// message. Independent of the thumbs rating — stored in its own `emojiReaction`
+// field. Same ownership enforcement as rateMessageForUser.
+export async function setMessageEmojiForUser(
+  uid: string,
+  args: {
+    conversationId: string;
+    messageId: string;
+    emoji: MessageEmojiReaction | null;
+  },
+  db: Db,
+): Promise<{ emoji: MessageEmojiReaction | null }> {
+  const conversationRef = db.collection("conversations").doc(args.conversationId);
+  const conversationSnap = await conversationRef.get();
+  if (!conversationSnap.exists || conversationSnap.data()?.uid !== uid) {
+    throw new HttpsError("not-found", "conversation-not-found");
+  }
+
+  const messageRef = conversationRef.collection("messages").doc(args.messageId);
+  const messageSnap = await messageRef.get();
+  if (!messageSnap.exists) {
+    throw new HttpsError("not-found", "message-not-found");
+  }
+
+  await messageRef.update({
+    // Remove the field entirely when clearing, so an un-reacted message reads
+    // back as "no emoji" rather than null.
+    emojiReaction: args.emoji ?? FieldValue.delete(),
+    emojiReactionUpdatedAt: FieldValue.serverTimestamp(),
+  });
+
+  return { emoji: args.emoji };
+}
+
+// Sets an emoji reaction (or clears it) on one of the caller's messages.
+export const setMessageEmoji = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign-in required");
+
+  const parsed = emojiSchema.safeParse(request.data);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "invalid-request");
+  }
+
+  const result = await setMessageEmojiForUser(
+    uid,
+    {
+      conversationId: parsed.data.conversationId,
+      messageId: parsed.data.messageId,
+      emoji: parsed.data.emoji,
+    },
+    getFirestore(),
+  );
+
+  logger.info("[setMessageEmoji] reacted", {
+    uid,
+    conversationId: parsed.data.conversationId,
+    messageId: parsed.data.messageId,
+    emoji: parsed.data.emoji,
   });
 
   return { success: true as const, ...result };

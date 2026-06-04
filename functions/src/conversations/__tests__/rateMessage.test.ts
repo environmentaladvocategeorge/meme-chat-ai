@@ -10,7 +10,7 @@ jest.mock("firebase-admin/firestore", () => ({
   },
 }));
 
-import { rateMessageForUser } from "../rateMessage";
+import { rateMessageForUser, setMessageEmojiForUser } from "../rateMessage";
 
 type Conversation = { uid?: string } | null;
 
@@ -91,5 +91,60 @@ describe("rateMessageForUser", () => {
     await expect(rateMessageForUser("user-1", args, db)).rejects.toMatchObject({
       code: "not-found",
     });
+  });
+});
+
+const emojiArgs = { conversationId: "c1", messageId: "m1", emoji: "🔥" as const };
+
+describe("setMessageEmojiForUser", () => {
+  it("sets an emoji reaction on an owned message (own field, not the thumbs)", async () => {
+    const { db, recorded } = makeDb({
+      conversation: { uid: "user-1" },
+      messageExists: true,
+    });
+
+    const result = await setMessageEmojiForUser("user-1", emojiArgs, db);
+
+    expect(result).toEqual({ emoji: "🔥" });
+    expect(recorded.update).toMatchObject({
+      emojiReaction: "🔥",
+      emojiReactionUpdatedAt: "TS",
+    });
+    // It must NOT touch the thumbs `reaction` field.
+    expect(recorded.update).not.toHaveProperty("reaction");
+  });
+
+  it("clears the emoji by deleting the field when emoji is null", async () => {
+    const { db, recorded } = makeDb({
+      conversation: { uid: "user-1" },
+      messageExists: true,
+    });
+
+    const result = await setMessageEmojiForUser(
+      "user-1",
+      { ...emojiArgs, emoji: null },
+      db,
+    );
+
+    expect(result).toEqual({ emoji: null });
+    expect(recorded.update?.emojiReaction).toBe("DELETE");
+  });
+
+  it("rejects a conversation owned by someone else", async () => {
+    const { db, recorded } = makeDb({
+      conversation: { uid: "other-user" },
+      messageExists: true,
+    });
+    await expect(
+      setMessageEmojiForUser("user-1", emojiArgs, db),
+    ).rejects.toMatchObject({ code: "not-found" });
+    expect(recorded.update).toBeUndefined();
+  });
+
+  it("rejects when the message does not exist", async () => {
+    const { db } = makeDb({ conversation: { uid: "user-1" }, messageExists: false });
+    await expect(
+      setMessageEmojiForUser("user-1", emojiArgs, db),
+    ).rejects.toMatchObject({ code: "not-found" });
   });
 });
