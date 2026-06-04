@@ -9,7 +9,13 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "jest",
+    "emulators": "npm --prefix functions run build && firebase emulators:start --only auth,functions,firestore,storage --import=./.emulator-data --export-on-exit=./.emulator-data",
+    "emulators:fresh": "npm --prefix functions run build && firebase emulators:start --only auth,functions,firestore,storage --export-on-exit=./.emulator-data",
+    "dev:functions": "npm --prefix functions run build:watch",
+    "seed": "npm --prefix functions run build && node functions/scripts/seed-emulator.cjs",
+    "dashboard": "npm --prefix functions run build && npm --prefix dashboard run dev",
+    "dashboard:install": "npm --prefix dashboard install"
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "5.2.9",

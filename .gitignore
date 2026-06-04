@@ -45,6 +45,10 @@ coverage/
 .env
 .env*.local
 
+# Firebase emulator local secrets + persisted state
+functions/.secret.local
+.emulator-data/
+
 # one-off admin-script output (may contain real user data / prompts)
 profile-snapshots/
 prompt-snapshots/
@@ -61,3 +65,10 @@ functions/lib/
 
 # Personal Claude Code overrides (not shared)
 .claude/settings.local.json
+
+# Local-only internal monitoring dashboard. NEVER commit any of it: it is a
+# local tool that reads production data, and dashboard/server/lexicon.cjs holds
+# a moderation slur list that must not enter the repo. Excluding the whole dir
+# also keeps it out of EAS uploads (EAS respects .gitignore when no .easignore
+# is present). It is additionally blocked from Metro bundling in metro.config.js.
+dashboard/
