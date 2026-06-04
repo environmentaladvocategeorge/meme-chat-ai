@@ -5,13 +5,14 @@ import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { randomReplaySampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
+import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
-import { GET_GIF_TOOL, runGetGif } from "./gifs/getGifTool";
-import { GET_MEME_TOOL, runGetMeme } from "./memes/getMemeTool";
+import { runGetGif } from "./gifs/getGifTool";
+import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
-import { chargeCredits, evaluateQuota } from "./billing/ledger";
+import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger";
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
@@ -23,6 +24,7 @@ import {
   assertConversationOwner,
   deleteMessage,
   finalizeAgentMessage,
+  loadRecentMessages,
   loadReplayTargets,
   markAgentMessageErrored,
 } from "./conversations/repository";
@@ -33,7 +35,10 @@ import {
 } from "./messages/messageImage";
 import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
-import { buildSystemPromptForStream } from "./personas/prompts";
+import {
+  buildMediaDeciderPrompt,
+  buildSystemPromptForStream,
+} from "./personas/prompts";
 import { streamReplayRequestSchema } from "./streamReplayRequest";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -241,25 +246,89 @@ export const streamReplayTurn = onRequest(
       return;
     }
 
-    // ---------- routing + context ----------
+    // ---------- routing + media decision + context ----------
     let internalModel;
     let assembleResult;
     let resolvedPersona:
       | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
       | null = null;
+    let decideUsage: ModelUsage | null = null;
+    let pendingGif: MessageGif | null = null;
+    let pendingMeme: MessageImage | null = null;
     const klipyApiKey = KLIPY_APP_KEY.value();
-    const memeToolEnabled = klipyApiKey.length > 0;
+    const mediaEnabled = klipyApiKey.length > 0;
     try {
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
       const systemPrompt = promptResult.systemPrompt;
+
+      // Same nano media pre-step as a normal turn: decide + fetch a reaction
+      // GIF/meme for the regenerated reply, so replay keeps the media beat.
+      let attachedMedia:
+        | { kind: "gif" | "meme"; description: string }
+        | undefined;
+      if (mediaEnabled) {
+        const priorMessages = await loadRecentMessages(conversationId, 12);
+        const { history, recentReactions } = buildDeciderContext(priorMessages);
+        const currentForDecider =
+          userText ||
+          (images.length > 0
+            ? "[user sent an image]"
+            : gifs.length > 0
+              ? "[user sent a GIF]"
+              : "");
+        const { decision, usage } = await decideMedia({
+          apiKey: OPENAI_API_KEY.value(),
+          systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          history,
+          currentMessage: currentForDecider,
+          recentReactions,
+        });
+        decideUsage = usage;
+
+        if (decision.type === "gif" || decision.type === "meme") {
+          const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+          const rawArgs = JSON.stringify({
+            query: decision.query,
+            randomness_factor: decision.randomnessFactor,
+          });
+          try {
+            if (decision.type === "gif") {
+              const r = await runGetGif(rawArgs, klipyDeps);
+              if (r.gif) {
+                pendingGif = r.gif;
+                attachedMedia = {
+                  kind: "gif",
+                  description: r.title ?? decision.query,
+                };
+              }
+            } else {
+              const r = await runGetMeme(rawArgs, klipyDeps);
+              if (r.meme) {
+                pendingMeme = r.meme;
+                attachedMedia = {
+                  kind: "meme",
+                  description: r.title ?? decision.query,
+                };
+              }
+            }
+          } catch (err) {
+            logger.warn(
+              "[streamReplayTurn] media fetch failed; replying text-only",
+              { conversationId, err },
+            );
+          }
+        }
+      }
+
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
+        attachedMedia,
         systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
@@ -281,14 +350,30 @@ export const streamReplayTurn = onRequest(
     let sawDelta = false;
     let oldReplyDeleted = false;
     let lastUsage: AgentUsage | null = null;
-    let agentMeme: MessageImage | null = null;
-    let agentGif: MessageGif | null = null;
+    let agentMeme: MessageImage | null = pendingMeme;
+    let agentGif: MessageGif | null = pendingGif;
     const abortController = new AbortController();
 
     const chargeForUsage = async (reason: string) => {
-      if (!lastUsage) return;
+      const usages: ModelUsage[] = [];
+      if (
+        decideUsage &&
+        (decideUsage.inputTokens > 0 || decideUsage.outputTokens > 0)
+      ) {
+        usages.push(decideUsage);
+      }
+      if (lastUsage) {
+        usages.push({
+          model: internalModel,
+          inputTokens: lastUsage.inputTokens,
+          cachedInputTokens: lastUsage.cachedInputTokens,
+          outputTokens: lastUsage.outputTokens,
+          reasoningTokens: lastUsage.reasoningTokens,
+        });
+      }
+      if (usages.length === 0) return;
 
-      if (images.length > 0) {
+      if (lastUsage && images.length > 0) {
         logger.info("[streamReplayTurn] image turn usage", {
           model: internalModel,
           imageCount: images.length,
@@ -300,16 +385,16 @@ export const streamReplayTurn = onRequest(
       }
 
       try {
-        const costUsd = calculateCostUsd(internalModel, lastUsage);
+        const costUsd = usages.reduce(
+          (sum, u) => sum + calculateCostUsd(u.model, u),
+          0,
+        );
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
           conversationId,
           messageId: agentMessageIdNew,
-          model: internalModel,
-          inputTokens: lastUsage.inputTokens,
-          cachedInputTokens: lastUsage.cachedInputTokens,
-          outputTokens: lastUsage.outputTokens,
-          reasoningTokens: lastUsage.reasoningTokens,
+          kind: "turn",
+          usages,
           costUsd,
           credits,
         });
@@ -377,6 +462,13 @@ export const streamReplayTurn = onRequest(
         });
       }
 
+      // Media-first: show the regenerated turn's chosen GIF/meme before the text.
+      if (agentGif) {
+        writeSse(res, "gif", { gif: agentGif });
+      } else if (agentMeme) {
+        writeSse(res, "meme", { image: agentMeme });
+      }
+
       let fullText = "";
       for await (const delta of streamAgent({
         messages: assembleResult.messages,
@@ -386,21 +478,7 @@ export const streamReplayTurn = onRequest(
         // The whole point of replay: a fresh seed + nudged top_p so the answer
         // differs from the one we just deleted.
         sampling: randomReplaySampling(),
-        tools: memeToolEnabled ? [GET_GIF_TOOL, GET_MEME_TOOL] : undefined,
-        runTool: memeToolEnabled
-          ? (call) => {
-              const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
-              if (call.name === "get_meme") {
-                return runGetMeme(call.arguments, klipyDeps);
-              }
-              if (call.name === "get_gif") {
-                return runGetGif(call.arguments, klipyDeps);
-              }
-              return Promise.resolve({
-                content: JSON.stringify({ error: "unknown_tool" }),
-              });
-            }
-          : undefined,
+        // No tools: media was already decided + fetched by the nano pre-step.
         signal: abortController.signal,
       })) {
         if (clientClosed) {
@@ -414,18 +492,6 @@ export const streamReplayTurn = onRequest(
           sawDelta = true;
           fullText += delta.text;
           writeSse(res, "delta", { text: delta.text });
-          continue;
-        }
-
-        if (delta.type === "meme") {
-          agentMeme = delta.image;
-          writeSse(res, "meme", { image: agentMeme });
-          continue;
-        }
-
-        if (delta.type === "gif") {
-          agentGif = delta.gif;
-          writeSse(res, "gif", { gif: agentGif });
           continue;
         }
 

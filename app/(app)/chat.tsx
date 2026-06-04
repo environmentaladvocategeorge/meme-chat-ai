@@ -133,6 +133,7 @@ export default function ChatScreen() {
   const quota = useChatStore((s) => s.quota);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const rateMessage = useChatStore((s) => s.rateMessage);
+  const setMessageEmoji = useChatStore((s) => s.setMessageEmoji);
   const replayTurn = useChatStore((s) => s.replayTurn);
   const loadConversation = useChatStore((s) => s.loadConversation);
   const startNewConversation = useChatStore((s) => s.startNewConversation);
@@ -609,6 +610,7 @@ export default function ChatScreen() {
                     thinkingLabel={thinkingLabel}
                     onRetry={handleRetry}
                     onRate={rateMessage}
+                    onEmoji={setMessageEmoji}
                     isLastAgent={
                       item.serverId != null &&
                       item.serverId === lastAgentServerId

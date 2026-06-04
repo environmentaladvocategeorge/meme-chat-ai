@@ -5,7 +5,12 @@ export type PlatformPrompt = {
   name: string;
   key: string;
   version: string;
+  // Guardrails for the conversational (persona) path.
   content: string;
+  // Guardrails for the media-decider path. Different language because the
+  // decider never writes a reply — it only picks ONE reaction image. Optional
+  // for backward-compat; the decider falls back to MEDIA_GUARDRAILS_FALLBACK.
+  mediaContent?: string;
   isActive: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

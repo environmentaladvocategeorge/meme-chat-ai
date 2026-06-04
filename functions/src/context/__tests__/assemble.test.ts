@@ -183,6 +183,36 @@ describe("assembleFromInputs", () => {
     expect(result.messages.length).toBe(27);
   });
 
+  it("injects an attached-media system note right before the current turn", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [{ role: "user", text: "earlier" }],
+      currentText: "boss send me a gif",
+      maxInputTokens: 10_000,
+      attachedMedia: { kind: "gif", description: "rat dancing" },
+    });
+    const msgs = result.messages;
+    // The note is a system message, and it sits immediately before the final
+    // (current) user turn so the cacheable prefix is undisturbed.
+    const last = msgs[msgs.length - 1];
+    const beforeLast = msgs[msgs.length - 2];
+    expect(last).toEqual({ role: "user", content: "boss send me a gif" });
+    expect(beforeLast.role).toBe("system");
+    expect(beforeLast.content).toContain("rat dancing");
+    expect(beforeLast.content).toContain("animated GIF");
+  });
+
+  it("adds no media note when none is attached", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "hi",
+      maxInputTokens: 10_000,
+    });
+    // Only the base system prompt — no extra system note.
+    expect(result.messages.filter((m) => m.role === "system")).toHaveLength(1);
+  });
+
   it("maps user → user and agent → assistant", () => {
     const recent: ChatMessage[] = [
       { role: "user", text: "ping" },

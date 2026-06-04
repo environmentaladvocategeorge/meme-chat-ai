@@ -1,6 +1,8 @@
 const mockStreamAgentAnswer = jest.fn();
 const mockStreamReplayTurn = jest.fn();
 const mockSignOut = jest.fn().mockResolvedValue(undefined);
+// Controllable so a test can make the emoji persist resolve or reject (rollback).
+const mockSetMessageEmojiCallable = jest.fn();
 
 // Mock every module that would otherwise drag in the Firebase SDK / native
 // AsyncStorage at import time. SessionExpiredError is left REAL so the
@@ -11,6 +13,8 @@ jest.mock("@/services/firebase/streamAgent", () => ({
 }));
 jest.mock("@/services/firebase/callables", () => ({
   rateMessageCallable: jest.fn(),
+  setMessageEmojiCallable: (...args: unknown[]) =>
+    mockSetMessageEmojiCallable(...args),
 }));
 jest.mock("@/services/firebase/conversations", () => ({
   subscribeToMessages: jest.fn(() => () => {}),
@@ -239,5 +243,99 @@ describe("useChatStore replayTurn", () => {
     expect(state.error).toBe("boom");
     expect(state.replacingServerId).toBeNull();
     expect(mockSignOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("useChatStore setMessageEmoji", () => {
+  // A finalized agent reply we can react to. `emojiReaction` is varied per test.
+  const seed = (emojiReaction?: string) => ({
+    ...IDLE_STATE,
+    conversationId: "c1",
+    messages: [
+      {
+        id: "a1",
+        serverId: "a1",
+        role: "agent" as const,
+        text: "lol",
+        status: "complete" as const,
+        ...(emojiReaction ? { emojiReaction } : {}),
+      },
+    ],
+  });
+
+  const emojiOf = (serverId: string) =>
+    useChatStore.getState().messages.find((m) => m.serverId === serverId)
+      ?.emojiReaction;
+
+  beforeEach(() => {
+    mockSetMessageEmojiCallable.mockReset().mockResolvedValue({
+      success: true,
+      emoji: null,
+    });
+    useChatStore.setState(seed());
+  });
+
+  it("optimistically applies the emoji and persists it with the resolved value", () => {
+    useChatStore.getState().setMessageEmoji("a1", "🔥");
+
+    // Reflected locally before the server confirms.
+    expect(emojiOf("a1")).toBe("🔥");
+    expect(mockSetMessageEmojiCallable).toHaveBeenCalledWith({
+      conversationId: "c1",
+      messageId: "a1",
+      emoji: "🔥",
+    });
+  });
+
+  it("toggles the active emoji off (persists null) when it's tapped again", () => {
+    useChatStore.setState(seed("🔥"));
+
+    useChatStore.getState().setMessageEmoji("a1", "🔥");
+
+    expect(emojiOf("a1")).toBeUndefined();
+    expect(mockSetMessageEmojiCallable).toHaveBeenCalledWith({
+      conversationId: "c1",
+      messageId: "a1",
+      emoji: null,
+    });
+  });
+
+  it("switches to a different emoji rather than clearing", () => {
+    useChatStore.setState(seed("🔥"));
+
+    useChatStore.getState().setMessageEmoji("a1", "😂");
+
+    expect(emojiOf("a1")).toBe("😂");
+    expect(mockSetMessageEmojiCallable).toHaveBeenCalledWith(
+      expect.objectContaining({ emoji: "😂" }),
+    );
+  });
+
+  it("rolls back to the previous emoji when the persist call fails", async () => {
+    useChatStore.setState(seed("🫡"));
+    mockSetMessageEmojiCallable.mockRejectedValue(new Error("offline"));
+
+    useChatStore.getState().setMessageEmoji("a1", "💀");
+    // Optimistic value shows first…
+    expect(emojiOf("a1")).toBe("💀");
+
+    await flushMicrotasks();
+    // …then reverts to what was there before once the callable rejects.
+    expect(emojiOf("a1")).toBe("🫡");
+  });
+
+  it("is a no-op with no active conversation", () => {
+    useChatStore.setState({ ...seed(), conversationId: null });
+
+    useChatStore.getState().setMessageEmoji("a1", "🔥");
+
+    expect(mockSetMessageEmojiCallable).not.toHaveBeenCalled();
+  });
+
+  it("is a no-op when the target message isn't in the list", () => {
+    useChatStore.getState().setMessageEmoji("missing", "🔥");
+
+    expect(mockSetMessageEmojiCallable).not.toHaveBeenCalled();
+    expect(emojiOf("a1")).toBeUndefined();
   });
 });

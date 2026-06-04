@@ -29,6 +29,10 @@ export type MessageGif = {
   attribution?: string;
   // Original Klipy id (mirrors `id`; kept for parity with MessageImage.memeId).
   gifId?: string;
+  // Short human title of the GIF (Klipy's title, e.g. "rat dancing"). Persisted
+  // so the media decider can see which reactions were already used and avoid
+  // repeating them. Never rendered to the user.
+  title?: string;
 };
 
 // Exactly one GIF per user turn. The image cap (MAX_IMAGES) is independent — a
@@ -50,6 +54,7 @@ export const messageGifSchema = z.object({
   mimeType: z.enum(ALLOWED_GIF_MIME_TYPES).optional(),
   attribution: z.string().max(256).optional(),
   gifId: z.string().max(128).optional(),
+  title: z.string().max(200).optional(),
 });
 
 export type ValidatedMessageGif = z.infer<typeof messageGifSchema>;

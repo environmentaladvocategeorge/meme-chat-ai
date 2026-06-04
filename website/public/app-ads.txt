@@ -1,3 +1,1 @@
-# Add ad network entries here once you wire monetization.
-# Example for AdMob:
-# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+google.com, pub-4560445083665704, DIRECT, f08c47fec0942fa0

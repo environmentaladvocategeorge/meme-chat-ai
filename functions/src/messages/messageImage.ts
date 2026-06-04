@@ -26,6 +26,9 @@ export type KlipyMessageImage = {
   mimeType?: "image/png" | "image/jpeg" | "image/webp";
   attribution?: string;
   memeId?: string;
+  // Short human title of the meme (Klipy's title). Persisted so the media
+  // decider can see which reactions were already used and avoid repeating them.
+  title?: string;
 };
 
 export type UploadedMessageImage = {
@@ -139,6 +142,7 @@ const klipyImageSchema = z.object({
   mimeType: z.enum(ALLOWED_IMAGE_MIME_TYPES).optional(),
   attribution: z.string().max(256).optional(),
   memeId: z.string().max(128).optional(),
+  title: z.string().max(200).optional(),
 });
 
 const uploadImageSchema = z.object({

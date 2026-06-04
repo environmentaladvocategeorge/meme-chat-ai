@@ -9,6 +9,12 @@ import { create } from "zustand";
 
 type EntitlementState = {
   entitlement: Entitlement | null;
+  // Becomes true once the first profiles/{uid} snapshot has landed (or there is
+  // no signed-in user / no Firebase). Until then `entitlement` is null and the
+  // derived plan defaults to "free" — which is indistinguishable from a real
+  // free user. Consumers that must NOT act on that default (e.g. the ad gate,
+  // which would otherwise flash ads at a paying user mid-load) gate on this.
+  loaded: boolean;
   uid: string | null;
   bindUid: (uid: string | null) => void;
   rebind: () => void;
@@ -24,6 +30,18 @@ export function useDisplayPlan(): PlanId {
   return useEntitlementStore((s) => s.entitlement?.plan ?? "free");
 }
 
+// Pure core (testable): the effective plan is the higher-rank tier between the
+// RC-live subscription plan and the backend entitlement mirror. Extracted so the
+// ranking rule can be unit-tested without rendering the hook.
+export function pickEffectivePlan(
+  subscriptionPlan: PlanId,
+  entitlementPlan: PlanId,
+): PlanId {
+  return PLAN_RANK[subscriptionPlan] > PLAN_RANK[entitlementPlan]
+    ? subscriptionPlan
+    : entitlementPlan;
+}
+
 // Effective plan — the higher-rank tier between the RC-live state and the
 // backend mirror. Reserved for PAYMENT-CRITICAL routing only (purchase vs.
 // manage-in-store), where RC is the real-time truth of "do you have an active
@@ -32,17 +50,45 @@ export function useDisplayPlan(): PlanId {
 export function useEffectivePlan(): PlanId {
   const entitlementPlan = useEntitlementStore((s) => s.entitlement?.plan ?? "free");
   const subscriptionPlan = useSubscriptionStore((s) => s.plan);
-  return useMemo(() => {
-    return PLAN_RANK[subscriptionPlan] > PLAN_RANK[entitlementPlan]
-      ? subscriptionPlan
-      : entitlementPlan;
-  }, [entitlementPlan, subscriptionPlan]);
+  return useMemo(
+    () => pickEffectivePlan(subscriptionPlan, entitlementPlan),
+    [entitlementPlan, subscriptionPlan],
+  );
+}
+
+// Pure core (testable): free-tier ads may render ONLY when BOTH plan sources
+// have resolved AND the effective plan is free. During the load window (or for a
+// paying user whose paid tier is known to only one source) it returns false, so
+// the banner renders nothing instead of flashing.
+export function adsAllowed(args: {
+  entitlementLoaded: boolean;
+  subscriptionResolved: boolean;
+  effectivePlan: PlanId;
+}): boolean {
+  return (
+    args.entitlementLoaded &&
+    args.subscriptionResolved &&
+    args.effectivePlan === "free"
+  );
+}
+
+// Single gate for whether free-tier ads may render. Keeps the ad gate in
+// lockstep with every other plan-gated surface (which branch on the
+// display/effective plan rather than the raw RevenueCat-live `isPro`) and,
+// critically, never serves ads during the loading window or to a paying user
+// whose paid tier is known to only one source.
+export function useAdsAllowed(): boolean {
+  const effectivePlan = useEffectivePlan();
+  const entitlementLoaded = useEntitlementStore((s) => s.loaded);
+  const subscriptionResolved = useSubscriptionStore((s) => s.status !== "idle");
+  return adsAllowed({ entitlementLoaded, subscriptionResolved, effectivePlan });
 }
 
 let unsubscribe: (() => void) | null = null;
 
 export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
   entitlement: null,
+  loaded: false,
   uid: null,
 
   bindUid: (uid) => {
@@ -51,11 +97,13 @@ export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
     unsubscribe?.();
     unsubscribe = null;
 
-    set({ uid, entitlement: null });
+    // New identity → back to the loading state. Signing out (uid === null) has
+    // nothing to load, so it resolves immediately as "free".
+    set({ uid, entitlement: null, loaded: uid === null });
 
     if (uid) {
       unsubscribe = subscribeToEntitlement(uid, (entitlement) => {
-        set({ entitlement });
+        set({ entitlement, loaded: true });
       });
     }
   },
@@ -74,7 +122,7 @@ export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
 
     unsubscribe?.();
     unsubscribe = subscribeToEntitlement(uid, (entitlement) => {
-      set({ entitlement });
+      set({ entitlement, loaded: true });
     });
   },
 }));

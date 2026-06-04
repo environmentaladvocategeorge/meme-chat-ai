@@ -3,7 +3,9 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import OpenAI from "openai";
-import { UTILITY_MODEL } from "../billing/models";
+import { resolveModelId } from "../billing/models";
+import { calculateCostUsd, calculateCredits } from "../billing/credits";
+import { chargeCredits } from "../billing/ledger";
 import { PLANS, type PlanId } from "../billing/plans";
 import { planCompaction, verbatimBudgetTokens } from "./compaction";
 import { countTokens } from "./tokens";
@@ -84,6 +86,7 @@ export const summarizeConversation = onDocumentWritten(
     const conversationSnap = await conversationRef.get();
     const data = conversationSnap.data() as
       | {
+          uid?: string;
           summary?: string;
           summaryUpToMessageId?: string | null;
           plan?: PlanId;
@@ -131,7 +134,9 @@ export const summarizeConversation = onDocumentWritten(
     try {
       const client = new OpenAI({ apiKey: OPENAI_API_KEY.value() });
       const completion = await client.chat.completions.create({
-        model: UTILITY_MODEL,
+        // Billable nano (gpt-5.4-nano) so the cost is recorded against the user
+        // with exact pricing, rather than the unpriced utility model.
+        model: resolveModelId("nano"),
         // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s. Note this
         // budget is shared by reasoning + visible output, so it needs headroom
         // for both the reasoning pass and the 6-12 sentence summary, or the
@@ -166,6 +171,33 @@ export const summarizeConversation = onDocumentWritten(
         },
         { merge: true },
       );
+
+      // Bill the owner for this background summary (previously absorbed). Charged
+      // only AFTER the summary is persisted — a retry that finds the work already
+      // done short-circuits in planCompaction above, so we never double-charge.
+      const uid = typeof data?.uid === "string" ? data.uid : null;
+      if (uid) {
+        const u = completion.usage;
+        const usage = {
+          inputTokens: u?.prompt_tokens ?? 0,
+          cachedInputTokens:
+            (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)
+              ?.cached_tokens ?? 0,
+          outputTokens: u?.completion_tokens ?? 0,
+          reasoningTokens:
+            (u?.completion_tokens_details as { reasoning_tokens?: number } | undefined)
+              ?.reasoning_tokens ?? 0,
+        };
+        const costUsd = calculateCostUsd("nano", usage);
+        await chargeCredits(uid, planId, {
+          conversationId: cid,
+          messageId: null,
+          kind: "summary",
+          usages: [{ model: "nano", ...usage }],
+          costUsd,
+          credits: calculateCredits(costUsd),
+        });
+      }
     } catch (err) {
       logger.error("[summarizeConversation] failed", { cid, err });
     }

@@ -4,6 +4,9 @@ import {
   applyRotLevel,
   BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
   DEFAULT_PERSONA_ID,
+  MEDIA_DECIDER_KEY,
+  MEDIA_DECIDER_PROMPT_FALLBACK,
+  MEDIA_GUARDRAILS_FALLBACK,
   PLATFORM_GUARDRAILS_FALLBACK,
   PLATFORM_GUARDRAILS_KEY,
 } from "./content";
@@ -199,6 +202,45 @@ export async function resolvePersonaForStream(
     persona,
     personaPrompt: personaPrompt ?? fallbackPersonaPrompt(persona.id),
   };
+}
+
+// How the active Rot Level nudges the media decider: a higher dial means lean
+// toward attaching a reaction more often. Kept terse — the decider only needs a
+// frequency nudge, not the full tone block the persona prompt gets.
+function deciderRotLine(level: number): string {
+  const clamped = Math.min(Math.max(Math.round(level), 1), 3);
+  const lean =
+    clamped >= 3
+      ? "very generous — attach a reaction on almost every casual turn"
+      : clamped === 2
+        ? "generous — attach a reaction on a good share of casual turns, but not every one"
+        : "sparing — attach a reaction only when it clearly lands";
+  return `Current rot level: ${clamped}/3. Media frequency should be ${lean}. (Serious/sensitive/crisis turns always get no media regardless of the dial.)`;
+}
+
+// Assembles the nano media-decider system prompt: the media-specific guardrails
+// (the platform_guardrails record's `mediaContent` field — decider-tuned
+// language, NOT the persona guardrails) + the decider instructions + a
+// rot-level frequency nudge. Mirrors buildSystemPromptForStream's fallback
+// behavior so a Firestore hiccup still yields a usable decider.
+export async function buildMediaDeciderPrompt(levelOfRot = 2): Promise<string> {
+  let platformPrompt: PlatformPrompt | null = null;
+  let deciderPrompt: PlatformPrompt | null = null;
+  try {
+    [platformPrompt, deciderPrompt] = await Promise.all([
+      getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY),
+      getActivePlatformPrompt(MEDIA_DECIDER_KEY),
+    ]);
+  } catch (err) {
+    logger.warn("[personas] media decider prompt resolution failed; using fallback", {
+      err,
+    });
+  }
+  // The decider uses the `mediaContent` field, NOT `content` (which is the
+  // persona path's guardrails). Falls back when the field/doc is absent.
+  const guardrails = platformPrompt?.mediaContent ?? MEDIA_GUARDRAILS_FALLBACK;
+  const deciderContent = deciderPrompt?.content ?? MEDIA_DECIDER_PROMPT_FALLBACK;
+  return `${guardrails}\n\n${deciderContent}\n\n${deciderRotLine(levelOfRot)}`;
 }
 
 export async function buildSystemPromptForStream(

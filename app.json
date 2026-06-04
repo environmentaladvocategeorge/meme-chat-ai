@@ -2,7 +2,7 @@
   "expo": {
     "name": "Meme Chat AI",
     "slug": "meme-chat-ai",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "memechatai",
@@ -16,10 +16,7 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleLocalizations": [
-          "en",
-          "es"
-        ],
+        "CFBundleLocalizations": ["en", "es", "fr", "pt", "de", "zh", "ja"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -95,6 +92,31 @@
         }
       },
       "es": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "fr": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "pt": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "de": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "zh": {
+        "ios": {
+          "CFBundleDisplayName": "Meme Chat AI"
+        }
+      },
+      "ja": {
         "ios": {
           "CFBundleDisplayName": "Meme Chat AI"
         }

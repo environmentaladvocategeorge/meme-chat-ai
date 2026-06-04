@@ -15,8 +15,10 @@ import {
 } from "@/services/firebase/conversations";
 import { useAuthStore } from "@/store/auth";
 import { useChatStore } from "@/store/chat";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Fuse from "fuse.js";
+import { useColorScheme } from "nativewind";
 import { CheckCircle, MagnifyingGlass, Trash, X } from "phosphor-react-native";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -28,11 +30,15 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  Easing,
   FadeIn,
   FadeOut,
+  interpolate,
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
+  withRepeat,
   withTiming,
 } from "react-native-reanimated";
 
@@ -86,6 +92,10 @@ export default function HistoryScreen() {
   const activeConversationId = useChatStore((s) => s.conversationId);
   const startNewConversation = useChatStore((s) => s.startNewConversation);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  // True until the first conversations snapshot lands, so the list shows a
+  // skeleton loader instead of the "no chats yet" empty state while the read is
+  // still in flight (otherwise a user with history briefly sees "nothing here").
+  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 200);
   const [sort, setSort] = useState<SortOption>("recent");
@@ -99,9 +109,21 @@ export default function HistoryScreen() {
   useEffect(() => {
     if (!uid) {
       setConversations([]);
+      setLoading(false);
       return;
     }
-    return subscribeToConversations(uid, setConversations);
+    // New identity → drop any prior account's list and show the loader until the
+    // first snapshot (or a hard error) resolves it.
+    setConversations([]);
+    setLoading(true);
+    return subscribeToConversations(
+      uid,
+      (next) => {
+        setConversations(next);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
   }, [uid]);
 
   // Fuse index — rebuild only when the conversation list changes. Weights
@@ -276,7 +298,9 @@ export default function HistoryScreen() {
         keyboardShouldPersistTaps="handled"
         stickySectionHeadersEnabled={false}
         ListEmptyComponent={
-          isSearching ? (
+          loading ? (
+            <HistoryLoadingState label={t("history.loading")} />
+          ) : isSearching ? (
             <NoSearchResults query={debouncedQuery} />
           ) : (
             <EmptyState />
@@ -685,6 +709,137 @@ function HistoryCard({
           ) : null}
         </Animated.View>
       </AppPressable>
+  );
+}
+
+// ----- HistoryLoadingState -----
+//
+// Shown while the first conversations snapshot is still in flight, so a user
+// with real history never sees the "nothing here yet" empty state by mistake.
+// Mirrors the shimmer-skeleton language already used in TrendingMemeStrip: a
+// light band sweeps across muted placeholder bars laid out like real cards.
+
+// One muted bar with a light sweep looping across it. `delay` offsets each
+// bar's phase so a stack of them reads as a gentle wave rather than a flash.
+function ShimmerBar({
+  width,
+  height,
+  delay,
+  radius = 6,
+}: {
+  width: number;
+  height: number;
+  delay: number;
+  radius?: number;
+}) {
+  const theme = useTheme();
+  const { colorScheme } = useColorScheme();
+  const highlight =
+    colorScheme === "dark" ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.6)";
+  const shimmer = useSharedValue(0);
+
+  useEffect(() => {
+    shimmer.value = withDelay(
+      delay,
+      withRepeat(
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        -1,
+        false,
+      ),
+    );
+  }, [shimmer, delay]);
+
+  const sweepStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(shimmer.value, [0, 1], [-width, width]) },
+    ],
+  }));
+
+  return (
+    <View
+      style={{
+        width,
+        height,
+        borderRadius: radius,
+        overflow: "hidden",
+        backgroundColor: theme["--color-card-muted"],
+      }}
+    >
+      <Animated.View style={[{ width, height: "100%" }, sweepStyle]}>
+        <LinearGradient
+          colors={["transparent", highlight, "transparent"]}
+          start={{ x: 0, y: 0.5 }}
+          end={{ x: 1, y: 0.5 }}
+          style={{ flex: 1 }}
+        />
+      </Animated.View>
+    </View>
+  );
+}
+
+// A placeholder shaped like a real HistoryCard (same surface, border, padding):
+// a title bar over two shorter preview bars.
+function HistorySkeletonCard({
+  delay,
+  titleWidth,
+  previewWidth,
+}: {
+  delay: number;
+  titleWidth: number;
+  previewWidth: number;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        borderRadius: 14,
+        backgroundColor: theme["--color-card"],
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        gap: 10,
+      }}
+    >
+      <ShimmerBar width={titleWidth} height={14} delay={delay} radius={7} />
+      <ShimmerBar width={previewWidth} height={10} delay={delay + 80} radius={5} />
+      <ShimmerBar
+        width={previewWidth * 0.6}
+        height={10}
+        delay={delay + 160}
+        radius={5}
+      />
+    </View>
+  );
+}
+
+// Varied bar widths so the loading stack mimics the natural rhythm of real
+// chat titles/previews rather than a uniform grid.
+const SKELETON_ROWS: readonly { titleWidth: number; previewWidth: number }[] = [
+  { titleWidth: 172, previewWidth: 244 },
+  { titleWidth: 128, previewWidth: 200 },
+  { titleWidth: 196, previewWidth: 256 },
+  { titleWidth: 112, previewWidth: 176 },
+  { titleWidth: 160, previewWidth: 228 },
+  { titleWidth: 140, previewWidth: 208 },
+];
+
+function HistoryLoadingState({ label }: { label: string }) {
+  return (
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      style={{ gap: 8 }}
+    >
+      {SKELETON_ROWS.map((row, i) => (
+        <HistorySkeletonCard
+          key={i}
+          delay={i * 120}
+          titleWidth={row.titleWidth}
+          previewWidth={row.previewWidth}
+        />
+      ))}
+    </View>
   );
 }
 

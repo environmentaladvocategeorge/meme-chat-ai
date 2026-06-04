@@ -117,6 +117,27 @@ export async function rateMessageCallable(args: {
   return result.data;
 }
 
+// Sets (or clears, when emoji is null) the caller's emoji reaction on a
+// message. Independent of the thumbs rating; persisted in its own field. Goes
+// through the Admin SDK callable since client writes to messages are blocked.
+export async function setMessageEmojiCallable(args: {
+  conversationId: string;
+  messageId: string;
+  emoji: string | null;
+}): Promise<{ success: true; emoji: string | null }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    { conversationId: string; messageId: string; emoji: string | null },
+    { success: true; emoji: string | null }
+  >(firebase.services.functions, "setMessageEmoji");
+  const result = await callable(args);
+  return result.data;
+}
+
 export type TrendingMemesParams = {
   page?: number;
   perPage?: number;

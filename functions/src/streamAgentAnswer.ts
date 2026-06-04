@@ -4,13 +4,14 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
+import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
-import { GET_GIF_TOOL, runGetGif } from "./gifs/getGifTool";
-import { GET_MEME_TOOL, runGetMeme } from "./memes/getMemeTool";
+import { runGetGif } from "./gifs/getGifTool";
+import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
-import { chargeCredits, evaluateQuota } from "./billing/ledger";
+import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger";
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
@@ -22,6 +23,7 @@ import {
   assertConversationOwner,
   createConversation,
   finalizeAgentMessage,
+  loadRecentMessages,
   markAgentMessageErrored,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
@@ -34,7 +36,10 @@ import {
   resolveImageInputs,
 } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
-import { buildSystemPromptForStream } from "./personas/prompts";
+import {
+  buildMediaDeciderPrompt,
+  buildSystemPromptForStream,
+} from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -245,28 +250,93 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
-    // ---------- routing + context ----------
+    // ---------- routing + media decision + context ----------
     let internalModel;
     let assembleResult;
     let resolvedPersona:
       | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
       | null = null;
+    // Nano media-decider usage (billed alongside the reply), and the reaction
+    // GIF/meme it picked — fetched BEFORE the reply so the model knows what's
+    // attached and the client can show it first (like texting a gif, then typing).
+    let decideUsage: ModelUsage | null = null;
+    let pendingGif: MessageGif | null = null;
+    let pendingMeme: MessageImage | null = null;
     const klipyApiKey = KLIPY_APP_KEY.value();
-    const memeToolEnabled = klipyApiKey.length > 0;
+    const mediaEnabled = klipyApiKey.length > 0;
     try {
       internalModel = chooseModel(entitlement.plan);
       const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
       resolvedPersona = promptResult.persona;
-      // The persona prompt itself carries the get_gif / get_meme usage rules,
-      // so no extra tool guidance is appended here. `memeToolEnabled` still
-      // gates whether the tools are actually registered below.
       const systemPrompt = promptResult.systemPrompt;
+
+      // Cheap nano pre-step: decide whether this turn warrants a reaction
+      // GIF/meme and pick the search term, then fetch it. The reply model gets a
+      // note about what's attached (cohesion) and never makes a tool round-trip.
+      let attachedMedia:
+        | { kind: "gif" | "meme"; description: string }
+        | undefined;
+      if (mediaEnabled) {
+        const priorMessages = await loadRecentMessages(conversationId, 12);
+        const { history, recentReactions } = buildDeciderContext(priorMessages);
+        const currentForDecider =
+          userText ||
+          (images.length > 0
+            ? "[user sent an image]"
+            : gifs.length > 0
+              ? "[user sent a GIF]"
+              : "");
+        const { decision, usage } = await decideMedia({
+          apiKey: OPENAI_API_KEY.value(),
+          systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          history,
+          currentMessage: currentForDecider,
+          recentReactions,
+        });
+        decideUsage = usage;
+
+        if (decision.type === "gif" || decision.type === "meme") {
+          const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+          const rawArgs = JSON.stringify({
+            query: decision.query,
+            randomness_factor: decision.randomnessFactor,
+          });
+          try {
+            if (decision.type === "gif") {
+              const r = await runGetGif(rawArgs, klipyDeps);
+              if (r.gif) {
+                pendingGif = r.gif;
+                attachedMedia = {
+                  kind: "gif",
+                  description: r.title ?? decision.query,
+                };
+              }
+            } else {
+              const r = await runGetMeme(rawArgs, klipyDeps);
+              if (r.meme) {
+                pendingMeme = r.meme;
+                attachedMedia = {
+                  kind: "meme",
+                  description: r.title ?? decision.query,
+                };
+              }
+            }
+          } catch (err) {
+            logger.warn(
+              "[streamAgentAnswer] media fetch failed; replying text-only",
+              { conversationId, err },
+            );
+          }
+        }
+      }
+
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
+        attachedMedia,
         systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
@@ -283,23 +353,40 @@ export const streamAgentAnswer = onRequest(
     let clientClosed = false;
     let sawDelta = false;
     let lastUsage: AgentUsage | null = null;
-    // The meme / GIF the agent attached via get_meme / get_gif this turn, if
-    // any. Persisted on the agent message at finalize and emitted to the client
-    // over SSE. At most one is set (the guidance says pick one).
-    let agentMeme: MessageImage | null = null;
-    let agentGif: MessageGif | null = null;
+    // The reaction GIF/meme chosen by the nano decider before streaming, if any.
+    // Emitted to the client first (media-then-text), then persisted on the agent
+    // message at finalize. At most one is set.
+    let agentMeme: MessageImage | null = pendingMeme;
+    let agentGif: MessageGif | null = pendingGif;
     const abortController = new AbortController();
 
-    // Charge the turn's real cost once the stream's final usage is known.
-    // There is nothing to reserve or release: if no usage ever arrived (e.g.
-    // the client aborted before any output), the turn is free.
+    // Charge the turn's real cost once the stream's final usage is known. Sums
+    // both models that ran: the nano media decider (always) + the mini reply.
+    // If neither produced usage (e.g. the client aborted before any output and
+    // the decider was skipped), the turn is free.
     const chargeForUsage = async (reason: string) => {
-      if (!lastUsage) return;
+      const usages: ModelUsage[] = [];
+      if (
+        decideUsage &&
+        (decideUsage.inputTokens > 0 || decideUsage.outputTokens > 0)
+      ) {
+        usages.push(decideUsage);
+      }
+      if (lastUsage) {
+        usages.push({
+          model: internalModel,
+          inputTokens: lastUsage.inputTokens,
+          cachedInputTokens: lastUsage.cachedInputTokens,
+          outputTokens: lastUsage.outputTokens,
+          reasoningTokens: lastUsage.reasoningTokens,
+        });
+      }
+      if (usages.length === 0) return;
 
       // Early-rollout calibration: compare our flat image-token estimate to the
       // model's actual prompt tokens so we can tune IMAGE_TOKENS_LOW per model.
       // No image URLs are logged.
-      if (images.length > 0) {
+      if (lastUsage && images.length > 0) {
         logger.info("[streamAgentAnswer] image turn usage", {
           model: internalModel,
           imageCount: images.length,
@@ -311,16 +398,16 @@ export const streamAgentAnswer = onRequest(
       }
 
       try {
-        const costUsd = calculateCostUsd(internalModel, lastUsage);
+        const costUsd = usages.reduce(
+          (sum, u) => sum + calculateCostUsd(u.model, u),
+          0,
+        );
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
           conversationId: conversationId!,
           messageId: agentMessageId,
-          model: internalModel,
-          inputTokens: lastUsage.inputTokens,
-          cachedInputTokens: lastUsage.cachedInputTokens,
-          outputTokens: lastUsage.outputTokens,
-          reasoningTokens: lastUsage.reasoningTokens,
+          kind: "turn",
+          usages,
           costUsd,
           credits,
         });
@@ -404,30 +491,22 @@ export const streamAgentAnswer = onRequest(
         });
       }
 
+      // Media-first, like texting: surface the chosen GIF/meme before the reply
+      // streams so it lands above the text bubble. At most one is set.
+      if (agentGif) {
+        writeSse(res, "gif", { gif: agentGif });
+      } else if (agentMeme) {
+        writeSse(res, "meme", { image: agentMeme });
+      }
+
       let fullText = "";
       for await (const delta of streamAgent({
         messages: assembleResult.messages,
         apiKey: OPENAI_API_KEY.value(),
         model: resolveModelId(internalModel),
         maxOutputTokens: entitlement.maxOutputTokens,
-        // Offer the get_meme tool only when Klipy is configured. The runner
-        // resolves Klipy internally and never throws, so a meme miss/outage
-        // still yields a normal text reply.
-        tools: memeToolEnabled ? [GET_GIF_TOOL, GET_MEME_TOOL] : undefined,
-        runTool: memeToolEnabled
-          ? (call) => {
-              const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
-              if (call.name === "get_meme") {
-                return runGetMeme(call.arguments, klipyDeps);
-              }
-              if (call.name === "get_gif") {
-                return runGetGif(call.arguments, klipyDeps);
-              }
-              return Promise.resolve({
-                content: JSON.stringify({ error: "unknown_tool" }),
-              });
-            }
-          : undefined,
+        // No tools: the reaction GIF/meme was already decided + fetched by the
+        // nano pre-step, so the reply model just writes text in a single call.
         signal: abortController.signal,
       })) {
         if (clientClosed) {
@@ -441,22 +520,6 @@ export const streamAgentAnswer = onRequest(
           sawDelta = true;
           fullText += delta.text;
           writeSse(res, "delta", { text: delta.text });
-          continue;
-        }
-
-        if (delta.type === "meme") {
-          // Keep the latest meme (the tool is capped to one round, so this fires
-          // at most once) and stream it so the client can show it immediately,
-          // before the finalized Firestore message lands.
-          agentMeme = delta.image;
-          writeSse(res, "meme", { image: agentMeme });
-          continue;
-        }
-
-        if (delta.type === "gif") {
-          // Same as the meme path, for an agent-attached GIF.
-          agentGif = delta.gif;
-          writeSse(res, "gif", { gif: agentGif });
           continue;
         }
 

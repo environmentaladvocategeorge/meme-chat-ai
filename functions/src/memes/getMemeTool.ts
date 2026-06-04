@@ -96,6 +96,9 @@ export type GetMemeResult = {
   // The chosen meme as a message attachment, surfaced to the caller. Absent
   // when no usable result was found or Klipy was unavailable.
   meme?: ValidatedMessageImage;
+  // The chosen meme's Klipy title — a short description handed to the reply
+  // model (via the media pipeline) so it knows what's attached. Not shown raw.
+  title?: string;
 };
 
 // Map the top Klipy hit onto our message-attachment shape, then revalidate it
@@ -111,6 +114,8 @@ function toMessageImage(meme: TrendingMeme): ValidatedMessageImage | null {
     height: meme.height || undefined,
     attribution: "Powered by Klipy",
     memeId: meme.id,
+    // Persisted so the media decider can avoid repeating recent reactions.
+    title: meme.title || undefined,
   };
   const parsed = messageImageSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
@@ -155,22 +160,25 @@ export async function runGetMeme(
     // this is just the top hit; higher factors sample a few deep with a strong
     // front bias — without us reading each result to choose (token waste).
     const candidates = result.memes
-      .map(toMessageImage)
-      .filter((m): m is ValidatedMessageImage => m !== null);
-    const meme =
+      .map((m) => ({ meme: toMessageImage(m), title: m.title }))
+      .filter(
+        (c): c is { meme: ValidatedMessageImage; title: string } =>
+          c.meme !== null,
+      );
+    const chosen =
       candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
       null;
-    if (!meme) {
+    if (!chosen) {
       return { content: JSON.stringify({ found: false }) };
     }
 
-    // Deliberately do NOT hand the model the meme's title/URL. It only needs to
-    // know the attach succeeded so it can phrase its reply; returning the title
-    // tempts the model into echoing it (e.g. a bold "Funny Reaction Meme") and
-    // the image is shown to the user out-of-band anyway.
+    // The `content` string still hides the title from any model that reads it as
+    // a tool message (legacy path). The media pipeline instead uses `title`
+    // out-of-band to brief the reply model on what's attached.
     return {
       content: JSON.stringify({ found: true }),
-      meme,
+      meme: chosen.meme,
+      title: chosen.title,
     };
   } catch (err) {
     if (err instanceof KlipyError) {

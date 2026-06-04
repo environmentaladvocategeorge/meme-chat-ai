@@ -10,7 +10,7 @@ import {
 } from "@/domain/customization";
 
 export type Appearance = "system" | "light" | "dark";
-export type Language = "system" | "en" | "es";
+export type Language = "system" | "en" | "es" | "fr" | "pt" | "de" | "zh" | "ja" | "hi" | "ru";
 
 export interface PersistedSettings {
   appearance: Appearance;
@@ -32,7 +32,7 @@ const SETTINGS_KEY = "app.settings";
 const ONBOARDING_KEY = "app.onboarding";
 
 const APPEARANCE_VALUES = new Set<Appearance>(["system", "light", "dark"]);
-const LANGUAGE_VALUES = new Set<Language>(["system", "en", "es"]);
+const LANGUAGE_VALUES = new Set<Language>(["system", "en", "es", "fr", "pt", "de", "zh", "ja", "hi", "ru"]);
 
 export const DEFAULT_SETTINGS: PersistedSettings = {
   appearance: "system",
