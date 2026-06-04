@@ -38,7 +38,7 @@ export function LanguageSheet() {
   const setLanguage = useSettingsStore((s) => s.setLanguage);
 
   const sheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["65%"], []);
+  const snapPoints = useMemo(() => ["80%"], []);
 
   useEffect(() => {
     if (isOpen) sheetRef.current?.present();
