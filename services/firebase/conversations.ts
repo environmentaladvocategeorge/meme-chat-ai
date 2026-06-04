@@ -274,13 +274,21 @@ export async function getConversations(
 export function subscribeToConversations(
   uid: string,
   cb: (conversations: ConversationSummary[]) => void,
+  // Optional: invoked after the default log/swallow when the listener errors,
+  // so a caller can resolve its loading state instead of spinning forever (the
+  // success callback never fires on a hard error like a network failure).
+  onError?: () => void,
 ): Unsubscribe {
+  const logError = handleSnapshotError("conversations");
   return onSnapshot(
     listConversations(uid),
     (snapshot) => {
       cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())));
     },
-    handleSnapshotError("conversations"),
+    (error) => {
+      logError(error);
+      onError?.();
+    },
   );
 }
 

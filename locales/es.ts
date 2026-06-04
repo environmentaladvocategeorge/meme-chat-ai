@@ -443,6 +443,7 @@ const es = {
   },
   history: {
     title: "Historial",
+    loading: "Cargando tus chats…",
     empty: "Aún no hay chats. ¡Saluda a Brainrot Bot!",
     emptyTitle: "Tu repisa de chats está vacía",
     untitled: "Chat sin título",

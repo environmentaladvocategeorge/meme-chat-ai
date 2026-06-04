@@ -444,6 +444,7 @@ const en = {
   },
   history: {
     title: "Chat history",
+    loading: "Loading your chats…",
     empty: "No chats yet. Say hi to Brainrot Bot!",
     emptyTitle: "Your chat shelf is empty",
     untitled: "Untitled chat",
