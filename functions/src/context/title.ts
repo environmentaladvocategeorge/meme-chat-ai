@@ -3,7 +3,10 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onDocumentWritten } from "firebase-functions/v2/firestore";
 import OpenAI from "openai";
-import { UTILITY_MODEL } from "../billing/models";
+import { resolveModelId } from "../billing/models";
+import { calculateCostUsd, calculateCredits } from "../billing/credits";
+import { chargeCredits } from "../billing/ledger";
+import { PLANS, type PlanId } from "../billing/plans";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
@@ -109,7 +112,7 @@ export const generateConversationTitle = onDocumentWritten(
     // before we ever scan the messages subcollection.
     const conversationSnap = await conversationRef.get();
     const conv = conversationSnap.data() as
-      | { titleGenerated?: boolean }
+      | { titleGenerated?: boolean; uid?: string; plan?: PlanId }
       | undefined;
     if (!conv || conv.titleGenerated) return;
 
@@ -187,7 +190,9 @@ export const generateConversationTitle = onDocumentWritten(
       });
 
       const completion = await client.chat.completions.create({
-        model: UTILITY_MODEL,
+        // Billable nano (gpt-5.4-nano) so the title's cost is recorded against
+        // the user with exact pricing, rather than the unpriced utility model.
+        model: resolveModelId("nano"),
         // gpt-5-nano is a reasoning model: max_completion_tokens is the TOTAL
         // budget (reasoning + visible output). The previous 80-token cap let the
         // reasoning pass eat the whole budget, leaving content empty
@@ -235,6 +240,35 @@ export const generateConversationTitle = onDocumentWritten(
         },
         { merge: true },
       );
+
+      // Bill the owner for this background title generation (previously
+      // absorbed). Charged after titleGenerated is set; the atomic claim +
+      // titleGenerated guard above keep a retry from charging twice.
+      const uid = typeof conv.uid === "string" ? conv.uid : null;
+      if (uid) {
+        const planId: PlanId =
+          conv.plan && conv.plan in PLANS ? conv.plan : "free";
+        const u = completion.usage;
+        const usage = {
+          inputTokens: u?.prompt_tokens ?? 0,
+          cachedInputTokens:
+            (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)
+              ?.cached_tokens ?? 0,
+          outputTokens: u?.completion_tokens ?? 0,
+          reasoningTokens:
+            (u?.completion_tokens_details as { reasoning_tokens?: number } | undefined)
+              ?.reasoning_tokens ?? 0,
+        };
+        const costUsd = calculateCostUsd("nano", usage);
+        await chargeCredits(uid, planId, {
+          conversationId: cid,
+          messageId: null,
+          kind: "title",
+          usages: [{ model: "nano", ...usage }],
+          costUsd,
+          credits: calculateCredits(costUsd),
+        });
+      }
     } catch (err) {
       logger.error("[generateConversationTitle] failed", {
         cid,

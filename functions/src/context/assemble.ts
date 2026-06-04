@@ -53,6 +53,11 @@ export type AssembleArgs = {
   // is async (fetch + decode), so the caller does it before this pure
   // assembler runs and hands the result in here.
   currentGifFrames?: ExtractedGifFrames;
+  // A reaction GIF/meme the media pipeline already chose for THIS reply. When
+  // present, a short system note is injected right before the current turn so
+  // the reply model knows what's attached and can riff on it. The model does not
+  // attach media itself — this is purely informational.
+  attachedMedia?: { kind: "gif" | "meme"; description: string };
   maxInputTokens: number;
 };
 
@@ -89,6 +94,24 @@ function buildUserContextMessage(
     );
   }
   return parts.length > 0 ? parts.join(" ") : null;
+}
+
+// Builds the note that tells the reply model a reaction GIF/meme has ALREADY
+// been chosen for this turn (by the nano media decider) and will be shown with
+// its reply. The model never attaches media itself, so this is informational:
+// it can play off the attachment but must not title/describe/link it.
+function buildAttachedMediaNote(media: {
+  kind: "gif" | "meme";
+  description: string;
+}): string {
+  const kind = media.kind === "gif" ? "animated GIF" : "still meme";
+  const about = media.description.trim();
+  return (
+    `[A reaction ${kind} has already been chosen and will be shown to the user with your reply` +
+    (about ? ` — it's: "${about}"` : "") +
+    `. You can riff on it or ignore it, but do NOT title, describe, link, embed, or announce it ` +
+    `(no "here's a gif", no "*sends meme*") — the app renders it on its own. Just write your normal text reply.]`
+  );
 }
 
 // Builds the note that tells the model the supplied frames are slices of ONE
@@ -208,6 +231,15 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
             },
       );
     }
+    // Per-turn media note sits in the fresh tail (after the cacheable
+    // system+summary+recent prefix, right before the current turn) so it never
+    // disturbs the prompt cache.
+    if (args.attachedMedia) {
+      out.push({
+        role: "system",
+        content: buildAttachedMediaNote(args.attachedMedia),
+      });
+    }
     out.push({
       role: "user",
       content: buildCurrentUserContent(
@@ -284,6 +316,9 @@ export type AssembleContextArgs = {
   // The GIF attached to the current turn (max one). Decoded into sampled frames
   // for the model before assembly.
   currentGif?: MessageGif;
+  // Reaction GIF/meme the media pipeline chose for this reply (informational
+  // note for the model — see AssembleArgs.attachedMedia).
+  attachedMedia?: { kind: "gif" | "meme"; description: string };
   systemPrompt?: string;
   userAlias?: string | null;
   // Resolved app language (e.g. "en", "es") — never "system".
@@ -354,6 +389,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     currentText: args.currentUserMessage,
     currentImageUrls: args.currentImageUrls,
     currentGifFrames,
+    attachedMedia: args.attachedMedia,
     maxInputTokens: planCfg.maxInputTokens,
   });
 }

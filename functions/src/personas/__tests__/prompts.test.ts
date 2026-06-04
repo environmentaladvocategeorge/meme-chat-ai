@@ -12,9 +12,12 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
   DEFAULT_PERSONA_ID,
+  MEDIA_DECIDER_KEY,
+  MEDIA_DECIDER_PROMPT_FALLBACK,
+  MEDIA_GUARDRAILS_FALLBACK,
   PLATFORM_GUARDRAILS_FALLBACK,
 } from "../content";
-import { buildSystemPromptForStream } from "../prompts";
+import { buildMediaDeciderPrompt, buildSystemPromptForStream } from "../prompts";
 
 type Doc = Record<string, unknown>;
 type Collections = Record<string, Record<string, Doc>>;
@@ -100,11 +103,32 @@ function personaPrompt(id: string, personaId: string, content: string, createdAt
   };
 }
 
-function platformPrompt(content = "PLATFORM", createdAt = 1): Doc {
+function platformPrompt(
+  content = "PLATFORM",
+  createdAt = 1,
+  mediaContent?: string,
+): Doc {
   return {
     id: "platform_guardrails_v1",
     name: "Platform Guardrails",
     key: "platform_guardrails",
+    version: "1.0.0",
+    content,
+    ...(mediaContent !== undefined ? { mediaContent } : {}),
+    isActive: true,
+    createdAt,
+    addedBy: "test",
+    notes: "test",
+  };
+}
+
+// The media-decider instruction doc (separate platform_prompts record, keyed
+// media_decider) — the picker body/bank, distinct from the guardrails.
+function deciderPrompt(content = "DECIDER-BODY", createdAt = 1): Doc {
+  return {
+    id: "media_decider_v1",
+    name: "Media Decider",
+    key: MEDIA_DECIDER_KEY,
     version: "1.0.0",
     content,
     isActive: true,
@@ -244,6 +268,22 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).not.toContain("OLD-PERSONA");
   });
 
+  it("persona path uses `content`, never `mediaContent`", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("PERSONA-GUARDS", 1, "MEDIA-GUARDS"),
+      },
+      personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+      persona_prompts: {
+        p: personaPrompt("p", DEFAULT_PERSONA_ID, "BRAINROT"),
+      },
+    });
+
+    const result = await buildSystemPromptForStream();
+    expect(result.systemPrompt).toContain("PERSONA-GUARDS");
+    expect(result.systemPrompt).not.toContain("MEDIA-GUARDS");
+  });
+
   it("returns only safe persona metadata next to the backend-only prompt", async () => {
     setDb({
       platform_prompts: { platform_guardrails_v1: platformPrompt("SECRET PLATFORM") },
@@ -264,5 +304,69 @@ describe("persona prompt resolution", () => {
     expect(personaJson).not.toContain("SECRET PERSONA");
     expect(result.systemPrompt).toContain("SECRET PLATFORM");
     expect(result.systemPrompt).toContain("SECRET PERSONA");
+  });
+});
+
+describe("media decider prompt resolution", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("composes mediaContent guardrails + decider body + rot line (not persona guardrails)", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("PERSONA-GUARDS", 1, "MEDIA-GUARDS"),
+        media_decider_v1: deciderPrompt("DECIDER-BODY"),
+      },
+    });
+
+    const out = await buildMediaDeciderPrompt(2);
+    expect(out).toContain("MEDIA-GUARDS");
+    expect(out).toContain("DECIDER-BODY");
+    expect(out).toContain("Current rot level: 2/3");
+    // The decider must NOT receive the persona path's guardrails.
+    expect(out).not.toContain("PERSONA-GUARDS");
+    // Order: guardrails before the decider body.
+    expect(out.indexOf("MEDIA-GUARDS")).toBeLessThan(out.indexOf("DECIDER-BODY"));
+  });
+
+  it("varies the rot line by level", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("P", 1, "M"),
+        media_decider_v1: deciderPrompt("D"),
+      },
+    });
+    expect(await buildMediaDeciderPrompt(1)).toContain("Current rot level: 1/3");
+    expect(await buildMediaDeciderPrompt(3)).toContain("Current rot level: 3/3");
+  });
+
+  it("falls back to MEDIA_GUARDRAILS_FALLBACK when the platform doc is missing", async () => {
+    setDb({ platform_prompts: { media_decider_v1: deciderPrompt("D") } });
+    const out = await buildMediaDeciderPrompt();
+    expect(out.startsWith(MEDIA_GUARDRAILS_FALLBACK)).toBe(true);
+  });
+
+  it("falls back to MEDIA_GUARDRAILS_FALLBACK when the mediaContent field is absent", async () => {
+    // Platform doc exists but carries only the persona `content`, no mediaContent.
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("PERSONA-ONLY"),
+        media_decider_v1: deciderPrompt("D"),
+      },
+    });
+    const out = await buildMediaDeciderPrompt();
+    expect(out).toContain(MEDIA_GUARDRAILS_FALLBACK);
+    expect(out).not.toContain("PERSONA-ONLY");
+  });
+
+  it("falls back to MEDIA_DECIDER_PROMPT_FALLBACK when the decider doc is missing", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("P", 1, "MEDIA-GUARDS"),
+      },
+    });
+    const out = await buildMediaDeciderPrompt();
+    expect(out).toContain(MEDIA_DECIDER_PROMPT_FALLBACK);
   });
 });

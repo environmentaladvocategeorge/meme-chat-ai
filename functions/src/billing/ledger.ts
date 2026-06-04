@@ -11,19 +11,71 @@ import {
 
 export type QuotaReason = "monthly" | "daily";
 
-// What actually happened on a turn — the real token usage and the credits it
-// cost, recomputed by the caller from the stream's final usage chunk.
-export type SettlementInput = {
-  conversationId: string;
-  messageId: string | null;
+// Real token usage for ONE model invocation within a billable unit of work. A
+// single turn can now span multiple models (e.g. the nano GIF-decider + the
+// mini reply), so settlement carries a list of these rather than one model.
+export type ModelUsage = {
   model: ModelId;
   inputTokens: number;
   cachedInputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
+};
+
+// What kind of work the charge is for. "turn" is a user-facing chat turn;
+// "summary"/"title" are background utility calls we now also bill (they used to
+// be absorbed). Stored on the usageEvent so cost dashboards can split them out.
+export type UsageKind = "turn" | "summary" | "title";
+
+// What actually happened on a billable unit of work — the per-model token usage
+// and the credits it cost, recomputed by the caller from each call's final usage
+// chunk. costUsd/credits are the SUMMED totals across all `usages`.
+export type SettlementInput = {
+  conversationId: string;
+  messageId: string | null;
+  kind: UsageKind;
+  usages: ModelUsage[];
   costUsd: number;
   credits: number;
 };
+
+// Flattens per-model usages into the usageEvents token fields: summed aggregates
+// (what aggregateDailyUsage reads) PLUS per-model split fields (nanoInputTokens,
+// miniCachedInputTokens, …) so a single event shows the full cost breakdown.
+export function usageTokenFields(usages: ModelUsage[]): Record<string, number> {
+  const out: Record<string, number> = {
+    inputTokens: 0,
+    cachedInputTokens: 0,
+    outputTokens: 0,
+    reasoningTokens: 0,
+  };
+  for (const u of usages) {
+    out.inputTokens += u.inputTokens;
+    out.cachedInputTokens += u.cachedInputTokens;
+    out.outputTokens += u.outputTokens;
+    out.reasoningTokens += u.reasoningTokens;
+    out[`${u.model}InputTokens`] = (out[`${u.model}InputTokens`] ?? 0) + u.inputTokens;
+    out[`${u.model}CachedInputTokens`] =
+      (out[`${u.model}CachedInputTokens`] ?? 0) + u.cachedInputTokens;
+    out[`${u.model}OutputTokens`] = (out[`${u.model}OutputTokens`] ?? 0) + u.outputTokens;
+    out[`${u.model}ReasoningTokens`] =
+      (out[`${u.model}ReasoningTokens`] ?? 0) + u.reasoningTokens;
+  }
+  return out;
+}
+
+// The model to record on the event's `model` field (drives aggregateDailyUsage's
+// byModel rollup). We attribute the event to whichever model did the most token
+// work — the reply model on a turn, the sole model on a utility call.
+export function primaryModel(usages: ModelUsage[]): ModelId {
+  let best: ModelUsage | null = null;
+  for (const u of usages) {
+    if (!best || u.inputTokens + u.outputTokens > best.inputTokens + best.outputTokens) {
+      best = u;
+    }
+  }
+  return best?.model ?? "mini";
+}
 
 // ---------- pure decision helpers (unit-testable) ----------
 
@@ -106,12 +158,11 @@ export async function chargeCredits(
       uid,
       conversationId: settlement.conversationId,
       messageId: settlement.messageId,
-      model: settlement.model,
+      kind: settlement.kind,
+      model: primaryModel(settlement.usages),
       plan,
-      inputTokens: settlement.inputTokens,
-      cachedInputTokens: settlement.cachedInputTokens,
-      outputTokens: settlement.outputTokens,
-      reasoningTokens: settlement.reasoningTokens,
+      // Summed aggregates (read by aggregateDailyUsage) + per-model split fields.
+      ...usageTokenFields(settlement.usages),
       costUsd: settlement.costUsd,
       credits: settlement.credits,
       createdAt: FieldValue.serverTimestamp(),
@@ -123,11 +174,9 @@ export async function chargeCredits(
   logger.info("[chargeCredits] charged", {
     uid,
     plan,
-    model: settlement.model,
-    inputTokens: settlement.inputTokens,
-    cachedInputTokens: settlement.cachedInputTokens,
-    outputTokens: settlement.outputTokens,
-    reasoningTokens: settlement.reasoningTokens,
+    kind: settlement.kind,
+    model: primaryModel(settlement.usages),
+    ...usageTokenFields(settlement.usages),
     costUsd: settlement.costUsd,
     credits: settlement.credits,
   });

@@ -63,6 +63,10 @@ export type GetGifResult = {
   // The chosen GIF as a message attachment, surfaced to the caller. Absent when
   // no usable result was found or Klipy was unavailable.
   gif?: ValidatedMessageGif;
+  // The chosen GIF's Klipy title — a short, human description (e.g. "rat
+  // dancing"). The media pipeline hands this to the reply model so it knows what
+  // GIF is attached and can riff on it; never shown to the user verbatim.
+  title?: string;
 };
 
 // Map the top Klipy GIF hit onto our attachment shape, then revalidate it
@@ -78,6 +82,8 @@ function toMessageGif(gif: TrendingGif): ValidatedMessageGif | null {
     height: gif.height || undefined,
     attribution: "Powered by Klipy",
     gifId: gif.id,
+    // Persisted so the media decider can avoid repeating recent reactions.
+    title: gif.title || undefined,
   };
   const parsed = messageGifSchema.safeParse(candidate);
   return parsed.success ? parsed.data : null;
@@ -121,18 +127,21 @@ export async function runGetGif(
     // this is just the top hit; higher factors sample a few deep with a strong
     // front bias — without us reading each result to choose (token waste).
     const candidates = result.gifs
-      .map(toMessageGif)
-      .filter((g): g is ValidatedMessageGif => g !== null);
-    const gif =
+      .map((g) => ({ gif: toMessageGif(g), title: g.title }))
+      .filter(
+        (c): c is { gif: ValidatedMessageGif; title: string } => c.gif !== null,
+      );
+    const chosen =
       candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
       null;
-    if (!gif) {
+    if (!chosen) {
       return { content: JSON.stringify({ found: false }) };
     }
 
     return {
       content: JSON.stringify({ found: true }),
-      gif,
+      gif: chosen.gif,
+      title: chosen.title,
     };
   } catch (err) {
     if (err instanceof KlipyError) {
