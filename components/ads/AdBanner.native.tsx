@@ -1,7 +1,7 @@
 import { Typography } from "@/components/Typography";
 import { canUseNativeAds } from "@/domain/ads/mobileAds";
 import { themes } from "@/nativewind-theme";
-import { useSubscriptionStore } from "@/store/subscription";
+import { useAdsAllowed } from "@/store/entitlement";
 import Constants from "expo-constants";
 import { useColorScheme } from "nativewind";
 import { useEffect, useMemo, useState } from "react";
@@ -33,7 +33,11 @@ export function AdBanner({ style }: AdBannerProps) {
   const { colorScheme } = useColorScheme();
   const { t } = useTranslation();
   const theme = themes[colorScheme ?? "light"];
-  const isPro = useSubscriptionStore((s) => s.isPro);
+  // Positively-confirmed-free gate. Reads the same plan source the rest of the
+  // app gates on (not the raw RevenueCat-live `isPro`), and stays false until
+  // both plan sources resolve — so a paying user never sees the container, not
+  // even for a frame on cold start.
+  const adsAllowed = useAdsAllowed();
   const [adsModule, setAdsModule] = useState<GoogleMobileAdsModule | null>(
     null,
   );
@@ -43,17 +47,17 @@ export function AdBanner({ style }: AdBannerProps) {
   const showExpoGoPlaceholder =
     __DEV__ &&
     adsEnabled &&
-    !isPro &&
+    adsAllowed &&
     (Constants.appOwnership === "expo" || !nativeAdsAvailable);
 
   useEffect(() => {
     setFailed(false);
-  }, [isPro]);
+  }, [adsAllowed]);
 
   useEffect(() => {
     let mounted = true;
 
-    if (!adsEnabled || isPro || !nativeAdsAvailable) return;
+    if (!adsEnabled || !adsAllowed || !nativeAdsAvailable) return;
 
     import("react-native-google-mobile-ads")
       .then((module) => {
@@ -66,7 +70,7 @@ export function AdBanner({ style }: AdBannerProps) {
     return () => {
       mounted = false;
     };
-  }, [adsEnabled, isPro, nativeAdsAvailable]);
+  }, [adsEnabled, adsAllowed, nativeAdsAvailable]);
 
   const unitId = useMemo(
     () =>
@@ -104,7 +108,7 @@ export function AdBanner({ style }: AdBannerProps) {
 
   if (
     !adsEnabled ||
-    isPro ||
+    !adsAllowed ||
     failed ||
     !adsModule ||
     !unitId ||

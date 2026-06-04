@@ -9,6 +9,12 @@ import { create } from "zustand";
 
 type EntitlementState = {
   entitlement: Entitlement | null;
+  // Becomes true once the first profiles/{uid} snapshot has landed (or there is
+  // no signed-in user / no Firebase). Until then `entitlement` is null and the
+  // derived plan defaults to "free" — which is indistinguishable from a real
+  // free user. Consumers that must NOT act on that default (e.g. the ad gate,
+  // which would otherwise flash ads at a paying user mid-load) gate on this.
+  loaded: boolean;
   uid: string | null;
   bindUid: (uid: string | null) => void;
   rebind: () => void;
@@ -39,10 +45,25 @@ export function useEffectivePlan(): PlanId {
   }, [entitlementPlan, subscriptionPlan]);
 }
 
+// Single gate for whether free-tier ads may render. Ads show ONLY when BOTH
+// sources of truth have resolved AND both agree the user is free. This keeps
+// the ad gate in lockstep with every other plan-gated surface (which branch on
+// the display/effective plan rather than the raw RevenueCat-live `isPro`) and,
+// critically, never serves ads during the loading window or to a paying user
+// whose paid tier is known to only one source. While anything is still loading
+// it returns false, so the banner renders nothing instead of flashing.
+export function useAdsAllowed(): boolean {
+  const effectivePlan = useEffectivePlan();
+  const entitlementLoaded = useEntitlementStore((s) => s.loaded);
+  const subscriptionResolved = useSubscriptionStore((s) => s.status !== "idle");
+  return entitlementLoaded && subscriptionResolved && effectivePlan === "free";
+}
+
 let unsubscribe: (() => void) | null = null;
 
 export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
   entitlement: null,
+  loaded: false,
   uid: null,
 
   bindUid: (uid) => {
@@ -51,11 +72,13 @@ export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
     unsubscribe?.();
     unsubscribe = null;
 
-    set({ uid, entitlement: null });
+    // New identity → back to the loading state. Signing out (uid === null) has
+    // nothing to load, so it resolves immediately as "free".
+    set({ uid, entitlement: null, loaded: uid === null });
 
     if (uid) {
       unsubscribe = subscribeToEntitlement(uid, (entitlement) => {
-        set({ entitlement });
+        set({ entitlement, loaded: true });
       });
     }
   },
@@ -74,7 +97,7 @@ export const useEntitlementStore = create<EntitlementState>()((set, get) => ({
 
     unsubscribe?.();
     unsubscribe = subscribeToEntitlement(uid, (entitlement) => {
-      set({ entitlement });
+      set({ entitlement, loaded: true });
     });
   },
 }));
