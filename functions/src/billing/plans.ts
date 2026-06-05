@@ -70,11 +70,11 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 // Credit budgets were trimmed 15% from the original 325 / 1950 / 5250 / 11200
 // after real usage showed per-turn cost sitting at/under the 2.52-credit plan
 // estimate — reclaiming the headroom as margin (~+10pp) while keeping free
-// usable (~28-credit daily cap ≈ ~13 turns/day, ~130 turns/month at ~2 cr/turn).
+// usable (~22-credit daily cap ≈ ~11 turns/day, ~110 turns/month at ~2 cr/turn).
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
-    monthlyCredits: 276,
+    monthlyCredits: 220,
     // The static persona/platform prompt is ~4k tokens on its own, so a 4k input
     // budget left free with literally zero room for conversational memory — every
     // turn was persona + current message only. 6k gives ~2k of working headroom
