@@ -464,9 +464,20 @@ export function MessageBubble({
     });
   }, [opacity, scale, translateY]);
 
+  // The avatar sits in this node, so it gets opacity + translateY ONLY — never
+  // scale. The spring overshoots past 1.0, and scaling resamples the avatar
+  // bitmap each frame, which made the icon (and, before it, the emoji) look
+  // distorted on mount until the spring settled. Opacity/translate don't
+  // resample, so the avatar fades + nudges in crisp.
   const entranceStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ scale: scale.value }, { translateY: translateY.value }],
+    transform: [{ translateY: translateY.value }],
+  }));
+
+  // Scale lives here instead, applied only to the bubble column — keeping the
+  // springy "pop" on the message body without ever touching the avatar.
+  const bubbleScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
   }));
 
   // Page-level gradient anchoring (user bubbles only). We measure the bubble's
@@ -657,13 +668,16 @@ export function MessageBubble({
           </View>
         ) : null}
 
-        <View
-          style={{
-            flexShrink: 1,
-            maxWidth: "100%",
-            alignItems: mine ? "flex-end" : "flex-start",
-            gap: 6,
-          }}
+        <Animated.View
+          style={[
+            {
+              flexShrink: 1,
+              maxWidth: "100%",
+              alignItems: mine ? "flex-end" : "flex-start",
+              gap: 6,
+            },
+            bubbleScaleStyle,
+          ]}
         >
           {hasImages ? (
             <MessageImageAttachments
@@ -794,7 +808,7 @@ export function MessageBubble({
               showTimestamp={showTimestamp}
             />
           ) : null}
-        </View>
+        </Animated.View>
       </View>
 
       {/* Agent replies carry their timestamp inside the action row (right edge);

@@ -67,8 +67,11 @@ export function RotLevelDemo({
                 gap: 6,
                 paddingVertical: 12,
                 borderRadius: 16,
+                // Neutral grey fill, not a teal "primary-subtle" wash (reads as
+                // generic AI UI). The teal border + bold teal label carry the
+                // selected state.
                 backgroundColor: active
-                  ? theme["--color-primary-subtle"]
+                  ? theme["--color-card-muted"]
                   : theme["--color-card"],
                 borderWidth: active ? 1.5 : 1,
                 borderColor: active
