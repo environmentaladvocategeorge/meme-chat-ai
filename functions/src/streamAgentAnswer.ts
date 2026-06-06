@@ -6,6 +6,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
+import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
 import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
@@ -262,6 +263,9 @@ export const streamAgentAnswer = onRequest(
     let decideUsage: ModelUsage | null = null;
     let pendingGif: MessageGif | null = null;
     let pendingMeme: MessageImage | null = null;
+    // GIF frames decoded for the decider; reused by assembleContext so the GIF
+    // is only fetched/decoded once per turn.
+    let deciderGifFrames: ExtractedGifFrames | undefined;
     const klipyApiKey = KLIPY_APP_KEY.value();
     const mediaEnabled = klipyApiKey.length > 0;
     try {
@@ -286,14 +290,24 @@ export const streamAgentAnswer = onRequest(
             : gifs.length > 0
               ? "[user sent a GIF]"
               : "");
+        // Decode the GIF once here and reuse it for both the decider (so it can
+        // see what was sent) and assembleContext (so the reply model sees it too)
+        // — avoids fetching/decoding the same GIF twice.
+        const currentGifFrames = currentGif
+          ? await extractGifFrames(currentGif)
+          : undefined;
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
           history,
           currentMessage: currentForDecider,
           recentReactions,
+          // Hand nano the actual pixels of the current turn's attachments so its
+          // reaction matches what the user sent.
+          imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
         });
         decideUsage = usage;
+        deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
           const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
@@ -336,6 +350,7 @@ export const streamAgentAnswer = onRequest(
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
+        currentGifFrames: deciderGifFrames,
         attachedMedia,
         systemPrompt,
         userAlias: entitlement.alias,

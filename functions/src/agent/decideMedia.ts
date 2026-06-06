@@ -1,5 +1,6 @@
 import { logger } from "firebase-functions";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import type { ModelUsage } from "../billing/ledger";
 import { resolveModelId } from "../billing/models";
 import type { ChatMessage } from "./types";
@@ -106,6 +107,12 @@ export async function decideMedia(args: {
   // Reaction titles already sent recently (from buildDeciderContext). Surfaced
   // as an explicit "do not repeat" list so nano varies its picks.
   recentReactions?: string[];
+  // Model-ready image URLs for the CURRENT user turn — uploaded image(s) and/or
+  // decoded GIF frames. When present they're attached to the decider's user
+  // message (at detail:"low") so it reacts to what the user ACTUALLY sent
+  // instead of a blind "[user sent a GIF]" placeholder — which is what made it
+  // pick out-of-context reactions on media turns.
+  imageUrls?: string[];
   signal?: AbortSignal;
 }): Promise<{ decision: MediaDecision; usage: ModelUsage }> {
   try {
@@ -114,10 +121,31 @@ export async function decideMedia(args: {
       args.recentReactions && args.recentReactions.length > 0
         ? `\n\nReactions ALREADY sent recently — do NOT repeat these or pick anything near-identical, vary it up:\n${args.recentReactions.join(", ")}`
         : "";
-    const userContent =
+    const imageUrls = args.imageUrls ?? [];
+    const baseText =
       (args.history ? `Conversation so far:\n${args.history}\n\n` : "") +
       `Latest user message:\n${args.currentMessage || "[no text — the user sent only an attachment]"}` +
       avoid;
+
+    // When the user attached media, hand nano the actual pixels (image and/or
+    // GIF frames) as low-detail image parts so its reaction matches the content.
+    // Otherwise keep the cheap text-only payload.
+    const userMessage: ChatCompletionMessageParam =
+      imageUrls.length > 0
+        ? {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `${baseText}\n\nThe image(s) below ARE what the user just sent (a photo and/or the frames of a single GIF) — base your reaction on what is actually shown in them, not just the text.`,
+              },
+              ...imageUrls.map((url) => ({
+                type: "image_url" as const,
+                image_url: { url, detail: "low" as const },
+              })),
+            ],
+          }
+        : { role: "user", content: baseText };
 
     const completion = await client.chat.completions.create(
       {
@@ -130,7 +158,7 @@ export async function decideMedia(args: {
         response_format: RESPONSE_FORMAT,
         messages: [
           { role: "system", content: args.systemPrompt },
-          { role: "user", content: userContent },
+          userMessage,
         ],
       },
       { signal: args.signal },

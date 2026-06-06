@@ -316,6 +316,11 @@ export type AssembleContextArgs = {
   // The GIF attached to the current turn (max one). Decoded into sampled frames
   // for the model before assembly.
   currentGif?: MessageGif;
+  // Pre-decoded frames for `currentGif`. The media decider now also needs the
+  // GIF's frames (so it can react to what was sent), so the caller extracts them
+  // ONCE before the decider and passes them here to avoid re-fetching/-decoding
+  // the same GIF. When omitted, we decode `currentGif` ourselves (legacy path).
+  currentGifFrames?: ExtractedGifFrames;
   // Reaction GIF/meme the media pipeline chose for this reply (informational
   // note for the model — see AssembleArgs.attachedMedia).
   attachedMedia?: { kind: "gif" | "meme"; description: string };
@@ -373,11 +378,13 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     }
   }
 
-  // Decode the current turn's GIF into sampled still frames for the model. Done
-  // here (async) so the pure assembler can stay synchronous. Never throws.
-  const currentGifFrames = args.currentGif
-    ? await extractGifFrames(args.currentGif)
-    : undefined;
+  // Decode the current turn's GIF into sampled still frames for the model. Reuse
+  // frames the caller already extracted (for the decider) when provided; else
+  // decode here. Done async so the pure assembler can stay synchronous. Never
+  // throws.
+  const currentGifFrames =
+    args.currentGifFrames ??
+    (args.currentGif ? await extractGifFrames(args.currentGif) : undefined);
 
   const planCfg = PLANS[args.plan];
   return assembleFromInputs({
