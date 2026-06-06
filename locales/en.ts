@@ -24,6 +24,15 @@ const en = {
       unitMinutes: "{{count}} minutes",
     },
   },
+  // System (OS-level) notification copy. Scheduled locally — see
+  // store/notifications.ts. Fixed at schedule time in the user's current
+  // language; other locales fall back to English.
+  systemNotifications: {
+    dailyRotCheck: {
+      title: "Brainrot Bot",
+      body: "brainbot here. are we rotting today?",
+    },
+  },
   landing: {
     title: "Meme Chat AI",
     subtitle: "Welcome — sign in to continue.",
