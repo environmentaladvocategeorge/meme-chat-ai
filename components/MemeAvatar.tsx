@@ -1,27 +1,16 @@
 // MemeAvatar
 //
-// Circular avatar for the expressive Brainrot Bot "face" art (sunglasses / worried
-// speech-bubble). Same circular framing + optional brand-glow pulse as
-// AgentAvatar, but driven by a named variant so screens can pick the mood:
-//   - "cool"    → plan & usage page hero ("level up your meme-power")
-//   - "worried" → out-of-meme-power quota modal
+// Circular avatar for the expressive Brainrot Bot "face" art. Picks a mood by
+// variant:
+//   - "cool"    → sunglasses bot; plan & usage hero, onboarding reveal
+//   - "worried" → sad bot; out-of-power quota modal, failed turns, usage notices
+//   - "loading" → wink bot; "thinking" indicator while a reply streams
 //
-// The source PNGs already ship a purple→pink gradient backdrop that matches
-// the brand, so the circle just clips them.
+// Motion (gated by `pulse`): the "loading" variant uses the shared think loader
+// (wobble + orbiting spark); cool/worried use a slow vertical bob — the same
+// floaty feel as the landing hero. All handled by BotAvatar.
 
-import { gradients } from "@/nativewind-theme";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "nativewind";
-import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
+import { BotAvatar, type BotMotion } from "@/components/BotAvatar";
 
 export type MemeAvatarVariant = "cool" | "worried" | "loading";
 
@@ -39,84 +28,11 @@ interface MemeAvatarProps {
 }
 
 export function MemeAvatar({ variant, size = 64, pulse = false }: MemeAvatarProps) {
-  const { colorScheme } = useColorScheme();
-  const gradient = gradients[colorScheme ?? "light"].primary;
-  const progress = useSharedValue(0);
+  const motion: BotMotion = !pulse
+    ? "none"
+    : variant === "loading"
+      ? "think"
+      : "float";
 
-  useEffect(() => {
-    if (pulse) {
-      progress.value = withRepeat(
-        withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }),
-        -1,
-        true,
-      );
-    } else {
-      progress.value = withTiming(0, { duration: 200 });
-    }
-  }, [pulse, progress]);
-
-  const ringStyle = useAnimatedStyle(() => {
-    const o = progress.value;
-    return {
-      opacity: o * 0.5,
-      transform: [{ scale: 1 + o * 0.16 }],
-    };
-  });
-
-  const avatarStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: 1 + progress.value * 0.03 }],
-  }));
-
-  return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: "absolute",
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            overflow: "hidden",
-          },
-          ringStyle,
-        ]}
-      >
-        <LinearGradient
-          colors={gradient.colors}
-          start={gradient.start}
-          end={gradient.end}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            overflow: "hidden",
-            backgroundColor: "#FFFFFF",
-          },
-          avatarStyle,
-        ]}
-      >
-        <Image
-          source={SOURCES[variant]}
-          style={{ width: size, height: size }}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={0}
-        />
-      </Animated.View>
-    </View>
-  );
+  return <BotAvatar size={size} source={SOURCES[variant]} motion={motion} />;
 }

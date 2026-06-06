@@ -1,121 +1,26 @@
 // AgentAvatar
 //
-// Circular avatar for the Brainrot Bot agent, using the app icon. Has an optional
-// `pulse` mode that runs a gentle continuous scale + ring-glow animation
-// — used while a reply is being streamed to signal "the agent is thinking."
-// When `pulse` is false it's a static circle.
+// Circular avatar for the Brainrot Bot agent, using the app icon. Motion modes:
+//   - `pulse` → the shared "thinking" loader (wobble + orbiting spark), for
+//     streaming replies / loading states.
+//   - `float` → a slow vertical bob (idle hero, e.g. the empty-chat prompt
+//     screen), matching the landing page.
+// With neither it's a static circle. `float` wins if both are set.
 
-import { gradients } from "@/nativewind-theme";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import { useColorScheme } from "nativewind";
-import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
+import { BotAvatar } from "@/components/BotAvatar";
 
 interface AgentAvatarProps {
   size?: number;
   pulse?: boolean;
+  float?: boolean;
 }
 
-export function AgentAvatar({ size = 28, pulse = false }: AgentAvatarProps) {
-  const { colorScheme } = useColorScheme();
-  const gradient = gradients[colorScheme ?? "light"].primary;
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    if (pulse) {
-      progress.value = withRepeat(
-        withTiming(1, {
-          duration: 1200,
-          easing: Easing.inOut(Easing.quad),
-        }),
-        -1,
-        true,
-      );
-    } else {
-      progress.value = withTiming(0, { duration: 200 });
-    }
-  }, [pulse, progress]);
-
-  const ringStyle = useAnimatedStyle(() => {
-    // The pulse halo. When `pulse` is on, opacity breathes between ~0.0
-    // and ~0.6 and a soft outer glow scales slightly. When off, hidden.
-    const o = progress.value;
-    return {
-      opacity: o * 0.55,
-      transform: [{ scale: 1 + o * 0.18 }],
-    };
-  });
-
-  const avatarStyle = useAnimatedStyle(() => {
-    // The avatar itself gets a subtler scale pulse so it feels alive
-    // without bouncing.
-    const o = progress.value;
-    return {
-      transform: [{ scale: 1 + o * 0.04 }],
-    };
-  });
-
+export function AgentAvatar({ size = 28, pulse = false, float = false }: AgentAvatarProps) {
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      {/* Soft brand-tinted glow ring, only visible during pulse. */}
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: "absolute",
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            overflow: "hidden",
-          },
-          ringStyle,
-        ]}
-      >
-        <LinearGradient
-          colors={gradient.colors}
-          start={gradient.start}
-          end={gradient.end}
-          style={StyleSheet.absoluteFillObject}
-        />
-      </Animated.View>
-
-      <Animated.View
-        style={[
-          {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            overflow: "hidden",
-            backgroundColor: "#FFFFFF",
-          },
-          avatarStyle,
-        ]}
-      >
-        <Image
-          source={require("../assets/images/app-icon.png")}
-          style={{ width: size, height: size }}
-          contentFit="cover"
-          // Bundled icon: cache the decoded bitmap in memory so re-mounting on
-          // every agent message in the list is instant (no re-decode, no fade).
-          cachePolicy="memory-disk"
-          transition={0}
-        />
-      </Animated.View>
-    </View>
+    <BotAvatar
+      size={size}
+      source={require("../assets/images/app-icon.png")}
+      motion={float ? "float" : pulse ? "think" : "none"}
+    />
   );
 }
