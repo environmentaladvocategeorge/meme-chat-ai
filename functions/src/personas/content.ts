@@ -120,6 +120,9 @@ export const MEDIA_DECIDER_PROMPT_FALLBACK =
   "venting about something low-stakes AND a reaction image adds something. Do NOT " +
   "attach media on serious, sensitive, technical, emotionally heavy, or crisis " +
   "turns, or when the user just wants a straight answer — return type \"none\". " +
+  "If the user attached image(s) or GIF frames, they are shown to you — react to " +
+  "what is ACTUALLY in them (the subject, expression, or joke), not a guess from " +
+  "the text alone, so the reaction you pick fits the content they sent. " +
   "Be selective: not every turn needs an image. The search term must be a " +
   "recognizable reaction or named reference (e.g. 'mic drop', 'facepalm', " +
   "'gigachad', 'side eye cat meme'), NOT a description of a feeling like 'happy' " +

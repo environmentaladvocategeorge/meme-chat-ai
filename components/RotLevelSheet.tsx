@@ -87,8 +87,11 @@ function ToneCard({
         borderColor: isSelected
           ? theme["--color-primary"]
           : theme["--color-border"],
+        // Selection reads via the teal border + bold teal label, not a teal
+        // fill — a tinted "primary-subtle" background looked like default AI UI.
+        // A neutral grey keeps the tile grounded without the brand wash.
         backgroundColor: isSelected
-          ? theme["--color-primary-subtle"]
+          ? theme["--color-card-muted"]
           : theme["--color-card"],
         gap: 7,
       }}

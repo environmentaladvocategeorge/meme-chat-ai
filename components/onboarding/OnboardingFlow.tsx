@@ -12,6 +12,7 @@ import { PlanPaywall } from "@/components/PlanPaywall";
 import { Typography } from "@/components/Typography";
 import type { MessageGif } from "@/domain/gifs";
 import { trendingGifToMessageGif } from "@/domain/gifs";
+import { markDailyPaywallShownToday } from "@/hooks/useDailyPaywall";
 import { useTheme } from "@/hooks/useTheme";
 import {
   getTrendingGifsCallable,
@@ -117,6 +118,10 @@ export function OnboardingFlow() {
     const trimmedAlias = aliasDraft.trim().slice(0, MAX_ALIAS_LENGTH);
     setChatRotLevel(rotLevel);
     if (trimmedAlias.length > 0) setAlias(trimmedAlias);
+
+    // The onboarding paywall counts as today's paywall — stop the daily gate
+    // from immediately re-opening it the moment they land in the app.
+    void markDailyPaywallShownToday();
 
     try {
       await updateProfileCallable(
@@ -279,11 +284,16 @@ export function OnboardingFlow() {
           step={step}
           total={TOTAL_STEPS}
           ctaLabel={t("onboarding.ready.cta")}
-          onCta={() => go(STEP.notifications)}
+          // Hard guard in addition to ctaDisabled: never advance until the
+          // reveal animation has finished, even if the disabled styling is
+          // somehow bypassed.
+          onCta={() => {
+            if (readyDone) go(STEP.notifications);
+          }}
           ctaDisabled={!readyDone}
           onBack={back}
         >
-          <AgentReadyReveal onComplete={() => setReadyDone(true)} />
+          <AgentReadyReveal onReadyChange={setReadyDone} />
         </OnboardingScaffold>
       );
 

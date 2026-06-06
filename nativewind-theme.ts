@@ -1,8 +1,10 @@
 // Meme Chat AI theme
 //
-// Direction: playful, glossy, meme-native, but still clean enough for chat UI.
-// Inspired by the app icon: electric blue, purple, hot pink, soft white mascot,
-// yellow spark accents, and darker "internet night mode" surfaces.
+// Direction: confident, modern, "a real tool" — playful enough for a meme app
+// but intentionally NOT the saturated blue→purple→hot-pink neon that reads as
+// generic AI. Built on a muted teal as the single brand hue, cool paper/ink
+// neutrals, and one warm amber accent for energy moments (teal + amber is a
+// deliberate complementary pair).
 //
 // Two exports:
 //   - `themes`     — solid colors only, consumed by NativeWind via VariableContextProvider.
@@ -11,95 +13,96 @@
 
 export const themes = {
   light: {
-    "--color-background": "#FBFAFF",
+    "--color-background": "#F6F7F8",
     "--color-background-secondary": "#FFFFFF",
-    "--color-background-muted": "#F3F0FF",
+    "--color-background-muted": "#ECEEF0",
 
-    "--color-foreground": "#17131F",
-    "--color-foreground-secondary": "#5F586F",
-    "--color-foreground-muted": "#928BA3",
+    "--color-foreground": "#16191C",
+    "--color-foreground-secondary": "#4C5359",
+    "--color-foreground-muted": "#858C92",
 
     "--color-card": "#FFFFFF",
-    "--color-card-foreground": "#17131F",
-    "--color-card-muted": "#F5F2FF",
-    "--color-card-pressed": "#ECE6FF",
+    "--color-card-foreground": "#16191C",
+    "--color-card-muted": "#F2F3F5",
+    "--color-card-pressed": "#E6E8EB",
 
-    "--color-border": "#E7DFFF",
-    "--color-border-strong": "#CFC2F4",
+    "--color-border": "#E0E3E6",
+    "--color-border-strong": "#C5CACE",
     "--color-input": "#FFFFFF",
-    "--color-ring": "#7C3AED",
+    "--color-ring": "#0F7B85",
 
-    "--color-primary": "#7C3AED",
+    "--color-primary": "#0F7B85",
     "--color-primary-foreground": "#FFFFFF",
-    "--color-primary-muted": "#E9DDFF",
-    "--color-primary-subtle": "#F4EEFF",
+    "--color-primary-muted": "#CFE8EA",
+    "--color-primary-subtle": "#E8F4F5",
 
-    "--color-secondary": "#FF4FB8",
+    "--color-secondary": "#38A9AE",
     "--color-secondary-foreground": "#FFFFFF",
 
-    "--color-tertiary": "#EAF2FF",
-    "--color-tertiary-foreground": "#2454D6",
+    "--color-tertiary": "#E2F2F3",
+    "--color-tertiary-foreground": "#0F7B85",
 
-    "--color-success": "#21C48D",
-    "--color-success-muted": "#DFF9EF",
-    "--color-warning": "#FFCA3A",
-    "--color-warning-muted": "#FFF4CC",
-    // Pulled toward true red so it visually separates from secondary pink.
-    // Original #FF4D6D sat too close to --color-secondary in hue and would
-    // make destructive cues read as just "another brand accent."
-    "--color-error": "#E63757",
-    "--color-error-muted": "#FFE3EA",
-    "--color-info": "#22C7F2",
-    "--color-info-muted": "#DDF7FF",
+    // Nudged toward a warmer leaf-green so "success" stays distinct from the
+    // teal brand hue instead of blurring into it.
+    "--color-success": "#2FA15A",
+    "--color-success-muted": "#DCF2E5",
+    "--color-warning": "#E0A234",
+    "--color-warning-muted": "#FBEFD6",
+    // Pulled toward true red so it reads as "destructive," not as another
+    // brand accent.
+    "--color-error": "#DC4B63",
+    "--color-error-muted": "#FBE2E7",
+    "--color-info": "#2B86C4",
+    "--color-info-muted": "#E0F0FA",
 
-    "--color-tab": "#F1ECFF",
+    "--color-tab": "#ECEEF0",
     "--color-tab-active": "#FFFFFF",
-    "--color-progress-track": "#E7DFFF",
-    "--color-overlay": "rgba(23, 19, 31, 0.48)",
+    "--color-progress-track": "#E0E3E6",
+    "--color-overlay": "rgba(22, 25, 28, 0.48)",
   },
 
   dark: {
-    "--color-background": "#0B0714",
-    "--color-background-secondary": "#12101D",
-    "--color-background-muted": "#1B1730",
+    "--color-background": "#0E1113",
+    "--color-background-secondary": "#15191C",
+    "--color-background-muted": "#1D2226",
 
-    "--color-foreground": "#FFFDF7",
-    "--color-foreground-secondary": "#D8D2E8",
-    "--color-foreground-muted": "#9E96B7",
+    "--color-foreground": "#F1F3F4",
+    "--color-foreground-secondary": "#C3C8CC",
+    "--color-foreground-muted": "#868D92",
 
-    "--color-card": "#171327",
-    "--color-card-foreground": "#FFFDF7",
-    "--color-card-muted": "#211B38",
-    "--color-card-pressed": "#2B2347",
+    "--color-card": "#15191C",
+    "--color-card-foreground": "#F1F3F4",
+    "--color-card-muted": "#1C2125",
+    "--color-card-pressed": "#272D32",
 
-    "--color-border": "#2F2750",
-    "--color-border-strong": "#4A3A78",
-    "--color-input": "#1D1830",
-    "--color-ring": "#B084FF",
+    "--color-border": "#2A3034",
+    "--color-border-strong": "#3D454B",
+    "--color-input": "#161B1E",
+    "--color-ring": "#45BFC9",
 
-    "--color-primary": "#A76BFF",
+    "--color-primary": "#34ABB5",
     "--color-primary-foreground": "#FFFFFF",
-    "--color-primary-muted": "#3B2568",
-    "--color-primary-subtle": "#24183F",
+    "--color-primary-muted": "#123C42",
+    "--color-primary-subtle": "#0E2D32",
 
-    "--color-secondary": "#FF5DC8",
+    "--color-secondary": "#58C2CA",
     "--color-secondary-foreground": "#FFFFFF",
 
-    "--color-tertiary": "#142C65",
-    "--color-tertiary-foreground": "#AFC8FF",
+    "--color-tertiary": "#0E3338",
+    "--color-tertiary-foreground": "#9FE0E6",
 
-    "--color-success": "#35E6A6",
-    "--color-success-muted": "#123827",
-    "--color-warning": "#FFD166",
-    "--color-warning-muted": "#3A2B12",
-    "--color-error": "#FF5872",
-    "--color-error-muted": "#3B1821",
-    "--color-info": "#43D9FF",
-    "--color-info-muted": "#102F3D",
+    "--color-success": "#36C982",
+    "--color-success-muted": "#0E3327",
+    "--color-warning": "#E8B45A",
+    "--color-warning-muted": "#382B12",
+    "--color-error": "#F0697F",
+    "--color-error-muted": "#3A1822",
+    "--color-info": "#4FA7E0",
+    "--color-info-muted": "#102B3D",
 
-    "--color-tab": "#211B38",
-    "--color-tab-active": "#171327",
-    "--color-progress-track": "#30284D",
+    "--color-tab": "#1C2125",
+    "--color-tab-active": "#15191C",
+    "--color-progress-track": "#262C30",
     "--color-overlay": "rgba(0, 0, 0, 0.64)",
   },
 } as const;
@@ -116,9 +119,10 @@ export type ThemeTokens = Record<keyof (typeof themes)["light"], string>;
 // We pre-compute the 135° vector as start={0,0} → end={1,1}, matching the
 // CSS `linear-gradient(135deg, ...)` notation the original palette used.
 //
-// Each name has both a light and dark variant. The dark variant is generally
-// the same brand vector recomputed against a darker base — so `brand` reads
-// as the same "diagonal sweep" in either mode rather than washing out.
+// The brand sweep is a restrained single-hue teal (deep → light) rather than a
+// multi-hue neon sweep — it reads as one deliberate brand color in either mode.
+// `accent` is the one warm pop, kept controlled (amber → soft terracotta) so
+// "energy" moments don't tip back into neon.
 //
 // Usage:
 //   import { LinearGradient } from "expo-linear-gradient";
@@ -150,42 +154,42 @@ export const gradients = {
   light: {
     // Three-stop brand sweep used for hero surfaces, splash, primary CTAs at hero scale.
     brand: {
-      colors: ["#2454FF", "#7C3AED", "#FF4FB8"] as const,
-      locations: [0, 0.48, 1] as const,
+      colors: ["#0B6470", "#0F7B85", "#38A9AE"] as const,
+      locations: [0, 0.5, 1] as const,
       ...DIAGONAL_135,
     },
     // Two-stop primary used for buttons, badges, smaller branded surfaces.
     primary: {
-      colors: ["#7C3AED", "#FF4FB8"] as const,
+      colors: ["#0F7B85", "#38A9AE"] as const,
       ...DIAGONAL_135,
     },
     // Soft bubble used for chat bubbles + cards that want a subtle lift off the background.
     bubble: {
-      colors: ["#FFFFFF", "#F4EEFF"] as const,
+      colors: ["#FFFFFF", "#E8F4F5"] as const,
       ...DIAGONAL_135,
     },
     // Warm accent for streak badges, energy moments, "AI is thinking" highlights.
     accent: {
-      colors: ["#FFCA3A", "#FF7A59"] as const,
+      colors: ["#F2B23D", "#E8894A"] as const,
       ...DIAGONAL_135,
     },
   },
   dark: {
     brand: {
-      colors: ["#184DFF", "#7C3AED", "#FF3FB4"] as const,
-      locations: [0, 0.46, 1] as const,
+      colors: ["#0A4E58", "#0F7B85", "#34ABB5"] as const,
+      locations: [0, 0.5, 1] as const,
       ...DIAGONAL_135,
     },
     primary: {
-      colors: ["#7C3AED", "#FF4FB8"] as const,
+      colors: ["#0F7B85", "#38A9AE"] as const,
       ...DIAGONAL_135,
     },
     bubble: {
-      colors: ["#1D1830", "#2B2146"] as const,
+      colors: ["#122528", "#1B383C"] as const,
       ...DIAGONAL_135,
     },
     accent: {
-      colors: ["#FFD166", "#FF7A59"] as const,
+      colors: ["#E8B45A", "#D9824A"] as const,
       ...DIAGONAL_135,
     },
   },
@@ -196,8 +200,8 @@ export const gradients = {
 // website + any future web export so the brand vector stays identical
 // across native and web surfaces.
 export const cssGradients = {
-  brand: "linear-gradient(135deg, #2454FF 0%, #7C3AED 48%, #FF4FB8 100%)",
-  primary: "linear-gradient(135deg, #7C3AED 0%, #FF4FB8 100%)",
-  bubble: "linear-gradient(135deg, #FFFFFF 0%, #F4EEFF 100%)",
-  accent: "linear-gradient(135deg, #FFCA3A 0%, #FF7A59 100%)",
+  brand: "linear-gradient(135deg, #0B6470 0%, #0F7B85 50%, #38A9AE 100%)",
+  primary: "linear-gradient(135deg, #0F7B85 0%, #38A9AE 100%)",
+  bubble: "linear-gradient(135deg, #FFFFFF 0%, #E8F4F5 100%)",
+  accent: "linear-gradient(135deg, #F2B23D 0%, #E8894A 100%)",
 } as const;

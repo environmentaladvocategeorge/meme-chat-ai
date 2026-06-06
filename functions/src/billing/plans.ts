@@ -57,7 +57,7 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 // so monthlyCredits is the MAX monthly AI spend per user. Credits are charged
 // once per turn from real token usage (no up-front reservation). At the average
 // message (~3,000 in / ~60 out on mini ≈ $0.00252 ≈ 2.52 credits), the buckets
-// below cover roughly: free ~110, basic ~660, plus ~1,770, power ~3,780
+// below cover roughly: free ~90, basic ~660, plus ~1,770, power ~3,780
 // messages/month. Allocations are sized to hold a tiered post-app-store-fee
 // margin (30% fee assumed); higher tiers commit more so we accept a thinner
 // margin in exchange for far more usage:
@@ -69,12 +69,17 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 //
 // Credit budgets were trimmed 15% from the original 325 / 1950 / 5250 / 11200
 // after real usage showed per-turn cost sitting at/under the 2.52-credit plan
-// estimate — reclaiming the headroom as margin (~+10pp) while keeping free
-// usable (~28-credit daily cap ≈ ~13 turns/day, ~130 turns/month at ~2 cr/turn).
+// estimate — reclaiming the headroom as margin (~+10pp).
+//
+// Free was then trimmed a further 15% (220 → 187) on day 5 of launch to tighten
+// the funnel tier's cost. New free daily cap ≈ 19 (30-day month) ≈ ~9-10
+// turns/day, ~90 turns/month at ~2 cr/turn — still usable. Existing free users
+// were migrated down via scripts/patch-free-credits.cjs (spend-preserving:
+// their remaining was recomputed as 187 − credits already spent this cycle).
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
-    monthlyCredits: 276,
+    monthlyCredits: 187,
     // The static persona/platform prompt is ~4k tokens on its own, so a 4k input
     // budget left free with literally zero room for conversational memory — every
     // turn was persona + current message only. 6k gives ~2k of working headroom

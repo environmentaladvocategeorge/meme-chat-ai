@@ -47,11 +47,11 @@ export function AuthScaffold({
   const brand = gradients[scheme].brand;
   const veil =
     scheme === "dark"
-      ? (["rgba(11,7,20,0)", "rgba(11,7,20,0.6)", "rgba(11,7,20,0.94)"] as const)
-      : (["rgba(8,5,24,0)", "rgba(8,5,24,0.5)", "rgba(10,6,28,0.86)"] as const);
+      ? (["rgba(14,17,19,0)", "rgba(14,17,19,0.6)", "rgba(14,17,19,0.94)"] as const)
+      : (["rgba(10,12,14,0)", "rgba(10,12,14,0.5)", "rgba(12,14,16,0.86)"] as const);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0B0714" }}>
+    <View style={{ flex: 1, backgroundColor: "#0E1113" }}>
       <StatusBar style="light" />
 
       <LinearGradient
@@ -161,7 +161,7 @@ export function GradientButton({
         styles.button,
         isAccent
           ? {
-              shadowColor: "#FF9A3A",
+              shadowColor: "#E8894A",
               shadowOpacity: 0.5,
               shadowRadius: 16,
               shadowOffset: { width: 0, height: 8 },
@@ -177,7 +177,7 @@ export function GradientButton({
     >
       {isAccent ? (
         <LinearGradient
-          colors={["#FFD53D", "#FF7A59"]}
+          colors={["#F2B23D", "#E8894A"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}

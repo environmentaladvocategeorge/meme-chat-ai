@@ -44,9 +44,9 @@ const MASCOT = require("../assets/images/meme-level-up.png");
 // Landing screen
 //
 // The first thing a logged-out user sees. Goal: read instantly as "fun,
-// unhinged meme AI" rather than a sterile auth gate. Built on the brand
-// gradient (blue → purple → pink) at full saturation — no muted surfaces —
-// with the bobbing mascot face, a live chat-preview, a bold display headline,
+// unhinged meme AI" rather than a sterile auth gate. Built on the teal brand
+// gradient — confident, not neon — with the bobbing mascot face, a live
+// chat-preview, a bold display headline,
 // and two CTAs. Everything fades/springs in on first mount so the page feels
 // alive the moment it opens.
 // ---------------------------------------------------------------------------
@@ -83,8 +83,8 @@ export default function LandingScreen() {
   const brand = gradients[scheme].brand;
   const veil =
     scheme === "dark"
-      ? (["rgba(11,7,20,0)", "rgba(11,7,20,0.55)", "rgba(11,7,20,0.92)"] as const)
-      : (["rgba(8,5,24,0)", "rgba(8,5,24,0.45)", "rgba(10,6,28,0.82)"] as const);
+      ? (["rgba(14,17,19,0)", "rgba(14,17,19,0.55)", "rgba(14,17,19,0.92)"] as const)
+      : (["rgba(10,12,14,0)", "rgba(10,12,14,0.45)", "rgba(12,14,16,0.82)"] as const);
 
   // Mascot + headline scale with the viewport so the whole page fits in one
   // screen without scrolling, even on short devices.
@@ -93,7 +93,7 @@ export default function LandingScreen() {
   const hl = { fontSize: headlineSize, lineHeight: headlineSize + 4 };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#0B0714" }}>
+    <View style={{ flex: 1, backgroundColor: "#0E1113" }}>
       <StatusBar style="light" />
 
       <LinearGradient
@@ -141,7 +141,7 @@ export default function LandingScreen() {
             side="left"
             avatar="🧢"
             text={t("landing.demoUser1")}
-            colors={["#8B5CF6", "#7C3AED"]}
+            colors={["#1F94A0", "#0F7B85"]}
             delay={360}
           />
           <ChatBubble
@@ -156,7 +156,7 @@ export default function LandingScreen() {
             side="left"
             avatar="🥵"
             text={t("landing.demoUser2")}
-            colors={["#FF4FB8", "#FF5DC8"]}
+            colors={["#E8A24A", "#DD8444"]}
             delay={680}
           />
         </View>
@@ -183,12 +183,12 @@ export default function LandingScreen() {
                 <Typography
                   family="display"
                   weight="bold"
-                  style={[styles.headline, hl, { color: "#FFD53D" }]}
+                  style={[styles.headline, hl, { color: "#F2B23D" }]}
                 >
                   {t("landing.headlineHighlight")}
                 </Typography>
                 <LinearGradient
-                  colors={["#FF4FB8", "#FF7A59"]}
+                  colors={["#F2B23D", "#E8894A"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.underline}
@@ -270,7 +270,7 @@ function MascotHero({ size }: { size: number }) {
       <View
         style={{
           borderRadius: size * 0.26,
-          shadowColor: "#7C3AED",
+          shadowColor: "#0F7B85",
           shadowOpacity: 0.55,
           shadowRadius: 22,
           shadowOffset: { width: 0, height: 12 },
@@ -464,7 +464,7 @@ function CtaButton({
         styles.cta,
         isAccent
           ? {
-              shadowColor: "#FF9A3A",
+              shadowColor: "#E8894A",
               shadowOpacity: 0.55,
               shadowRadius: 18,
               shadowOffset: { width: 0, height: 8 },
@@ -479,7 +479,7 @@ function CtaButton({
     >
       {isAccent ? (
         <LinearGradient
-          colors={["#FFD53D", "#FF7A59"]}
+          colors={["#F2B23D", "#E8894A"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}

@@ -190,7 +190,15 @@ function RevealBullet({
   );
 }
 
-export function AgentReadyReveal({ onComplete }: { onComplete?: () => void }) {
+export function AgentReadyReveal({
+  onReadyChange,
+}: {
+  // Reports the gate state to the parent CTA: `false` while the fake "setting
+  // up" sequence is still running, `true` once the reveal ("Brainrot Bot has
+  // entered the chat") lands. Fired on mount too, so the CTA is forced disabled
+  // even if the parent is re-using stale state from a previous visit/reload.
+  onReadyChange?: (ready: boolean) => void;
+}) {
   const { t } = useTranslation();
   const theme = useTheme();
   const loading = t("onboarding.ready.loading", { returnObjects: true });
@@ -218,13 +226,19 @@ export function AgentReadyReveal({ onComplete }: { onComplete?: () => void }) {
     return () => timers.forEach(clearTimeout);
   }, [lines.length]);
 
+  // Force the gate closed the moment this mounts (fresh entry or a replay after
+  // navigating back), so the CTA can never be live while the animation runs.
+  useEffect(() => {
+    onReadyChange?.(false);
+  }, [onReadyChange]);
+
   useEffect(() => {
     if (revealed && !completedRef.current) {
       completedRef.current = true;
       revealOpacity.value = withTiming(1, { duration: 260 });
-      onComplete?.();
+      onReadyChange?.(true);
     }
-  }, [revealed, onComplete, revealOpacity]);
+  }, [revealed, onReadyChange, revealOpacity]);
 
   if (revealed) {
     return (

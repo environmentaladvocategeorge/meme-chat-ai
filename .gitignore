@@ -48,10 +48,14 @@ coverage/
 # Firebase emulator local secrets + persisted state
 functions/.secret.local
 .emulator-data/
+# `firebase emulators:export` snapshots (timestamped dirs of local emulator data)
+firebase-export-*/
 
 # one-off admin-script output (may contain real user data / prompts)
 profile-snapshots/
 prompt-snapshots/
+# local-only trial-user ledger (real uids; admin reference, not source)
+functions/scripts/trial-user-ids.json
 
 # typescript
 *.tsbuildinfo

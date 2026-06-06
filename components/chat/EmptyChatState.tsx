@@ -140,17 +140,18 @@ export function EmptyChatState({
           entranceStyle,
         ]}
       >
+        {/* No tinted circle behind the bot: it floats, so a fixed teal ring
+            read as a detached outline as the avatar bobbed against it. The
+            charcoal bot coin stands on its own. */}
         <View
           style={{
             width: 104,
             height: 104,
-            borderRadius: 52,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: theme["--color-primary-subtle"],
           }}
         >
-          <AgentAvatar size={84} pulse />
+          <AgentAvatar size={84} float />
         </View>
 
         <View style={{ alignItems: "center", gap: 6 }}>

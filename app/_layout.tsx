@@ -10,6 +10,7 @@ import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
 import { useAgeGateStore } from "@/store/ageGate";
 import { useAuthStore } from "@/store/auth";
+import { useNotificationsStore } from "@/store/notifications";
 import { useOnboardingStore } from "@/store/onboarding";
 import { useSettingsStore } from "@/store/settings";
 import { useSubscriptionStore } from "@/store/subscription";
@@ -105,6 +106,10 @@ export default function RootLayout() {
       void initializeAuthSession();
       void initializeSubscription();
       void initializeMobileAds();
+      // Reads the current OS notification permission and, if granted, (re)arms
+      // the daily 4pm rot-check — so it survives app restarts without the user
+      // re-visiting Settings.
+      void useNotificationsStore.getState().refresh();
     }
   }, [hydrated, initializeAuthSession, initializeSubscription]);
 

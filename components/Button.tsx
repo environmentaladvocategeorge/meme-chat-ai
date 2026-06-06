@@ -69,7 +69,12 @@ export function Button({
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ busy: loading }}
       hitSlop={hitSlop}
-      containerStyle={style}
+      // The disabled dim MUST live on the outer container: feedback="opacity"
+      // applies its own opacity to the inner animated view (style below), which
+      // would otherwise override a disabled opacity set there and leave the
+      // button looking fully active. The outer container is never touched by the
+      // press feedback, so 0.4 here actually shows.
+      containerStyle={[style, isDisabled ? { opacity: 0.4 } : null]}
       style={{
         width: iconOnly ? height : undefined,
         height,
@@ -83,7 +88,6 @@ export function Button({
         borderColor: isOutline
           ? theme["--color-primary"]
           : theme["--color-border"],
-        opacity: isDisabled ? 0.4 : 1,
       }}
     >
       {loading ? (

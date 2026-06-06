@@ -26,6 +26,13 @@ export function extractClientIp(headers: {
 // streamAgentAnswer call. Returns true if the request is allowed, false if
 // the IP has burned through REQUESTS_PER_HOUR in the current hour window.
 export async function checkIpRateLimit(ip: string | null): Promise<boolean> {
+  // Local-only escape hatch. FUNCTIONS_EMULATOR is set to "true" exclusively by
+  // the Firebase emulator and is never present in deployed environments
+  // (staging/prod), so this fails open during local dev — where every request
+  // shares one localhost IP and rapid iteration would otherwise trip the
+  // 60/hour cap — without weakening the limit anywhere we deploy.
+  if (process.env.FUNCTIONS_EMULATOR === "true") return true;
+
   if (!ip) return true; // can't enforce without an IP — fail open for emulator/internal calls
 
   const hourBucket = Math.floor(Date.now() / WINDOW_MS);

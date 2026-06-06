@@ -7,6 +7,7 @@ import { randomReplaySampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
+import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
 import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
@@ -255,6 +256,9 @@ export const streamReplayTurn = onRequest(
     let decideUsage: ModelUsage | null = null;
     let pendingGif: MessageGif | null = null;
     let pendingMeme: MessageImage | null = null;
+    // GIF frames decoded for the decider; reused by assembleContext so the GIF
+    // is only fetched/decoded once per replay.
+    let deciderGifFrames: ExtractedGifFrames | undefined;
     const klipyApiKey = KLIPY_APP_KEY.value();
     const mediaEnabled = klipyApiKey.length > 0;
     try {
@@ -278,14 +282,23 @@ export const streamReplayTurn = onRequest(
             : gifs.length > 0
               ? "[user sent a GIF]"
               : "");
+        // Decode the replayed turn's GIF once, reused by the decider and
+        // assembleContext below.
+        const currentGifFrames = currentGif
+          ? await extractGifFrames(currentGif)
+          : undefined;
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
           history,
           currentMessage: currentForDecider,
           recentReactions,
+          // Hand nano the actual pixels of the replayed turn's attachments so the
+          // regenerated reaction matches what the user originally sent.
+          imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
         });
         decideUsage = usage;
+        deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
           const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
@@ -328,6 +341,7 @@ export const streamReplayTurn = onRequest(
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
+        currentGifFrames: deciderGifFrames,
         attachedMedia,
         systemPrompt,
         userAlias: entitlement.alias,

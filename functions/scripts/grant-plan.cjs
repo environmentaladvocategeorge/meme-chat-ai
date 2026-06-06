@@ -24,7 +24,7 @@ const { Timestamp } = require("firebase-admin/firestore");
 const { getDb } = require("./admin-app.cjs");
 
 // Mirror of functions/src/billing/plans.ts. Keep in sync if those change.
-const MONTHLY_CREDITS = { free: 276, basic: 1658, plus: 4463, power: 9520 };
+const MONTHLY_CREDITS = { free: 220, basic: 1658, plus: 4463, power: 9520 };
 const PRODUCT_BY_PLAN = {
   basic: "memeaibasic",
   plus: "memeaiplus",
