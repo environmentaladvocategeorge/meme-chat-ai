@@ -39,51 +39,51 @@
 }
 
 :root {
-  --color-background: #fbfaff;
+  --color-background: #f6f7f8;
   --color-background-secondary: #ffffff;
-  --color-background-muted: #f3f0ff;
-  --color-foreground: #17131f;
-  --color-foreground-secondary: #5f586f;
-  --color-foreground-muted: #928ba3;
+  --color-background-muted: #eceef0;
+  --color-foreground: #16191c;
+  --color-foreground-secondary: #4c5359;
+  --color-foreground-muted: #858c92;
   --color-card: #ffffff;
-  --color-card-muted: #f5f2ff;
-  --color-border: #e7dfff;
-  --color-border-strong: #cfc2f4;
-  --color-primary: #7c3aed;
-  --color-primary-muted: #e9ddff;
-  --color-primary-subtle: #f4eeff;
-  --color-secondary: #ff4fb8;
-  --color-tertiary: #2454d6;
-  --color-warning: #ffca3a;
-  --color-info: #22c7f2;
-  --gradient-brand: linear-gradient(135deg, #2454ff 0%, #7c3aed 48%, #ff4fb8 100%);
-  --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #ff4fb8 100%);
-  --gradient-bubble: linear-gradient(135deg, #ffffff 0%, #f4eeff 100%);
-  --gradient-accent: linear-gradient(135deg, #ffca3a 0%, #ff7a59 100%);
-  --shadow-soft: 0 24px 80px rgba(75, 40, 160, 0.18);
-  --shadow-card: 0 16px 48px rgba(80, 54, 135, 0.12);
+  --color-card-muted: #f2f3f5;
+  --color-border: #e0e3e6;
+  --color-border-strong: #c5cace;
+  --color-primary: #0f7b85;
+  --color-primary-muted: #cfe8ea;
+  --color-primary-subtle: #e8f4f5;
+  --color-secondary: #38a9ae;
+  --color-tertiary: #0f7b85;
+  --color-warning: #e0a234;
+  --color-info: #2b86c4;
+  --gradient-brand: linear-gradient(135deg, #0b6470 0%, #0f7b85 50%, #38a9ae 100%);
+  --gradient-primary: linear-gradient(135deg, #0f7b85 0%, #38a9ae 100%);
+  --gradient-bubble: linear-gradient(135deg, #ffffff 0%, #e8f4f5 100%);
+  --gradient-accent: linear-gradient(135deg, #f2b23d 0%, #e8894a 100%);
+  --shadow-soft: 0 24px 80px rgba(13, 70, 76, 0.18);
+  --shadow-card: 0 16px 48px rgba(20, 60, 66, 0.12);
   --radius-card: 8px;
   --max-width: 1180px;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-background: #0b0714;
-    --color-background-secondary: #12101d;
-    --color-background-muted: #1b1730;
-    --color-foreground: #fffdf7;
-    --color-foreground-secondary: #d8d2e8;
-    --color-foreground-muted: #9e96b7;
-    --color-card: #171327;
-    --color-card-muted: #211b38;
-    --color-border: #2f2750;
-    --color-border-strong: #4a3a78;
-    --color-primary: #a76bff;
-    --color-primary-muted: #3b2568;
-    --color-primary-subtle: #24183f;
-    --color-secondary: #ff5dc8;
-    --color-tertiary: #afc8ff;
-    --color-info: #43d9ff;
+    --color-background: #0e1113;
+    --color-background-secondary: #15191c;
+    --color-background-muted: #1d2226;
+    --color-foreground: #f1f3f4;
+    --color-foreground-secondary: #c3c8cc;
+    --color-foreground-muted: #868d92;
+    --color-card: #15191c;
+    --color-card-muted: #1c2125;
+    --color-border: #2a3034;
+    --color-border-strong: #3d454b;
+    --color-primary: #34abb5;
+    --color-primary-muted: #123c42;
+    --color-primary-subtle: #0e2d32;
+    --color-secondary: #58c2ca;
+    --color-tertiary: #9fe0e6;
+    --color-info: #4fa7e0;
     --shadow-soft: 0 24px 80px rgba(0, 0, 0, 0.34);
     --shadow-card: 0 16px 48px rgba(0, 0, 0, 0.28);
   }
@@ -101,8 +101,8 @@ body {
   margin: 0;
   min-width: 320px;
   background:
-    radial-gradient(circle at 14% -10%, rgba(36, 84, 255, 0.16), transparent 34rem),
-    radial-gradient(circle at 88% 2%, rgba(255, 79, 184, 0.14), transparent 30rem),
+    radial-gradient(circle at 14% -10%, rgba(11, 100, 112, 0.16), transparent 34rem),
+    radial-gradient(circle at 88% 2%, rgba(56, 169, 174, 0.14), transparent 30rem),
     var(--color-background);
   color: var(--color-foreground);
   font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -168,7 +168,7 @@ h3 {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.25);
+  box-shadow: 0 8px 24px rgba(15, 123, 133, 0.25);
 }
 
 .nav {
@@ -264,7 +264,7 @@ h3 {
 .button-primary {
   background: var(--gradient-primary);
   color: #ffffff;
-  box-shadow: 0 14px 34px rgba(124, 58, 237, 0.28);
+  box-shadow: 0 14px 34px rgba(15, 123, 133, 0.28);
 }
 
 .button-secondary {
@@ -320,7 +320,7 @@ h3 {
   border-radius: 0 0 16px 16px;
   /* Device notch: always a dark cutout, independent of theme (foreground
      flips to near-white in dark mode, which made the notch glow white). */
-  background: #0b0714;
+  background: #0e1113;
   opacity: 0.92;
 }
 
@@ -373,7 +373,7 @@ h3 {
   padding: 12px 14px;
   font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(23, 19, 31, 0.08);
+  box-shadow: 0 8px 24px rgba(22, 25, 28, 0.08);
 }
 
 .bubble.user {
@@ -390,7 +390,7 @@ h3 {
   /* The received bubble is a light gradient in BOTH themes, so its text must
      stay dark — var(--color-foreground) would be near-white in dark mode and
      render white-on-white. */
-  color: #17131f;
+  color: #16191c;
 }
 
 .bubble.agent p {
@@ -480,7 +480,7 @@ h3 {
 .prompt-list span {
   background: var(--color-card);
   color: var(--color-foreground);
-  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.08);
+  box-shadow: 0 10px 30px rgba(15, 123, 133, 0.08);
 }
 
 .section-heading {
@@ -643,7 +643,7 @@ h3 {
 
 .ios-panel img {
   border-radius: 34px;
-  box-shadow: 0 18px 44px rgba(124, 58, 237, 0.22);
+  box-shadow: 0 18px 44px rgba(15, 123, 133, 0.22);
 }
 
 .launch-list {
