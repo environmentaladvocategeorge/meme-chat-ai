@@ -1,12 +1,18 @@
-// Backfill script: patches all free-plan profiles down to the new 220-credit
-// monthly budget. Only writes to users who currently have monthlyCredits > 220
-// so it is safe to re-run. Does NOT touch paid users or users already at/below
-// the new cap.
+// Backfill script: patches all free-plan profiles down to the new 187-credit
+// monthly budget (a 15% trim from the prior 220, applied on day 5 of launch).
+// Only writes to users who currently have monthlyCredits > 187 so it is safe to
+// re-run. Does NOT touch paid users or users already at/below the new cap.
 //
 // Fields updated per user:
-//   monthlyCredits   → 220
-//   softDailyCredits → computeDailyCap(220, now)   (re-derived from today's month length)
-//   creditsRemaining → min(current, 220)            (never adds credits, only caps)
+//   monthlyCredits   → 187
+//   softDailyCredits → computeDailyCap(187, now)   (re-derived from today's month length)
+//   creditsRemaining → SPEND-PRESERVING: 187 − (credits already spent this cycle)
+//                      where spent = oldMonthlyCredits − oldCreditsRemaining.
+//                      This charges the trim against unspent budget rather than
+//                      refunding what a user has already used. Floored at 0.
+//
+// NOTE: keep NEW_MONTHLY_CREDITS in sync with PLANS.free.monthlyCredits
+// (functions/src/billing/plans.ts) — this standalone script can't import the TS.
 //
 // Usage (from functions/):
 //   node scripts/patch-free-credits.cjs            # dry run — prints what would change
@@ -15,7 +21,7 @@ const fs = require("fs");
 const path = require("path");
 const { getDb } = require("./admin-app.cjs");
 
-const NEW_MONTHLY_CREDITS = 220;
+const NEW_MONTHLY_CREDITS = 187;
 const DAILY_BURST_FACTOR = 3;
 const BATCH_SIZE = 400; // well under the 500-op Firestore batch limit
 const DRY_RUN = !process.argv.includes("--apply");
@@ -27,6 +33,18 @@ function computeDailyCap(monthlyCredits, date) {
   return Math.round((monthlyCredits / daysInMonth(date)) * DAILY_BURST_FACTOR);
 }
 
+// Spend-preserving new remaining: figure out what the user has already spent
+// this cycle from their OLD budget, then deduct that from the NEW budget. Never
+// negative, never above the new cap.
+function computeNewRemaining(current) {
+  const oldMonthly =
+    typeof current.monthlyCredits === "number" ? current.monthlyCredits : NEW_MONTHLY_CREDITS;
+  const oldRemaining =
+    typeof current.creditsRemaining === "number" ? current.creditsRemaining : oldMonthly;
+  const spent = Math.max(0, oldMonthly - oldRemaining);
+  return Math.max(0, Math.min(NEW_MONTHLY_CREDITS, NEW_MONTHLY_CREDITS - spent));
+}
+
 (async () => {
   const db = getDb();
   const now = new Date();
@@ -34,7 +52,8 @@ function computeDailyCap(monthlyCredits, date) {
 
   console.log(`\npatch-free-credits — ${DRY_RUN ? "DRY RUN (pass --apply to write)" : "LIVE WRITE"}`);
   console.log(`  new monthlyCredits : ${NEW_MONTHLY_CREDITS}`);
-  console.log(`  new softDailyCredits: ${newDailyCap} (${daysInMonth(now)}-day month)\n`);
+  console.log(`  new softDailyCredits: ${newDailyCap} (${daysInMonth(now)}-day month)`);
+  console.log(`  remaining policy   : spend-preserving (187 − credits already spent)\n`);
 
   // Page through all free profiles.
   let query = db.collection("profiles").where("plan", "==", "free");
@@ -73,10 +92,11 @@ function computeDailyCap(monthlyCredits, date) {
   if (DRY_RUN) {
     console.log("Sample of users that would be patched (first 10):");
     for (const { ref, current } of toUpdate.slice(0, 10)) {
-      const newRemaining = Math.min(current.creditsRemaining ?? current.monthlyCredits, NEW_MONTHLY_CREDITS);
+      const newRemaining = computeNewRemaining(current);
+      const spent = Math.max(0, current.monthlyCredits - (current.creditsRemaining ?? current.monthlyCredits));
       console.log(
         `  ${ref.id}  monthly ${current.monthlyCredits} → ${NEW_MONTHLY_CREDITS}` +
-        `  remaining ${current.creditsRemaining} → ${newRemaining}` +
+        `  spent ${spent}  remaining ${current.creditsRemaining} → ${newRemaining}` +
         `  daily ${current.softDailyCredits} → ${newDailyCap}`
       );
     }
@@ -94,10 +114,7 @@ function computeDailyCap(monthlyCredits, date) {
       batch.update(ref, {
         monthlyCredits: NEW_MONTHLY_CREDITS,
         softDailyCredits: newDailyCap,
-        creditsRemaining: Math.min(
-          current.creditsRemaining ?? current.monthlyCredits,
-          NEW_MONTHLY_CREDITS,
-        ),
+        creditsRemaining: computeNewRemaining(current),
       });
     }
     await batch.commit();
