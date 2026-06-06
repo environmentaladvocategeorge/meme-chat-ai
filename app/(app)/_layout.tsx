@@ -1,11 +1,16 @@
 import { MaxWidthFrame } from "@/components/MaxWidthFrame";
 import { PlayfulMenu } from "@/components/PlayfulMenu";
+import { useDailyPaywall } from "@/hooks/useDailyPaywall";
 import { useTheme } from "@/hooks/useTheme";
 import { Stack } from "expo-router";
 import { View } from "react-native";
 
 export default function AppLayout() {
   const theme = useTheme();
+
+  // Once-a-day paywall for free users on app open / foreground. Lives here
+  // because this layout only mounts post-login + post-onboarding.
+  useDailyPaywall();
 
   // The in-app screens (chat/history/settings) get the phone-width column on
   // wide screens (iPad). The full-bleed brand pages — landing, auth,
