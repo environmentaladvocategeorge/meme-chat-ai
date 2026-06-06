@@ -2,7 +2,7 @@
   "expo": {
     "name": "Meme Chat AI",
     "slug": "meme-chat-ai",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
     "scheme": "memechatai",
@@ -16,7 +16,17 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleLocalizations": ["en", "es", "fr", "pt", "de", "zh", "ja", "hi", "ru"],
+        "CFBundleLocalizations": [
+          "en",
+          "es",
+          "fr",
+          "pt",
+          "de",
+          "zh",
+          "ja",
+          "hi",
+          "ru"
+        ],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
