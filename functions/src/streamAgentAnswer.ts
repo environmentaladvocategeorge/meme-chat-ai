@@ -26,6 +26,7 @@ import {
   finalizeAgentMessage,
   loadRecentMessages,
   markAgentMessageErrored,
+  markConversationFiltered,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
 import {
@@ -229,6 +230,18 @@ export const streamAgentAnswer = onRequest(
           userKey: logKey(uid),
           conversationId,
         });
+        // A brand-new conversation was created above with a neutral placeholder
+        // title; since the gate blocks the reply, AI titling will never run, so
+        // relabel it now to a clean filtered title instead of leaving the
+        // placeholder. Best-effort: a failure here must not change the response.
+        if (newConversation) {
+          await markConversationFiltered(conversationId).catch((err) =>
+            logger.warn("[streamAgentAnswer] failed to relabel filtered conversation", {
+              conversationId,
+              err,
+            }),
+          );
+        }
         void logFlaggedContent({
           uid,
           conversationId,
