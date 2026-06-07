@@ -14,23 +14,17 @@ gif,roast,légende,réponse,humour,blague,sticker,réaction,argot,chatbot,rééc
 
 ## What's New (Nouveautés)
 
-Plus de langues. L'app prend désormais en charge 9 langues : anglais, espagnol, français, portugais, allemand, chinois, japonais, hindi et russe. Choisissez la vôtre dans le nouveau sélecteur de langue dans les Réglages.
+Essai gratuit de 7 jours pour les nouveaux abonnés. Lors de votre inscription, vous pouvez désormais essayer Wingman (le forfait Plus) gratuitement pendant une semaine complète — aucun frais pendant l'essai. Annulez à tout moment avant la fin des 7 jours et vous ne serez jamais facturé.
 
-Réactions emoji. Appuyez sur le nouveau bouton de réaction sur n'importe quel message pour réagir avec un emoji, en plus des pouces haut/bas.
-
-Réactions GIF et mèmes plus intelligentes. Les réactions se chargent plus vite, ne se répètent plus et n'apparaissent que lorsqu'elles collent au moment : fini les mèmes sur les messages sérieux.
-
-Personnalité du bot affinée. Utilisation plus sobre des emojis et un ton plus tranchant et cohérent à tous les niveaux de Rot Level.
+Date de renouvellement sur votre écran de forfait. Les abonnés actifs voient désormais exactement quand leur prochaine date de facturation arrive, directement dans la vue abonnement.
 
 Améliorations des performances et de la stabilité.
 
 ## Promotional Text (Texte promotionnel)
 
-Réécrivez des textes, trouvez des idées de légendes, expliquez des trucs compliqués et ajoutez des mèmes ou des GIF avec Brainrot Bot.
+Toutes les IA se ressemblent. Brainrot Bot, non — il riposte, parle mème, et rend vraiment tes textos, légendes et idées bien plus percutants que tout le reste.
 
 ## Description
-
-Transformez votre bouillie mentale en réponses, légendes, idées et plans avec un chatbot IA drôle conçu pour la culture mème.
 
 Meme Chat AI est votre acolyte IA né sur internet pour discuter, brainstormer, réécrire, expliquer, clasher et créer, le tout avec le charme chaotique de Brainrot Bot. Au lieu de parler à un assistant ennuyeux, vous obtenez un compagnon IA fun qui vous aide à mieux dire les choses, à les comprendre plus vite et à rendre vos conversations du quotidien bien plus divertissantes.
 
