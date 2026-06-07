@@ -32,6 +32,7 @@ import { AgentReadyReveal } from "./AgentReadyReveal";
 import { MockChat } from "./MockChat";
 import { OnboardingScaffold } from "./OnboardingScaffold";
 import { RotLevelDemo } from "./RotLevelDemo";
+import { TrialOfferScreen } from "./TrialOfferScreen";
 
 // Step indices — keep in sync with TOTAL_STEPS.
 const STEP = {
@@ -73,6 +74,8 @@ export function OnboardingFlow() {
   const [readyDone, setReadyDone] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const finishedRef = useRef(false);
+  // When true, the trial offer screen overlays the paywall step.
+  const [showTrialOffer, setShowTrialOffer] = useState(false);
 
   // Pull a couple of real trending GIFs once so the meme/GIF showcase uses live
   // content (the actual Klipy pipeline) rather than canned art. Failures are
@@ -129,9 +132,14 @@ export function OnboardingFlow() {
           ? { alias: trimmedAlias, onboardingCompleted: true }
           : { onboardingCompleted: true },
       );
-    } catch {
-      // Non-blocking: the local onboarding flag + alias already advanced the
-      // user; a transient backend failure shouldn't trap them on the paywall.
+    } catch (err) {
+      // Non-blocking for generic failures: the local alias already advanced the
+      // user. But if the alias was rejected for hate speech, clear it so the
+      // local state doesn't keep a prohibited name.
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("hate_speech_detected")) {
+        setAlias("");
+      }
     }
 
     setCompleted(true); // routing dispatcher takes them to /chat
@@ -147,6 +155,13 @@ export function OnboardingFlow() {
 
   const back = step > 0 ? () => go(step - 1) : undefined;
   const gifLabel = t("onboarding.memes.cta");
+
+  // Trial offer intercepts "continue free" — only shown to genuinely free users.
+  // If they already have a paid plan (promo, bought during onboarding, etc.) we
+  // never show this screen; the paywall step routes them straight to finish().
+  if (showTrialOffer && effectivePlan === "free") {
+    return <TrialOfferScreen onDecline={() => void finish()} />;
+  }
 
   switch (step) {
     case STEP.value:
@@ -325,19 +340,32 @@ export function OnboardingFlow() {
       );
 
     case STEP.paywall:
-    default:
+    default: {
+      // Users who already have a paid plan (promo code, bought during this
+      // onboarding flow, or existing subscriber) should skip the trial offer
+      // and just continue. Only free users get the trial intercept.
+      const alreadySubscribed = effectivePlan !== "free";
       return (
         <OnboardingScaffold
           step={STEP.paywall}
           total={TOTAL_STEPS}
           title={t("onboarding.paywall.title")}
-          secondaryLabel={t("onboarding.paywall.continueFree")}
-          onSecondary={() => void finish()}
+          secondaryLabel={
+            alreadySubscribed
+              ? t("common.continue")
+              : t("onboarding.paywall.continueFree")
+          }
+          onSecondary={
+            alreadySubscribed
+              ? () => void finish()
+              : () => setShowTrialOffer(true)
+          }
           onBack={back}
         >
           <PlanPaywall />
         </OnboardingScaffold>
       );
+    }
   }
 }
 

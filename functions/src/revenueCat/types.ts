@@ -27,6 +27,11 @@ export type RcEvent = {
   environment?: "SANDBOX" | "PRODUCTION";
   // For PRODUCT_CHANGE: the new product after the change.
   new_product_id?: string;
+  // "TRIAL" on INITIAL_PURCHASE events that start a free trial period.
+  // "NORMAL" for standard paid purchases. "INTRO" for paid intro offer periods.
+  period_type?: "TRIAL" | "INTRO" | "NORMAL";
+  // True on RENEWAL events where the trial just converted to a paid subscription.
+  is_trial_conversion?: boolean;
 };
 
 export type RcWebhookPayload = {

@@ -16,6 +16,8 @@ function makeBilling(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcAppUserId: "uid-1",
     rcActiveProductId: "monthly",
     rcEntitlementExpiresAt: null,
+    rcIsInTrial: false,
+    rcTrialExpiresAt: null,
     monthlyCredits: PLANS.basic.monthlyCredits,
     softDailyCredits: computeDailyCap(PLANS.basic.monthlyCredits, new Date(T0)),
     creditsRemaining: 5,

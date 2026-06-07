@@ -78,6 +78,7 @@ export function PlanPaywall() {
   const subscriptionMode = useSubscriptionStore((s) => s.mode);
   const refresh = useSubscriptionStore((s) => s.refresh);
   const openManagement = useSubscriptionStore((s) => s.openManagement);
+  const expiresAt = useSubscriptionStore((s) => s.expiresAt);
   // Resolve the plan→product map for the active store. Anything other than the
   // test store (including the pre-init null state in prod builds) uses the
   // production App Store / Play product identifiers.
@@ -276,6 +277,20 @@ export function PlanPaywall() {
           />
         ))}
       </View>
+
+      {/* Renewal / expiry line — plain text, shown only to active subscribers */}
+      {hasActiveSubscription && expiresAt ? (
+        <Typography
+          variant="caption"
+          style={{
+            color: theme["--color-foreground-muted"],
+            textAlign: "center",
+            marginTop: -10,
+          }}
+        >
+          {formatRenewalLabel(expiresAt, t)}
+        </Typography>
+      ) : null}
 
       {/* CTA — placed directly under the tier cards so the primary action is
           visible without scrolling past the details + comparison matrix. */}
@@ -868,3 +883,23 @@ function MatrixValueCell({
     </View>
   );
 }
+
+// ----- Renewal badge -----
+
+function formatRenewalLabel(expiresAt: Date, t: (key: string, opts?: object) => string): string {
+  const now = Date.now();
+  const diffMs = expiresAt.getTime() - now;
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays <= 0) return t("settings.plan.expired");
+  if (diffDays === 1) return t("settings.plan.renewsTomorrow");
+  if (diffDays <= 30) return t("settings.plan.renewsInDays", { days: diffDays });
+
+  const formatted = expiresAt.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: expiresAt.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+  });
+  return t("settings.plan.renewsOn", { date: formatted });
+}
+
