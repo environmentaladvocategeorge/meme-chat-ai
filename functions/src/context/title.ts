@@ -7,6 +7,11 @@ import { resolveModelId } from "../billing/models";
 import { calculateCostUsd, calculateCredits } from "../billing/credits";
 import { chargeCredits } from "../billing/ledger";
 import { PLANS, type PlanId } from "../billing/plans";
+import { checkHateSpeech } from "../moderation/checkHateSpeech";
+
+// Substituted for a generated title that trips the moderation gate, so a hateful
+// title never reaches the chat list even if the model ignores the prompt rule.
+const FILTERED_TITLE = "Title filtered due to profanity";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
@@ -45,6 +50,11 @@ const TITLE_SYSTEM_PROMPT =
   "message word-for-word, riff on it. No quotes, no hashtags, no trailing " +
   "punctuation. If there's nothing to go on, return a short playful generic title " +
   "with an emoji.\n\n" +
+  "NEVER put a slur, hate speech, or any dehumanizing or demeaning content about a " +
+  "person or protected group in the title — not even quoting the user, and not in " +
+  "spelled-out, censored, or letter-swapped form. If the chat was about something " +
+  "hateful or a slur, name the topic neutrally instead (e.g. Slur Spelling Question, " +
+  "Heated Argument) without reproducing the word.\n\n" +
   "Examples:\n" +
   "Opener is a meme image; the bot's reply jokes it's the distracted-boyfriend meme " +
   "about ignoring homework -> Homework Avoidance Arc 💀\n" +
@@ -213,13 +223,31 @@ export const generateConversationTitle = onDocumentWritten(
       });
 
       const raw = completion.choices[0]?.message?.content ?? "";
-      const title = cleanTitle(raw);
+      const cleaned = cleanTitle(raw);
+
+      // Backstop the prompt rule: even with the guardrail above, run the title
+      // through the moderation gate and swap in a clean label if it slips a slur
+      // or hate speech through. Fails open (checkHateSpeech returns false on API
+      // error), so a moderation outage never blocks a benign title.
+      let flagged = false;
+      if (cleaned) {
+        try {
+          flagged = await checkHateSpeech(cleaned, OPENAI_API_KEY.value());
+        } catch (err) {
+          logger.warn("[generateConversationTitle] title moderation threw; failing open", {
+            cid,
+            err,
+          });
+        }
+      }
+      const title = flagged ? FILTERED_TITLE : cleaned;
 
       logger.info("[generateConversationTitle] OpenAI response", {
         cid,
         finishReason: completion.choices[0]?.finish_reason,
         raw,
         title,
+        moderationFlagged: flagged,
         usage: completion.usage,
       });
 

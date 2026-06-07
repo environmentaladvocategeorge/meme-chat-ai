@@ -155,13 +155,17 @@ describe("createConversation title fallback", () => {
     expect(recorded.convSet?.firstUserMessage).toBe("");
   });
 
-  it("uses the message text when text is present", async () => {
+  it("uses a neutral placeholder for a text opener (never the raw message)", async () => {
     const { db, recorded } = makeDb();
     mockedGetFirestore.mockReturnValue(db);
 
     await createConversation("user-1", "hello world", { hasImages: false });
 
-    expect(recorded.convSet?.title).toBe("hello world");
+    // The raw message is NOT used as the title (it would leak slurs/profanity
+    // into the chat list when a turn is blocked before the bot replies).
+    expect(recorded.convSet?.title).toBe("New Chat 💬");
+    // ...but the raw text is still kept for AI titling input.
+    expect(recorded.convSet?.firstUserMessage).toBe("hello world");
   });
 });
 

@@ -24,6 +24,19 @@ type StoredMessage = {
 // only opener gets a real title from how the bot reacted to it.
 const IMAGE_ONLY_TITLE_FALLBACK = "Sent a meme";
 
+// Neutral placeholder for a text opener. We deliberately do NOT seed the title
+// from the raw user message anymore: when a message was blocked before the bot
+// replied (e.g. the hate-speech gate), there was no reply, so AI titling never
+// ran and the raw text — slurs included — stayed as the chat-list title forever.
+// A generic placeholder never leaks user text; generateConversationTitle names
+// the exchange once the bot's first reply lands.
+const NEW_CONVERSATION_TITLE_FALLBACK = "New Chat 💬";
+
+// Title applied when a new conversation's opening message is flagged by the
+// moderation gate (see markConversationFiltered). Replaces the placeholder so a
+// blocked opener never shows raw flagged text.
+const PROFANITY_FILTERED_TITLE = "Filtered due to profanity";
+
 export type MessagePersonaMetadata = {
   id: string;
   name: string;
@@ -60,13 +73,14 @@ export async function createConversation(
   const conversationRef = db.collection("conversations").doc();
 
   const trimmedFirst = firstUserMessageText.trim();
-  // Image-only opener: there's no text to seed a title from, so show a fixed
-  // placeholder until the bot replies and generateConversationTitle names the
-  // exchange.
+  // Always a neutral placeholder until generateConversationTitle names the
+  // exchange from the bot's first reply. Image-only openers get the meme
+  // placeholder; everything else gets the generic one. We never seed from raw
+  // user text (see NEW_CONVERSATION_TITLE_FALLBACK).
   const title =
     trimmedFirst.length === 0 && options?.hasImages
       ? IMAGE_ONLY_TITLE_FALLBACK
-      : firstUserMessageText.slice(0, 60);
+      : NEW_CONVERSATION_TITLE_FALLBACK;
 
   await conversationRef.set({
     uid,
@@ -81,6 +95,27 @@ export async function createConversation(
   });
 
   return { conversationId: conversationRef.id };
+}
+
+// Re-titles a conversation whose opening message was rejected by the moderation
+// gate before the bot ever replied. Without this the conversation would keep the
+// neutral placeholder forever (no reply -> AI titling never runs); this gives a
+// clear, content-free label instead. titleGenerated is set so the background
+// titler treats it as done and never tries to title the blocked exchange.
+export async function markConversationFiltered(
+  conversationId: string,
+): Promise<void> {
+  await getFirestore()
+    .collection("conversations")
+    .doc(conversationId)
+    .set(
+      {
+        title: PROFANITY_FILTERED_TITLE,
+        titleGenerated: true,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
 }
 
 export async function assertConversationOwner(
