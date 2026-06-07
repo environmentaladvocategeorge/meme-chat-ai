@@ -1,7 +1,12 @@
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
+import { defineSecret } from "firebase-functions/params";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { z } from "zod";
+import { checkHateSpeech } from "../moderation/checkHateSpeech";
+import { logFlaggedContent } from "../moderation/logFlaggedContent";
+
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 
 // Free-text personalization captured during onboarding. The alias is the name
 // Brainrot Bot uses when it addresses the user ("bestie", "menace", "Jorge", …). It is
@@ -81,7 +86,7 @@ export async function updateProfileForUser(
 // binding asserted across redeploys — the function still authenticates inside
 // via request.auth — matching deleteMyAccount and avoiding the post-deploy 401s.
 export const updateProfile = onCall(
-  { region: "us-central1", invoker: "public" },
+  { region: "us-central1", invoker: "public", secrets: [OPENAI_API_KEY] },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Sign-in required");
@@ -89,6 +94,28 @@ export const updateProfile = onCall(
     const parsed = schema.safeParse(request.data);
     if (!parsed.success) {
       throw new HttpsError("invalid-argument", "invalid-request");
+    }
+
+    // Hate speech check on alias and displayName. Runs only when the field is
+    // present and non-empty — clearing a name (empty string) is always allowed.
+    const apiKey = OPENAI_API_KEY.value();
+    const fieldsToCheck: Array<{ value: string | undefined; context: "alias" | "display_name" }> = [
+      { value: parsed.data.alias, context: "alias" },
+      { value: parsed.data.displayName, context: "display_name" },
+    ];
+    for (const { value, context } of fieldsToCheck) {
+      if (!value || !value.trim()) continue;
+      let flagged = false;
+      try {
+        flagged = await checkHateSpeech(value, apiKey);
+      } catch (err) {
+        logger.warn("[updateProfile] hate speech check threw; failing open", { uid, context, err });
+      }
+      if (flagged) {
+        logger.warn("[updateProfile] hate speech detected in name field", { uid, context });
+        void logFlaggedContent({ uid, conversationId: null, messageId: null, reason: "hate_speech", context });
+        throw new HttpsError("invalid-argument", "hate_speech_detected");
+      }
     }
 
     const result = await updateProfileForUser(uid, parsed.data, getFirestore());

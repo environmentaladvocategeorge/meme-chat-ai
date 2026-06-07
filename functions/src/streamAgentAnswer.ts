@@ -42,6 +42,8 @@ import {
   buildSystemPromptForStream,
 } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
+import { checkHateSpeech } from "./moderation/checkHateSpeech";
+import { logFlaggedContent } from "./moderation/logFlaggedContent";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
@@ -205,6 +207,44 @@ export const streamAgentAnswer = onRequest(
       });
       res.end();
       return;
+    }
+
+    // ---------- hate speech gate ----------
+    // Only runs when there is text. Attachment-only turns (memes, GIFs) are
+    // not text-moderated here; images go through the OpenAI image moderation
+    // pipeline below. We check only the `hate` / `hate/threatening` categories
+    // so medical, firearms, and self-harm discussions pass through unblocked.
+    if (userText.length > 0) {
+      let hateFlagged = false;
+      try {
+        hateFlagged = await checkHateSpeech(userText, OPENAI_API_KEY.value());
+      } catch (err) {
+        logger.warn("[streamAgentAnswer] hate speech check threw; failing open", {
+          conversationId,
+          err,
+        });
+      }
+      if (hateFlagged) {
+        logger.warn("[streamAgentAnswer] hate speech detected in message", {
+          userKey: logKey(uid),
+          conversationId,
+        });
+        void logFlaggedContent({
+          uid,
+          conversationId,
+          messageId: clientMessageId ?? null,
+          reason: "hate_speech",
+          context: "message",
+        });
+        res.setHeader("Content-Type", "text/event-stream");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no");
+        res.flushHeaders();
+        writeSse(res, "hate_speech", {});
+        res.end();
+        return;
+      }
     }
 
     // ---------- resolve + moderate image inputs ----------

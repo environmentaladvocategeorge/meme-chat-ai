@@ -33,6 +33,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Written exclusively by Cloud Functions (Admin SDK) when a message or
+    // name is flagged for hate speech. No client should ever read or write
+    // this collection directly.
+    match /flagged_messages/{docId} {
+      allow read, write: if false;
+    }
+
     match /persona_prompts/{promptId} {
       allow read, write: if false;
     }
