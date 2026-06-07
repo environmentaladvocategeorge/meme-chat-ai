@@ -100,25 +100,37 @@ export function buildVisibleMessages({
     }
   }
 
-  // A failed turn surfaces as a single agent-side error card answering the
-  // last user message — carrying both the explanation and the retry action,
-  // so the failure reads as one coherent reply from Brainrot Bot. Skipped if the
-  // backend already persisted an agent error reply for this turn.
-  if (status === "error" && lastUserMessage) {
+  // A failed turn surfaces as a single agent-side error card. For hate_speech
+  // the user message has already been removed from state, so we inject a
+  // standalone card not anchored to any user turn. For all other errors we
+  // anchor to the last user message (carrying the retry action).
+  if (status === "error") {
     const alreadyErrored = base.some(
       (message) => message.role === "agent" && message.status === "error",
     );
     if (!alreadyErrored) {
-      base.push({
-        id: `agent-error:${lastUserMessage.id}`,
-        role: "agent",
-        inReplyToClientMessageId: lastUserMessage.clientMessageId,
-        text: "",
-        status: "error",
-        createdAt: null,
-        errorKind: error === "signed-out" ? "signed-out" : "generic",
-        retry: error !== "signed-out",
-      });
+      if (error === "hate_speech") {
+        base.push({
+          id: "agent-error:hate_speech",
+          role: "agent",
+          text: "",
+          status: "error",
+          createdAt: null,
+          errorKind: "hate_speech",
+          retry: false,
+        });
+      } else if (lastUserMessage) {
+        base.push({
+          id: `agent-error:${lastUserMessage.id}`,
+          role: "agent",
+          inReplyToClientMessageId: lastUserMessage.clientMessageId,
+          text: "",
+          status: "error",
+          createdAt: null,
+          errorKind: error === "signed-out" ? "signed-out" : "generic",
+          retry: error !== "signed-out",
+        });
+      }
     }
   }
 

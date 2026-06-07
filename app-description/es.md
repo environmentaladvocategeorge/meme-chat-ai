@@ -14,23 +14,17 @@ gif,roast,leyenda,respuesta,humor,chiste,sticker,reaccion,jerga,chatbot,reescrib
 
 ## What's New (Novedades)
 
-Más idiomas. La app ahora admite 9 idiomas: inglés, español, francés, portugués, alemán, chino, japonés, hindi y ruso. Elige el tuyo en el nuevo selector de idioma en Ajustes.
+Prueba gratis de 7 días para nuevos suscriptores. Al registrarte, ahora puedes probar Wingman (el plan Plus) completamente gratis durante una semana entera. Sin cobros durante la prueba. Cancela en cualquier momento antes de que terminen los 7 días y nunca te cobraremos nada.
 
-Reacciones con emojis. Toca el nuevo botón de reacción en cualquier mensaje para reaccionar con un emoji, además de los pulgares arriba/abajo.
-
-Reacciones de GIF y memes más inteligentes. Las reacciones ahora cargan más rápido, no se repiten y solo aparecen cuando encajan con el momento: se acabaron los memes en mensajes serios.
-
-Personalidad del bot mejorada. Uso más limpio de emojis y un tono más afilado y coherente en todos los niveles de Rot Level.
+Fecha de renovación en tu pantalla de plan. Los suscriptores activos ahora ven exactamente cuándo es su próxima fecha de facturación, directamente en la vista de suscripción.
 
 Mejoras de rendimiento y estabilidad.
 
 ## Promotional Text (Texto promocional)
 
-Reescribe textos, genera ideas para captions, explica cosas confusas y añade memes o GIFs con Brainrot Bot.
+Todas las IAs suenan igual. Brainrot Bot no — hace roasts, habla en memes y convierte tus respuestas, captions e ideas en algo que de verdad impacta.
 
 ## Description (Descripción)
-
-Convierte la sopa mental en respuestas, captions, ideas y planes con un chatbot de IA divertido creado para la cultura de los memes.
 
 Meme Chat AI es tu compañero de IA nativo de internet para chatear, generar ideas, reescribir, explicar, hacer roasts y crear, todo con el encanto caótico de Brainrot Bot. En lugar de hablar con un asistente aburrido, tienes un compañero de IA divertido que te ayuda a decir las cosas mejor, entenderlas más rápido y hacer que las conversaciones cotidianas sean mucho más entretenidas.
 

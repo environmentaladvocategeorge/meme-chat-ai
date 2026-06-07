@@ -18,6 +18,8 @@ function billing(overrides: Partial<ProfileBilling> = {}): ProfileBilling {
     rcAppUserId: null,
     rcActiveProductId: null,
     rcEntitlementExpiresAt: null,
+    rcIsInTrial: false,
+    rcTrialExpiresAt: null,
     monthlyCredits: PLANS.free.monthlyCredits,
     softDailyCredits: computeDailyCap(PLANS.free.monthlyCredits, NOW),
     creditsRemaining: PLANS.free.monthlyCredits,

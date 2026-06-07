@@ -62,6 +62,7 @@ export type StreamEvent =
   | { type: "gif"; gif: MessageGif }
   | { type: "done" }
   | { type: "quota_exceeded"; reason: string; resetAt: string | null }
+  | { type: "hate_speech" }
   | { type: "error"; code: string };
 
 type StreamAgentAnswerParams = {
@@ -217,6 +218,10 @@ function parseSSEFrame(frame: string): StreamEvent | null {
 
     if (parsed.event === "done") {
       return { type: "done" };
+    }
+
+    if (parsed.event === "hate_speech") {
+      return { type: "hate_speech" };
     }
 
     if (parsed.event === "quota_exceeded") {

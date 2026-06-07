@@ -14,23 +14,17 @@ gif,roast,caption,reply,texting,humor,joke,sticker,reaction,slang,chatbot,rewrit
 
 ## What's New
 
-More languages. The app now supports 9 languages — English, Spanish, French, Portuguese, German, Chinese, Japanese, Hindi, and Russian. Choose yours from the new language selector in Settings.
+Free 7-day trial for new subscribers. When you sign up, you can now try Wingman (the Plus plan) free for a full week — no charge during the trial. Cancel anytime before the 7 days end and you will never be billed.
 
-Emoji reactions. Tap the new reaction button on any message to react with an emoji, alongside the existing thumbs up/down.
-
-Smarter GIF and meme reactions. Reactions now load faster, stop repeating, and only show up when they fit the moment — no more memes on serious messages.
-
-Refined bot personality. Cleaner emoji use and sharper, more consistent tone across all rot levels.
+Renewal date on your plan screen. Active subscribers now see exactly when their next billing date is, right in the subscription view.
 
 Performance and stability improvements.
 
 ## Promotional Text
 
-Rewrite texts, brainstorm captions, explain confusing stuff, and add memes or GIFs with Brainrot Bot.
+Every AI sounds the same. Brainrot Bot doesn't — it roasts back, speaks meme, and actually makes your texts, captions, and ideas hit harder than anything else out there.
 
 ## Description
-
-Turn brain soup into replies, captions, ideas, and plans with a funny AI chat bot built for meme culture.
 
 Meme Chat AI is your internet-native AI sidekick for texting, brainstorming, rewriting, explaining, roasting, and creating — all with the chaotic charm of Brainrot Bot. Instead of chatting with a boring assistant, you get a playful AI companion that can help you say things better, understand things faster, and make everyday conversations way more entertaining.
 

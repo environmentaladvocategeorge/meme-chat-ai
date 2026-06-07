@@ -76,3 +76,9 @@ functions/lib/
 # also keeps it out of EAS uploads (EAS respects .gitignore when no .easignore
 # is present). It is additionally blocked from Metro bundling in metro.config.js.
 dashboard/
+
+# Server-side moderation module — contains an explicit hate-speech slur list.
+# This code runs exclusively in Firebase Cloud Functions (never bundled into
+# the iOS/Android app or accessible from the App Store binary). Keep it out of
+# the repo so the slur list is never publicly visible in source control.
+functions/src/moderation/

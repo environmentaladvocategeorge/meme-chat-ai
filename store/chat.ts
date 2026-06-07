@@ -377,6 +377,29 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           return;
         }
 
+        if (event.type === "hate_speech") {
+          // Backend flagged the message. Remove it from local state so the slur
+          // is never visible in the feed (the backend never wrote it to Firestore
+          // either — the hate-speech gate runs before appendMessage). A standalone
+          // error card is synthesised by buildVisibleMessages without anchoring to
+          // any user turn, so the user still gets the "message was flagged" notice.
+          set({
+            messages: get().messages.filter(
+              (message) => message.clientMessageId !== clientMessageId,
+            ),
+            streamingText: "",
+            streamingMeme: null,
+            streamingGif: null,
+            activeReplyClientId: null,
+            settledReply: null,
+            status: "error",
+            abortController: null,
+            currentModel: null,
+            error: "hate_speech",
+          });
+          return;
+        }
+
         if (event.type === "error") {
           throw new Error(event.code);
         }

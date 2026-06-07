@@ -14,23 +14,17 @@ gif,roast,legenda,resposta,humor,piada,sticker,reação,gíria,chatbot,reescreve
 
 ## What's New (Novidades)
 
-Mais idiomas. O app agora oferece suporte a 9 idiomas: inglês, espanhol, francês, português, alemão, chinês, japonês, híndi e russo. Escolha o seu no novo seletor de idioma em Configurações.
+Teste gratuito de 7 dias para novos assinantes. Ao se cadastrar, agora você pode experimentar o Wingman (o plano Plus) gratuitamente por uma semana inteira — sem cobrança durante o teste. Cancele a qualquer momento antes de os 7 dias acabarem e você nunca será cobrado.
 
-Reações com emoji. Toque no novo botão de reação em qualquer mensagem para reagir com um emoji, além do joinha para cima/baixo.
-
-Reações de GIF e memes mais inteligentes. As reações agora carregam mais rápido, não se repetem e só aparecem quando combinam com o momento: chega de memes em mensagens sérias.
-
-Personalidade do bot aprimorada. Uso mais limpo de emojis e um tom mais afiado e consistente em todos os níveis de Rot Level.
+Data de renovação na tela do seu plano. Assinantes ativos agora veem exatamente quando é a próxima data de cobrança, diretamente na visualização de assinatura.
 
 Melhorias de desempenho e estabilidade.
 
 ## Promotional Text (Texto promocional)
 
-Reescreva textos, crie ideias de legendas, explique coisas confusas e adicione memes ou GIFs com o Brainrot Bot.
+Toda IA soa igual. Brainrot Bot não — ele responde com humor, fala meme, e realmente faz seus textos, legendas e ideias impactarem mais do que qualquer outra coisa.
 
 ## Description (Descrição)
-
-Transforme a sopa mental em respostas, legendas, ideias e planos com um chatbot de IA divertido feito para a cultura dos memes.
 
 Meme Chat AI é seu parceiro de IA nativo da internet para conversar, ter ideias, reescrever, explicar, zoar e criar, tudo com o charme caótico do Brainrot Bot. Em vez de falar com um assistente chato, você tem um companheiro de IA divertido que ajuda você a dizer as coisas melhor, entendê-las mais rápido e tornar as conversas do dia a dia muito mais divertidas.
 

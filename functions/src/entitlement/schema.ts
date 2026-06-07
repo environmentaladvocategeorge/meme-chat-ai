@@ -18,6 +18,13 @@ export type ProfileBilling = {
   rcAppUserId: string | null;
   rcActiveProductId: RevenueCatProductIdStored;
   rcEntitlementExpiresAt: Timestamp | null;
+  // True while the user is in an active free-trial period (period_type=TRIAL on
+  // the RC INITIAL_PURCHASE event). Cleared on RENEWAL (trial converted to paid)
+  // or CANCELLATION/EXPIRATION. Lets analytics and the UI surface "in trial" state.
+  rcIsInTrial: boolean;
+  // The instant the trial period ends, mirroring rcEntitlementExpiresAt while
+  // rcIsInTrial is true. Null when not in a trial.
+  rcTrialExpiresAt: Timestamp | null;
   // The plan's resolved caps, denormalized onto the profile so the client can
   // render "X of Y" by reading the doc — it never recomputes them. monthlyCredits
   // mirrors PLANS[plan].monthlyCredits; softDailyCredits is computeDailyCap()
@@ -48,6 +55,8 @@ export function initialBilling(now: Date): ProfileBilling {
     rcAppUserId: null,
     rcActiveProductId: null,
     rcEntitlementExpiresAt: null,
+    rcIsInTrial: false,
+    rcTrialExpiresAt: null,
     monthlyCredits: PLANS[plan].monthlyCredits,
     softDailyCredits: computeDailyCap(PLANS[plan].monthlyCredits, now),
     creditsRemaining: PLANS[plan].monthlyCredits,
@@ -112,6 +121,8 @@ export function readProfileBilling(data: unknown): ProfileBilling | null {
     rcAppUserId: (d.rcAppUserId as string | null) ?? null,
     rcActiveProductId: (d.rcActiveProductId as RevenueCatProductIdStored) ?? null,
     rcEntitlementExpiresAt: (d.rcEntitlementExpiresAt as Timestamp | null) ?? null,
+    rcIsInTrial: (d.rcIsInTrial as boolean) ?? false,
+    rcTrialExpiresAt: (d.rcTrialExpiresAt as Timestamp | null) ?? null,
     monthlyCredits,
     softDailyCredits,
     creditsRemaining: d.creditsRemaining as number,

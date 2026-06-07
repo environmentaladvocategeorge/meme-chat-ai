@@ -14,23 +14,17 @@ gif,roast,spruch,antwort,humor,witz,sticker,reaktion,slang,chatbot,umschreiben,b
 
 ## What's New (Neuigkeiten)
 
-Mehr Sprachen. Die App unterstützt jetzt 9 Sprachen: Englisch, Spanisch, Französisch, Portugiesisch, Deutsch, Chinesisch, Japanisch, Hindi und Russisch. Wähle deine Sprache im neuen Sprachauswahlmenü in den Einstellungen.
+Kostenlose 7-Tage-Testversion für neue Abonnenten. Bei der Anmeldung kannst du Wingman (den Plus-Plan) jetzt eine ganze Woche lang kostenlos testen — keine Kosten während der Testphase. Kündige jederzeit vor Ablauf der 7 Tage und du wirst nie belastet.
 
-Emoji-Reaktionen. Tippe auf die neue Reaktionsschaltfläche bei jeder Nachricht, um mit einem Emoji zu reagieren — zusätzlich zu Daumen hoch/runter.
-
-Intelligentere GIF- und Meme-Reaktionen. Reaktionen laden jetzt schneller, wiederholen sich nicht mehr und erscheinen nur, wenn sie zum Moment passen — keine Memes mehr bei ernsten Nachrichten.
-
-Verfeinerte Bot-Persönlichkeit. Sparsamerer Emoji-Einsatz und ein schärferer, konsistenterer Ton auf allen Rot-Level-Stufen.
+Verlängerungsdatum auf deinem Plan-Bildschirm. Aktive Abonnenten sehen jetzt genau, wann ihr nächstes Abrechnungsdatum ist, direkt in der Abonnementansicht.
 
 Verbesserungen bei Leistung und Stabilität.
 
 ## Promotional Text (Werbetext)
 
-Texte umschreiben, Caption-Ideen sammeln, verwirrende Dinge erklären und Memes oder GIFs hinzufügen — mit Brainrot Bot.
+Jede KI klingt gleich. Brainrot Bot nicht — er gibt zurück, spricht Meme und macht deine Texte, Captions und Ideen wirklich besser als alles andere da draußen.
 
 ## Description (Beschreibung)
-
-Verwandle Gedankenbrei in Antworten, Captions, Ideen und Pläne — mit einem witzigen KI-Chatbot, der für die Meme-Kultur gemacht ist.
 
 Meme Chat AI ist dein internet-nativer KI-Sidekick zum Texten, Brainstormen, Umschreiben, Erklären, Roasten und Erstellen — alles mit dem chaotischen Charme von Brainrot Bot. Statt mit einem langweiligen Assistenten zu chatten, bekommst du einen verspielten KI-Begleiter, der dir hilft, Dinge besser zu sagen, schneller zu verstehen und alltägliche Gespräche viel unterhaltsamer zu machen.
 

@@ -563,14 +563,19 @@ export function MessageBubble({
   // message.
   if (isErrorCard) {
     const signedOut = message.errorKind === "signed-out";
+    const hateSpeech = message.errorKind === "hate_speech";
     const errorTitle = signedOut
       ? t("chat.errors.signedOutTitle")
-      : t("chat.errors.title");
+      : hateSpeech
+        ? t("chat.errors.hateSpeechTitle")
+        : t("chat.errors.title");
     const errorBody = signedOut
       ? t("chat.errors.signedOut")
-      : message.text.length > 0
-        ? message.text
-        : errorLabel;
+      : hateSpeech
+        ? t("chat.errors.hateSpeech")
+        : message.text.length > 0
+          ? message.text
+          : errorLabel;
 
     return (
       <Animated.View style={[{ gap: 6 }, entranceStyle]}>

@@ -5,7 +5,7 @@ export type RenderMessage = ChatMessage & {
   thinking?: boolean;
   // Which copy to show in the agent-side error card. Only set on synthesized
   // error bubbles (see `visibleMessages`).
-  errorKind?: "generic" | "signed-out";
+  errorKind?: "generic" | "signed-out" | "hate_speech";
 };
 
 // Stable list identity for a message bubble. An agent reply keeps the SAME

@@ -27,8 +27,13 @@ export function ChangeNameForm({ onDone }: { onDone: () => void }) {
       await updateProfileCallable({ alias: trimmed });
       setAlias(trimmed);
       setDone(true);
-    } catch {
-      setError(t("account.changeName.error"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("hate_speech_detected")) {
+        setError(t("account.changeName.hateSpeechError"));
+      } else {
+        setError(t("account.changeName.error"));
+      }
     } finally {
       setSubmitting(false);
     }

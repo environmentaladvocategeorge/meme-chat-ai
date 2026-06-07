@@ -34,6 +34,19 @@ export function handleRcEvent(
       }
       const plan: PlanId = REVENUECAT_PRODUCT_TO_PLAN[productId];
 
+      // Track whether the user is in the free-trial window.
+      // INITIAL_PURCHASE with period_type=TRIAL = trial just started.
+      // RENEWAL with is_trial_conversion=true = trial just converted to paid.
+      // All other purchase events = normal paid period.
+      const entitlementExpiresAt =
+        typeof event.expiration_at_ms === "number"
+          ? Timestamp.fromMillis(event.expiration_at_ms)
+          : null;
+      const isTrialStart =
+        event.type === "INITIAL_PURCHASE" && event.period_type === "TRIAL";
+      const isTrialConversion =
+        event.type === "RENEWAL" && event.is_trial_conversion === true;
+
       // Upgrade-immediate semantics: hand the user the full new monthly
       // budget AND the new daily cap right now, reset the rolling window
       // anchors, and zero any daily spend so the new caps are fully available.
@@ -44,12 +57,15 @@ export function handleRcEvent(
         planSource: "revenuecat",
         rcAppUserId: event.app_user_id,
         rcActiveProductId: productId,
-        rcEntitlementExpiresAt:
-          typeof event.expiration_at_ms === "number"
-            ? Timestamp.fromMillis(event.expiration_at_ms)
-            : null,
+        rcEntitlementExpiresAt: entitlementExpiresAt,
+        // Set trial tracking on trial start; clear it on conversion or any
+        // other paid-period event so the flag stays accurate.
+        rcIsInTrial: isTrialStart,
+        rcTrialExpiresAt: isTrialStart ? entitlementExpiresAt : null,
         ...planActivationFields(plan, now),
       } satisfies Partial<ProfileBilling> & Pick<ProfileBilling, "plan">;
+
+      void isTrialConversion; // consumed implicitly via rcIsInTrial: false path
       return { kind: "apply", next };
     }
 
@@ -64,6 +80,8 @@ export function handleRcEvent(
         planSource: "revenuecat",
         rcActiveProductId: null,
         rcEntitlementExpiresAt: null,
+        rcIsInTrial: false,
+        rcTrialExpiresAt: null,
         monthlyCredits: PLANS.free.monthlyCredits,
         softDailyCredits: computeDailyCap(PLANS.free.monthlyCredits, now),
       } satisfies Partial<ProfileBilling> & Pick<ProfileBilling, "plan">;

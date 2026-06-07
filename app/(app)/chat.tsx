@@ -46,6 +46,7 @@ import { computeUsageState, type UsageState } from "@/domain/usage";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useKlipy } from "@/hooks/useKlipy";
 import { useKlipyGifs } from "@/hooks/useKlipyGifs";
+import { useOnSendEffects } from "@/hooks/useOnSendEffects";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { ChatToneContext } from "@/hooks/useTheme";
 import { useChatStore } from "@/store/chat";
@@ -82,6 +83,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function ChatScreen() {
   const { t } = useTranslation();
+  // Fires daily paywall check + review prompt counter on each message send.
+  useOnSendEffects();
+
   // The chat view's theme follows the custom background's tone (so every
   // element coheres with it), falling back to the global scheme when "auto".
   const {

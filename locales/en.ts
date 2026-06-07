@@ -220,6 +220,24 @@ const en = {
         "Free gets you a taste. Premium gives Brainrot Bot way more room to yap, roast, explain, meme, and spiral responsibly. Every plan uses the real Brainrot Bot. No watered-down free goblin.",
       continueFree: "continue free",
     },
+
+    // Trial offer — shown when user taps "continue free" on the paywall
+    trial: {
+      badge: "ONE-TIME OFFER",
+      headline: "Try Wingman Free\nfor 7 Days 🔥",
+      subhead: "This offer won't appear again once you leave.",
+      features: ["25× more chats", "Remembers your chats", "App customization", "Ad-free"],
+      chargeTitle: "After your free trial ends:",
+      chargeBody: "You'll be charged {{price}}/month starting {{date}}. Cancel anytime — no charge during the trial.",
+      chargeBodyFallback: "You'll be charged your plan rate/month starting {{date}}. Cancel anytime — no charge during the trial.",
+      cancelInstructions: "To cancel: App Store → Settings → Subscriptions.",
+      cta: "Start My Free 7-Day Trial",
+      decline: "No thanks, continue free",
+      legal: "Subscription auto-renews monthly at {{price}}/mo unless cancelled at least 24 hours before the trial ends. Manage or cancel anytime in App Store Settings → Subscriptions.",
+      legalFallback: "Subscription auto-renews monthly unless cancelled at least 24 hours before the trial ends. Manage or cancel anytime in App Store Settings → Subscriptions.",
+      errorTitle: "Purchase Failed",
+      errorBody: "Something went wrong. Please try again.",
+    },
   },
   menu: {
     open: "Open menu",
@@ -338,8 +356,11 @@ const en = {
     errors: {
       title: "That didn't go through",
       signedOutTitle: "You've been signed out",
+      hateSpeechTitle: "Message flagged",
       generic: "The reply stopped. Please try again.",
       signedOut: "Sign in again to keep chatting.",
+      hateSpeech:
+        "This message was flagged as it may potentially contain hateful terminology.",
     },
     quota: {
       title: "You're out of meme-power!",
@@ -602,6 +623,11 @@ const en = {
       upgradeCta: "Pick this plan",
       currentCta: "You're here",
       paywallNote: "Cancel anytime in the App Store.",
+      renewsTomorrow: "Renews tomorrow",
+      renewsInDays: "Renews in {{days}} days",
+      renewsOn: "Renews on {{date}}",
+      trialEndsOn: "Free trial ends {{date}}",
+      expired: "Expired",
       restorePurchases: "Restore Purchases",
       restoreSuccess: "Your subscription has been restored.",
       restoreNone: "No active subscription found.",
@@ -713,6 +739,7 @@ const en = {
       failed: "We couldn't delete your account. Please try again.",
     },
     about: {
+      review: "Write a Review",
       support: "Support",
       privacy: "Privacy Policy",
       terms: "Terms of Use (EULA)",
@@ -747,6 +774,8 @@ const en = {
       placeholder: "Your name or nickname",
       save: "Save nickname",
       error: "Couldn't save your nickname. Please try again.",
+      hateSpeechError:
+        "That nickname contains language that isn't allowed. Please choose a different one.",
       successTitle: "Nickname updated",
       successBody: "The bot will now call you {{name}}.",
       successBodyCleared: "Nickname cleared.",
@@ -852,6 +881,14 @@ const en = {
 
   ads: {
     placeholder: "Ad placeholder",
+  },
+
+  reviewPrompt: {
+    title: "Enjoying Brainrot Bot?",
+    body: "A quick rating helps us reach more people and keeps the memes flowing 🔥",
+    action: "Rate the App",
+    later: "Maybe Later",
+    noThanks: "No Thanks",
   },
 };
 

@@ -6,6 +6,7 @@ import { AppPressable } from "@/components/AppPressable";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { SettingsRow } from "@/components/SettingsRow";
 import { Typography } from "@/components/Typography";
+import { openAppStoreReview } from "@/domain/appStoreReview";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
 import { useAccountSheetStore } from "@/store/accountSheet";
@@ -23,6 +24,7 @@ import {
   FileText,
   Lifebuoy,
   ShieldCheck,
+  Star,
   UserCircle,
 } from "phosphor-react-native";
 import { type ComponentType, useCallback } from "react";
@@ -344,6 +346,11 @@ export default function SettingsScreen() {
         </SettingsRow>
 
         <View style={{ gap: 10 }}>
+          <LinkRow
+            icon={Star}
+            label={t("settings.about.review")}
+            onPress={() => void openAppStoreReview()}
+          />
           <LinkRow
             icon={Lifebuoy}
             label={t("settings.about.support")}
