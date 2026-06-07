@@ -1,16 +1,25 @@
 import { MaxWidthFrame } from "@/components/MaxWidthFrame";
 import { PlayfulMenu } from "@/components/PlayfulMenu";
+import { ReviewPrompt } from "@/components/ReviewPrompt";
 import { useDailyPaywall } from "@/hooks/useDailyPaywall";
 import { useTheme } from "@/hooks/useTheme";
+import { useReviewPromptStore } from "@/store/reviewPrompt";
 import { Stack } from "expo-router";
+import { useEffect } from "react";
 import { View } from "react-native";
 
 export default function AppLayout() {
   const theme = useTheme();
+  const hydrateReviewPrompt = useReviewPromptStore((s) => s.hydrate);
 
-  // Once-a-day paywall for free users on app open / foreground. Lives here
-  // because this layout only mounts post-login + post-onboarding.
+  // Once-a-day paywall for free users on cold start. Lives here because this
+  // layout only mounts post-login + post-onboarding. The first-message-of-the-
+  // day trigger is handled by useOnSendEffects in the chat screen.
   useDailyPaywall();
+
+  useEffect(() => {
+    void hydrateReviewPrompt();
+  }, [hydrateReviewPrompt]);
 
   // The in-app screens (chat/history/settings) get the phone-width column on
   // wide screens (iPad). The full-bleed brand pages — landing, auth,
@@ -42,6 +51,7 @@ export default function AppLayout() {
       </MaxWidthFrame>
 
       <PlayfulMenu />
+      <ReviewPrompt />
     </View>
   );
 }
