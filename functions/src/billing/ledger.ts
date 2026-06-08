@@ -23,9 +23,10 @@ export type ModelUsage = {
 };
 
 // What kind of work the charge is for. "turn" is a user-facing chat turn;
-// "summary"/"title" are background utility calls we now also bill (they used to
-// be absorbed). Stored on the usageEvent so cost dashboards can split them out.
-export type UsageKind = "turn" | "summary" | "title";
+// "summary"/"title"/"memory" are background utility calls we also bill (they used
+// to be absorbed). "memory" is the offline fact-extraction nano call. Stored on
+// the usageEvent so cost dashboards can split them out.
+export type UsageKind = "turn" | "summary" | "title" | "memory";
 
 // What actually happened on a billable unit of work — the per-model token usage
 // and the credits it cost, recomputed by the caller from each call's final usage

@@ -24,6 +24,33 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Long-term user memory. The owner can READ their facts (settings screen)
+    // and CLEAR them (via the clearMemory callable, Admin SDK) — but never write
+    // or EDIT: there is no client create/update path. The compiled `block` on the
+    // parent doc is backend-only (the agent reads it server-side).
+    match /memories/{uid} {
+      // Owner may READ their state (on/off, last-updated, the compiled block —
+      // all their own data). Writes are server-only (clearMemory/setMemoryEnabled
+      // callables + the extraction job).
+      allow get: if isOwner(uid) && emailVerified();
+      allow list: if false;
+      allow create, update, delete: if false;
+
+      match /facts/{factId} {
+        allow get, list: if isOwner(uid) && emailVerified();
+        allow create, update, delete: if false;
+      }
+    }
+
+    // Public app config (force-update floor + store URL). Must be readable
+    // before sign-in so the update gate works for signed-out users. A single
+    // known doc (config/app); never listable or client-writable.
+    match /config/{docId} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
     match /personas/{personaId} {
       allow read: if resource.data.isEnabled == true;
       allow write: if false;

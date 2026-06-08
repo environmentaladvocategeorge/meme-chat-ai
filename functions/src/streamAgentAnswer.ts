@@ -17,8 +17,9 @@ import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
 import { chooseModel } from "./billing/router";
-import { assembleContext } from "./context/assemble";
 import { IMAGE_TOKENS_LOW } from "./context/tokens";
+import { Agent, type ReplyContext } from "./agent/Agent";
+import { MemoryService } from "./agent/memory";
 import {
   appendMessage,
   assertConversationOwner,
@@ -38,10 +39,7 @@ import {
   resolveImageInputs,
 } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
-import {
-  buildMediaDeciderPrompt,
-  buildSystemPromptForStream,
-} from "./personas/prompts";
+import { buildMediaDeciderPrompt } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 import { checkHateSpeech } from "./moderation/checkHateSpeech";
 import { logFlaggedContent } from "./moderation/logFlaggedContent";
@@ -50,6 +48,9 @@ const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
 // configured the tool is simply not offered and the agent replies text-only.
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+
+// One reusable, stateless memory-service instance per function instance.
+const memoryService = new MemoryService();
 
 type SseResponse = {
   write: (chunk: string) => unknown;
@@ -307,9 +308,7 @@ export const streamAgentAnswer = onRequest(
     // ---------- routing + media decision + context ----------
     let internalModel;
     let assembleResult;
-    let resolvedPersona:
-      | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
-      | null = null;
+    let resolvedPersona: ReplyContext["persona"] | null = null;
     // Nano media-decider usage (billed alongside the reply), and the reaction
     // GIF/meme it picked — fetched BEFORE the reply so the model knows what's
     // attached and the client can show it first (like texting a gif, then typing).
@@ -323,9 +322,6 @@ export const streamAgentAnswer = onRequest(
     const mediaEnabled = klipyApiKey.length > 0;
     try {
       internalModel = chooseModel(entitlement.plan);
-      const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
-      resolvedPersona = promptResult.persona;
-      const systemPrompt = promptResult.systemPrompt;
 
       // Cheap nano pre-step: decide whether this turn warrants a reaction
       // GIF/meme and pick the search term, then fetch it. The reply model gets a
@@ -397,18 +393,29 @@ export const streamAgentAnswer = onRequest(
         }
       }
 
-      assembleResult = await assembleContext({
-        conversationId,
+      // Persona + (paid-gated) long-term memory + conversation history, composed
+      // behind the Agent so this orchestrator carries no context-assembly or
+      // memory logic itself. Memory adds no model call and runs in parallel with
+      // persona resolution, so it doesn't affect turn latency.
+      const agent = new Agent({
+        uid,
         plan: entitlement.plan,
+        personaId,
+        levelOfRot,
+        memory: memoryService,
+      });
+      const replyContext = await agent.buildReplyContext({
+        conversationId,
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
         attachedMedia,
-        systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
       });
+      resolvedPersona = replyContext.persona;
+      assembleResult = replyContext.assembled;
     } catch (err) {
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });

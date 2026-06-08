@@ -29,6 +29,7 @@ import { useSubscriptionStore } from "@/store/subscription";
 import { deriveFromCustomerInfo } from "@/store/subscriptionDerive";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
+import { Check } from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Platform, StyleSheet, View } from "react-native";
@@ -582,45 +583,20 @@ function SelectedDetails({
         </View>
       </View>
 
-      {/* Benefits as wrap-flowing chips. Each chip is self-sized to its
-          content, then the row wraps — fills horizontal space regardless of
-          how many bullets the selected tier has, and avoids the right-side
-          dead zone that short bullet text used to leave behind. */}
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 6,
-        }}
-      >
+      {/* Benefits as a clean checklist — grounded rows with a single small
+          accent check, instead of accent-tinted pills (those subtle fills read
+          a touch generic). */}
+      <View style={{ gap: 9 }}>
         {bullets.map((line) => (
           <View
             key={line}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: 999,
-              backgroundColor: theme["--color-primary-subtle"],
-              borderWidth: 1,
-              borderColor: theme["--color-primary-muted"],
-            }}
+            style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
           >
-            <Typography
-              style={{
-                color: theme["--color-primary"],
-                fontSize: 12,
-                fontWeight: "800",
-                lineHeight: 14,
-              }}
-            >
-              ✓
-            </Typography>
+            <Check size={16} weight="bold" color={theme["--color-primary"]} />
             <Typography
               variant="body-sm"
               style={{
+                flex: 1,
                 color: theme["--color-foreground"],
                 fontWeight: "600",
               }}
@@ -886,7 +862,10 @@ function MatrixValueCell({
 
 // ----- Renewal badge -----
 
-function formatRenewalLabel(expiresAt: Date, t: (key: string, opts?: object) => string): string {
+function formatRenewalLabel(
+  expiresAt: Date,
+  t: ReturnType<typeof useTranslation>["t"],
+): string {
   const now = Date.now();
   const diffMs = expiresAt.getTime() - now;
   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));

@@ -138,6 +138,44 @@ export async function setMessageEmojiCallable(args: {
   return result.data;
 }
 
+// Clears the caller's long-term memory. With a factId, forgets just that one;
+// otherwise wipes everything. Memory is server-written only (firestore.rules),
+// so clearing goes through the Admin SDK callable; the live facts listener
+// reflects the change.
+export async function clearMemoryCallable(
+  args: { factId?: string } = {},
+): Promise<{ success: true }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<{ factId?: string }, { success: true }>(
+    firebase.services.functions,
+    "clearMemory",
+  );
+  const result = await callable(args);
+  return result.data;
+}
+
+// Flips the caller's memory on/off switch (server-side; the hot/cold paths both
+// read it). The memory doc listener reflects the new state.
+export async function setMemoryEnabledCallable(
+  enabled: boolean,
+): Promise<{ success: true; enabled: boolean }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    { enabled: boolean },
+    { success: true; enabled: boolean }
+  >(firebase.services.functions, "setMemoryEnabled");
+  const result = await callable({ enabled });
+  return result.data;
+}
+
 export type TrendingMemesParams = {
   page?: number;
   perPage?: number;
