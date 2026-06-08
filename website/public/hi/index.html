@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="hi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Marks JS as available so scroll-reveal only hides content when it can
+         later un-hide it (no-JS visitors see every section immediately). -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+    <title>Meme Chat AI | सटीक जवाबों के लिए मज़ेदार AI चैट ऐप</title>
+    <meta name="description" content="Meme Chat AI एक मज़ेदार AI चैट ऐप है जो सूखे मैसेज सुधारती है, उलझी बातें झटपट समझाती है, आधे-अधूरे आइडिया को काम की तरह रोस्ट करती है और दिमागी खिचड़ी को जवाब, कैप्शन और प्लान में बदल देती है।" />
+    <meta name="keywords" content="meme AI चैट, मज़ेदार AI असिस्टेंट, AI टेक्स्ट रीराइटर, AI चैट ऐप, meme चैटबॉट, iPhone AI चैट" />
+    <link rel="canonical" href="https://meme-chat-ai.com/hi" />
+    <link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <link rel="alternate" hreflang="x-default" href="https://meme-chat-ai.com/" />
+    <link rel="icon" href="/assets/images/app-icon.png?v=2" />
+    <meta name="theme-color" content="#0F7B85" />
+    <meta property="og:title" content="Meme Chat AI" />
+    <meta property="og:description" content="एक मज़ेदार AI चैट ऐप जो सूखे मैसेज सुधारती है, उलझी बातें समझाती है, आइडिया को काम की तरह रोस्ट करती है और दिमागी खिचड़ी को जवाब, कैप्शन और प्लान में बदल देती है।" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://meme-chat-ai.com/hi" />
+    <meta property="og:image" content="https://meme-chat-ai.com/assets/images/app-icon.png?v=2" />
+    <meta property="og:locale" content="hi" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      /* "Send a meme" callout — white KLIPY mark sits on a teal panel. */
+      .meme-card {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
+        border-radius: calc(var(--radius-card) * 2.5);
+        padding: clamp(28px, 5vw, 48px);
+        background: linear-gradient(135deg, #0f7b85 0%, #34abb5 55%, #58c2ca 100%);
+        box-shadow: 0 22px 50px rgba(15, 123, 133, 0.32);
+        color: #ffffff;
+      }
+      .meme-card-copy {
+        max-width: 540px;
+      }
+      .meme-card .eyebrow {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .meme-card h2 {
+        color: #ffffff;
+        margin: 6px 0 10px;
+      }
+      .meme-card p {
+        color: rgba(255, 255, 255, 0.92);
+        margin: 0;
+      }
+      .meme-card-emojis {
+        font-size: 30px;
+        margin-top: 16px;
+        letter-spacing: 6px;
+      }
+      .klipy-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 26px;
+        border-radius: calc(var(--radius-card) * 2);
+        background: rgba(14, 17, 19, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+      }
+      .klipy-badge img {
+        display: block;
+        height: 34px;
+        width: auto;
+      }
+    </style>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Meme Chat AI",
+        "description": "A funny AI chat app that fixes dry texts, explains confusing stuff fast, roasts ideas usefully, and turns brain soup into replies, captions, and plans.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS",
+        "url": "https://meme-chat-ai.com/",
+        "image": "https://meme-chat-ai.com/assets/images/app-icon.png?v=2",
+        "installUrl": "https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629",
+        "downloadUrl": "https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Jorge Jimenez"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Meme Chat AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Meme Chat AI is a funny AI chat app for writing replies that do not sound like an NPC, getting quick explanations, brainstorming captions, and making half-baked ideas actually useful."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is the iOS app available?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Meme Chat AI is live on the App Store. Download it on iPhone and start chatting with Brainrot Bot for free."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are meme-power plans?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Hatchling (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/hi" aria-label="Meme Chat AI home">
+        <img src="/assets/images/app-icon.png?v=2" alt="" />
+        <span>Meme Chat AI</span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#how">यह कैसे काम करता है</a>
+        <a href="#memory">मेमोरी</a>
+        <a href="#plans">प्लान</a>
+        <a href="/hi/ios">iOS</a>
+        <a href="/hi/support">सपोर्ट</a>
+      </nav>
+      <details class="lang-switch">
+        <summary aria-label="भाषा">🌐 हिन्दी</summary>
+        <div class="lang-menu">
+        <a href="/" data-lang="en">English</a>
+        <a href="/es" data-lang="es">Español</a>
+        <a href="/pt" data-lang="pt">Português</a>
+        <a href="/fr" data-lang="fr">Français</a>
+        <a href="/de" data-lang="de">Deutsch</a>
+        <a href="/ru" data-lang="ru">Русский</a>
+        <a href="/ja" data-lang="ja">日本語</a>
+        <a href="/zh" data-lang="zh">中文</a>
+        <a href="/hi" data-lang="hi" aria-current="true">हिन्दी</a>
+        </div>
+      </details>
+    </header>
+
+    <main>
+      <section class="hero section">
+        <div class="hero-copy">
+          <p class="eyebrow">ग्रुप-चैट वाली एनर्जी के साथ AI चैट</p>
+          <h1>NPC जैसा लगे बिना, बात कह डालो।</h1>
+          <p class="lead">Brainrot Bot सूखे मैसेज सुधारता है, किताबी धुंध के बिना उलझी बातें समझाता है, आधे-अधूरे आइडिया को काम की तरह रोस्ट करता है और दिमागी खिचड़ी को जवाब, कैप्शन, प्लान और असली lore में बदल देता है।</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629">App Store पर डाउनलोड करें</a>
+            <a class="button button-secondary" href="#demo">चैट का lore देखो</a>
+          </div>
+          <ul class="quick-tags" aria-label="Popular uses">
+            <li>NPC जवाब रेस्क्यू</li>
+            <li>काम के रोस्ट</li>
+            <li>कैप्शन की जान बचाओ</li>
+            <li>साइड-क्वेस्ट आइडिया</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual" id="demo" aria-label="Example Meme Chat AI conversation">
+          <div class="phone-shell">
+            <div class="phone-top">
+              <div class="phone-brand">
+                <img src="/assets/images/app-icon.png?v=2" alt="" />
+                <span>Brainrot Bot</span>
+              </div>
+              <span class="status-pill">meme-power: 82%</span>
+            </div>
+            <div class="chat-stack">
+              <div class="bubble user">इसे थोड़ा कम NPC जैसा बना दो</div>
+              <div class="bubble agent">
+                <img src="/assets/images/app-icon.png?v=2" alt="" />
+                <p>"मैं तैयार हूँ" ठीक है। "मैं इन हूँ, मेरी अक्ल लौटने से पहले प्लान भेज दो" में असल में जान है।</p>
+              </div>
+              <div class="bubble user">इसे ऐसे समझाओ जैसे मैं डूमस्क्रॉल कर रहा हूँ</div>
+              <div class="bubble agent compact">
+                <img src="/assets/images/meme-loading.png?v=2" alt="" />
+                <p>तुम खत्म नहीं हो। प्लान को बस एक साफ़ अगला कदम चाहिए। lore संभल गया।</p>
+              </div>
+            </div>
+          </div>
+          <img
+            class="hero-avatar"
+            src="/assets/images/meme-level-up.png?v=2"
+            alt="Brainrot Bot avatar wearing sunglasses"
+          />
+        </div>
+      </section>
+
+      <section class="status-strip reveal" aria-label="Launch status">
+        <span>iPhone के लिए बना</span>
+        <span>अब App Store पर लाइव</span>
+        <span>पेड प्लान में मेमोरी</span>
+      </section>
+
+      <section class="section split-section reveal" id="how">
+        <div>
+          <p class="eyebrow">यह क्या है</p>
+          <h2>उस दिमागी खिचड़ी के लिए जिसे बेहतर पैकेजिंग चाहिए।</h2>
+          <p>Meme Chat AI वही है जो तुम तब खोलते हो जब तुम्हारा मैसेज सूखा हो, आइडिया आधा-अधूरा हो, या दिमाग साइड-क्वेस्ट पर निकल गया हो। यह तुम्हें साफ़ शब्द पाने में मदद करता है, बिना पर्सनैलिटी खोए — कोई कॉर्पोरेट डैशबोर्ड वाला माहौल नहीं।</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>जवाब दोबारा लिखो</h3>
+            <p>सूखे मैसेज को जान वाले मैसेज में बदलो, न कि स्प्रेडशीट में जोड़ी गई किसी चीज़ में।</p>
+          </article>
+          <article class="feature-card">
+            <h3>रोस्ट करो, फिर ठीक करो</h3>
+            <p>अपने आइडिया पर ईमानदार फ़ीडबैक पाओ, बिना भावनात्मक रूप से ड्रॉपकिक खाए।</p>
+          </article>
+          <article class="feature-card">
+            <h3>झटपट समझाओ</h3>
+            <p>जब तुम्हें जवाब चाहिए, न कि रात 2 बजे पारकोर करती कोई किताब।</p>
+          </article>
+          <article class="feature-card">
+            <h3>एंगल ढूँढो</h3>
+            <p>कैप्शन, प्रॉम्प्ट, प्लान और दिन के सारांश, जो अब अपनी जान बचाने के लिए नहीं लड़ रहे।</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section prompt-section reveal">
+        <div class="prompt-copy">
+          <p class="eyebrow">शुरुआती प्रॉम्प्ट</p>
+          <h2>चैट खोलो, एक वाइब चुनो, आगे बढ़ो।</h2>
+        </div>
+        <div class="prompt-list" aria-label="Example prompts">
+          <span>इसे थोड़ा कम NPC जैसा बना दो</span>
+          <span>मैं गया काम से या इसे बचाया जा सकता है?</span>
+          <span>5 लाइन में lore दे दो</span>
+          <span>इस आइडिया को रोस्ट करो, फिर बचा लो</span>
+          <span>मेरी दिमागी खिचड़ी को एक मैसेज में बदल दो</span>
+          <span>30 मिनट फोकस करने में मेरी मदद करो</span>
+        </div>
+      </section>
+
+      <section class="section rot-section reveal">
+        <div class="section-heading">
+          <p class="eyebrow">Rot Level</p>
+          <h2>brainrot ऊपर या नीचे करो।</h2>
+          <p>Rot Level तय करता है कि Brainrot Bot कितना बेलगाम होगा — हल्के मसाले से लेकर पूरे Goblin Mode तक। काम का जवाब नीचे बना रहता है; तुम बस एनर्जी चुनते हो। चैट के बीच में, कभी भी बदलो।</p>
+        </div>
+        <div class="rot-grid">
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">🤓</span>
+            <h3>Lightly Cooked</h3>
+            <p>ज़्यादातर काम की बात, हल्का सा meme वाला। फिर भी डिफ़ॉल्ट कॉर्पोरेट असिस्टेंट जैसा नहीं पढ़ेगा।</p>
+            <span class="rot-tag">ज़्यादातर सीरियस</span>
+          </article>
+          <article class="rot-card rot-card-featured">
+            <span class="rot-pill">डिफ़ॉल्ट</span>
+            <span class="rot-emoji" aria-hidden="true">😤</span>
+            <h3>Rotted</h3>
+            <p>पूरी Brainrot Bot एनर्जी: शुरू से आख़िर तक मज़ाक और स्लैंग, फिर भी तुम्हें मंज़िल तक पहुँचा देता है।</p>
+            <span class="rot-tag">मज़ाक + स्लैंग</span>
+          </article>
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">💀</span>
+            <h3>Goblin Mode</h3>
+            <p>अधिकतम brainrot। शापित उपमाएँ और नाटकीय ओवररिएक्शन — फिर भी काम का, बस थोड़ा जंगली।</p>
+            <span class="rot-tag">शापित + जंगली</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="meme-card">
+          <div class="meme-card-copy">
+            <p class="eyebrow">मीम झट से</p>
+            <h2>जब शब्द कम पड़ें, मीम भेजो।</h2>
+            <p>चैट के बीच में, ट्रेंडिंग मीम की एक लाइन खोलो या बिलकुल सही रिएक्शन सर्च करो, और सीधे बातचीत में डाल दो। कुछ पल एक चेहरे के लायक होते हैं, एक पैराग्राफ के नहीं।</p>
+            <p class="meme-card-emojis" aria-hidden="true">😎 🔥 💀 ✨</p>
+          </div>
+          <a
+            class="klipy-badge"
+            href="https://klipy.com"
+            target="_blank"
+            rel="noopener"
+            aria-label="Meme media powered by KLIPY"
+          >
+            <img src="/assets/images/powered-by-klipy-white.png" alt="Powered by KLIPY" />
+          </a>
+        </div>
+      </section>
+
+      <section class="section split-section reveal" id="memory">
+        <div>
+          <p class="eyebrow">मेमोरी</p>
+          <h2>एक Brainrot Bot जो सच में तुम्हें जानता है।</h2>
+          <p>पेड प्लान में, Brainrot Bot तुम्हारा वाइब, तुम्हारे बताए लोग और बार-बार उठाई जाने वाली बातें पकड़ लेता है। अगली चैट वहीं से शुरू होती है जहाँ पिछली छूटी थी। न दोबारा समझाना, न ज़ीरो से शुरू करना।</p>
+          <p>कंट्रोल तुम्हारे पास रहता है। सेटिंग्स से मेमोरी कभी भी बंद करो या मिटा दो, बिना किसी सवाल के।</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>कॉन्टेक्स्ट पकड़ता है</h3>
+            <p>तुम्हारा वाइब, तुम्हारे लोग और बार-बार आने वाले टॉपिक नोट करता है, ताकि हर सेशन में फिर से परिचय न देना पड़े।</p>
+          </article>
+          <article class="feature-card">
+            <h3>तुम्हारे अकाउंट में रहती है</h3>
+            <p>अकाउंट से जुड़ी, डिवाइस से नहीं। हर साइन-इन पर वही मेमोरी।</p>
+          </article>
+          <article class="feature-card">
+            <h3>बागडोर तुम्हारे हाथ</h3>
+            <p>सेटिंग्स से बंद करो या मिटाओ। तुरंत रुक जाती है, कोई इंतज़ार नहीं।</p>
+          </article>
+          <article class="feature-card">
+            <h3>सिर्फ़ पेड प्लान</h3>
+            <p>Sidekick, Wingman और MVP में उपलब्ध। फ्री प्लान में पूरा बॉट मिलता है, बस मेमोरी नहीं।</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section plans-section reveal" id="plans">
+        <div class="section-heading">
+          <p class="eyebrow">Meme-power</p>
+          <h2>प्लान, जो तुम्हारी चैटिंग की रफ़्तार से मेल खाएँ।</h2>
+          <p>हर प्लान में वही स्मार्ट Brainrot Bot। टियर तय करते हैं तुम्हारा मासिक कोटा, Brainrot Bot तुम्हें याद रखे या नहीं, और तुम चैट का स्टाइल बदल सको या नहीं। Wingman सबका पसंदीदा है; MVP सबसे दमदार।</p>
+        </div>
+        <div class="plan-grid">
+          <article class="plan-card">
+            <span class="plan-kicker">फ्री</span>
+            <h3>Hatchling</h3>
+            <p>पूरा बॉट, शुरुआती अफरा-तफरी।</p>
+            <strong>1x चैट</strong>
+          </article>
+          <article class="plan-card">
+            <span class="plan-kicker">बेसिक</span>
+            <h3>Sidekick</h3>
+            <p>ज़्यादा चैट, कम aura का कर्ज़।</p>
+            <strong>9x चैट &middot; मेमोरी &middot; ऐप थीम &middot; विज्ञापन रहित</strong>
+          </article>
+          <article class="plan-card">
+            <span class="plan-kicker">लोकप्रिय</span>
+            <h3>Wingman</h3>
+            <p>ढेर सारी चैट, मेमोरी, रफ़्तार।</p>
+            <strong>25x चैट &middot; मेमोरी &middot; ऐप थीम &middot; विज्ञापन रहित</strong>
+          </article>
+          <article class="plan-card recommended">
+            <span class="plan-kicker">सबसे बढ़िया</span>
+            <h3>MVP</h3>
+            <p>भारी चैट वाले दिनों और प्रोफेशनल बकबक के लिए।</p>
+            <strong>50x चैट &middot; मेमोरी &middot; ऐप थीम &middot; विज्ञापन रहित</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="section ios-callout reveal">
+        <img src="/assets/images/meme-level-up.png?v=2" alt="Brainrot Bot avatar celebrating" />
+        <div>
+          <p class="eyebrow">iOS — अब उपलब्ध</p>
+          <h2>Meme Chat AI अब App Store पर लाइव है।</h2>
+          <p>इसे iPhone पर लो, एक चैट खोलो और Brainrot Bot को अपने सूखे मैसेज, आधे-अधूरे आइडिया और दिमागी खिचड़ी पर काम पर लगा दो। शुरुआत फ्री, और जब ज़्यादा चाहिए तो meme-power प्लान।</p>
+          <a class="button button-primary" href="https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629">App Store पर डाउनलोड करें</a>
+        </div>
+      </section>
+
+      <section class="section faq-section reveal">
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2>सवाल, lore की दीवार के बिना।</h2>
+        </div>
+        <div class="faq-grid">
+          <details>
+            <summary>क्या यह बिज़नेस चैट एजेंट के लिए है?</summary>
+            <p>अभी नहीं। Meme Chat AI एक पर्सनल AI चैट ऐप है — मज़ाक, लिखने में मदद, समझाने और तुम्हारे आइडिया को सुधारने के लिए।</p>
+          </details>
+          <details>
+            <summary>क्या मैं आज इसे डाउनलोड कर सकता हूँ?</summary>
+            <p>हाँ। Meme Chat AI App Store पर लाइव है। इसे iPhone पर डाउनलोड करो और चैट शुरू करो। शुरुआत फ्री, और जब ज़्यादा चैट और मेमोरी चाहिए तो meme-power प्लान।</p>
+          </details>
+          <details>
+            <summary>क्या वेबसाइट असली ऐप एसेट इस्तेमाल करती है?</summary>
+            <p>हाँ। होमपेज ऐप आइकन, Brainrot Bot अवतार इमेज, Poppins, Fredoka और ऐप जैसे ही ब्रांड रंग इस्तेमाल करता है।</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand" href="/hi">
+        <img src="/assets/images/app-icon.png?v=2" alt="" />
+        <span>Meme Chat AI</span>
+      </a>
+      <div class="footer-links">
+        <a href="/privacy">प्राइवेसी</a>
+        <a href="/hi/support">सपोर्ट</a>
+        <a href="/hi/ios">iOS</a>
+      </div>
+      <span>&copy; Jorge Jimenez</span>
+    </footer>
+
+    <!-- Scroll-reveal: fade + rise each .reveal section in as it enters view.
+         Falls back to showing everything if IntersectionObserver is missing. -->
+    <script>
+      (function () {
+        var els = document.querySelectorAll(".reveal");
+        if (!("IntersectionObserver" in window) || !els.length) {
+          for (var i = 0; i < els.length; i++) els[i].classList.add("is-visible");
+          return;
+        }
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("is-visible");
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+        );
+        els.forEach(function (el) {
+          io.observe(el);
+        });
+      })();
+    </script>
+    <script>try{localStorage.setItem("mcai_lang","hi");}catch(e){}</script>
+    <script>
+      document.addEventListener("click", function (e) {
+        var a = e.target.closest && e.target.closest(".lang-menu a[data-lang]");
+        if (a) { try { localStorage.setItem("mcai_lang", a.getAttribute("data-lang")); } catch (err) {} }
+      });
+    </script>
+  </body>
+</html>

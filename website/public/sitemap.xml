@@ -1,23 +1,386 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://%APP_DOMAIN%/</loc>
+    <loc>https://meme-chat-ai.com/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://%APP_DOMAIN%/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
+    <loc>https://meme-chat-ai.com/es</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://%APP_DOMAIN%/support</loc>
+    <loc>https://meme-chat-ai.com/pt</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/fr</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/de</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ru</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ja</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/zh</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/hi</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/es/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/pt/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/fr/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/de/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ru/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ja/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/zh/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/hi/ios</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://%APP_DOMAIN%/ios</loc>
+    <loc>https://meme-chat-ai.com/es/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
     <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/pt/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/fr/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/de/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ru/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/ja/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/zh/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/hi/support</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <xhtml:link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <xhtml:link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <xhtml:link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <xhtml:link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://meme-chat-ai.com/privacy</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
   </url>
 </urlset>

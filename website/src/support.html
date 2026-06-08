@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="{{__HTML_LANG__}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{support.meta.title}}</title>
+    <meta name="description" content="{{support.meta.description}}" />
+    <link rel="canonical" href="{{__CANONICAL__}}" />
+{{__ALTERNATES__}}
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="container legal">
+      <header class="site-header">
+        <div class="brand"><a href="{{__HOME__}}">Meme Chat AI</a></div>
+        <nav class="nav">
+          <a href="{{__PREFIX__}}/support">{{nav.support}}</a>
+          <a href="/privacy">{{nav.privacy}}</a>
+        </nav>
+{{__SWITCHER__}}
+      </header>
+
+      <h1>{{support.body.h1}}</h1>
+      <p>{{support.body.intro}}</p>
+
+      <h2>{{support.body.h2}}</h2>
+      <ul>
+        <li>{{support.body.li1}}</li>
+        <li>{{support.body.li2}}</li>
+        <li>{{support.body.li3}}</li>
+      </ul>
+
+      <footer>
+        <span>&copy; Jorge Jimenez</span>
+        <span><a href="{{__HOME__}}">{{support.body.back}}</a></span>
+      </footer>
+    </div>
+{{__SCRIPTS__}}
+  </body>
+</html>
