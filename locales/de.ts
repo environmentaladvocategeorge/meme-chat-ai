@@ -24,9 +24,14 @@ const de = {
       unitMinutes: "{{count}} Minuten",
     },
   },
+  appUpdate: {
+    title: "Zeit für ein Update",
+    body: "Du hast eine alte Version von Meme Chat AI. Hol dir die neueste aus dem App Store, damit der Brainrot weitergeht.",
+    cta: "Zum App Store",
+  },
   landing: {
     title: "Meme Chat AI",
-    subtitle: "Willkommen — meld dich an, um weiterzumachen.",
+    subtitle: "Willkommen. Meld dich an, um weiterzumachen.",
     badge: "Meme Chat AI",
     headlineLine1: "Chatte. Brate.",
     headlinePrefix: "Aktiviere den ",
@@ -213,6 +218,10 @@ const de = {
   },
   chat: {
     title: "Chat",
+    memory: {
+      bannerOn: "Gedächtnis ist an",
+      bannerA11y: "Gedächtnis ist an. Zum Verwalten tippen.",
+    },
     empty: {
       intros: [
         {
@@ -250,30 +259,42 @@ const de = {
       ],
       atTitle: "Brainrot Bot hat kein Meme-Power mehr",
       atSubtitle:
-        "Du hast dein Kontingent aufgebraucht — deine Reset-Zeit und Upgrade-Optionen sind direkt unten.",
+        "Du hast dein Kontingent aufgebraucht. Deine Reset-Zeit und Upgrade-Optionen sind direkt unten.",
     },
     starters: {
       items: [
         "was kochen wir heute?",
-        "bin ich am Ende oder kann das noch gerettet werden?",
         "gib mir den Lore über etwas Zufälliges",
-        "verwandle meine langweilige Idee in reinsten Brainrot",
-        "kritisiere die Idee aber mach sie nützlich",
-        "erkläre mir was, als würde ich um 2 Uhr nachts doomscrolln",
-        "lass diesen Text weniger NPC klingen",
-        "hilf mir, 30 Minuten konzentriert zu bleiben",
-        "was ist meine nächste Nebenquest?",
-        "verwandle meinen Tag in eine Meme-Caption",
+        "hau mir einen nutzlosen Fakt raus, an den ich den ganzen Tag denke",
         "gib mir einen verfluchten aber nützlichen Produktivitätstipp",
-        "ist das Genie oder generationaler Fumble?",
-        "lass mich in dieser Nachricht witziger klingen",
-        "was soll ich essen, aber urteile über meine Optionen",
-        "erkläre das wie ein witziger Gruppen-Freund",
-        "verwandle dieses Problem in eine \"wir sind am Ende\"-Diagnose",
+        "hilf mir, die nächsten 30 Minuten konzentriert zu bleiben",
+        "was ist meine nächste Nebenquest?",
         "gib mir einen Pep-Talk mit Meme-Energie",
-        "was ist der Aura-Score dieses Plans?",
-        "hilf mir, eine Antwort zu schreiben, die nicht nach KI klingt",
-        "fasse das wie eine TikTok-Kommentarsektion zusammen",
+        "erklär mir einen zufälligen Wissenschaftsfakt, als würde ich um 2 Uhr nachts doomscrolln",
+        "roaste mich, obwohl du nichts über mich weißt",
+        "sag mir auf die unhingeteste Art, dass ich das super mache",
+        "gib mir eine Villain-Origin-Story fürs Snooze-Drücken",
+        "ranke Frühstücksessen danach, wie vertrauenswürdig sie sind",
+        "was ist eine Green Flag, die heimlich eine Red Flag ist?",
+        "erfinde einen Fake-Feiertag, den ich heute feiern kann",
+        "gib mir ein Motivationszitat, aber leicht unhinged",
+        "überzeug mich, Wasser zu trinken, als wär's eine Verschwörung",
+        "kommentiere meinen Morgen wie eine Naturdoku",
+        "was wäre mein Römisches Reich?",
+        "gib mir einen Hot Take, der einen Gruppenchat-Krieg startet",
+        "erfinde ein Brainrot-Wort und definiere es",
+        "beschreibe Montag wie einen Horrorfilm-Trailer",
+        "was ist der Aura-Score, um 3 Uhr nachts Cornflakes zu essen?",
+        "feier mich dafür, heute das absolute Minimum zu tun",
+        "gib mir eine Verschwörungstheorie über Tauben",
+        "was ist das NPC-hafteste, was ein Mensch tun kann?",
+        "gib mir ein delulu Ziel, das ich heute manifestieren soll",
+        "erklär Steuern, als würdest du langsam den Verstand verlieren",
+        "wie wäre die Endboss-Version von mir?",
+        "klär das ein für alle Mal: ist ein Hotdog ein Sandwich?",
+        "gib mir eine Ausrede, Pläne abzusagen, die edel klingt",
+        "erzähl mir einen Fun Fact, der fake klingt aber stimmt",
+        "was ist mein Villain-Era-Starterpack?",
       ],
     },
     firstChat: {
@@ -329,7 +350,7 @@ const de = {
     },
     usage: {
       nearTitle: "Fast kein Meme-Power mehr",
-      nearBody: "{{percent}}% übrig — Reset {{when}}.",
+      nearBody: "{{percent}}% übrig, Reset {{when}}.",
       atTitle: "Dein Meme-Power ist leer!",
       atBody: "Dein Kontingent resettet {{when}}. Upgrade für weiteres Memen.",
       upgrade: "Plan upgraden",
@@ -374,7 +395,7 @@ const de = {
           description:
             "leicht gememmt, meistens sachlich. schmeckt nicht nach Standard-Assistent.",
           reply:
-            "dein Gehirn sah die große, beängstigende Aufgabe und hat blockiert. nicht faul — überwältigt. reduziere auf einen winzigen Schritt und fang dort an.",
+            "dein Gehirn sah die große, beängstigende Aufgabe und hat blockiert. nicht faul, nur überwältigt. reduziere auf einen winzigen Schritt und fang dort an.",
           tags: ["meistens sachlich", "leicht gewürzt"],
         },
         level2: {
@@ -440,7 +461,7 @@ const de = {
       count: "{{count}} ausgewählt",
       deleteOne: "Diesen Chat löschen?",
       deleteMany: "{{count}} Chats löschen?",
-      warning: "Das kann nicht rückgängig gemacht werden — diese Chats sind für immer weg.",
+      warning: "Das kann nicht rückgängig gemacht werden. Diese Chats sind für immer weg.",
       confirm: "Löschen",
       cancel: "Abbrechen",
     },
@@ -466,6 +487,11 @@ const de = {
   },
   settings: {
     title: "Einstellungen",
+    sections: {
+      preferences: "Allgemein",
+      account: "Konto",
+      about: "Info",
+    },
     account: {
       label: "Konto",
       description: "E-Mail, Passwort, Abmelden und Konto löschen.",
@@ -473,7 +499,7 @@ const de = {
     notifications: {
       label: "Benachrichtigungen",
       description:
-        "Bekomm einen Ping, wenn deine Antworten, Streaks und Tageskontingent bereit sind.",
+        "Bekomm einen Ping, wenn deine Antworten fertig sind und dein Tageskontingent sich auffüllt.",
       blockedTitle: "Benachrichtigungen aktivieren",
       blockedBody:
         "Benachrichtigungen sind für Meme Chat AI in deinen Geräteeinstellungen deaktiviert. Öffne Einstellungen, um sie zu erlauben.",
@@ -481,6 +507,42 @@ const de = {
       disableBody:
         "Benachrichtigungsberechtigungen werden in deinen Geräteeinstellungen verwaltet. Öffne Einstellungen, um sie zu deaktivieren.",
       openSettings: "Einstellungen öffnen",
+    },
+    memory: {
+      rowLabel: "Gedächtnis",
+      rowOn: "An",
+      rowOff: "Aus",
+      title: "Woran ich mich erinnere",
+      subtitle: "Dinge, die ich über dich aufschnappe, damit meine Antworten sitzen.",
+      infoA11y: "Was ist das Gedächtnis?",
+      explainer:
+        "Während wir chatten, notiere ich mir ein paar Dinge, etwa deinen Vibe, deine Leute und das, was du immer wieder bringst, damit ich nicht zweimal dasselbe frage. Es bleibt auf deinem Konto, bleibt kurz und verlässt es nie. Ich schreibe es, also kannst du es nicht selbst bearbeiten, aber du kannst es jederzeit ausschalten oder löschen.",
+      toggleLabel: "Lass mich dich merken",
+      toggleHint: "Aus heißt, ich nutze und speichere nichts davon mehr.",
+      lastUpdated: "Aktualisiert {{when}}",
+      neverUpdated: "Noch nichts gespeichert",
+      empty: "Noch nichts. Quatsch ein bisschen mit mir, dann fange ich an, Dinge aufzuschnappen.",
+      remove: "Dies vergessen",
+      removeConfirmTitle: "Das vergessen?",
+      removeConfirmBody: "Diese Erinnerung ist dann für immer weg.",
+      removeConfirmCta: "Vergessen",
+      clear: "Alles löschen",
+      clearConfirmTitle: "Dein Gedächtnis löschen?",
+      clearConfirmBody:
+        "Ich vergesse alles, was ich über dich aufgeschnappt habe. Nicht rückgängig zu machen.",
+      clearConfirmCta: "Löschen",
+      lockedTitle: "Gedächtnis ist ein kostenpflichtiges Extra",
+      lockedBody:
+        "Hol dir einen kostenpflichtigen Plan, dann merke ich mir das Wichtige, damit jeder Chat genau da weitergeht, wo wir aufgehört haben.",
+      lockedCta: "Pläne ansehen",
+      error: "Das hat nicht geklappt. Versuch es gleich nochmal.",
+      categories: {
+        identity: "Über dich",
+        preference: "Dein Geschmack",
+        relationship: "Deine Leute",
+        ongoing: "Woran du gerade bist",
+        lore: "Running Gag",
+      },
     },
     plan: {
       heading: "Plan & Nutzung",
@@ -515,10 +577,10 @@ const de = {
           power: "50×",
         },
         memory: {
-          free: "S",
-          basic: "M",
-          plus: "L",
-          power: "XL",
+          free: "—",
+          basic: "✓",
+          plus: "✓",
+          power: "✓",
         },
         customization: {
           free: "—",
@@ -549,20 +611,20 @@ const de = {
       },
       planTaglines: {
         free: "Der volle Brainrot Bot, kostenlos",
-        basic: "Mehr Memen",
-        plus: "Mehr Chats, mehr Gedächtnis",
+        basic: "Gedächtnis + mehr Memen",
+        plus: "Toller Allrounder",
         power: "Maximum Vibes",
       },
       planBullets: {
         free: ["Der echte Brainrot Bot mit voller Persönlichkeit", "Ein bisschen jeden Tag"],
-        basic: ["9× mehr Chats", "Gleicher smarter Brainrot Bot", "App-Anpassung", "Werbefrei"],
-        plus: ["25× mehr Chats", "Erinnert sich an mehr Chats", "App-Anpassung", "Werbefrei", "Toller Allrounder"],
-        power: ["50× mehr Chats", "Längstes Gedächtnis", "App-Anpassung", "Werbefrei", "Maximales Meme-Power"],
+        basic: ["9× mehr Chats", "Merkt sich dich über Chats hinweg", "App-Anpassung", "Werbefrei"],
+        plus: ["25× mehr Chats", "Merkt sich dich über Chats hinweg", "App-Anpassung", "Werbefrei", "Toller Allrounder"],
+        power: ["50× mehr Chats", "Merkt sich dich über Chats hinweg", "App-Anpassung", "Werbefrei", "Maximales Meme-Power"],
       },
       planHeadlineFeature: {
         free: "Voller Brainrot Bot",
-        basic: "9× Chats",
-        plus: "25× + Gedächtnis",
+        basic: "9× + Gedächtnis",
+        plus: "25× Chats",
         power: "Alle Kraft",
       },
       pricePeriod: "/Monat",
@@ -722,7 +784,7 @@ const de = {
       rowLabel: "E-Mail ändern",
       title: "E-Mail ändern",
       subtitle:
-        "Gib dein aktuelles Passwort und eine neue E-Mail ein. Wir senden einen Bestätigungslink an die neue Adresse — sie wird nach der Bestätigung geändert.",
+        "Gib dein aktuelles Passwort und eine neue E-Mail ein. Wir senden einen Bestätigungslink an die neue Adresse, und sie wird nach der Bestätigung geändert.",
       currentPasswordLabel: "Aktuelles Passwort",
       currentPasswordPlaceholder: "Dein Passwort",
       newEmailLabel: "Neue E-Mail",
