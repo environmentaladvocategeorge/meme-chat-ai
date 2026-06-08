@@ -16,6 +16,7 @@ import {
   RotLevelButton,
 } from "@/components/chat/ComposerToggles";
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
+import { MemoryOnBanner } from "@/components/chat/MemoryOnBanner";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { NewConversationButton } from "@/components/chat/NewConversationButton";
 import {
@@ -47,10 +48,13 @@ import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useKlipy } from "@/hooks/useKlipy";
 import { useKlipyGifs } from "@/hooks/useKlipyGifs";
 import { useOnSendEffects } from "@/hooks/useOnSendEffects";
+import { useMemoryMeta } from "@/hooks/useMemory";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { ChatToneContext } from "@/hooks/useTheme";
+import { PLAN_RANK } from "@/domain/billing";
 import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
+import { useMemorySheetStore } from "@/store/memorySheet";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -146,6 +150,8 @@ export default function ChatScreen() {
   const entitlement = useEntitlementStore((s) => s.entitlement);
   const currentPlan = useDisplayPlan();
   const openPlan = useOpenPlan();
+  const openMemorySheet = useMemorySheetStore((s) => s.open);
+  const { meta: memoryMeta } = useMemoryMeta();
   const router = useRouter();
 
   // Collapse the monthly + daily windows into one picture so we can nudge at
@@ -181,6 +187,15 @@ export default function ChatScreen() {
   // to clear. On an already-blank new chat there's nothing to start, so the
   // button is hidden (and fades back in once a session loads).
   const canStartNew = conversationId !== null || messages.length > 0;
+
+  // Subtle "Memory is on" hint, only on a fresh chat. Paid + memory-enabled
+  // only; when memory is off we show nothing, so the hint's presence always
+  // means it's on. Tapping it opens the Memory sheet to review or switch off.
+  const showMemoryBanner =
+    entitlementReady &&
+    !canStartNew &&
+    PLAN_RANK[currentPlan] > PLAN_RANK.free &&
+    memoryMeta.enabled;
 
   useEffect(() => {
     const id = Array.isArray(params.conversationId)
@@ -554,22 +569,31 @@ export default function ChatScreen() {
           <AppHeader
             title={t("chat.title")}
             right={
-              canStartNew ? (
-                // NOTE: deliberately NOT wrapped in an `entering` animation.
-                // Reanimated entering layout animations leave the child's
-                // native hit-test frame unsynced on Fabric/release builds, so
-                // this small corner button would drop the first tap(s).
-                <NewConversationButton
-                  label={t("chat.newConversation")}
-                  onPress={handleNewConversation}
-                />
-              ) : undefined
+              // Always mounted so the button can fade in/out (it self-gates
+              // taps via `visible`). Avoids the hard pop of conditional
+              // mounting — and avoids Reanimated `entering` layout animations,
+              // which leave the native hit-test frame unsynced on Fabric/release
+              // and drop the first tap(s).
+              <NewConversationButton
+                label={t("chat.newConversation")}
+                onPress={handleNewConversation}
+                visible={canStartNew}
+              />
             }
           />
 
           {/* Free-tier ad banner — sits under the header so it stays put while the
           composer + keyboard move. Hidden for Pro (any paid plan). */}
           <AdBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
+
+          {showMemoryBanner ? (
+            <MemoryOnBanner
+              label={t("chat.memory.bannerOn")}
+              a11yLabel={t("chat.memory.bannerA11y")}
+              color={theme["--color-foreground-muted"]}
+              onPress={openMemorySheet}
+            />
+          ) : null}
 
           <BubbleGradientContext.Provider value={bubbleGradient}>
             <View style={{ flex: 1 }}>
