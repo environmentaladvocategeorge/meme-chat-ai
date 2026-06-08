@@ -1,42 +1,45 @@
-# Meme Chat AI — Ficha de la App Store (Español)
+# Meme Chat AI: Ficha de la App Store (Español)
 
-## App Name (Nombre — 30 caracteres máx.)
+## App Name (Nombre, 30 caracteres máx.)
 
 Meme Chat AI: Brainrot Bot
 
-## Subtitle (Subtítulo — 30 caracteres máx.)
+## Subtitle (Subtítulo, 30 caracteres máx.)
 
 Chat de IA divertido y memes
 
-## Keywords (Palabras clave — 100 caracteres máx., separadas por comas)
+## Keywords (Palabras clave, 100 caracteres máx., separadas por comas)
 
 gif,roast,leyenda,respuesta,humor,chiste,sticker,reaccion,jerga,chatbot,reescribir,bio,genz
 
 ## What's New (Novedades)
 
-Prueba gratis de 7 días para nuevos suscriptores. Al registrarte, ahora puedes probar Wingman (el plan Plus) completamente gratis durante una semana entera. Sin cobros durante la prueba. Cancela en cualquier momento antes de que terminen los 7 días y nunca te cobraremos nada.
+Brainrot Bot ahora tiene memoria.
 
-Fecha de renovación en tu pantalla de plan. Los suscriptores activos ahora ven exactamente cuándo es su próxima fecha de facturación, directamente en la vista de suscripción.
+Cuanto más le hablas, más recuerda: tu vibra, las personas que mencionas, los temas a los que siempre vuelves. Así tus chats dejan de empezar desde cero y de verdad sienten que te conocen. La memoria está activa en los planes de pago, y puedes desactivarla o borrarla cuando quieras desde Ajustes.
 
-Mejoras de rendimiento y estabilidad.
+Todo lo demás también va un poco más rápido y fluido.
 
 ## Promotional Text (Texto promocional)
 
-Todas las IAs suenan igual. Brainrot Bot no — hace roasts, habla en memes y convierte tus respuestas, captions e ideas en algo que de verdad impacta.
+Todas las IAs suenan igual. Brainrot Bot no. Hace roasts, habla en memes y hace que tus mensajes, captions e ideas peguen mucho más fuerte.
 
 ## Description (Descripción)
 
-Meme Chat AI es tu compañero de IA nativo de internet para chatear, generar ideas, reescribir, explicar, hacer roasts y crear, todo con el encanto caótico de Brainrot Bot. En lugar de hablar con un asistente aburrido, tienes un compañero de IA divertido que te ayuda a decir las cosas mejor, entenderlas más rápido y hacer que las conversaciones cotidianas sean mucho más entretenidas.
+Meme Chat AI es una app de chat con IA que sí tiene personalidad: Brainrot Bot. Úsala para escribir mejor, generar ideas, reescribir, explicar, hacer roasts y crear, todo con una voz que suena a internet y no a soporte técnico corporativo. Se siente menos como hablar con un asistente aburrido y más como escribirle a la persona más graciosa de tu grupo, esa que además te da buenos consejos.
 
-¿Necesitas una respuesta mejor? ¿Un caption que de verdad funcione? ¿Una explicación rápida que no suene a libro de texto? ¿Un roast divertido de una idea a medio cocinar? Brainrot Bot está hecho para eso.
+¿Necesitas una respuesta mejor? ¿Un caption que de verdad funcione? ¿Una explicación rápida que no suene a libro de texto? ¿Un roast divertido de una idea a medio cocinar? Para eso está Brainrot Bot.
 
 LO QUE PUEDES HACER
 
 • Chatea con Brainrot Bot
-Habla con una persona de IA divertida y fluida en memes que te ayuda con respuestas, captions, ideas, explicaciones, planes y más.
+Habla con una persona de IA divertida y fluida en memes que te ayuda con respuestas, captions, ideas, explicaciones y planes.
 
 • Controla el caos
 Usa el dial de Rot Level para elegir qué tan normales, ridículas o completamente desquiciadas se sienten las respuestas de la IA.
+
+• Una IA que te recuerda
+Activa la memoria y Brainrot Bot se queda con tu vibra, tu gente y los temas que siempre sacas, así los chats siguen donde los dejaste en vez de empezar en frío. Es una función de pago y tú la controlas desde Ajustes.
 
 • Añade memes y GIFs
 Busca memes y GIFs en tendencia, adjúntalos en el chat y haz tus conversaciones más expresivas.
@@ -68,11 +71,11 @@ IDEAL PARA
 
 HECHA PARA DIVERTIR, NO PARA SER UNA IA ABURRIDA
 
-Meme Chat AI te da una personalidad consistente en todos los planes: Brainrot Bot. Los usuarios gratuitos y de pago obtienen el mismo personaje de IA principal, y los planes de pago ofrecen más uso, sin anuncios y personalización adicional.
+Tienes el mismo Brainrot Bot en todos los planes, gratis o de pago. Los planes de pago solo le dan más espacio: memoria, mucho más uso, sin anuncios y personalización extra.
 
 PRIVACIDAD Y CONTROL
 
-Meme Chat AI incluye eliminación de cuenta y eliminación de conversaciones dentro de la app. La app está diseñada para usuarios de 16 años en adelante.
+Meme Chat AI te permite eliminar tu cuenta y tus conversaciones dentro de la app, y puedes desactivar o borrar la memoria de Brainrot Bot cuando quieras. La app está diseñada para usuarios de 16 años en adelante.
 
 Descarga Meme Chat AI y deja que Brainrot Bot convierta tu brainrot en algo útil, divertido y compartible.
 

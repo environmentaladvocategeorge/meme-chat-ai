@@ -1,42 +1,45 @@
-# Meme Chat AI — App-Store-Eintrag (Deutsch)
+# Meme Chat AI: App-Store-Eintrag (Deutsch)
 
-## App Name (Name — max. 30 Zeichen)
+## App Name (Name, max. 30 Zeichen)
 
 Meme Chat AI: Brainrot Bot
 
-## Subtitle (Untertitel — max. 30 Zeichen)
+## Subtitle (Untertitel, max. 30 Zeichen)
 
 Lustiger KI-Chat & Memes
 
-## Keywords (Schlüsselwörter — max. 100 Zeichen, kommagetrennt)
+## Keywords (Schlüsselwörter, max. 100 Zeichen, kommagetrennt)
 
 gif,roast,spruch,antwort,humor,witz,sticker,reaktion,slang,chatbot,umschreiben,bio,genz
 
 ## What's New (Neuigkeiten)
 
-Kostenlose 7-Tage-Testversion für neue Abonnenten. Bei der Anmeldung kannst du Wingman (den Plus-Plan) jetzt eine ganze Woche lang kostenlos testen — keine Kosten während der Testphase. Kündige jederzeit vor Ablauf der 7 Tage und du wirst nie belastet.
+Brainrot Bot hat jetzt ein Gedächtnis.
 
-Verlängerungsdatum auf deinem Plan-Bildschirm. Aktive Abonnenten sehen jetzt genau, wann ihr nächstes Abrechnungsdatum ist, direkt in der Abonnementansicht.
+Je mehr du schreibst, desto mehr merkt er sich: deinen Vibe, die Leute, die du erwähnst, die Themen, auf die du immer wieder zurückkommst. So fangen deine Chats nicht mehr bei null an und fühlen sich wirklich an, als würden sie dich kennen. Das Gedächtnis ist in den Bezahlplänen aktiv, und du kannst es jederzeit in den Einstellungen abschalten oder löschen.
 
-Verbesserungen bei Leistung und Stabilität.
+Alles andere läuft außerdem etwas schneller und runder.
 
 ## Promotional Text (Werbetext)
 
-Jede KI klingt gleich. Brainrot Bot nicht — er gibt zurück, spricht Meme und macht deine Texte, Captions und Ideen wirklich besser als alles andere da draußen.
+Jede KI klingt gleich. Brainrot Bot nicht. Er gibt zurück, spricht Meme und macht deine Texte, Captions und Ideen viel wirkungsvoller.
 
 ## Description (Beschreibung)
 
-Meme Chat AI ist dein internet-nativer KI-Sidekick zum Texten, Brainstormen, Umschreiben, Erklären, Roasten und Erstellen — alles mit dem chaotischen Charme von Brainrot Bot. Statt mit einem langweiligen Assistenten zu chatten, bekommst du einen verspielten KI-Begleiter, der dir hilft, Dinge besser zu sagen, schneller zu verstehen und alltägliche Gespräche viel unterhaltsamer zu machen.
+Meme Chat AI ist eine KI-Chat-App mit echter Persönlichkeit: Brainrot Bot. Nutze sie, um besser zu texten, zu brainstormen, umzuschreiben, zu erklären, zu roasten und zu erstellen, alles in einer Sprache, die nach Internet klingt statt nach Firmen-Hotline. Es fühlt sich weniger an wie ein Gespräch mit einem langweiligen Assistenten und mehr, als würdest du der lustigsten Person in deinem Gruppenchat schreiben, der, die nebenbei auch noch gute Ratschläge gibt.
 
-Brauchst du eine bessere Antwort? Eine Caption, die wirklich sitzt? Eine schnelle Erklärung, die nicht nach Lehrbuch klingt? Einen witzigen Roast einer halbgaren Idee? Genau dafür ist Brainrot Bot gemacht.
+Brauchst du eine bessere Antwort? Eine Caption, die wirklich sitzt? Eine schnelle Erklärung, die nicht nach Lehrbuch klingt? Einen witzigen Roast einer halbgaren Idee? Genau dafür gibt es Brainrot Bot.
 
 WAS DU TUN KANNST
 
 • Mit Brainrot Bot chatten
-Sprich mit einer witzigen, meme-fließenden KI-Persona, die bei Antworten, Captions, Ideen, Erklärungen, Plänen und mehr hilft.
+Sprich mit einer witzigen, meme-fließenden KI-Persona, die bei Antworten, Captions, Ideen, Erklärungen und Plänen hilft.
 
 • Das Chaos steuern
 Nutze den Rot-Level-Regler, um zu wählen, wie normal, albern oder völlig durchgeknallt sich deine KI-Antworten anfühlen.
+
+• Eine KI, die sich an dich erinnert
+Schalte das Gedächtnis ein und Brainrot Bot merkt sich deinen Vibe, deine Leute und die Themen, die du immer wieder ansprichst, damit Chats da weitermachen, wo du aufgehört hast, statt bei null zu starten. Es ist eine Bezahlfunktion, und du steuerst sie in den Einstellungen.
 
 • Memes und GIFs hinzufügen
 Suche angesagte Memes und GIFs, füge sie im Chat ein und mach deine Gespräche ausdrucksstärker.
@@ -68,11 +71,11 @@ GROSSARTIG FÜR
 
 GEMACHT FÜR SPASS, NICHT FÜR LANGWEILIGE KI
 
-Meme Chat AI gibt dir eine konsistente Persönlichkeit über alle Pläne hinweg: Brainrot Bot. Kostenlose und zahlende Nutzer erhalten denselben KI-Charakter im Kern, wobei Bezahlpläne mehr Nutzung, keine Werbung und zusätzliche Anpassung bieten.
+Du bekommst denselben Brainrot Bot in jedem Plan, ob gratis oder bezahlt. Bezahlpläne geben ihm nur mehr Spielraum: Gedächtnis, viel mehr Nutzung, keine Werbung und zusätzliche Anpassung.
 
 DATENSCHUTZ & KONTROLLE
 
-Meme Chat AI bietet Kontolöschung und Gesprächslöschung direkt in der App. Die App ist für Nutzer ab 16 Jahren konzipiert.
+Mit Meme Chat AI kannst du dein Konto und deine Gespräche direkt in der App löschen, und du kannst das Gedächtnis von Brainrot Bot jederzeit abschalten oder löschen. Die App ist für Nutzer ab 16 Jahren gemacht.
 
 Lade Meme Chat AI herunter und lass Brainrot Bot deinen Brainrot in etwas Nützliches, Witziges und Teilbares verwandeln.
 
