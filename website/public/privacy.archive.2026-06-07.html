@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy Policy &middot; MeMe Chat AI</title>
-    <meta name="description" content="Privacy policy for MeMe Chat AI: what we collect, how OpenAI (including meme/GIF image inputs and photos you attach), Firebase, RevenueCat, and Klipy process your data, the Memory feature and how to opt out, the date-of-birth age gate, device permissions, and how to delete your data." />
+    <meta name="description" content="Privacy policy for MeMe Chat AI: what we collect, how OpenAI (including meme/GIF image inputs and photos you attach), Firebase, RevenueCat, and Klipy process your data, the date-of-birth age gate, device permissions, and how to delete your data." />
     <link rel="canonical" href="https://meme-chat-ai.com/privacy" />
     <link rel="stylesheet" href="/styles.css" />
     <style>
@@ -80,8 +80,8 @@
 
       <ul class="meta">
         <li><strong>App:</strong> MeMe Chat AI</li>
-        <li><strong>Effective date:</strong> June 7, 2026</li>
-        <li><strong>Applies to app version:</strong> 1.0.4 and later</li>
+        <li><strong>Effective date:</strong> June 6, 2026</li>
+        <li><strong>Applies to app version:</strong> 1.0.3 and later</li>
         <li><strong>Applies to:</strong> the MeMe Chat AI mobile app (iOS and Android), its backend services, and this website at https://meme-chat-ai.com</li>
         <li><strong>Minimum age:</strong> 16 and older</li>
         <li><strong>Contact:</strong> <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a></li>
@@ -178,11 +178,6 @@
             <td>Message ratings / reactions</td>
             <td>Thumbs up/down you give an AI reply</td>
             <td>Firestore (stored on the message)</td>
-          </tr>
-          <tr>
-            <td>Memory notes (paid plans)</td>
-            <td>Short notes the AI writes about you during conversations, such as your general vibe, people you mention, and topics you return to; only written when Memory is enabled</td>
-            <td>Stored in Firestore on your account (linked to your Firebase UID); included in AI context sent to OpenAI when Memory is on; manageable in-app (see Section 7)</td>
           </tr>
           <tr>
             <td>Profile &amp; personalization</td>
@@ -300,7 +295,6 @@
         <li>the system / persona prompt that defines the AI character, including persona and rot-level context;</li>
         <li>an optional summary of earlier parts of the conversation;</li>
         <li>recent conversation history (your previous messages and the AI's previous replies), for context;</li>
-        <li>for paid subscribers with Memory on, your <strong>memory notes</strong> as part of the system context (see Section 7);</li>
         <li>your current message; and</li>
         <li><strong>image inputs</strong> for any meme or GIF involved in the turn (see Section 6).</li>
       </ul>
@@ -409,23 +403,6 @@
         the conversation, delete your account, or we remove it for operational,
         safety, or legal reasons.
       </p>
-
-      <h3>Memory notes (paid plans)</h3>
-      <p>
-        Paid subscribers (Sidekick, Wingman, and MVP plans) get a
-        <strong>Memory</strong> feature that lets the AI write short notes about
-        you over time, such as your general vibe, the people you mention, and
-        topics you keep returning to, so it does not ask the same things twice.
-      </p>
-      <ul>
-        <li>Memory is <strong>only available on paid plans</strong> and is <strong>not available to free (Hatchling) users</strong>.</li>
-        <li>For paid subscribers, Memory is <strong>on by default</strong>. You can turn it off (opt out) at any time from <strong>Settings &rarr; Memory</strong>, and the chat screen shows a small "Memory is on" indicator on a new chat so you always know its state.</li>
-        <li>When Memory is on, the AI writes short notes about you during chats. You cannot edit these notes by hand, but you can <strong>delete individual entries or wipe all memory</strong> at any time from <strong>Settings &rarr; Memory</strong>.</li>
-        <li>Memory notes are stored in your Firestore account, linked to your Firebase UID, and are kept deliberately short.</li>
-        <li>When Memory is on, the relevant notes are included in the system context sent to OpenAI along with your message, so OpenAI processes them as part of each request (see Section 5).</li>
-        <li>Turning Memory <strong>off</strong> stops new notes from being written and stops existing notes from being used. Using <strong>Wipe</strong> removes all existing notes from your account immediately.</li>
-        <li>Memory notes are deleted when you delete your account (see Section 21).</li>
-      </ul>
 
       <!-- ===================================================== -->
       <h2>8. Klipy meme and GIF media</h2>
@@ -702,7 +679,6 @@
         <li>create and authenticate your account and keep you signed in;</li>
         <li>provide AI chat, including titles, summaries, and meme/GIF reactions;</li>
         <li>store and show your conversation history, ratings, and personalization;</li>
-        <li>provide the Memory feature (for paid subscribers who have it enabled), using memory notes as additional context in AI sessions;</li>
         <li>show, search, attach, and let you download trending meme and GIF media;</li>
         <li>manage subscriptions, entitlements, and credits;</li>
         <li>show ads to free users through Google AdMob (paid plans are ad-free);</li>
@@ -793,7 +769,6 @@
       <h2>20. Data retention</h2>
       <ul>
         <li><strong>Conversations and messages</strong> (including ratings, persona metadata, and meme/GIF references) remain until you delete the conversation, delete your account, or we remove them for legal, safety, or operational reasons.</li>
-        <li><strong>Memory notes</strong> remain until you delete individual entries, wipe all memory from Settings &rarr; Memory, or delete your account.</li>
         <li><strong>Photos you upload as chat attachments</strong> (stored in Cloud Storage) are removed when you delete the conversation or your account.</li>
         <li><strong>Profile / account data</strong> (including alias/display name and billing fields) remains while your account exists.</li>
         <li><strong>Usage events</strong> tied to your UID are removed when you delete your account.</li>
@@ -812,11 +787,10 @@
         You can delete your account from within the App. For your security, this
         requires recent re-authentication. When you delete your account, the App
         is designed to delete your Firebase Authentication user, your profile
-        and its subcollections, the conversations and messages you own, your
-        Memory notes, the photos you uploaded as chat attachments (in Cloud
-        Storage), and the usage events linked to your UID, and then to sign you
-        out and wipe local app data (other than the retained age-gate/DOB record
-        described above).
+        and its subcollections, the conversations and messages you own, the
+        photos you uploaded as chat attachments (in Cloud Storage), and the usage
+        events linked to your UID, and then to sign you out and wipe local app
+        data (other than the retained age-gate/DOB record described above).
       </p>
       <p>
         Account deletion is performed across separate systems, so it cannot be
@@ -859,7 +833,6 @@
         <li>create, sign in to, or delete your account;</li>
         <li>use Sign in with Apple, including <em>Hide My Email</em>, where available;</li>
         <li>delete conversations within the App;</li>
-        <li>enable, disable, or wipe your Memory notes from <strong>Settings &rarr; Memory</strong> (paid plans only);</li>
         <li>manage notification and photo/media-library permissions in your device settings;</li>
         <li>manage or cancel subscriptions through your App Store or Google Play subscription settings;</li>
         <li>delete local app data (including the age-gate record) by deleting the App;</li>
@@ -891,7 +864,7 @@
         <tbody>
           <tr><td>Contact info</td><td>Email address</td><td>Yes</td><td>Account management, app functionality</td></tr>
           <tr><td>Identifiers</td><td>Firebase UID, RevenueCat app user ID, Apple Sign In identifier</td><td>Yes</td><td>App functionality, purchases, security</td></tr>
-          <tr><td>User content</td><td>Chat messages, AI replies, titles/summaries, meme/GIF references and image inputs sent to OpenAI, photos you upload as attachments, message ratings/reactions, alias/personalization, Memory notes (paid plans, when enabled)</td><td>Yes</td><td>App functionality (sent to OpenAI / stored in Firebase)</td></tr>
+          <tr><td>User content</td><td>Chat messages, AI replies, titles/summaries, meme/GIF references and image inputs sent to OpenAI, photos you upload as attachments, message ratings/reactions, alias/personalization</td><td>Yes</td><td>App functionality (sent to OpenAI / stored in Firebase)</td></tr>
           <tr><td>Purchases</td><td>Subscription status, product IDs, entitlement status, purchase/transaction metadata (via RevenueCat/Apple/Google)</td><td>Yes</td><td>App functionality, fraud prevention</td></tr>
           <tr><td>Usage data</td><td>Token counts, credits, plan/model, usage events, ratings/reactions</td><td>Yes</td><td>App functionality, billing</td></tr>
           <tr><td>Diagnostics</td><td>Logs, errors, IP/network data, attachment metadata, rate-limit data</td><td>Yes</td><td>Security, diagnostics, app functionality</td></tr>
