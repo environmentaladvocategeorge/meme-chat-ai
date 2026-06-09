@@ -1,7 +1,16 @@
 import { countTokens } from "../../../context/tokens";
-import { compileMemoryBlock, MEMORY_BLOCK_HEADER } from "../compile";
+import {
+  compileMemoryBlock,
+  MEDIA_MEMORY_HEADER,
+  MEDIA_MEMORY_MAX_TOKENS,
+  MEDIA_MEMORY_VIEW,
+  MEMORY_BLOCK_HEADER,
+  REPLY_MEMORY_VIEW,
+  renderMemoryView,
+} from "../compile";
 import { consolidateFacts } from "../consolidate";
 import { memoryEnabledForUser, planHasMemory } from "../gating";
+import { factToLite, parseLiteFact } from "../repository";
 import { MemoryService } from "../MemoryService";
 import {
   MEMORY_MAX_FACTS,
@@ -73,6 +82,59 @@ describe("compileMemoryBlock", () => {
   });
 });
 
+describe("renderMemoryView", () => {
+  it("the REPLY view equals the legacy compileMemoryBlock byte-for-byte", () => {
+    const facts = [
+      fact({ id: "a", category: "preference", text: "loves spongebob", salience: 3 }),
+      fact({ id: "b", category: "relationship", text: "has a roommate Sam", salience: 2 }),
+      fact({ id: "c", category: "lore", text: "running joke about being cooked", salience: 4 }),
+    ];
+    expect(renderMemoryView(facts, REPLY_MEMORY_VIEW)).toEqual(
+      compileMemoryBlock(facts),
+    );
+  });
+
+  it("the MEDIA view includes only preference/lore/identity facts", () => {
+    const facts = [
+      fact({ id: "p", category: "preference", text: "knicks fan", salience: 3 }),
+      fact({ id: "l", category: "lore", text: "always says we are cooked", salience: 3 }),
+      fact({ id: "i", category: "identity", text: "from NYC", salience: 3 }),
+      fact({ id: "r", category: "relationship", text: "dating Alex", salience: 3 }),
+      fact({ id: "o", category: "ongoing", text: "studying for the bar", salience: 3 }),
+    ];
+    const { block, includedIds } = renderMemoryView(facts, MEDIA_MEMORY_VIEW);
+    expect([...includedIds].sort()).toEqual(["i", "l", "p"]);
+    expect(block).toContain(MEDIA_MEMORY_HEADER);
+    expect(block).toContain("knicks fan");
+    expect(block).not.toContain("dating Alex");
+    expect(block).not.toContain("studying for the bar");
+  });
+
+  it("the MEDIA view is empty when the user has no taste-bearing facts", () => {
+    const facts = [
+      fact({ id: "r", category: "relationship", text: "dating Alex" }),
+      fact({ id: "o", category: "ongoing", text: "studying for the bar" }),
+    ];
+    expect(renderMemoryView(facts, MEDIA_MEMORY_VIEW).block).toBe("");
+  });
+
+  it("the MEDIA view never exceeds its tighter token cap", () => {
+    const many = Array.from({ length: 100 }, (_, i) =>
+      fact({
+        id: `p${i}`,
+        category: "preference",
+        salience: 2,
+        updatedAt: 1000 + i,
+        text: `prefers thing number ${i} in a fairly wordy descriptive way`,
+      }),
+    );
+    const { tokens, includedIds } = renderMemoryView(many, MEDIA_MEMORY_VIEW);
+    expect(tokens).toBeLessThanOrEqual(MEDIA_MEMORY_MAX_TOKENS);
+    expect(includedIds.length).toBeGreaterThan(0);
+    expect(includedIds.length).toBeLessThan(many.length);
+  });
+});
+
 describe("consolidateFacts", () => {
   const deps = { now: 5000, newId: () => "new-id" };
 
@@ -129,6 +191,47 @@ describe("consolidateFacts", () => {
   });
 });
 
+describe("denormalized facts round-trip (factToLite / parseLiteFact)", () => {
+  it("survives a full round-trip with the render-relevant fields", () => {
+    const f = fact({
+      id: "x",
+      text: "knicks fan",
+      category: "preference",
+      salience: 4,
+      updatedAt: 4242,
+    });
+    const lite = factToLite(f);
+    expect(lite).toEqual({
+      id: "x",
+      text: "knicks fan",
+      category: "preference",
+      salience: 4,
+      updatedAt: 4242,
+    });
+    expect(parseLiteFact(lite)).toEqual(lite);
+    // What renderMemoryView needs is preserved.
+    expect(renderMemoryView([parseLiteFact(lite)!], MEDIA_MEMORY_VIEW).block).toContain(
+      "knicks fan",
+    );
+  });
+
+  it("drops malformed entries instead of throwing", () => {
+    expect(parseLiteFact(null)).toBeNull();
+    expect(parseLiteFact("nope")).toBeNull();
+    expect(parseLiteFact({ id: "x", text: "t" })).toBeNull(); // missing/invalid category
+    expect(parseLiteFact({ id: "", text: "t", category: "preference" })).toBeNull();
+    expect(parseLiteFact({ id: "x", text: "", category: "preference" })).toBeNull();
+    // Missing numeric fields default rather than fail.
+    expect(parseLiteFact({ id: "x", text: "t", category: "lore" })).toEqual({
+      id: "x",
+      text: "t",
+      category: "lore",
+      salience: 1,
+      updatedAt: 0,
+    });
+  });
+});
+
 describe("MemoryService gating", () => {
   it("returns '' for free plan and never reads the repo", async () => {
     const repo = { getState: jest.fn() } as never;
@@ -149,6 +252,90 @@ describe("MemoryService gating", () => {
     } as never;
     const svc = new MemoryService({ repo, gate: () => true });
     expect(await svc.getMemoryBlock("u1", "plus")).toBe("BLOCK");
+  });
+
+  it("renders the reply block from stored facts (not the stale block field)", async () => {
+    const repo = {
+      getState: jest.fn(async () => ({
+        enabled: true,
+        block: "STALE",
+        blockTokens: 1,
+        factCount: 1,
+        updatedAt: null,
+        facts: [
+          { id: "p", text: "knicks fan", category: "preference", salience: 5, updatedAt: 1 },
+        ],
+      })),
+    } as never;
+    const svc = new MemoryService({ repo, gate: () => true });
+    const block = await svc.getMemoryBlock("u1", "plus");
+    expect(block).toContain("knicks fan");
+    expect(block).not.toContain("STALE");
+  });
+
+  it("getMemoryViews returns empties for free plan without reading the repo", async () => {
+    const repo = { getState: jest.fn() } as never;
+    const svc = new MemoryService({ repo });
+    expect(await svc.getMemoryViews("u1", "free")).toEqual({ reply: "", media: "" });
+    expect((repo as { getState: jest.Mock }).getState).not.toHaveBeenCalled();
+  });
+
+  it("getMemoryViews renders reply (all) + media (taste only) from facts", async () => {
+    const repo = {
+      getState: jest.fn(async () => ({
+        enabled: true,
+        block: "STALE",
+        blockTokens: 1,
+        factCount: 2,
+        updatedAt: null,
+        facts: [
+          { id: "p", text: "knicks fan", category: "preference", salience: 5, updatedAt: 2 },
+          { id: "r", text: "dating Alex", category: "relationship", salience: 4, updatedAt: 1 },
+        ],
+      })),
+    } as never;
+    const svc = new MemoryService({ repo, gate: () => true });
+    const views = await svc.getMemoryViews("u1", "plus");
+    expect(views.reply).toContain("knicks fan");
+    expect(views.reply).toContain("dating Alex"); // reply = every category
+    expect(views.reply).not.toContain("STALE"); // rendered from facts
+    expect(views.media).toContain("knicks fan");
+    expect(views.media).not.toContain("dating Alex"); // media = taste only
+  });
+
+  it("getMemoryViews falls back to the stored block (reply only) when facts absent", async () => {
+    const repo = {
+      getState: jest.fn(async () => ({
+        enabled: true,
+        block: "LEGACY BLOCK",
+        blockTokens: 1,
+        factCount: 1,
+        updatedAt: null,
+        // no `facts` — a doc written before per-consumer views shipped
+      })),
+    } as never;
+    const svc = new MemoryService({ repo, gate: () => true });
+    expect(await svc.getMemoryViews("u1", "plus")).toEqual({
+      reply: "LEGACY BLOCK",
+      media: "",
+    });
+  });
+
+  it("getMemoryViews returns empties when memory is toggled OFF", async () => {
+    const repo = {
+      getState: jest.fn(async () => ({
+        enabled: false,
+        block: "B",
+        blockTokens: 1,
+        factCount: 1,
+        updatedAt: null,
+        facts: [
+          { id: "p", text: "x", category: "preference", salience: 1, updatedAt: 1 },
+        ],
+      })),
+    } as never;
+    const svc = new MemoryService({ repo, gate: () => true });
+    expect(await svc.getMemoryViews("u1", "plus")).toEqual({ reply: "", media: "" });
   });
 
   it("returns '' for a paid plan when memory is toggled OFF", async () => {

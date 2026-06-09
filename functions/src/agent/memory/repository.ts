@@ -4,8 +4,44 @@ import {
   getFirestore,
   type Firestore,
 } from "firebase-admin/firestore";
-import { isMemoryCategory, type MemoryFact, type MemoryState } from "./types";
+import {
+  isMemoryCategory,
+  type MemoryFact,
+  type MemoryFactLite,
+  type MemoryState,
+} from "./types";
 import type { CompiledMemory } from "./compile";
+
+// The render-ready subset stored on the parent doc (see MemoryFactLite). Kept in
+// rank-agnostic insertion order; views re-rank on render. Exported for the
+// round-trip unit test.
+export function factToLite(f: MemoryFact): MemoryFactLite {
+  return {
+    id: f.id,
+    text: f.text,
+    category: f.category,
+    salience: f.salience,
+    updatedAt: f.updatedAt,
+  };
+}
+
+// Parse one entry of the denormalized `facts` array back into a MemoryFactLite,
+// or null if it's malformed (a bad entry is dropped, never throws). Exported for
+// the round-trip unit test.
+export function parseLiteFact(value: unknown): MemoryFactLite | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.id !== "string" || !v.id) return null;
+  if (typeof v.text !== "string" || !v.text) return null;
+  if (!isMemoryCategory(v.category)) return null;
+  return {
+    id: v.id,
+    text: v.text,
+    category: v.category,
+    salience: typeof v.salience === "number" ? v.salience : 1,
+    updatedAt: typeof v.updatedAt === "number" ? v.updatedAt : 0,
+  };
+}
 
 // Top-level `memories/{uid}` collection (kept separate from profiles so the
 // memory service owns its data). The compiled block lives on the parent doc for
@@ -56,6 +92,12 @@ export class MemoryRepository {
     const snap = await this.stateRef(uid).get();
     if (!snap.exists) return null;
     const d = snap.data() as Record<string, unknown>;
+    const facts = Array.isArray(d.facts)
+      ? d.facts.flatMap((f) => {
+          const lite = parseLiteFact(f);
+          return lite ? [lite] : [];
+        })
+      : undefined;
     return {
       // Memory is opt-OUT: absent flag means on (a paid user with facts but no
       // explicit toggle still gets memory).
@@ -64,6 +106,9 @@ export class MemoryRepository {
       blockTokens: typeof d.blockTokens === "number" ? d.blockTokens : 0,
       factCount: typeof d.factCount === "number" ? d.factCount : 0,
       updatedAt: d.updatedAt instanceof Timestamp ? d.updatedAt.toMillis() : null,
+      // Absent on docs written before per-consumer views shipped; the service
+      // falls back to `block` for the reply view in that case.
+      facts,
     };
   }
 
@@ -112,6 +157,9 @@ export class MemoryRepository {
         block: compiled.block,
         blockTokens: compiled.tokens,
         factCount: facts.length,
+        // Render-ready facts for the per-consumer views. `block` is kept as the
+        // reply-view fallback for any reader that hasn't migrated.
+        facts: facts.map(factToLite),
         updatedAt: FieldValue.serverTimestamp(),
       },
       // Merge so the user's `enabled` toggle is preserved across refreshes.
@@ -121,8 +169,9 @@ export class MemoryRepository {
     await batch.commit();
   }
 
-  // Clear everything: drop all facts and reset the block to empty. Preserves the
-  // user's on/off toggle (clearing memory shouldn't silently turn it off).
+  // Clear everything: drop all facts and reset the block + render-ready facts to
+  // empty. Preserves the user's on/off toggle (clearing memory shouldn't silently
+  // turn it off).
   async clearAll(uid: string): Promise<void> {
     await this.db.recursiveDelete(this.factsRef(uid));
     await this.stateRef(uid).set(
@@ -130,6 +179,7 @@ export class MemoryRepository {
         block: "",
         blockTokens: 0,
         factCount: 0,
+        facts: [],
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },
@@ -141,12 +191,19 @@ export class MemoryRepository {
   }
 
   // Rewrite just the state doc (used after a single-fact delete recompiles).
-  async saveState(uid: string, compiled: CompiledMemory, factCount: number): Promise<void> {
+  // Takes the surviving facts so the denormalized `facts` array + count stay in
+  // lockstep with the recompiled block.
+  async saveState(
+    uid: string,
+    compiled: CompiledMemory,
+    facts: MemoryFact[],
+  ): Promise<void> {
     await this.stateRef(uid).set(
       {
         block: compiled.block,
         blockTokens: compiled.tokens,
-        factCount,
+        factCount: facts.length,
+        facts: facts.map(factToLite),
         updatedAt: FieldValue.serverTimestamp(),
       },
       { merge: true },

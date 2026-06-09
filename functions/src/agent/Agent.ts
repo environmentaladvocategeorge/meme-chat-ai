@@ -20,6 +20,10 @@ export type AgentConfig = {
   plan: PlanId;
   personaId?: string;
   levelOfRot: number;
+  // The user's "Respond with emojis" toggle (local-only, sent per turn).
+  // Defaults to true; when false the persona prompt's emoji guidance is swapped
+  // for a "no emojis" directive (see buildSystemPromptForStream).
+  respondWithEmojis?: boolean;
   memory: MemoryService;
 };
 
@@ -32,6 +36,11 @@ export type BuildReplyContextArgs = {
   attachedMedia?: { kind: "gif" | "meme"; description: string };
   userAlias?: string | null;
   userLanguage?: string | null;
+  // Pre-rendered reply memory block. When the orchestrator has already read the
+  // memory state (e.g. to also feed the media decider), it passes the reply view
+  // here so the Agent doesn't read it again. Omitted = the Agent fetches it
+  // itself (back-compat). Empty string is a valid value (no memory).
+  memoryBlock?: string;
   excludeMessageIds?: string[];
 };
 
@@ -47,8 +56,16 @@ export class Agent {
   // measurable turn latency. Memory is "" for plans without it.
   async buildReplyContext(args: BuildReplyContextArgs): Promise<ReplyContext> {
     const [promptResult, memoryBlock] = await Promise.all([
-      buildSystemPromptForStream(this.cfg.personaId, this.cfg.levelOfRot),
-      this.cfg.memory.getMemoryBlock(this.cfg.uid, this.cfg.plan),
+      buildSystemPromptForStream(
+        this.cfg.personaId,
+        this.cfg.levelOfRot,
+        this.cfg.respondWithEmojis ?? true,
+      ),
+      // Use the orchestrator-supplied reply block when present (it already read
+      // the state to feed the decider); otherwise fetch it ourselves.
+      args.memoryBlock !== undefined
+        ? Promise.resolve(args.memoryBlock)
+        : this.cfg.memory.getMemoryBlock(this.cfg.uid, this.cfg.plan),
     ]);
 
     const history = new ConversationHistory(args.conversationId, this.cfg.plan);

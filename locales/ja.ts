@@ -510,6 +510,13 @@ const ja = {
         "通知のパーミッションはデバイス設定で管理されています。設定を開いてオフにしてください。",
       openSettings: "設定を開く",
     },
+    answering: {
+      sectionLabel: "返信",
+      emojisLabel: "絵文字で返信する",
+      emojisDescription: "Brainrot Bot の返信に絵文字を入れます。",
+      mediaLabel: "GIF・ミームで返信する",
+      mediaDescription: "Brainrot Bot が GIF やミームでリアクションします。",
+    },
     memory: {
       rowLabel: "メモリ",
       rowOn: "オン",

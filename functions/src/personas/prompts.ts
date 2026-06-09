@@ -10,6 +10,7 @@ import {
   PLATFORM_GUARDRAILS_FALLBACK,
   PLATFORM_GUARDRAILS_KEY,
 } from "./content";
+import { asFragmentedPrompt, assembleFragments } from "./fragments";
 import type { Persona, PersonaPrompt, PlatformPrompt } from "./types";
 
 export type ResolvedPersonaForStream = {
@@ -239,7 +240,16 @@ export async function buildMediaDeciderPrompt(levelOfRot = 2): Promise<string> {
   // The decider uses the `mediaContent` field, NOT `content` (which is the
   // persona path's guardrails). Falls back when the field/doc is absent.
   const guardrails = platformPrompt?.mediaContent ?? MEDIA_GUARDRAILS_FALLBACK;
-  const deciderContent = deciderPrompt?.content ?? MEDIA_DECIDER_PROMPT_FALLBACK;
+  // Prefer the fragmented decider body when present + valid; else the legacy
+  // monolithic `content`. The decider is unaffected by the emoji toggle, so
+  // emojisEnabled is always true here. The rot-level frequency nudge is appended
+  // after, exactly as before, so a fragmented assembly stays byte-identical.
+  const deciderFragmented = deciderPrompt
+    ? asFragmentedPrompt(deciderPrompt.fragments)
+    : null;
+  const deciderContent = deciderFragmented
+    ? assembleFragments(deciderFragmented, { level: levelOfRot, emojisEnabled: true })
+    : (deciderPrompt?.content ?? MEDIA_DECIDER_PROMPT_FALLBACK);
   return `${guardrails}\n\n${deciderContent}\n\n${deciderRotLine(levelOfRot)}`;
 }
 
@@ -248,6 +258,10 @@ export async function buildSystemPromptForStream(
   // The user's Rot Level dial (1–3); substituted into the persona prompt's
   // {{ROT_LEVEL_BLOCK}} placeholder. Defaults to 2 ("Rotted").
   levelOfRot = 2,
+  // The user's "Respond with emojis" toggle. When false, the rot block's emoji
+  // bullet is swapped for a hard "no emojis" directive (see applyRotLevel).
+  // Defaults to true so existing callers keep today's behavior.
+  respondWithEmojis = true,
 ): Promise<BuiltSystemPromptForStream> {
   let platformPrompt: PlatformPrompt | null = null;
   try {
@@ -260,7 +274,17 @@ export async function buildSystemPromptForStream(
 
   const { persona, personaPrompt } = await resolvePersonaForStream(inputPersonaId);
   const platformContent = platformPrompt?.content ?? fallbackPlatformPrompt().content;
-  const personaContent = applyRotLevel(personaPrompt.content, levelOfRot);
+  // Prefer the fragmented persona when present + valid; else assemble the legacy
+  // monolithic `content` via applyRotLevel. Both honor the rot level + emoji
+  // toggle; for the default (emoji-on) case the two produce byte-identical text
+  // (asserted by the fragment-persona migration script).
+  const fragmented = asFragmentedPrompt(personaPrompt.fragments);
+  const personaContent = fragmented
+    ? assembleFragments(fragmented, {
+        level: levelOfRot,
+        emojisEnabled: respondWithEmojis,
+      })
+    : applyRotLevel(personaPrompt.content, levelOfRot, respondWithEmojis);
 
   return {
     systemPrompt: `${platformContent}\n\nActive persona prompt:\n${personaContent}`,

@@ -508,6 +508,13 @@ const de = {
         "Benachrichtigungsberechtigungen werden in deinen Geräteeinstellungen verwaltet. Öffne Einstellungen, um sie zu deaktivieren.",
       openSettings: "Einstellungen öffnen",
     },
+    answering: {
+      sectionLabel: "Antworten",
+      emojisLabel: "Mit Emojis antworten",
+      emojisDescription: "Lass Brainrot Bot Emojis in seine Antworten einbauen.",
+      mediaLabel: "Mit GIFs & Memes antworten",
+      mediaDescription: "Lass Brainrot Bot mit GIFs und Memes reagieren.",
+    },
     memory: {
       rowLabel: "Gedächtnis",
       rowOn: "An",

@@ -511,6 +511,13 @@ const pt = {
         "As permissões de notificação são gerenciadas nas configurações do seu dispositivo. Abra Configurações para desativá-las.",
       openSettings: "Abrir Configurações",
     },
+    answering: {
+      sectionLabel: "Respostas",
+      emojisLabel: "Responder com emojis",
+      emojisDescription: "Deixe o Brainrot Bot usar emojis nas respostas.",
+      mediaLabel: "Responder com GIFs e memes",
+      mediaDescription: "Deixe o Brainrot Bot reagir com GIFs e memes.",
+    },
     memory: {
       rowLabel: "Memória",
       rowOn: "Ativada",

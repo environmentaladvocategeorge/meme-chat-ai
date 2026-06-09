@@ -1,12 +1,27 @@
 import { randomUUID } from "crypto";
 import type { ModelUsage } from "../../billing/ledger";
 import type { PlanId } from "../../billing/plans";
-import { compileMemoryBlock } from "./compile";
+import {
+  compileMemoryBlock,
+  MEDIA_MEMORY_VIEW,
+  REPLY_MEMORY_VIEW,
+  renderMemoryView,
+} from "./compile";
 import { consolidateFacts } from "./consolidate";
 import { extractMemoryOps } from "./extract";
 import { memoryEnabledForUser } from "./gating";
 import { MemoryRepository } from "./repository";
-import type { MemoryFact } from "./types";
+import type { MemoryFact, MemoryState } from "./types";
+
+// The per-consumer memory views rendered for a turn from one read of the state.
+export type MemoryViews = {
+  // Full block injected into the reply model's system prompt.
+  reply: string;
+  // Taste-only block injected into the media decider (see MEDIA_MEMORY_VIEW).
+  media: string;
+};
+
+const EMPTY_VIEWS: MemoryViews = { reply: "", media: "" };
 
 export type MemoryServiceDeps = {
   repo?: MemoryRepository;
@@ -46,19 +61,52 @@ export class MemoryService {
     this.now = deps.now ?? (() => Date.now());
   }
 
-  // Hot path. Returns the precompiled memory block to inject into the system
-  // prompt, or "" when the plan has no memory or the user has none yet. Never
-  // throws — a memory read must not break a turn.
-  async getMemoryBlock(uid: string, plan: PlanId): Promise<string> {
-    if (!this.gate(uid, plan)) return "";
+  // Shared hot-path read: applies the paid gate + on/off switch and returns the
+  // state, or null when memory shouldn't be used. Never throws (a memory read
+  // must not break a turn).
+  private async loadUsableState(
+    uid: string,
+    plan: PlanId,
+  ): Promise<MemoryState | null> {
+    if (!this.gate(uid, plan)) return null;
     try {
       const state = await this.repo.getState(uid);
       // Respect the user's on/off switch (defaults on when never set).
-      if (!state || state.enabled === false) return "";
-      return state.block ?? "";
+      if (!state || state.enabled === false) return null;
+      return state;
     } catch {
-      return "";
+      return null;
     }
+  }
+
+  // Hot path (reply model). Returns the reply memory block to inject into the
+  // system prompt, or "" when the plan has no memory or the user has none yet.
+  // Renders from the denormalized facts when present; falls back to the stored
+  // reply block for docs written before per-consumer views shipped.
+  async getMemoryBlock(uid: string, plan: PlanId): Promise<string> {
+    const state = await this.loadUsableState(uid, plan);
+    if (!state) return "";
+    if (state.facts && state.facts.length > 0) {
+      return renderMemoryView(state.facts, REPLY_MEMORY_VIEW).block;
+    }
+    return state.block ?? "";
+  }
+
+  // Hot path (full turn). Reads the state ONCE and renders every per-consumer
+  // view, so the orchestrator can feed both the reply model and the media
+  // decider from a single Firestore read. Reply falls back to the stored block
+  // for un-migrated docs; media has no fallback (it's purely additive), so it's
+  // simply empty until the user's memory next refreshes and writes `facts`.
+  async getMemoryViews(uid: string, plan: PlanId): Promise<MemoryViews> {
+    const state = await this.loadUsableState(uid, plan);
+    if (!state) return EMPTY_VIEWS;
+    if (state.facts && state.facts.length > 0) {
+      return {
+        reply: renderMemoryView(state.facts, REPLY_MEMORY_VIEW).block,
+        media: renderMemoryView(state.facts, MEDIA_MEMORY_VIEW).block,
+      };
+    }
+    return { reply: state.block ?? "", media: "" };
   }
 
   // Whether memory is switched on for this user (defaults on). Used by the cold
@@ -130,11 +178,12 @@ export class MemoryService {
     return this.repo.clearAll(uid);
   }
 
-  // Delete one fact, then recompile the block from what remains.
+  // Delete one fact, then recompile the block + render-ready facts from what
+  // remains.
   async deleteFact(uid: string, factId: string): Promise<void> {
     await this.repo.deleteFact(uid, factId);
     const remaining = await this.repo.listFacts(uid);
     const compiled = compileMemoryBlock(remaining);
-    await this.repo.saveState(uid, compiled, remaining.length);
+    await this.repo.saveState(uid, compiled, remaining);
   }
 }

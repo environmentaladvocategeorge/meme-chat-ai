@@ -562,6 +562,13 @@ const en = {
         "Notification permissions are managed in your device settings. Open Settings to turn them off.",
       openSettings: "Open Settings",
     },
+    answering: {
+      sectionLabel: "Answering",
+      emojisLabel: "Respond with emojis",
+      emojisDescription: "Let Brainrot Bot drop emojis in its replies.",
+      mediaLabel: "Respond with GIFs & memes",
+      mediaDescription: "Let Brainrot Bot react with GIFs and memes.",
+    },
     memory: {
       rowLabel: "Memory",
       rowDescription: "What Brainrot Bot remembers about you.",

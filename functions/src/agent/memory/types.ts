@@ -60,13 +60,28 @@ export type MemoryOp =
   | { operation: "REMOVE"; targetId: string }
   | { operation: "SKIP" };
 
+// Render-ready subset of a fact, denormalized onto the hot-path state doc. This
+// is what lets each consumer (reply model, media decider, future) render its own
+// memory view from ONE cheap read instead of fetching the facts subcollection on
+// the turn path. The subcollection stays the editable source of truth.
+export type MemoryFactLite = {
+  id: string;
+  text: string;
+  category: MemoryCategory;
+  salience: number;
+  updatedAt: number; // epoch ms
+};
+
 // Denormalized state read on the hot path (one doc read). `enabled` is the user's
 // memory on/off switch (defaults true); `updatedAt` is when memory last changed
-// (facts written), surfaced to the user as "last updated".
+// (facts written), surfaced to the user as "last updated". `facts` is the
+// render-ready set added for per-consumer views; absent on docs written before
+// that migration (then `block` is used as the reply fallback).
 export type MemoryState = {
   enabled: boolean;
   block: string;
   blockTokens: number;
   factCount: number;
   updatedAt: number | null; // epoch ms, or null if never written
+  facts?: MemoryFactLite[];
 };

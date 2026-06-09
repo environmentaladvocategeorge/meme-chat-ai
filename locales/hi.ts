@@ -512,6 +512,13 @@ const hi = {
         "Notification permissions device settings में manage होती हैं। बंद करने के लिए Settings खोलो।",
       openSettings: "Settings खोलो",
     },
+    answering: {
+      sectionLabel: "जवाब",
+      emojisLabel: "इमोजी के साथ जवाब दें",
+      emojisDescription: "Brainrot Bot को अपने जवाबों में इमोजी इस्तेमाल करने दें।",
+      mediaLabel: "GIF और मीम के साथ जवाब दें",
+      mediaDescription: "Brainrot Bot को GIF और मीम से रिएक्ट करने दें।",
+    },
     memory: {
       rowLabel: "Memory",
       rowOn: "On",

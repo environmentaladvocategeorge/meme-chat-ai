@@ -1,4 +1,8 @@
-import { buildDeciderContext, parseDecision } from "../decideMedia";
+import {
+  buildDeciderContext,
+  buildDeciderMessages,
+  parseDecision,
+} from "../decideMedia";
 import type { ChatMessage } from "../types";
 
 describe("buildDeciderContext", () => {
@@ -50,6 +54,62 @@ describe("buildDeciderContext", () => {
 
   it("handles empty history", () => {
     expect(buildDeciderContext([])).toEqual({ history: "", recentReactions: [] });
+  });
+});
+
+describe("buildDeciderMessages", () => {
+  it("injects memory as a 2nd system message between the prompt and the user turn", () => {
+    const msgs = buildDeciderMessages({
+      systemPrompt: "DECIDER",
+      memoryBlock: "TASTE",
+      history: "",
+      currentMessage: "yo",
+    });
+    expect(msgs).toHaveLength(3);
+    expect(msgs[0]).toEqual({ role: "system", content: "DECIDER" });
+    expect(msgs[1]).toEqual({ role: "system", content: "TASTE" });
+    expect(msgs[2].role).toBe("user");
+  });
+
+  it("omits the memory message when it's absent or blank", () => {
+    expect(
+      buildDeciderMessages({ systemPrompt: "D", history: "", currentMessage: "yo" }),
+    ).toHaveLength(2);
+    expect(
+      buildDeciderMessages({
+        systemPrompt: "D",
+        memoryBlock: "   ",
+        history: "",
+        currentMessage: "yo",
+      }),
+    ).toHaveLength(2);
+  });
+
+  it("keeps the memory message alongside attachment pixels", () => {
+    const msgs = buildDeciderMessages({
+      systemPrompt: "D",
+      memoryBlock: "TASTE",
+      history: "",
+      currentMessage: "",
+      imageUrls: ["data:image/png;base64,xxx"],
+    });
+    expect(msgs).toHaveLength(3);
+    expect(msgs[1]).toEqual({ role: "system", content: "TASTE" });
+    expect(Array.isArray(msgs[2].content)).toBe(true);
+  });
+
+  it("embeds history, the current message, and the do-not-repeat list in the user turn", () => {
+    const msgs = buildDeciderMessages({
+      systemPrompt: "D",
+      history: "User: hi",
+      currentMessage: "lol",
+      recentReactions: ["gigachad"],
+    });
+    const userMsg = msgs[msgs.length - 1];
+    expect(typeof userMsg.content).toBe("string");
+    expect(userMsg.content).toContain("User: hi");
+    expect(userMsg.content).toContain("lol");
+    expect(userMsg.content).toContain("gigachad");
   });
 });
 

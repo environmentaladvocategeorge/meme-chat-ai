@@ -125,4 +125,26 @@ describe("streamAgentRequestSchema", () => {
     const result = streamAgentRequestSchema.safeParse({ message: "   " });
     expect(result.success).toBe(false);
   });
+
+  it("defaults the answering prefs to true when omitted (back-compat)", () => {
+    const result = streamAgentRequestSchema.safeParse({ message: "hi" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.respondWithEmojis).toBe(true);
+      expect(result.data.respondWithMedia).toBe(true);
+    }
+  });
+
+  it("preserves explicit false answering prefs", () => {
+    const result = streamAgentRequestSchema.safeParse({
+      message: "hi",
+      respondWithEmojis: false,
+      respondWithMedia: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.respondWithEmojis).toBe(false);
+      expect(result.data.respondWithMedia).toBe(false);
+    }
+  });
 });

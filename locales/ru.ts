@@ -512,6 +512,13 @@ const ru = {
         "Разрешения уведомлений управляются в настройках устройства. Открой Настройки чтобы отключить.",
       openSettings: "Открыть Настройки",
     },
+    answering: {
+      sectionLabel: "Ответы",
+      emojisLabel: "Отвечать с эмодзи",
+      emojisDescription: "Разрешить Brainrot Bot добавлять эмодзи в ответы.",
+      mediaLabel: "Отвечать с GIF и мемами",
+      mediaDescription: "Разрешить Brainrot Bot реагировать с GIF и мемами.",
+    },
     memory: {
       rowLabel: "Память",
       rowOn: "Вкл",

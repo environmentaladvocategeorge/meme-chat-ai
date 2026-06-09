@@ -301,6 +301,11 @@ export const AgeGateStorage = {
 export interface PersistedChatSession {
   conversationId: string | null;
   rotLevel: number;
+  // Local-only answering preferences. The toggle state lives ONLY on the device
+  // (never synced to a profile/cloud settings doc); it's sent per message in the
+  // stream payload. Both default to true. See store/chat.ts and streamAgent.ts.
+  respondWithEmojis: boolean;
+  respondWithMedia: boolean;
 }
 
 const CHAT_SESSION_KEY = "app.chatSession";
@@ -312,6 +317,8 @@ export const DEFAULT_ROT_LEVEL = 2;
 export const DEFAULT_CHAT_SESSION: PersistedChatSession = {
   conversationId: null,
   rotLevel: DEFAULT_ROT_LEVEL,
+  respondWithEmojis: true,
+  respondWithMedia: true,
 };
 
 function clampRotLevel(value: unknown): number {
@@ -330,6 +337,10 @@ function normalizeChatSession(value: unknown): PersistedChatSession {
         ? value.conversationId
         : null,
     rotLevel: clampRotLevel(value.rotLevel),
+    // Default ON: a missing field (older install) or any non-boolean reads as
+    // true, matching the backend's default.
+    respondWithEmojis: value.respondWithEmojis !== false,
+    respondWithMedia: value.respondWithMedia !== false,
   };
 }
 

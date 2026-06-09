@@ -531,6 +531,13 @@ const es = {
         "Los permisos de notificación se gestionan en los ajustes de tu dispositivo. Abre Ajustes para desactivarlas.",
       openSettings: "Abrir Ajustes",
     },
+    answering: {
+      sectionLabel: "Respuestas",
+      emojisLabel: "Responder con emojis",
+      emojisDescription: "Deja que Brainrot Bot use emojis en sus respuestas.",
+      mediaLabel: "Responder con GIFs y memes",
+      mediaDescription: "Deja que Brainrot Bot reaccione con GIFs y memes.",
+    },
     memory: {
       rowLabel: "Memoria",
       rowOn: "Activada",

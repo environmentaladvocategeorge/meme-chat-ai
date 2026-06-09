@@ -508,6 +508,13 @@ const fr = {
         "Les autorisations de notifications sont gérées dans les paramètres de ton appareil. Ouvre Paramètres pour les désactiver.",
       openSettings: "Ouvrir Paramètres",
     },
+    answering: {
+      sectionLabel: "Réponses",
+      emojisLabel: "Répondre avec des emojis",
+      emojisDescription: "Laisse Brainrot Bot glisser des emojis dans ses réponses.",
+      mediaLabel: "Répondre avec des GIF et mèmes",
+      mediaDescription: "Laisse Brainrot Bot réagir avec des GIF et des mèmes.",
+    },
     memory: {
       rowLabel: "Mémoire",
       rowOn: "Activée",

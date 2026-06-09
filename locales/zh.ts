@@ -511,6 +511,13 @@ const zh = {
         "通知权限在你的设备设置中管理。打开设置以关闭它们。",
       openSettings: "打开设置",
     },
+    answering: {
+      sectionLabel: "回复",
+      emojisLabel: "回复中使用表情符号",
+      emojisDescription: "让 Brainrot Bot 在回复里加入表情符号。",
+      mediaLabel: "回复中使用 GIF 和梗图",
+      mediaDescription: "让 Brainrot Bot 用 GIF 和梗图来回应。",
+    },
     memory: {
       rowLabel: "记忆",
       rowOn: "已开启",

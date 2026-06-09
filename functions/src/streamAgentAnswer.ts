@@ -148,6 +148,10 @@ export const streamAgentAnswer = onRequest(
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
     const language = parsed.data.language;
+    // Local-only answering prefs (default true). emojis → prompt content;
+    // media → whether the nano decider runs at all.
+    const respondWithEmojis = parsed.data.respondWithEmojis;
+    const respondWithMedia = parsed.data.respondWithMedia;
 
     // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
     // Never log full asset URLs.
@@ -319,9 +323,17 @@ export const streamAgentAnswer = onRequest(
     // is only fetched/decoded once per turn.
     let deciderGifFrames: ExtractedGifFrames | undefined;
     const klipyApiKey = KLIPY_APP_KEY.value();
-    const mediaEnabled = klipyApiKey.length > 0;
+    // Media off (user toggle) skips the decider entirely — no nano call, no
+    // reaction GIF/meme, no attachedMedia note — so the reply is purely text.
+    const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
+
+      // Read the user's memory ONCE for the whole turn and render both views:
+      // the taste-only `media` view nudges the decider toward more personal
+      // reactions; the full `reply` view is handed to the Agent below so it
+      // isn't read twice. Paid-gated + never throws — free users get empties.
+      const memViews = await memoryService.getMemoryViews(uid, entitlement.plan);
 
       // Cheap nano pre-step: decide whether this turn warrants a reaction
       // GIF/meme and pick the search term, then fetch it. The reply model gets a
@@ -348,6 +360,8 @@ export const streamAgentAnswer = onRequest(
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          // Taste-only memory so nano can pick a more on-point reaction.
+          memoryBlock: memViews.media,
           history,
           currentMessage: currentForDecider,
           recentReactions,
@@ -402,6 +416,7 @@ export const streamAgentAnswer = onRequest(
         plan: entitlement.plan,
         personaId,
         levelOfRot,
+        respondWithEmojis,
         memory: memoryService,
       });
       const replyContext = await agent.buildReplyContext({
@@ -413,6 +428,9 @@ export const streamAgentAnswer = onRequest(
         attachedMedia,
         userAlias: entitlement.alias,
         userLanguage: language,
+        // Already read above for the decider — hand the reply view to the Agent
+        // so it doesn't read the memory state a second time.
+        memoryBlock: memViews.reply,
       });
       resolvedPersona = replyContext.persona;
       assembleResult = replyContext.assembled;
@@ -519,6 +537,10 @@ export const streamAgentAnswer = onRequest(
         images: images.length > 0 ? images : undefined,
         gifs: gifs.length > 0 ? gifs : undefined,
         levelOfRot,
+        // Denormalized so turn replay can rebuild the same prefs (only the OFF
+        // state is actually written — see appendMessage).
+        respondWithEmojis,
+        respondWithMedia,
         // Denormalize the owner's plan onto the conversation so the background
         // summarizer can size its verbatim window to this plan's token budget.
         plan: entitlement.plan,

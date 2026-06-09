@@ -94,6 +94,60 @@ export function parseDecision(raw: string): MediaDecision {
   return { type: "none" };
 }
 
+// Builds the decider's message sequence: the decider system prompt, then the
+// per-user taste memory (when present) as its own system message, then the user
+// turn (text-only, or text + attachment pixels). Pure + exported so the memory
+// injection and attachment handling can be unit-tested without an API call.
+export function buildDeciderMessages(args: {
+  systemPrompt: string;
+  // Paid-gated, decider-framed taste block (see MEDIA_MEMORY_VIEW). Injected as
+  // its own system message after the decider prompt — informs WHICH reaction to
+  // pick, never WHETHER to attach. Omitted/empty for free users or no memory.
+  memoryBlock?: string;
+  history: string;
+  currentMessage: string;
+  recentReactions?: string[];
+  imageUrls?: string[];
+}): ChatCompletionMessageParam[] {
+  const avoid =
+    args.recentReactions && args.recentReactions.length > 0
+      ? `\n\nReactions ALREADY sent recently — do NOT repeat these or pick anything near-identical, vary it up:\n${args.recentReactions.join(", ")}`
+      : "";
+  const imageUrls = args.imageUrls ?? [];
+  const baseText =
+    (args.history ? `Conversation so far:\n${args.history}\n\n` : "") +
+    `Latest user message:\n${args.currentMessage || "[no text — the user sent only an attachment]"}` +
+    avoid;
+
+  // When the user attached media, hand nano the actual pixels (image and/or GIF
+  // frames) as low-detail image parts so its reaction matches the content.
+  // Otherwise keep the cheap text-only payload.
+  const userMessage: ChatCompletionMessageParam =
+    imageUrls.length > 0
+      ? {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `${baseText}\n\nThe image(s) below ARE what the user just sent (a photo and/or the frames of a single GIF) — base your reaction on what is actually shown in them, not just the text.`,
+            },
+            ...imageUrls.map((url) => ({
+              type: "image_url" as const,
+              image_url: { url, detail: "low" as const },
+            })),
+          ],
+        }
+      : { role: "user", content: baseText };
+
+  const messages: ChatCompletionMessageParam[] = [
+    { role: "system", content: args.systemPrompt },
+  ];
+  const memory = args.memoryBlock?.trim();
+  if (memory) messages.push({ role: "system", content: memory });
+  messages.push(userMessage);
+  return messages;
+}
+
 // Runs the nano media decider: given the assembled decider system prompt plus a
 // compact history and the latest user message, returns whether to attach a
 // reaction GIF/meme and the search term. Never throws — any failure (API error,
@@ -102,6 +156,8 @@ export function parseDecision(raw: string): MediaDecision {
 export async function decideMedia(args: {
   apiKey: string;
   systemPrompt: string;
+  // Per-user taste memory (paid-gated, decider-framed). See buildDeciderMessages.
+  memoryBlock?: string;
   history: string;
   currentMessage: string;
   // Reaction titles already sent recently (from buildDeciderContext). Surfaced
@@ -117,36 +173,6 @@ export async function decideMedia(args: {
 }): Promise<{ decision: MediaDecision; usage: ModelUsage }> {
   try {
     const client = new OpenAI({ apiKey: args.apiKey });
-    const avoid =
-      args.recentReactions && args.recentReactions.length > 0
-        ? `\n\nReactions ALREADY sent recently — do NOT repeat these or pick anything near-identical, vary it up:\n${args.recentReactions.join(", ")}`
-        : "";
-    const imageUrls = args.imageUrls ?? [];
-    const baseText =
-      (args.history ? `Conversation so far:\n${args.history}\n\n` : "") +
-      `Latest user message:\n${args.currentMessage || "[no text — the user sent only an attachment]"}` +
-      avoid;
-
-    // When the user attached media, hand nano the actual pixels (image and/or
-    // GIF frames) as low-detail image parts so its reaction matches the content.
-    // Otherwise keep the cheap text-only payload.
-    const userMessage: ChatCompletionMessageParam =
-      imageUrls.length > 0
-        ? {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: `${baseText}\n\nThe image(s) below ARE what the user just sent (a photo and/or the frames of a single GIF) — base your reaction on what is actually shown in them, not just the text.`,
-              },
-              ...imageUrls.map((url) => ({
-                type: "image_url" as const,
-                image_url: { url, detail: "low" as const },
-              })),
-            ],
-          }
-        : { role: "user", content: baseText };
-
     const completion = await client.chat.completions.create(
       {
         model: resolveModelId("nano"),
@@ -156,10 +182,14 @@ export async function decideMedia(args: {
         reasoning_effort: "low",
         max_completion_tokens: 1000,
         response_format: RESPONSE_FORMAT,
-        messages: [
-          { role: "system", content: args.systemPrompt },
-          userMessage,
-        ],
+        messages: buildDeciderMessages({
+          systemPrompt: args.systemPrompt,
+          memoryBlock: args.memoryBlock,
+          history: args.history,
+          currentMessage: args.currentMessage,
+          recentReactions: args.recentReactions,
+          imageUrls: args.imageUrls,
+        }),
       },
       { signal: args.signal },
     );

@@ -11,6 +11,8 @@ import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useTheme } from "@/hooks/useTheme";
 import { PLAN_RANK } from "@/domain/billing";
 import { useMemoryMeta } from "@/hooks/useMemory";
+import { useChatStore } from "@/store/chat";
+import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { useAccountSheetStore } from "@/store/accountSheet";
 import { useDisplayPlan } from "@/store/entitlement";
 import { useLanguageSheetStore } from "@/store/languageSheet";
@@ -27,6 +29,7 @@ import {
   Brain,
   CaretRight,
   FileText,
+  Flame,
   Lifebuoy,
   ShieldCheck,
   Star,
@@ -113,6 +116,14 @@ export default function SettingsScreen() {
   const openLanguageSheet = useLanguageSheetStore((s) => s.open);
   const openMemory = useMemorySheetStore((s) => s.open);
   const openPlan = useOpenPlan();
+
+  // Rot Level lives on the chat store; the row just opens the same global
+  // RotLevelSheet (mounted in the root layout) and shows the current tier.
+  const rotLevel = useChatStore((s) => s.rotLevel);
+  const openRotSheet = useRotLevelSheetStore((s) => s.open);
+  const rotLevelName = t(
+    `chat.rot.levels.level${Math.min(Math.max(rotLevel, 1), 3)}.name` as const,
+  );
 
   const plan = useDisplayPlan();
   const memoryPaid = PLAN_RANK[plan] > PLAN_RANK.free;
@@ -253,6 +264,35 @@ export default function SettingsScreen() {
         {/* Preferences */}
         <View style={{ gap: 10 }}>
           <SectionLabel label={t("settings.sections.preferences")} />
+
+          {/* Rot Level — opens the same global sheet as the chat composer. */}
+          <AppPressable
+            onPress={() => openRotSheet()}
+            feedback="opacity"
+            accessibilityRole="button"
+            accessibilityLabel={t("chat.rot.button")}
+            style={rowStyle}
+          >
+            <Flame size={22} weight="bold" color={theme["--color-foreground"]} />
+            <Typography
+              variant="title-sm"
+              style={{ flex: 1, color: theme["--color-foreground"] }}
+            >
+              {t("chat.rot.button")}
+            </Typography>
+            <Typography
+              variant="caption"
+              weight="semibold"
+              style={{ color: theme["--color-foreground-muted"] }}
+            >
+              {rotLevelName}
+            </Typography>
+            <CaretRight
+              size={18}
+              weight="bold"
+              color={theme["--color-foreground-muted"]}
+            />
+          </AppPressable>
 
           {/* Memory */}
           <AppPressable

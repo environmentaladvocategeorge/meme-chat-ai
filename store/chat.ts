@@ -66,6 +66,11 @@ type ChatState = {
   // Sticky brainrot dial (1–3), applied to every turn. Persisted locally so it
   // survives an app restart; hydrated via `hydrateSession`.
   rotLevel: number;
+  // Sticky local-only answering prefs, applied to every turn and sent in the
+  // stream payload. Persisted on device (never to the cloud), hydrated via
+  // `hydrateSession`. Both default to true.
+  respondWithEmojis: boolean;
+  respondWithMedia: boolean;
   messages: ChatMessage[];
   streamingText: string;
   // A meme the agent attached to the in-flight reply (via the backend get_meme
@@ -122,6 +127,9 @@ type ChatState = {
   dismissQuota: () => void;
   // Update the sticky rot level and persist it.
   setRotLevel: (level: number) => void;
+  // Toggle the local-only answering prefs and persist them.
+  setRespondWithEmojis: (value: boolean) => void;
+  setRespondWithMedia: (value: boolean) => void;
   // Restore the persisted rot level and (optionally) re-open the last
   // conversation. Called once when the chat screen mounts on app open.
   hydrateSession: (options?: { autoLoadConversation?: boolean }) => Promise<void>;
@@ -240,6 +248,8 @@ function applySnapshotMessages(
 export const useChatStore = create<ChatState>()((set, get) => ({
   conversationId: null,
   rotLevel: DEFAULT_ROT_LEVEL,
+  respondWithEmojis: true,
+  respondWithMedia: true,
   messages: [],
   streamingText: "",
   streamingMeme: null,
@@ -306,6 +316,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         clientMessageId,
         levelOfRot,
         language,
+        // Sticky local-only prefs, read at send time. Omitted when on (the
+        // backend default) so a "both on" payload stays identical to before.
+        respondWithEmojis: get().respondWithEmojis ? undefined : false,
+        respondWithMedia: get().respondWithMedia ? undefined : false,
         signal: controller.signal,
       })) {
         if (event.type === "conversation") {
@@ -840,9 +854,25 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     void ChatSessionStorage.write({ rotLevel: clamped });
   },
 
+  setRespondWithEmojis: (value) => {
+    if (get().respondWithEmojis === value) return;
+    set({ respondWithEmojis: value });
+    void ChatSessionStorage.write({ respondWithEmojis: value });
+  },
+
+  setRespondWithMedia: (value) => {
+    if (get().respondWithMedia === value) return;
+    set({ respondWithMedia: value });
+    void ChatSessionStorage.write({ respondWithMedia: value });
+  },
+
   hydrateSession: async ({ autoLoadConversation = true } = {}) => {
     const stored = await ChatSessionStorage.read();
-    set({ rotLevel: stored.rotLevel });
+    set({
+      rotLevel: stored.rotLevel,
+      respondWithEmojis: stored.respondWithEmojis,
+      respondWithMedia: stored.respondWithMedia,
+    });
 
     // Re-open the last session only when nothing else has claimed the screen
     // (no deep-linked conversation, not mid-stream) so we never clobber an
