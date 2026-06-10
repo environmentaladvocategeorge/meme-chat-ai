@@ -14,11 +14,11 @@ gif,roast,légende,réponse,humour,blague,sticker,réaction,argot,chatbot,rééc
 
 ## What's New (Nouveautés)
 
-Brainrot Bot a maintenant de la mémoire.
+Tu peux maintenant personnaliser la façon dont Brainrot Bot te répond.
 
-Plus tu lui parles, plus il retient : ton style, les gens que tu mentionnes, les sujets sur lesquels tu reviens tout le temps. Du coup tes conversations ne repartent plus de zéro et donnent vraiment l'impression de te connaître. La mémoire est active sur les forfaits payants, et tu peux la désactiver ou l'effacer quand tu veux dans les Réglages.
+De nouveaux réglages te laissent choisir s'il répond avec des emojis et s'il glisse des memes et des GIFs dans ses réponses. Le chat a aussi eu droit à un bon nettoyage : les réponses s'affichent plus fluidement, les longues conversations défilent sans accroc et plusieurs petits bugs visuels ont disparu.
 
-Le reste tourne aussi un peu plus vite et plus fluide.
+Et Brainrot Bot a pris un niveau en coulisses. Il est plus malin, choisit de meilleurs GIFs et a plus de brainrot que jamais.
 
 ## Promotional Text (Texte promotionnel)
 

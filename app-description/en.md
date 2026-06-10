@@ -14,11 +14,11 @@ gif,roast,caption,reply,texting,humor,joke,sticker,reaction,slang,chatbot,rewrit
 
 ## What's New
 
-Brainrot Bot now has memory.
+You can now customize how Brainrot Bot answers you.
 
-The more you talk to it, the more it remembers: your vibe, the people you mention, the stuff you keep coming back to. So your chats stop starting from scratch and actually feel like they know you. Memory is on for paid plans, and you can switch it off or wipe it anytime in Settings.
+New toggles let you choose whether it replies with emojis and whether it throws memes and GIFs into its answers. The chat got a big cleanup too: replies stream in smoother, long conversations scroll without the stutter, and a bunch of small visual bugs are gone.
 
-Everything else runs a little faster and smoother too.
+Brainrot Bot itself leveled up behind the scenes. It's smarter, picks better GIFs, and is more rotted than ever.
 
 ## Promotional Text
 
