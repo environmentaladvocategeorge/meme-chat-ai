@@ -6,7 +6,7 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (Subtítulo, 30 caracteres máx.)
 
-Chat de IA divertido y memes
+Roasts, GIFs y respuestas top
 
 ## Keywords (Palabras clave, 100 caracteres máx., separadas por comas)
 

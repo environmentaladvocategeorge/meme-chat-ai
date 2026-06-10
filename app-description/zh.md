@@ -6,7 +6,7 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle（副标题，最多 30 个字符）
 
-搞笑 AI 聊天与表情包机器人
+搞笑吐槽、动图和神回复
 
 ## Keywords（关键词，最多 100 个字符，用逗号分隔）
 

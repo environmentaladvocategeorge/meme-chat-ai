@@ -233,7 +233,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     const breath = 0.75 + pulse.value * 0.25;
     return { opacity: focusProgress.value * breath };
   });
-
   const sendActiveStyle = useAnimatedStyle(() => ({
     opacity: sendActiveProgress.value,
   }));

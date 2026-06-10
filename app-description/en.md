@@ -6,7 +6,7 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (30 char max)
 
-Funny AI chat & meme bot
+Funny Roasts, GIFs & Comebacks
 
 ## Keywords (100 char max, comma-separated)
 

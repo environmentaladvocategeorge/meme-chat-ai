@@ -55,6 +55,7 @@ import { useMemoryMeta } from "@/hooks/useMemory";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { ChatToneContext } from "@/hooks/useTheme";
 import { PLAN_RANK } from "@/domain/billing";
+import { withAlpha } from "@/domain/customization";
 import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { useMemorySheetStore } from "@/store/memorySheet";
@@ -88,6 +89,13 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+// Height of the gradient ramp above the floating composer dock — the zone
+// where scrolling messages dissolve into the backdrop instead of hard-cutting.
+const DOCK_FADE_HEIGHT = 32;
+// Matching (smaller) ramp at the top of the thread, so messages dissolve just
+// before they touch the header instead of cutting at the viewport edge.
+const HEADER_FADE_HEIGHT = 20;
+
 export default function ChatScreen() {
   const { t } = useTranslation();
   // Fires daily paywall check + review prompt counter on each message send.
@@ -103,6 +111,10 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const [draft, setDraft] = useState("");
+  // Measured height of the floating composer dock. The message list scrolls
+  // edge-to-edge behind the dock; this feeds the list's bottom inset so
+  // resting content sits above it and only scrolls under it.
+  const [dockHeight, setDockHeight] = useState(0);
   const [memesOpen, setMemesOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -580,6 +592,23 @@ export default function ChatScreen() {
     return () => sub.remove();
   }, [contentOpacity]);
 
+  // The color the floating dock's scrim (and the accessory row's edge fade)
+  // dissolves messages into. For solid backdrops it's the backdrop itself;
+  // for a custom gradient we take the LAST stop — the dock sits at the
+  // bottom of the screen, where a top→bottom gradient lands on that color.
+  const scrimColor =
+    chatBackground.kind === "solid"
+      ? (chatBackground.color ?? theme["--color-background"])
+      : (chatBackground.gradientColors?.[
+          chatBackground.gradientColors.length - 1
+        ] ?? theme["--color-background"]);
+  // Same idea for the thread's top edge, which sits on the FIRST gradient
+  // stop (or the solid backdrop) — feeds the header-side fade.
+  const headerFadeColor =
+    chatBackground.kind === "solid"
+      ? (chatBackground.color ?? theme["--color-background"])
+      : (chatBackground.gradientColors?.[0] ?? theme["--color-background"]);
+
   return (
     <ChatToneContext.Provider value={chatThemeContext}>
       <AttachmentViewerProvider>
@@ -668,7 +697,13 @@ export default function ChatScreen() {
                   justifyContent:
                     visibleMessages.length === 0 ? "center" : "flex-start",
                   paddingHorizontal: 18,
-                  paddingTop: 16,
+                  // Inverted list: paddingTop is the VISUAL BOTTOM. The
+                  // floating dock overlays the list, so resting content needs
+                  // its measured height (plus breathing room reaching into
+                  // the fade ramp) to sit clear of it; scrolled content runs
+                  // behind the dock and dissolves in the scrim. Falls back to
+                  // 16 for the first frame, before the dock reports a height.
+                  paddingTop: dockHeight > 0 ? dockHeight + 8 : 16,
                   paddingBottom: 18,
                   gap: 10,
                 }}
@@ -727,17 +762,64 @@ export default function ChatScreen() {
                   style={StyleSheet.absoluteFill}
                 />
               ) : null}
+              {/* Header-side counterpart to the dock's fade ramp: a short
+                  backdrop-colored gradient pinned to the thread's top edge,
+                  dissolving messages just before they reach the header. */}
+              <LinearGradient
+                pointerEvents="none"
+                colors={[headerFadeColor, withAlpha(headerFadeColor, 0)]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: HEADER_FADE_HEIGHT,
+                }}
+              />
             </View>
             </ThinkingLabelContext.Provider>
           </BubbleGradientContext.Provider>
 
+          {/* Floating composer dock. Absolutely positioned so the thread
+              scrolls edge-to-edge behind it; the list's bottom inset
+              (dockHeight, measured here) keeps resting messages above it.
+              The "glass" is transparency, not native blur: a near-opaque
+              scrim of the backdrop color over the dock body, with a gradient
+              ramp above it that dissolves passing messages — the ChatGPT-
+              style fade — instead of a hard cut. */}
           <View
-            style={{
-              paddingHorizontal: 16,
-              paddingTop: 8,
-              paddingBottom: Math.max(insets.bottom, 12),
-            }}
+            onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
+            style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}
           >
+            <LinearGradient
+              pointerEvents="none"
+              colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={{
+                position: "absolute",
+                top: -DOCK_FADE_HEIGHT,
+                left: 0,
+                right: 0,
+                height: DOCK_FADE_HEIGHT,
+              }}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: withAlpha(scrimColor, 0.94),
+              }}
+            />
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 8,
+                paddingBottom: Math.max(insets.bottom, 12),
+              }}
+            >
             {!entitlementReady ? (
               // Don't render the composer OR the upgrade block until we know the
               // usage state — showing either would flicker into the other.
@@ -858,15 +940,11 @@ export default function ChatScreen() {
                 evenly when they fit, and the row scrolls horizontally rather
                 than cropping a label when they don't (narrow screens / long
                 locales) — with a trailing fade hinting at the hidden chips.
-                The fade needs the backdrop's actual color, so it only renders
-                over solid backgrounds; over a custom gradient it's disabled
-                (no single color matches the pixels beneath it). */}
+                The row sits on the dock's scrim, so the scrim color is the
+                backdrop the fade dissolves into — including over custom
+                gradient backgrounds. */}
                 <EdgeFadedScrollRow
-                  fadeColor={
-                    chatBackground.kind === "solid"
-                      ? (chatBackground.color ?? theme["--color-background"])
-                      : null
-                  }
+                  fadeColor={scrimColor}
                   style={{ marginTop: 8, marginHorizontal: -16 }}
                   contentContainerStyle={{
                     flexGrow: 1,
@@ -907,6 +985,7 @@ export default function ChatScreen() {
                 </EdgeFadedScrollRow>
               </View>
             )}
+            </View>
           </View>
 
           <QuotaModal

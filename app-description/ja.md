@@ -6,7 +6,7 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle（サブタイトル、30文字以内）
 
-おもしろAIチャット＆ミームbot
+毒舌ツッコミ・GIF・神リプ
 
 ## Keywords（キーワード、100文字以内、カンマ区切り）
 
