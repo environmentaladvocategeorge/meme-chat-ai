@@ -9,10 +9,22 @@ import { IconButton } from "@/components/IconButton";
 import { MENU_BUTTON_SIZE, MenuButton } from "@/components/MenuButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
+import { useColorScheme } from "nativewind";
 import { ArrowLeft } from "phosphor-react-native";
 import type { ReactNode } from "react";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// Mixes a hex color toward white by `amount` (0–1). Used to lift the header just
+// off the background in dark mode without touching the theme tokens.
+function lightenHex(hex: string, amount: number): string {
+  const m = hex.replace("#", "");
+  if (m.length !== 6) return hex;
+  const channel = (i: number) => parseInt(m.slice(i, i + 2), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  const to2 = (n: number) => mix(n).toString(16).padStart(2, "0");
+  return `#${to2(channel(0))}${to2(channel(2))}${to2(channel(4))}`;
+}
 
 interface AppHeaderProps {
   title: string;
@@ -35,6 +47,15 @@ export function AppHeader({
 }: AppHeaderProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { colorScheme } = useColorScheme();
+
+  // In dark mode the card and the background sit very close, so the header
+  // blends in. Nudge just the header surface ~5% lighter to separate it. Light
+  // mode (white card on a grey bg) already reads fine, so it's left as-is.
+  const headerBg =
+    colorScheme === "dark"
+      ? lightenHex(theme["--color-card"], 0.025)
+      : theme["--color-card"];
 
   return (
     <View
@@ -47,14 +68,14 @@ export function AppHeader({
         paddingTop: insets.top + 4,
         paddingBottom: 16,
         paddingHorizontal: 16,
-        backgroundColor: theme["--color-card"],
+        backgroundColor: headerBg,
         borderBottomLeftRadius: 28,
         borderBottomRightRadius: 28,
-        shadowColor: theme["--color-foreground"],
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 3,
+        // Deliberately NO shadow/elevation: a drop shadow pools in the
+        // concave notches left by the rounded corners and reads as a wrong-
+        // colored patch against the screen background. The surface color
+        // (white-on-grey in light, lightened card in dark) carries the
+        // separation on its own.
       }}
     >
       {/* Title row: button on the left, title flex-centered in the middle,

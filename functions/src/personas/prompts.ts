@@ -1,16 +1,18 @@
-import { logger } from "firebase-functions";
 import { getFirestore, type DocumentData } from "firebase-admin/firestore";
-import {
-  applyRotLevel,
-  BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
-  DEFAULT_PERSONA_ID,
-  MEDIA_DECIDER_KEY,
-  MEDIA_DECIDER_PROMPT_FALLBACK,
-  MEDIA_GUARDRAILS_FALLBACK,
-  PLATFORM_GUARDRAILS_FALLBACK,
-  PLATFORM_GUARDRAILS_KEY,
-} from "./content";
+import { asFragmentedPrompt, assembleFragments } from "./fragments";
 import type { Persona, PersonaPrompt, PlatformPrompt } from "./types";
+
+// Backend identifiers used to look up the ACTIVE prompts in Firestore. The
+// prompt text itself lives in Firestore (collections `platform_prompts` /
+// `persona_prompts`) as fragments — Firestore is the single source of truth;
+// there are no code-side fallback prompts. A missing/malformed doc throws.
+export const PLATFORM_GUARDRAILS_KEY = "platform_guardrails";
+export const DEFAULT_PERSONA_ID = "brainrot_bot_default";
+// Key for the nano "media decider" prompt (platform_prompts collection). This
+// small prompt drives the cheap pre-step that decides whether a turn warrants a
+// reaction GIF/meme and picks the search term, so the main (mini) reply never
+// has to make a tool round-trip.
+export const MEDIA_DECIDER_KEY = "media_decider";
 
 export type ResolvedPersonaForStream = {
   persona: Persona;
@@ -21,51 +23,6 @@ export type BuiltSystemPromptForStream = {
   systemPrompt: string;
   persona: Pick<Persona, "id" | "name" | "slug" | "publicConfig">;
 };
-
-function fallbackPersona(): Persona {
-  return {
-    id: DEFAULT_PERSONA_ID,
-    name: "Brainrot Bot",
-    slug: "brainrot-bot",
-    description:
-      "A funny, meme-aware conversational agent that gives real answers with natural internet humor.",
-    isDefault: true,
-    isEnabled: true,
-    addedBy: "backend_fallback",
-    publicConfig: {
-      displayName: "Brainrot Bot",
-      shortDescription: "Helpful answers with meme timing.",
-      avatarKey: "brainrot_bot",
-      toneTags: ["funny", "meme", "casual", "concise"],
-    },
-  };
-}
-
-function fallbackPersonaPrompt(personaId = DEFAULT_PERSONA_ID): PersonaPrompt {
-  return {
-    id: `${personaId}_fallback`,
-    personaId,
-    name: "Brainrot Bot Fallback Prompt",
-    version: "fallback",
-    content: BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
-    isActive: true,
-    addedBy: "backend_fallback",
-    notes: "Backend-only fallback used when Firestore persona prompts are unavailable.",
-  };
-}
-
-function fallbackPlatformPrompt(): PlatformPrompt {
-  return {
-    id: "platform_guardrails_fallback",
-    name: "Platform Guardrails Fallback",
-    key: PLATFORM_GUARDRAILS_KEY,
-    version: "fallback",
-    content: PLATFORM_GUARDRAILS_FALLBACK,
-    isActive: true,
-    addedBy: "backend_fallback",
-    notes: "Backend-only fallback used when Firestore platform prompts are unavailable.",
-  };
-}
 
 function isString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
@@ -95,7 +52,7 @@ function isPersonaPrompt(data: DocumentData | undefined): data is PersonaPrompt 
     isString(data?.personaId) &&
     isString(data?.name) &&
     isString(data?.version) &&
-    isString(data?.content) &&
+    asFragmentedPrompt(data?.fragments) !== null &&
     typeof data?.isActive === "boolean" &&
     isString(data?.addedBy) &&
     isString(data?.notes)
@@ -108,7 +65,7 @@ function isPlatformPrompt(data: DocumentData | undefined): data is PlatformPromp
     isString(data?.name) &&
     isString(data?.key) &&
     isString(data?.version) &&
-    isString(data?.content) &&
+    asFragmentedPrompt(data?.fragments) !== null &&
     typeof data?.isActive === "boolean" &&
     isString(data?.addedBy) &&
     isString(data?.notes)
@@ -165,43 +122,38 @@ export async function getActivePersonaPrompt(
   return isPersonaPrompt(data) ? data : null;
 }
 
+// Resolves the persona + its active prompt for a stream turn. An unknown or
+// disabled personaId falls back to the default persona; a missing persona or
+// prompt doc throws — Firestore is the single source of truth.
 export async function resolvePersonaForStream(
   inputPersonaId?: string,
 ): Promise<ResolvedPersonaForStream> {
   let persona: Persona | null = null;
 
-  try {
-    if (inputPersonaId) {
-      const requestedPersona = await getPersonaById(inputPersonaId);
-      if (requestedPersona?.isEnabled) {
-        persona = requestedPersona;
-      }
+  if (inputPersonaId) {
+    const requestedPersona = await getPersonaById(inputPersonaId);
+    if (requestedPersona?.isEnabled) {
+      persona = requestedPersona;
     }
-
-    if (!persona) {
-      const defaultPersona = await getDefaultPersona();
-      persona = defaultPersona?.isEnabled ? defaultPersona : null;
-    }
-  } catch (err) {
-    logger.warn("[personas] persona resolution failed; using fallback", { err });
   }
 
-  persona ??= fallbackPersona();
-
-  let personaPrompt: PersonaPrompt | null = null;
-  try {
-    personaPrompt = await getActivePersonaPrompt(persona.id);
-  } catch (err) {
-    logger.warn("[personas] persona prompt resolution failed; using fallback", {
-      personaId: persona.id,
-      err,
-    });
+  if (!persona) {
+    const defaultPersona = await getDefaultPersona();
+    persona = defaultPersona?.isEnabled ? defaultPersona : null;
   }
 
-  return {
-    persona,
-    personaPrompt: personaPrompt ?? fallbackPersonaPrompt(persona.id),
-  };
+  if (!persona) {
+    throw new Error("[personas] no enabled persona found in Firestore");
+  }
+
+  const personaPrompt = await getActivePersonaPrompt(persona.id);
+  if (!personaPrompt) {
+    throw new Error(
+      `[personas] no active persona prompt in Firestore for ${persona.id}`,
+    );
+  }
+
+  return { persona, personaPrompt };
 }
 
 // How the active Rot Level nudges the media decider: a higher dial means lean
@@ -220,47 +172,55 @@ function deciderRotLine(level: number): string {
 
 // Assembles the nano media-decider system prompt: the media-specific guardrails
 // (the platform_guardrails record's `mediaContent` field — decider-tuned
-// language, NOT the persona guardrails) + the decider instructions + a
-// rot-level frequency nudge. Mirrors buildSystemPromptForStream's fallback
-// behavior so a Firestore hiccup still yields a usable decider.
-export async function buildMediaDeciderPrompt(levelOfRot = 2): Promise<string> {
-  let platformPrompt: PlatformPrompt | null = null;
-  let deciderPrompt: PlatformPrompt | null = null;
-  try {
-    [platformPrompt, deciderPrompt] = await Promise.all([
-      getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY),
-      getActivePlatformPrompt(MEDIA_DECIDER_KEY),
-    ]);
-  } catch (err) {
-    logger.warn("[personas] media decider prompt resolution failed; using fallback", {
-      err,
-    });
+// language, NOT the persona guardrails) + the decider fragments + a rot-level
+// frequency nudge. The decider is unaffected by the emoji toggle, so
+// emojisEnabled is always true here.
+export async function buildMediaDeciderPrompt(
+  levelOfRot = 2,
+): Promise<string> {
+  const [platformPrompt, deciderPrompt] = await Promise.all([
+    getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY),
+    getActivePlatformPrompt(MEDIA_DECIDER_KEY),
+  ]);
+  if (!platformPrompt || !isString(platformPrompt.mediaContent)) {
+    throw new Error(
+      "[personas] platform_guardrails mediaContent missing in Firestore",
+    );
   }
-  // The decider uses the `mediaContent` field, NOT `content` (which is the
-  // persona path's guardrails). Falls back when the field/doc is absent.
-  const guardrails = platformPrompt?.mediaContent ?? MEDIA_GUARDRAILS_FALLBACK;
-  const deciderContent = deciderPrompt?.content ?? MEDIA_DECIDER_PROMPT_FALLBACK;
-  return `${guardrails}\n\n${deciderContent}\n\n${deciderRotLine(levelOfRot)}`;
+  if (!deciderPrompt) {
+    throw new Error("[personas] no active media_decider prompt in Firestore");
+  }
+  const deciderContent = assembleFragments(deciderPrompt.fragments, {
+    level: levelOfRot,
+    emojisEnabled: true,
+  });
+  return `${platformPrompt.mediaContent}\n\n${deciderContent}\n\n${deciderRotLine(levelOfRot)}`;
 }
 
 export async function buildSystemPromptForStream(
   inputPersonaId?: string,
-  // The user's Rot Level dial (1–3); substituted into the persona prompt's
-  // {{ROT_LEVEL_BLOCK}} placeholder. Defaults to 2 ("Rotted").
+  // The user's Rot Level dial (1–3); resolved by the persona fragments' dynamic
+  // rot_level_block. Defaults to 2 ("Rotted").
   levelOfRot = 2,
+  // The user's "Respond with emojis" toggle. When false, emoji-gated fragments
+  // drop out and emoji-off text variants are used (see ./fragments). Defaults to
+  // true so existing callers keep today's behavior.
+  respondWithEmojis = true,
 ): Promise<BuiltSystemPromptForStream> {
-  let platformPrompt: PlatformPrompt | null = null;
-  try {
-    platformPrompt = await getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY);
-  } catch (err) {
-    logger.warn("[personas] platform prompt resolution failed; using fallback", {
-      err,
-    });
+  const platformPrompt = await getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY);
+  if (!platformPrompt) {
+    throw new Error(
+      "[personas] no active platform_guardrails prompt in Firestore",
+    );
   }
 
   const { persona, personaPrompt } = await resolvePersonaForStream(inputPersonaId);
-  const platformContent = platformPrompt?.content ?? fallbackPlatformPrompt().content;
-  const personaContent = applyRotLevel(personaPrompt.content, levelOfRot);
+  const assembleCtx = {
+    level: levelOfRot,
+    emojisEnabled: respondWithEmojis,
+  };
+  const platformContent = assembleFragments(platformPrompt.fragments, assembleCtx);
+  const personaContent = assembleFragments(personaPrompt.fragments, assembleCtx);
 
   return {
     systemPrompt: `${platformContent}\n\nActive persona prompt:\n${personaContent}`,

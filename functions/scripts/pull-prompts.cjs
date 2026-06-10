@@ -17,7 +17,10 @@ const tok = (s) => (typeof s === "string" && s.length ? enc.encode(s).length : 0
     out[col] = snap.docs.map((d) => ({ id: d.id, data: d.data() }));
     console.log(`${col}: ${snap.size} docs`);
     for (const doc of out[col]) {
-      const c = doc.data.content;
+      const fp = doc.data.fragments;
+      const c = Array.isArray(fp?.fragments)
+        ? fp.fragments.map((f) => f.text ?? "").join(fp.joinWith ?? "\n\n")
+        : undefined;
       if (typeof c === "string") {
         console.log(
           `  - ${doc.id}  active=${doc.data.isActive ?? "-"}  key=${doc.data.key ?? doc.data.personaId ?? "-"}  ~${tok(c)} tokens`,

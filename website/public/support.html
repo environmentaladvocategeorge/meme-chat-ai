@@ -3,9 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Support &middot; Meme Chat AI</title>
+    <title>Support · Meme Chat AI</title>
     <meta name="description" content="Support for Meme Chat AI." />
     <link rel="canonical" href="https://meme-chat-ai.com/support" />
+    <link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/support" />
+    <link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/support" />
+    <link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/support" />
+    <link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/support" />
+    <link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/support" />
+    <link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/support" />
+    <link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/support" />
+    <link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/support" />
+    <link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/support" />
+    <link rel="alternate" hreflang="x-default" href="https://meme-chat-ai.com/support" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -13,38 +23,33 @@
       <header class="site-header">
         <div class="brand"><a href="/">Meme Chat AI</a></div>
         <nav class="nav">
-          <a href="/support.html">Support</a>
-          <a href="/privacy.html">Privacy</a>
+          <a href="/support">Support</a>
+          <a href="/privacy">Privacy</a>
         </nav>
+      <details class="lang-switch">
+        <summary aria-label="Language">🌐 English</summary>
+        <div class="lang-menu">
+        <a href="/support" data-lang="en" aria-current="true">English</a>
+        <a href="/es/support" data-lang="es">Español</a>
+        <a href="/pt/support" data-lang="pt">Português</a>
+        <a href="/fr/support" data-lang="fr">Français</a>
+        <a href="/de/support" data-lang="de">Deutsch</a>
+        <a href="/ru/support" data-lang="ru">Русский</a>
+        <a href="/ja/support" data-lang="ja">日本語</a>
+        <a href="/zh/support" data-lang="zh">中文</a>
+        <a href="/hi/support" data-lang="hi">हिन्दी</a>
+        </div>
+      </details>
       </header>
 
       <h1>Support</h1>
-      <p>
-        Need a hand with Meme Chat AI? Email
-        <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a> and we'll get
-        back to you. Include your device model, OS version, and a short
-        description of what you're seeing — that's usually enough to track
-        anything down.
-      </p>
+      <p>Need a hand with Meme Chat AI? Email <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a> and we'll get back to you. Include your device model, OS version, and a short description of what you're seeing — that's usually enough to track anything down.</p>
 
       <h2>Common requests</h2>
       <ul>
-        <li>
-          <strong>Delete my account.</strong> Open the App, go to
-          <em>Settings &rarr; Delete all data</em>. Your account, profile
-          on our servers, and every preference on your device are wiped
-          immediately.
-        </li>
-        <li>
-          <strong>Change appearance or language.</strong>
-          <em>Settings &rarr; Appearance</em> /
-          <em>Settings &rarr; Language</em>.
-        </li>
-        <li>
-          <strong>Forgot your password.</strong> On the sign-in screen, tap
-          the email field, then use the password reset link sent by
-          Meme Chat AI to set a new one.
-        </li>
+        <li><strong>Delete my account.</strong> Open the App, go to <em>Settings &rarr; Delete all data</em>. Your account, profile on our servers, and every preference on your device are wiped immediately.</li>
+        <li><strong>Change appearance or language.</strong> <em>Settings &rarr; Appearance</em> / <em>Settings &rarr; Language</em>.</li>
+        <li><strong>Forgot your password.</strong> On the sign-in screen, tap the email field, then use the password reset link sent by Meme Chat AI to set a new one.</li>
       </ul>
 
       <footer>
@@ -52,5 +57,12 @@
         <span><a href="/">Back to home</a></span>
       </footer>
     </div>
+    <script>try{localStorage.setItem("mcai_lang","en");}catch(e){}</script>
+    <script>
+      document.addEventListener("click", function (e) {
+        var a = e.target.closest && e.target.closest(".lang-menu a[data-lang]");
+        if (a) { try { localStorage.setItem("mcai_lang", a.getAttribute("data-lang")); } catch (err) {} }
+      });
+    </script>
   </body>
 </html>

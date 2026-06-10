@@ -24,9 +24,14 @@ const hi = {
       unitMinutes: "{{count}} मिनट",
     },
   },
+  appUpdate: {
+    title: "Update करने का टाइम",
+    body: "तुम्हारे पास Meme Chat AI का पुराना version है। App Store से latest download करो ताकि brainrot चलता रहे।",
+    cta: "App Store पर जाओ",
+  },
   landing: {
     title: "Meme Chat AI",
-    subtitle: "स्वागत है — जारी रखने के लिए साइन इन करो।",
+    subtitle: "स्वागत है। जारी रखने के लिए साइन इन करो।",
     badge: "Meme Chat AI",
     headlineLine1: "चैट करो। जलाओ।",
     headlinePrefix: "पाओ ",
@@ -108,7 +113,7 @@ const hi = {
 
     useful: {
       title: "मज़ेदार, पर बेकार नहीं",
-      body: "Brainrot Bot writing, ideas, explanations, roasts, replies, और 'am I cooked?' वाले moments में हेल्प करता है — सब aura बनाए रखते हुए।",
+      body: "Brainrot Bot writing, ideas, explanations, roasts, replies, और 'am I cooked?' वाले moments में हेल्प करता है, aura बनाए रखते हुए।",
       cta: "ठहरो यह तो काम का है",
       prompts: [
         "मेरा होमवर्क समझाओ",
@@ -212,6 +217,10 @@ const hi = {
   },
   chat: {
     title: "Chat",
+    memory: {
+      bannerOn: "Memory चालू है",
+      bannerA11y: "Memory चालू है। Manage करने के लिए tap करो।",
+    },
     empty: {
       intros: [
         {
@@ -249,27 +258,42 @@ const hi = {
       ],
       atTitle: "Brainrot Bot की meme-power खत्म",
       atSubtitle:
-        "अभी के लिए allowance इस्तेमाल हो गई — reset time और upgrade options नीचे हैं।",
+        "अभी के लिए allowance इस्तेमाल हो गई। Reset time और upgrade options नीचे हैं।",
     },
     starters: {
       items: [
         "आज क्या cook करें?",
-        "क्या मैं cooked हूं या यह fix हो सकता है?",
         "किसी random चीज़ की lore बताओ",
-        "मेरा boring idea peak brainrot बनाओ",
-        "यह idea roast करो पर useful भी रखो",
-        "रात 2 बजे doomscrolling जैसे समझाओ",
-        "यह text कम NPC जैसा बनाओ",
-        "30 मिनट lock in करने में मदद करो",
-        "मेरा अगला side quest क्या है?",
-        "मेरे दिन को meme caption बनाओ",
+        "कोई useless fact दो जिसके बारे में मैं पूरा दिन सोचता रहूं",
         "कोई cursed पर useful productivity tip दो",
-        "यह genius है या generational fumble?",
-        "इस message में मुझे funnier बनाओ",
-        "क्या खाऊं — पर options को judge करते हुए",
-        "एक funny group chat friend की तरह समझाओ",
-        "इस problem को 'we're cooked' diagnosis बनाओ",
+        "अगले 30 मिनट focus करने में मदद करो",
+        "मेरा अगला side quest क्या है?",
         "meme energy के साथ pep talk दो",
+        "कोई random science fact ऐसे समझाओ जैसे मैं रात 2 बजे doomscroll कर रहा हूं",
+        "मुझे roast करो, भले ही तुम मेरे बारे में कुछ नहीं जानते",
+        "सबसे unhinged तरीके से बताओ कि मैं बढ़िया कर रहा हूं",
+        "snooze दबाने की एक villain origin story बनाओ",
+        "breakfast foods को rank करो कि उन पर कितना भरोसा किया जा सकता है",
+        "कौन सा green flag असल में red flag है?",
+        "आज मनाने के लिए एक fake holiday invent करो",
+        "एक motivational quote दो पर थोड़ा unhinged",
+        "मुझे पानी पीने के लिए ऐसे convince करो जैसे ये कोई conspiracy हो",
+        "मेरी सुबह को एक nature documentary की तरह narrate करो",
+        "मेरा roman empire क्या होगा?",
+        "एक hot take दो जो group chat में war शुरू कर दे",
+        "एक brainrot word बनाओ और उसे define करो",
+        "Monday को एक horror movie trailer की तरह describe करो",
+        "रात 3 बजे cereal खाने का aura score क्या है?",
+        "आज bare minimum करने के लिए मुझे hype करो",
+        "कबूतरों के बारे में एक conspiracy theory दो",
+        "सबसे NPC चीज़ क्या है जो कोई इंसान कर सकता है?",
+        "आज manifest करने के लिए एक delulu goal दो",
+        "tax ऐसे समझाओ जैसे तुम धीरे-धीरे पागल हो रहे हो",
+        "मेरा final boss version कैसा होगा?",
+        "एक बार में settle करो: hot dog sandwich है या नहीं?",
+        "plans cancel करने का एक ऐसा बहाना दो जो noble लगे",
+        "एक fun fact बताओ जो fake लगे पर असली हो",
+        "मेरी villain era का starter pack क्या है?",
         "इस plan का aura score क्या है?",
         "ऐसा reply लिखने में मदद करो जो AI-generated न लगे",
         "TikTok comment section जैसे summarize करो",
@@ -310,6 +334,16 @@ const hi = {
       "Group chat से consultation हो रही है…",
       "Un-NPC हो रहा है…",
       "Bit ढूंढ रहे हैं…",
+      "Lock in हो रहा है…",
+      "Rizz calibrate हो रहा है…",
+      "Chat से पूछ रहे हैं…",
+      "Intel के लिए doomscroll हो रहा है…",
+      "Rizzler को बुला रहे हैं…",
+      "Sigma mode on हो रहा है…",
+      "Fanum tax लग रहा है…",
+      "Zero grass touch हुई…",
+      "Aura points कट रहे हैं…",
+      "Skibidi processing हो रही है…",
     ],
     errors: {
       title: "नहीं गया",
@@ -328,7 +362,7 @@ const hi = {
     },
     usage: {
       nearTitle: "Meme-power लगभग खत्म",
-      nearBody: "{{percent}}% बचा है — {{when}} को reset होगा।",
+      nearBody: "{{percent}}% बचा है, {{when}} को reset होगा।",
       atTitle: "Meme-power खत्म!",
       atBody: "Allowance {{when}} को reset होगी। अभी memeing जारी रखने के लिए upgrade करो।",
       upgrade: "Plan upgrade करो",
@@ -375,7 +409,7 @@ const hi = {
           description:
             "थोड़ा meme'd, mostly काम की। default assistant जैसी नहीं लगेगी।",
           reply:
-            "तुम्हारे दिमाग ने big scary task देखा और रुक गया। lazy नहीं — overwhelmed हो। एक छोटा step लो और वहां से शुरू करो।",
+            "तुम्हारे दिमाग ने big scary task देखा और रुक गया। lazy नहीं, बस overwhelmed हो। एक छोटा step लो और वहां से शुरू करो।",
           tags: ["mostly business", "lightly spiced"],
         },
         level2: {
@@ -441,7 +475,7 @@ const hi = {
       count: "{{count}} selected",
       deleteOne: "यह chat delete करें?",
       deleteMany: "{{count}} chats delete करें?",
-      warning: "यह undo नहीं होगा — ये chats हमेशा के लिए चली जाएंगी।",
+      warning: "यह undo नहीं होगा। ये chats हमेशा के लिए चली जाएंगी।",
       confirm: "Delete",
       cancel: "रद्द करो",
     },
@@ -467,6 +501,11 @@ const hi = {
   },
   settings: {
     title: "Settings",
+    sections: {
+      preferences: "Preferences",
+      account: "Account",
+      about: "About",
+    },
     account: {
       label: "Account",
       description: "Email, password, sign out, और account deletion।",
@@ -474,7 +513,7 @@ const hi = {
     notifications: {
       label: "Notifications",
       description:
-        "Replies, streaks, और daily allowance ready होने पर ping पाओ।",
+        "Replies और daily allowance ready होने पर ping पाओ।",
       blockedTitle: "Notifications चालू करो",
       blockedBody:
         "Meme Chat AI के लिए notifications बंद हैं। Allow करने के लिए Settings खोलो।",
@@ -482,6 +521,48 @@ const hi = {
       disableBody:
         "Notification permissions device settings में manage होती हैं। बंद करने के लिए Settings खोलो।",
       openSettings: "Settings खोलो",
+    },
+    answering: {
+      sectionLabel: "जवाब",
+      emojisLabel: "इमोजी के साथ जवाब दें",
+      emojisDescription: "Brainrot Bot को अपने जवाबों में इमोजी इस्तेमाल करने दें।",
+      mediaLabel: "GIF और मीम के साथ जवाब दें",
+      mediaDescription: "Brainrot Bot को GIF और मीम से रिएक्ट करने दें।",
+    },
+    memory: {
+      rowLabel: "Memory",
+      rowOn: "On",
+      rowOff: "Off",
+      title: "मुझे जो याद है",
+      subtitle: "तुम्हारे बारे में कुछ बातें नोट करता हूँ ताकि मेरे जवाब सही लगें।",
+      infoA11y: "Memory क्या है?",
+      explainer:
+        "जब हम chat करते हैं, मैं कुछ बातें नोट कर लेता हूँ, जैसे तुम्हारी vibe, तुम्हारे लोग, जो तुम बार-बार लाते हो, ताकि एक ही चीज़ दोबारा न पूछूँ। यह तुम्हारे account पर ही रहती है, मैं इसे छोटा रखता हूँ, और यह कहीं बाहर नहीं जाती। इसे मैं लिखता हूँ, इसलिए तुम हाथ से edit नहीं कर सकते, पर जब चाहो off या wipe कर सकते हो।",
+      toggleLabel: "मुझे तुम्हें याद रखने दो",
+      toggleHint: "Off करने पर मैं इन सबका इस्तेमाल और save करना बंद कर दूँगा।",
+      lastUpdated: "Updated {{when}}",
+      neverUpdated: "अभी कुछ save नहीं हुआ",
+      empty: "अभी कुछ नहीं। थोड़ी देर बात करो, मैं चीज़ें नोट करना शुरू कर दूँगा।",
+      remove: "इसे भूल जाओ",
+      removeConfirmTitle: "इसे भूल जाएँ?",
+      removeConfirmBody: "यह memory हमेशा के लिए चली जाएगी।",
+      removeConfirmCta: "भूल जाओ",
+      clear: "सब wipe करो",
+      clearConfirmTitle: "अपनी memory wipe करें?",
+      clearConfirmBody: "मैं तुम्हारे बारे में नोट की सब बातें भूल जाऊँगा। Undo नहीं होगा।",
+      clearConfirmCta: "Wipe करो",
+      lockedTitle: "Memory एक paid feature है",
+      lockedBody:
+        "Paid plan लो और मैं ज़रूरी बातें याद रखना शुरू कर दूँगा, ताकि हर chat वहीं से चले जहाँ हमने छोड़ा था।",
+      lockedCta: "Plans देखो",
+      error: "वह नहीं हो पाया। थोड़ी देर में फिर try करो।",
+      categories: {
+        identity: "तुम्हारे बारे में",
+        preference: "तुम्हारी पसंद",
+        relationship: "तुम्हारे लोग",
+        ongoing: "तुम क्या कर रहे हो",
+        lore: "चलता हुआ joke",
+      },
     },
     plan: {
       heading: "Plan & usage",
@@ -516,10 +597,10 @@ const hi = {
           power: "50×",
         },
         memory: {
-          free: "S",
-          basic: "M",
-          plus: "L",
-          power: "XL",
+          free: "—",
+          basic: "✓",
+          plus: "✓",
+          power: "✓",
         },
         customization: {
           free: "—",
@@ -550,20 +631,20 @@ const hi = {
       },
       planTaglines: {
         free: "पूरा Brainrot Bot, free",
-        basic: "ज़्यादा memeing",
-        plus: "ज़्यादा chats, लंबी memory",
+        basic: "Memory + ज़्यादा memeing",
+        plus: "बढ़िया all-rounder",
         power: "Maximum vibes",
       },
       planBullets: {
         free: ["असली, full-personality Brainrot Bot", "हर दिन एक taste"],
-        basic: ["9× ज़्यादा chats", "वही smart Brainrot Bot", "App customization", "Ad-free"],
-        plus: ["25× ज़्यादा chats", "ज़्यादा chats याद रहती हैं", "App customization", "Ad-free", "बढ़िया all-rounder"],
-        power: ["50× ज़्यादा chats", "सबसे लंबी memory", "App customization", "Ad-free", "सबसे ज़्यादा meme-power"],
+        basic: ["9× ज़्यादा chats", "Chats के बीच तुम्हें याद रखता है", "App customization", "Ad-free"],
+        plus: ["25× ज़्यादा chats", "Chats के बीच तुम्हें याद रखता है", "App customization", "Ad-free", "बढ़िया all-rounder"],
+        power: ["50× ज़्यादा chats", "Chats के बीच तुम्हें याद रखता है", "App customization", "Ad-free", "सबसे ज़्यादा meme-power"],
       },
       planHeadlineFeature: {
         free: "Full Brainrot Bot",
-        basic: "9× chats",
-        plus: "25× + memory",
+        basic: "9× + memory",
+        plus: "25× chats",
         power: "सारी power",
       },
       pricePeriod: "/महीना",
@@ -723,7 +804,7 @@ const hi = {
       rowLabel: "Email बदलो",
       title: "Email बदलो",
       subtitle:
-        "Current password और नई email डालो। हम नए address पर verification link भेजेंगे — confirm करते ही बदल जाएगी।",
+        "Current password और नई email डालो। हम नए address पर verification link भेजेंगे, और confirm करते ही बदल जाएगी।",
       currentPasswordLabel: "Current password",
       currentPasswordPlaceholder: "तुम्हारा password",
       newEmailLabel: "नई email",

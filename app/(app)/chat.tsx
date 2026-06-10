@@ -1,12 +1,15 @@
 import { AdBanner } from "@/components/ads/AdBanner";
 import { AppHeader } from "@/components/AppHeader";
+import { AppKeyboardAvoidingView } from "@/components/AppKeyboardAvoidingView";
 import { AttachmentViewerProvider } from "@/components/AttachmentViewer";
 import { ChatInput, type ChatInputRef } from "@/components/ChatInput";
 import { buildVisibleMessages } from "@/components/chat/buildVisibleMessages";
 import {
   BubbleGradientContext,
+  shouldBumpOnContentSizeChange,
   type BubbleGradientValue,
 } from "@/components/chat/BubbleGradientContext";
+import { ThinkingLabelContext } from "@/components/chat/ThinkingLabelContext";
 import { ChatLoading } from "@/components/chat/ChatLoading";
 import { CollapsiblePicker } from "@/components/chat/CollapsiblePicker";
 import {
@@ -15,7 +18,9 @@ import {
   PhotoButton,
   RotLevelButton,
 } from "@/components/chat/ComposerToggles";
+import { EdgeFadedScrollRow } from "@/components/chat/EdgeFadedScrollRow";
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
+import { MemoryOnBanner } from "@/components/chat/MemoryOnBanner";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { NewConversationButton } from "@/components/chat/NewConversationButton";
 import {
@@ -29,7 +34,8 @@ import { QuotaModal } from "@/components/chat/QuotaModal";
 import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
 import { UsageLimitBlock, UsageNudge } from "@/components/chat/UsageNotices";
-import { MemeAvatar } from "@/components/MemeAvatar";
+import { ComposerSkeleton } from "@/components/chat/ComposerSkeleton";
+import { ScrollToBottomButton } from "@/components/chat/ScrollToBottomButton";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import {
   trendingGifToMessageGif,
@@ -47,23 +53,26 @@ import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useKlipy } from "@/hooks/useKlipy";
 import { useKlipyGifs } from "@/hooks/useKlipyGifs";
 import { useOnSendEffects } from "@/hooks/useOnSendEffects";
+import { useMemoryMeta } from "@/hooks/useMemory";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { ChatToneContext } from "@/hooks/useTheme";
+import { PLAN_RANK } from "@/domain/billing";
+import { withAlpha } from "@/domain/customization";
 import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
+import { useMemorySheetStore } from "@/store/memorySheet";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Alert,
   AppState,
+  type FlatList,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -74,12 +83,21 @@ import {
 } from "@/services/firebase/uploadMessageImage";
 import Animated, {
   FadeIn,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// Height of the gradient ramp above the floating composer dock — the zone
+// where scrolling messages dissolve into the backdrop instead of hard-cutting.
+const DOCK_FADE_HEIGHT = 32;
+// Matching (smaller) ramp at the top of the thread, so messages dissolve just
+// before they touch the header instead of cutting at the viewport edge.
+const HEADER_FADE_HEIGHT = 20;
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -96,9 +114,16 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ conversationId?: string }>();
   const [draft, setDraft] = useState("");
+  // Measured height of the floating composer dock. The message list scrolls
+  // edge-to-edge behind the dock; this feeds the list's bottom inset so
+  // resting content sits above it and only scrolls under it.
+  const [dockHeight, setDockHeight] = useState(0);
   const [memesOpen, setMemesOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
   const chatInputRef = useRef<ChatInputRef>(null);
+  // Thread list ref — jump-to-latest button and the send path both scroll
+  // the inverted list back to offset 0 (the visual bottom).
+  const listRef = useRef<FlatList<RenderMessage>>(null);
   const newConvoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Memes the user has staged but not yet sent. Sent as multimodal image
   // inputs; capped at MAX_MESSAGE_IMAGES (the backend re-enforces the cap).
@@ -127,9 +152,12 @@ export default function ChatScreen() {
   const openRotSheet = useRotLevelSheetStore((s) => s.open);
   const hydrateSession = useChatStore((s) => s.hydrateSession);
   const messages = useChatStore((s) => s.messages);
-  const streamingText = useChatStore((s) => s.streamingText);
-  const streamingMeme = useChatStore((s) => s.streamingMeme);
-  const streamingGif = useChatStore((s) => s.streamingGif);
+  // NOTE: deliberately NOT subscribed to streamingText/streamingMeme/
+  // streamingGif — the streaming bubble pulls those itself (MessageBubble), so
+  // delta flushes don't re-render the screen or rebuild the list.
+  const olderMessages = useChatStore((s) => s.olderMessages);
+  const loadingOlder = useChatStore((s) => s.loadingOlder);
+  const loadOlderMessages = useChatStore((s) => s.loadOlderMessages);
   const activeReplyClientId = useChatStore((s) => s.activeReplyClientId);
   const settledReply = useChatStore((s) => s.settledReply);
   const status = useChatStore((s) => s.status);
@@ -146,6 +174,8 @@ export default function ChatScreen() {
   const entitlement = useEntitlementStore((s) => s.entitlement);
   const currentPlan = useDisplayPlan();
   const openPlan = useOpenPlan();
+  const openMemorySheet = useMemorySheetStore((s) => s.open);
+  const { meta: memoryMeta } = useMemoryMeta();
   const router = useRouter();
 
   // Collapse the monthly + daily windows into one picture so we can nudge at
@@ -182,6 +212,15 @@ export default function ChatScreen() {
   // button is hidden (and fades back in once a session loads).
   const canStartNew = conversationId !== null || messages.length > 0;
 
+  // Subtle "Memory is on" hint, only on a fresh chat. Paid + memory-enabled
+  // only; when memory is off we show nothing, so the hint's presence always
+  // means it's on. Tapping it opens the Memory sheet to review or switch off.
+  const showMemoryBanner =
+    entitlementReady &&
+    !canStartNew &&
+    PLAN_RANK[currentPlan] > PLAN_RANK.free &&
+    memoryMeta.enabled;
+
   useEffect(() => {
     const id = Array.isArray(params.conversationId)
       ? params.conversationId[0]
@@ -206,10 +245,21 @@ export default function ChatScreen() {
     void hydrateSession({ autoLoadConversation: !routeId });
   }, [hydrateSession, params.conversationId]);
 
-  const lastUserMessage = useMemo(
-    () => [...messages].reverse().find((message) => message.role === "user"),
-    [messages],
+  // Rendered thread = static paginated prefix (older pages, oldest-first) +
+  // the live snapshot tail. All optimistic/settled/streaming logic operates on
+  // the tail only (in the store); this is the single place they're joined.
+  const allMessages = useMemo(
+    () =>
+      olderMessages.length === 0 ? messages : [...olderMessages, ...messages],
+    [olderMessages, messages],
   );
+
+  const lastUserMessage = useMemo(() => {
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      if (allMessages[i].role === "user") return allMessages[i];
+    }
+    return undefined;
+  }, [allMessages]);
 
   // Loading label shown while a reply is in flight. We pick one of the playful
   // phrases at random, but lock it in for the duration of a given reply
@@ -233,12 +283,9 @@ export default function ChatScreen() {
   const visibleMessages = useMemo<RenderMessage[]>(
     () =>
       buildVisibleMessages({
-        messages,
+        messages: allMessages,
         status,
         activeReplyClientId,
-        streamingText,
-        streamingMeme,
-        streamingGif,
         settledReply,
         error,
         lastUserMessage,
@@ -247,12 +294,9 @@ export default function ChatScreen() {
       activeReplyClientId,
       error,
       lastUserMessage,
-      messages,
+      allMessages,
       settledReply,
       status,
-      streamingText,
-      streamingMeme,
-      streamingGif,
     ],
   );
 
@@ -272,6 +316,10 @@ export default function ChatScreen() {
 
   const handleSubmit = () => {
     if (atLimit) return;
+    // Typing is allowed during a reply, sending is not. Guarded here (before
+    // the draft is optimistically cleared — otherwise a bypassed send would
+    // eat the message) and again inside sendMessage itself.
+    if (useChatStore.getState().status === "streaming") return;
     const text = draft.trim();
     const images = stagedImages;
     const gif = stagedGif;
@@ -288,6 +336,12 @@ export default function ChatScreen() {
     // don't blur) so rapid follow-up messages stay frictionless.
     applyPickers(dismissPickers());
     void sendMessage(text, images, gif, rotLevel);
+    // If the user sent from up in their history, glide back to the live
+    // edge so the optimistic bubble (and the incoming reply) are in view.
+    // Next frame, so the optimistic message has rendered before the scroll.
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    });
   };
 
   // Tapping a starter chip drops its text into the composer and focuses it,
@@ -299,18 +353,28 @@ export default function ChatScreen() {
     chatInputRef.current?.focus();
   };
 
-  const handleRetry = () => {
-    if (!lastUserMessage) return;
+  // Stable for the memoized bubbles (empty deps): the last user turn is
+  // resolved from the store at press time, not closed over per render.
+  const handleRetry = useCallback(() => {
+    const state = useChatStore.getState();
+    let lastUser = null;
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      if (state.messages[i].role === "user") {
+        lastUser = state.messages[i];
+        break;
+      }
+    }
+    if (!lastUser) return;
     // Resend the failed turn's attachments too, so a meme/gif isn't dropped on
     // retry. Reuse the level the original turn carried, falling back to the
     // current dial if it predates the feature.
-    void sendMessage(
-      lastUserMessage.text,
-      lastUserMessage.images,
-      lastUserMessage.gifs?.[0] ?? null,
-      lastUserMessage.levelOfRot ?? rotLevel,
+    void state.sendMessage(
+      lastUser.text,
+      lastUser.images,
+      lastUser.gifs?.[0] ?? null,
+      lastUser.levelOfRot ?? state.rotLevel,
     );
-  };
+  }, []);
 
   // Apply a computed picker-visibility transition to the two backing flags.
   // The pure transitions in pickerVisibility.ts own the mutual-exclusion logic;
@@ -471,18 +535,58 @@ export default function ChatScreen() {
   // Shared scroll offset + re-measure signal for the page-level bubble
   // gradient (see BubbleGradientContext). The handler runs on the UI thread so
   // the gradient tracks scrolling smoothly; the tick nudges bubbles to
-  // re-anchor whenever the layout settles.
+  // re-anchor whenever the layout settles. Both are SharedValues, so a tick
+  // re-renders nothing — the context value never changes identity and bubbles
+  // react via useAnimatedReaction off the render path.
   const pageScrollY = useSharedValue(0);
-  const [gradientTick, setGradientTick] = useState(0);
-  const bumpGradient = useCallback(() => setGradientTick((t) => t + 1), []);
+  const measureTick = useSharedValue(0);
+  const bumpGradient = useCallback(() => {
+    measureTick.value += 1;
+  }, [measureTick]);
+  // Content-size ticks are gated off while streaming (the content height
+  // changes on every delta flush); one bump fires on the streaming → idle /
+  // error transition below instead. Status is read at call time so this
+  // callback stays stable.
+  const handleContentSizeChange = useCallback(() => {
+    if (shouldBumpOnContentSizeChange(useChatStore.getState().status)) {
+      bumpGradient();
+    }
+  }, [bumpGradient]);
+  useEffect(() => {
+    if (status !== "streaming") bumpGradient();
+  }, [status, bumpGradient]);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       pageScrollY.value = event.contentOffset.y;
     },
   });
+
+  // Floating "jump to latest" button. The list is inverted, so contentOffset.y
+  // IS the distance scrolled up from the newest message. The reaction runs on
+  // the UI thread and only crosses to JS when the threshold band is crossed —
+  // not per scroll frame. Hysteresis (show past 200, hide under 120) keeps it
+  // from flickering while hovering near the boundary.
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const jumpShown = useSharedValue(false);
+  useAnimatedReaction(
+    () => pageScrollY.value,
+    (y) => {
+      if (!jumpShown.value && y > 200) {
+        jumpShown.value = true;
+        runOnJS(setShowJumpToLatest)(true);
+      } else if (jumpShown.value && y < 120) {
+        jumpShown.value = false;
+        runOnJS(setShowJumpToLatest)(false);
+      }
+    },
+  );
+  const handleJumpToLatest = useCallback(() => {
+    // Inverted list: offset 0 is the visual bottom (newest message).
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
   const bubbleGradient = useMemo<BubbleGradientValue>(
-    () => ({ scrollY: pageScrollY, measureTick: gradientTick }),
-    [pageScrollY, gradientTick],
+    () => ({ scrollY: pageScrollY, measureTick }),
+    [pageScrollY, measureTick],
   );
 
   const handleNewConversation = () => {
@@ -524,11 +628,31 @@ export default function ChatScreen() {
     return () => sub.remove();
   }, [contentOpacity]);
 
+  // The color the floating dock's scrim (and the accessory row's edge fade)
+  // dissolves messages into. For solid backdrops it's the backdrop itself;
+  // for a custom gradient we take the LAST stop — the dock sits at the
+  // bottom of the screen, where a top→bottom gradient lands on that color.
+  const scrimColor =
+    chatBackground.kind === "solid"
+      ? (chatBackground.color ?? theme["--color-background"])
+      : (chatBackground.gradientColors?.[
+          chatBackground.gradientColors.length - 1
+        ] ?? theme["--color-background"]);
+  // Same idea for the thread's top edge, which sits on the FIRST gradient
+  // stop (or the solid backdrop) — feeds the header-side fade.
+  const headerFadeColor =
+    chatBackground.kind === "solid"
+      ? (chatBackground.color ?? theme["--color-background"])
+      : (chatBackground.gradientColors?.[0] ?? theme["--color-background"]);
+
   return (
     <ChatToneContext.Provider value={chatThemeContext}>
       <AttachmentViewerProvider>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        {/* Not the stock KeyboardAvoidingView: that one can hold a stale
+            keyboard pad after a background/foreground cycle (iOS drops the
+            hide event), squishing the whole screen to the top until the next
+            keyboard cycle. See AppKeyboardAvoidingView. */}
+        <AppKeyboardAvoidingView
           style={{
             flex: 1,
             backgroundColor:
@@ -554,16 +678,16 @@ export default function ChatScreen() {
           <AppHeader
             title={t("chat.title")}
             right={
-              canStartNew ? (
-                // NOTE: deliberately NOT wrapped in an `entering` animation.
-                // Reanimated entering layout animations leave the child's
-                // native hit-test frame unsynced on Fabric/release builds, so
-                // this small corner button would drop the first tap(s).
-                <NewConversationButton
-                  label={t("chat.newConversation")}
-                  onPress={handleNewConversation}
-                />
-              ) : undefined
+              // Always mounted so the button can fade in/out (it self-gates
+              // taps via `visible`). Avoids the hard pop of conditional
+              // mounting — and avoids Reanimated `entering` layout animations,
+              // which leave the native hit-test frame unsynced on Fabric/release
+              // and drop the first tap(s).
+              <NewConversationButton
+                label={t("chat.newConversation")}
+                onPress={handleNewConversation}
+                visible={canStartNew}
+              />
             }
           />
 
@@ -572,8 +696,10 @@ export default function ChatScreen() {
           <AdBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
 
           <BubbleGradientContext.Provider value={bubbleGradient}>
+            <ThinkingLabelContext.Provider value={thinkingLabel}>
             <View style={{ flex: 1 }}>
               <Animated.FlatList
+                ref={listRef}
                 style={[contentFadeStyle, { flex: 1 }]}
                 inverted
                 data={visibleMessages}
@@ -581,14 +707,43 @@ export default function ChatScreen() {
                 keyboardShouldPersistTaps="handled"
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
-                onContentSizeChange={bumpGradient}
+                onContentSizeChange={handleContentSizeChange}
                 onMomentumScrollEnd={bumpGradient}
+                // Inverted list: "end" is the visual top — reaching it loads
+                // the next page of older messages (no-ops when exhausted).
+                onEndReached={loadOlderMessages}
+                onEndReachedThreshold={0.5}
+                // Virtualization tuning for long threads with variable-height
+                // rows (FlatList kept over FlashList — see perf plan, Phase 6
+                // fallback). removeClippedSubviews intentionally NOT set: it
+                // can break the gradient bubbles' measureInWindow anchoring.
+                windowSize={7}
+                maxToRenderPerBatch={8}
+                initialNumToRender={12}
+                updateCellsBatchingPeriod={50}
+                ListFooterComponent={
+                  // Visual top of the inverted list: paging spinner.
+                  loadingOlder ? (
+                    <View style={{ paddingVertical: 12 }}>
+                      <ActivityIndicator
+                        size="small"
+                        color={theme["--color-foreground-muted"]}
+                      />
+                    </View>
+                  ) : null
+                }
                 contentContainerStyle={{
                   flexGrow: 1,
                   justifyContent:
                     visibleMessages.length === 0 ? "center" : "flex-start",
                   paddingHorizontal: 18,
-                  paddingTop: 16,
+                  // Inverted list: paddingTop is the VISUAL BOTTOM. The
+                  // floating dock overlays the list, so resting content needs
+                  // its measured height (plus breathing room reaching into
+                  // the fade ramp) to sit clear of it; scrolled content runs
+                  // behind the dock and dissolves in the scrim. Falls back to
+                  // 16 for the first frame, before the dock reports a height.
+                  paddingTop: dockHeight > 0 ? dockHeight + 8 : 16,
                   paddingBottom: 18,
                   gap: 10,
                 }}
@@ -603,6 +758,19 @@ export default function ChatScreen() {
                     <EmptyChatState
                       onStarterPress={handleStarterPress}
                       atLimit={atLimit}
+                      // Lives inside the scrollable empty state (it only shows
+                      // on a fresh chat) so the content never shears against a
+                      // pinned banner when the keyboard shrinks the viewport.
+                      header={
+                        showMemoryBanner ? (
+                          <MemoryOnBanner
+                            label={t("chat.memory.bannerOn")}
+                            a11yLabel={t("chat.memory.bannerA11y")}
+                            color={theme["--color-foreground-muted"]}
+                            onPress={openMemorySheet}
+                          />
+                        ) : null
+                      }
                     />
                   )
                 }
@@ -611,7 +779,6 @@ export default function ChatScreen() {
                     message={item}
                     retryLabel={t("common.retry")}
                     errorLabel={t("chat.errors.generic")}
-                    thinkingLabel={thinkingLabel}
                     onRetry={handleRetry}
                     onRate={rateMessage}
                     onEmoji={setMessageEmoji}
@@ -635,28 +802,72 @@ export default function ChatScreen() {
                   style={StyleSheet.absoluteFill}
                 />
               ) : null}
+              {/* Header-side counterpart to the dock's fade ramp: a short
+                  backdrop-colored gradient pinned to the thread's top edge,
+                  dissolving messages just before they reach the header. */}
+              <LinearGradient
+                pointerEvents="none"
+                colors={[headerFadeColor, withAlpha(headerFadeColor, 0)]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: HEADER_FADE_HEIGHT,
+                }}
+              />
             </View>
+            </ThinkingLabelContext.Provider>
           </BubbleGradientContext.Provider>
 
+          {/* Floating composer dock. Absolutely positioned so the thread
+              scrolls edge-to-edge behind it; the list's bottom inset
+              (dockHeight, measured here) keeps resting messages above it.
+              The "glass" is transparency, not native blur: a near-opaque
+              scrim of the backdrop color over the dock body, with a gradient
+              ramp above it that dissolves passing messages — the ChatGPT-
+              style fade — instead of a hard cut. */}
           <View
-            style={{
-              paddingHorizontal: 16,
-              paddingTop: 8,
-              paddingBottom: Math.max(insets.bottom, 12),
-            }}
+            onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
+            style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}
           >
+            <LinearGradient
+              pointerEvents="none"
+              colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={{
+                position: "absolute",
+                top: -DOCK_FADE_HEIGHT,
+                left: 0,
+                right: 0,
+                height: DOCK_FADE_HEIGHT,
+              }}
+            />
+            <View
+              pointerEvents="none"
+              style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: withAlpha(scrimColor, 0.94),
+              }}
+            />
+            <View
+              style={{
+                paddingHorizontal: 16,
+                paddingTop: 8,
+                paddingBottom: Math.max(insets.bottom, 12),
+              }}
+            >
             {!entitlementReady ? (
               // Don't render the composer OR the upgrade block until we know the
               // usage state — showing either would flicker into the other.
-              <Animated.View
-                entering={FadeIn.duration(220)}
-                style={{
-                  height: 52,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MemeAvatar variant="loading" size={36} pulse />
+              // Shimmer placeholder in the composer's exact resting geometry
+              // (not a second brainrot avatar — the thread above already has
+              // one): when the real composer mounts it lands on these shapes.
+              <Animated.View entering={FadeIn.duration(220)}>
+                <ComposerSkeleton />
               </Animated.View>
             ) : atLimit && usage ? (
               // 100% of the binding allowance is spent: the composer is replaced
@@ -768,11 +979,12 @@ export default function ChatScreen() {
                 {/* Composer accessory row. The chips grow to fill the width
                 evenly when they fit, and the row scrolls horizontally rather
                 than cropping a label when they don't (narrow screens / long
-                locales). */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
+                locales) — with a trailing fade hinting at the hidden chips.
+                The row sits on the dock's scrim, so the scrim color is the
+                backdrop the fade dissolves into — including over custom
+                gradient backgrounds. */}
+                <EdgeFadedScrollRow
+                  fadeColor={scrimColor}
                   style={{ marginTop: 8, marginHorizontal: -16 }}
                   contentContainerStyle={{
                     flexGrow: 1,
@@ -810,9 +1022,27 @@ export default function ChatScreen() {
                     level={rotLevel}
                     onPress={handleOpenRot}
                   />
-                </ScrollView>
+                </EdgeFadedScrollRow>
               </View>
             )}
+            </View>
+          </View>
+
+          {/* Floating jump-to-latest. Sits just above the dock (which the
+              measured dockHeight tracks through picker opens and keyboard
+              moves) and right-aligned with the dock's 16px padding. */}
+          <View
+            style={{
+              position: "absolute",
+              right: 16,
+              bottom: dockHeight + 12,
+            }}
+          >
+            <ScrollToBottomButton
+              label={t("chat.scrollToBottom")}
+              visible={showJumpToLatest}
+              onPress={handleJumpToLatest}
+            />
           </View>
 
           <QuotaModal
@@ -821,7 +1051,7 @@ export default function ChatScreen() {
             onUpgrade={openPlan}
             onDismiss={dismissQuota}
           />
-        </KeyboardAvoidingView>
+        </AppKeyboardAvoidingView>
       </AttachmentViewerProvider>
     </ChatToneContext.Provider>
   );

@@ -4,21 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Download Meme Chat AI for iPhone | App Store</title>
-    <meta
-      name="description"
-      content="Meme Chat AI is live on the App Store. Download the funny AI chat app for iPhone and start chatting with Brainrot Bot for free."
-    />
+    <meta name="description" content="Meme Chat AI is live on the App Store. Download the funny AI chat app for iPhone and start chatting with Brainrot Bot for free." />
     <link rel="canonical" href="https://meme-chat-ai.com/ios" />
+    <link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/ios" />
+    <link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es/ios" />
+    <link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt/ios" />
+    <link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr/ios" />
+    <link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de/ios" />
+    <link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru/ios" />
+    <link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja/ios" />
+    <link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh/ios" />
+    <link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi/ios" />
+    <link rel="alternate" hreflang="x-default" href="https://meme-chat-ai.com/ios" />
     <link rel="icon" href="/assets/images/app-icon.png?v=2" />
     <meta name="theme-color" content="#0F7B85" />
     <meta property="og:title" content="Meme Chat AI for iOS" />
-    <meta
-      property="og:description"
-      content="Meme Chat AI is live on the App Store. Download the funny AI chat app for iPhone and start chatting with Brainrot Bot."
-    />
+    <meta property="og:description" content="Meme Chat AI is live on the App Store. Download the funny AI chat app for iPhone and start chatting with Brainrot Bot." />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://meme-chat-ai.com/ios" />
     <meta property="og:image" content="https://meme-chat-ai.com/assets/images/app-icon.png?v=2" />
+    <meta property="og:locale" content="en" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -33,6 +38,20 @@
         <a href="/support">Support</a>
         <a href="/privacy">Privacy</a>
       </nav>
+      <details class="lang-switch">
+        <summary aria-label="Language">🌐 English</summary>
+        <div class="lang-menu">
+        <a href="/ios" data-lang="en" aria-current="true">English</a>
+        <a href="/es/ios" data-lang="es">Español</a>
+        <a href="/pt/ios" data-lang="pt">Português</a>
+        <a href="/fr/ios" data-lang="fr">Français</a>
+        <a href="/de/ios" data-lang="de">Deutsch</a>
+        <a href="/ru/ios" data-lang="ru">Русский</a>
+        <a href="/ja/ios" data-lang="ja">日本語</a>
+        <a href="/zh/ios" data-lang="zh">中文</a>
+        <a href="/hi/ios" data-lang="hi">हिन्दी</a>
+        </div>
+      </details>
     </header>
 
     <main class="section ios-page">
@@ -41,11 +60,7 @@
         <div>
           <p class="eyebrow">iOS — out now</p>
           <h1>Get Meme Chat AI for iPhone.</h1>
-          <p class="lead">
-            Meme Chat AI is live on the App Store. Download it, open a chat, and
-            let Brainrot Bot fix your dry texts, explain the confusing stuff, and
-            turn brain soup into replies, captions, and plans.
-          </p>
+          <p class="lead">Meme Chat AI is live on the App Store. Download it, open a chat, and let Brainrot Bot fix your dry texts, explain the confusing stuff, and turn brain soup into replies, captions, and plans.</p>
           <ul class="launch-list">
             <li>Free to start — meme-power plans unlock more chats and memory.</li>
             <li>Built for iPhone, with app themes on every paid plan.</li>
@@ -68,5 +83,12 @@
       </div>
       <span>&copy; Jorge Jimenez</span>
     </footer>
+    <script>try{localStorage.setItem("mcai_lang","en");}catch(e){}</script>
+    <script>
+      document.addEventListener("click", function (e) {
+        var a = e.target.closest && e.target.closest(".lang-menu a[data-lang]");
+        if (a) { try { localStorage.setItem("mcai_lang", a.getAttribute("data-lang")); } catch (err) {} }
+      });
+    </script>
   </body>
 </html>

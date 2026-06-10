@@ -3,12 +3,15 @@ import { AccountSheet } from "@/components/AccountSheet";
 import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
 import { PlanSheet } from "@/components/PlanSheet";
 import { LanguageSheet } from "@/components/LanguageSheet";
+import { MemorySheet } from "@/components/MemorySheet";
 import { RotLevelSheet } from "@/components/RotLevelSheet";
 import { Typography } from "@/components/Typography";
+import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
 import { initializeMobileAds } from "@/domain/ads/mobileAds";
 import { decideAuthRoute } from "@/domain/routing/authRoute";
 import { themes } from "@/nativewind-theme";
 import { useAgeGateStore } from "@/store/ageGate";
+import { useAppUpdateStore } from "@/store/appUpdate";
 import { useAuthStore } from "@/store/auth";
 import { useNotificationsStore } from "@/store/notifications";
 import { useOnboardingStore } from "@/store/onboarding";
@@ -87,6 +90,9 @@ export default function RootLayout() {
   const authEmailVerified = useAuthStore((s) => s.emailVerified);
   const authProviders = useAuthStore((s) => s.providers);
   const initializeSubscription = useSubscriptionStore((s) => s.initialize);
+  const checkAppUpdate = useAppUpdateStore((s) => s.check);
+  const updateRequired = useAppUpdateStore((s) => s.updateRequired);
+  const updateStoreUrl = useAppUpdateStore((s) => s.storeUrl);
 
   const theme = themes[colorScheme ?? "light"];
   const router = useRouter();
@@ -100,6 +106,13 @@ export default function RootLayout() {
       hydrateAgeGate(),
     ]).finally(() => setHydrated(true));
   }, [hydrateAgeGate, hydrateOnboarding, hydrateSettings]);
+
+  // Force-update check runs independently of local hydration so the gate can
+  // appear as soon as the remote floor is read. Fails open, so it never blocks
+  // startup or locks a user out on a network blip.
+  useEffect(() => {
+    void checkAppUpdate();
+  }, [checkAppUpdate]);
 
   useEffect(() => {
     if (hydrated) {
@@ -175,15 +188,22 @@ export default function RootLayout() {
   );
 
   useEffect(() => {
-    if (appReady) {
+    if (appReady || updateRequired) {
       void SplashScreen.hideAsync().catch(() => {});
     }
-  }, [appReady]);
+  }, [appReady, updateRequired]);
 
   useEffect(() => {
     if (!routeTarget) return;
     router.replace(routeTarget.href as never);
   }, [routeTarget, router]);
+
+  // Force-update gate wins over everything (loading, auth, age gate, the app).
+  // Once we've confirmed the install is below the floor there is no way past
+  // this screen except updating.
+  if (updateRequired) {
+    return <UpdateRequiredScreen storeUrl={updateStoreUrl} />;
+  }
 
   if (!appReady) {
     return (
@@ -227,6 +247,7 @@ export default function RootLayout() {
             <AccountSheet />
             <RotLevelSheet />
             <LanguageSheet />
+            <MemorySheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

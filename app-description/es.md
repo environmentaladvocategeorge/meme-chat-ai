@@ -1,80 +1,83 @@
-# Meme Chat AI — Ficha de la App Store (Español)
+# Meme Chat AI: Ficha de la App Store (Español)
 
-## App Name (Nombre — 30 caracteres máx.)
+## App Name (Nombre, 30 caracteres máx.)
 
 Meme Chat AI: Brainrot Bot
 
-## Subtitle (Subtítulo — 30 caracteres máx.)
+## Subtitle (Subtítulo, 30 caracteres máx.)
 
-Chat de IA divertido y memes
+Roasts, GIFs y respuestas top
 
-## Keywords (Palabras clave — 100 caracteres máx., separadas por comas)
+## Keywords (Palabras clave, 100 caracteres máx., separadas por comas)
 
 gif,roast,leyenda,respuesta,humor,chiste,sticker,reaccion,jerga,chatbot,reescribir,bio,genz
 
 ## What's New (Novedades)
 
-Prueba gratis de 7 días para nuevos suscriptores. Al registrarte, ahora puedes probar Wingman (el plan Plus) completamente gratis durante una semana entera. Sin cobros durante la prueba. Cancela en cualquier momento antes de que terminen los 7 días y nunca te cobraremos nada.
+Ahora puedes personalizar cómo te responde Brainrot Bot.
 
-Fecha de renovación en tu pantalla de plan. Los suscriptores activos ahora ven exactamente cuándo es su próxima fecha de facturación, directamente en la vista de suscripción.
+Nuevos controles te dejan elegir si responde con emojis y si mete memes y GIFs en sus respuestas. El chat también recibió una buena limpieza: las respuestas llegan más fluidas, las conversaciones largas se desplazan sin tirones y desaparecieron varios bugs visuales.
 
-Mejoras de rendimiento y estabilidad.
+Y Brainrot Bot subió de nivel por dentro. Es más listo, elige mejores GIFs y tiene más brainrot que nunca.
 
 ## Promotional Text (Texto promocional)
 
-Todas las IAs suenan igual. Brainrot Bot no — hace roasts, habla en memes y convierte tus respuestas, captions e ideas en algo que de verdad impacta.
+Toda IA suena igual. El Brainrot Bot no. Responde con humor, contesta con memes y GIFs, y convierte tus ideas a medio escribir en captions y respuestas ingeniosas que funcionan.
 
 ## Description (Descripción)
 
-Meme Chat AI es tu compañero de IA nativo de internet para chatear, generar ideas, reescribir, explicar, hacer roasts y crear, todo con el encanto caótico de Brainrot Bot. En lugar de hablar con un asistente aburrido, tienes un compañero de IA divertido que te ayuda a decir las cosas mejor, entenderlas más rápido y hacer que las conversaciones cotidianas sean mucho más entretenidas.
+Brainrot Bot es un chatbot de IA con personalidad de verdad. Escribe como la persona más graciosa de tu grupo: la que te hace un roast, manda el GIF perfecto y encima da buenos consejos.
 
-¿Necesitas una respuesta mejor? ¿Un caption que de verdad funcione? ¿Una explicación rápida que no suene a libro de texto? ¿Un roast divertido de una idea a medio cocinar? Brainrot Bot está hecho para eso.
+¿Atascado con una respuesta? ¿Necesitas un caption que funcione, una respuesta ingeniosa, o una explicación que no parezca un libro de texto? ¿Quieres que alguien destroce tu idea a medio formar antes de publicarla? Para eso está Brainrot Bot.
 
 LO QUE PUEDES HACER
 
-• Chatea con Brainrot Bot
-Habla con una persona de IA divertida y fluida en memes que te ayuda con respuestas, captions, ideas, explicaciones, planes y más.
+• Chatear con una IA que habla en memes
+El Brainrot Bot ayuda con respuestas, captions, ocurrencias, ideas, explicaciones y planes, con una voz que suena a internet y no a un call center.
 
-• Controla el caos
-Usa el dial de Rot Level para elegir qué tan normales, ridículas o completamente desquiciadas se sienten las respuestas de la IA.
+• Ajustar el Rot Level
+Un solo dial controla el caos. Ponlo de asistente normal a completamente desquiciado y el Brainrot Bot va a ese ritmo.
 
-• Añade memes y GIFs
-Busca memes y GIFs en tendencia, adjúntalos en el chat y haz tus conversaciones más expresivas.
+• Recibir respuestas con memes y GIFs incluidos
+El Brainrot Bot mete memes y GIFs directamente en sus respuestas. También puedes buscar los que están en tendencia y adjuntar los tuyos.
 
-• Envía fotos
-Adjunta fotos de tu cámara o galería y recibe respuestas de IA según lo que compartas.
+• Enviar fotos
+Adjunta fotos de tu cámara o galería y recibe reacciones, captions o respuestas según lo que compartes.
 
-• Guarda tus favoritos
-Descarga memes y GIFs con marca de agua en la galería de tu dispositivo.
+• Activar la memoria
+El Brainrot Bot recuerda tu vibra, tu gente y los temas que siempre sacas, para que los chats continúen donde los dejaste en vez de empezar desde cero. Es una función de pago y la controlas desde Ajustes.
 
-• Mantén tus chats organizados
-El historial de conversaciones guardado incluye títulos generados automáticamente, resúmenes, búsqueda, secciones por tiempo y eliminación masiva.
+• Guardar tus favoritos
+Descarga memes y GIFs con marca de agua directamente en tu galería.
 
-• Personaliza tu vibe
-Los planes de pago desbloquean fondos de chat, temas de mensajes y opciones de apariencia adicionales.
+• Mantener tus chats organizados
+Los chats guardados tienen títulos y resúmenes generados automáticamente, más búsqueda, secciones por tiempo y eliminación masiva.
 
-• Úsala en tu idioma
-Meme Chat AI admite 9 idiomas: inglés, español, francés, portugués, alemán, chino, japonés, hindi y ruso.
+• Personalizarlo a tu gusto
+Los planes de pago desbloquean fondos de chat, temas de mensajes y opciones de apariencia extra.
+
+• Úsalo en tu idioma
+Disponible en 9 idiomas: inglés, español, francés, portugués, alemán, chino, japonés, hindi y ruso.
 
 IDEAL PARA
 
-• Escribir respuestas de texto más divertidas
-• Generar ideas para captions y publicaciones en redes
-• Explicar cosas confusas rápidamente
-• Hacer roasts útiles de ideas
-• Planear mensajes, chistes, bios y respuestas ingeniosas
-• Hacer que los chats se sientan menos sosos
-• Añadir memes y GIFs a tus conversaciones con IA
+• Responder cuando no sabes qué decir
+• Captions para Instagram y TikTok que no se hundan
+• Respuestas ingeniosas y roasts
+• Explicar cosas confusas rápido
+• Bios, chistes y borradores de mensajes
+• Munición para el grupo de WhatsApp
+• Hacer las conversaciones con IA entretenidas de verdad
 
-HECHA PARA DIVERTIR, NO PARA SER UNA IA ABURRIDA
+EL MISMO BOT, GRATIS O DE PAGO
 
-Meme Chat AI te da una personalidad consistente en todos los planes: Brainrot Bot. Los usuarios gratuitos y de pago obtienen el mismo personaje de IA principal, y los planes de pago ofrecen más uso, sin anuncios y personalización adicional.
+Tienes el Brainrot Bot completo en todos los planes. Los de pago solo le dan más margen: memoria, mucho más uso, sin anuncios y personalización extra.
 
 PRIVACIDAD Y CONTROL
 
-Meme Chat AI incluye eliminación de cuenta y eliminación de conversaciones dentro de la app. La app está diseñada para usuarios de 16 años en adelante.
+Elimina tu cuenta y tus conversaciones desde la propia app, y desactiva o borra la memoria del Brainrot Bot cuando quieras. La app está diseñada para usuarios de 16 años en adelante.
 
-Descarga Meme Chat AI y deja que Brainrot Bot convierta tu brainrot en algo útil, divertido y compartible.
+Descarga Meme Chat AI y pon tu brainrot a trabajar.
 
 Términos de uso: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Política de privacidad: https://meme-chat-ai.com/privacy

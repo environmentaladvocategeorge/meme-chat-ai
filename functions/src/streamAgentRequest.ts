@@ -24,6 +24,15 @@ export const streamAgentRequestSchema = z
     // Folded into the per-user system message so the model knows which language
     // to default to. Optional — omitted turns just skip the language hint.
     language: z.string().trim().min(2).max(10).optional(),
+    // Two local-only answering preferences the client toggles on device (NOT
+    // synced to the cloud as profile settings, NOT stored in memory). Both
+    // default to true so older clients that omit them keep today's behavior:
+    //   respondWithEmojis=false → strip emoji guidance from the prompt + add an
+    //     explicit "no emojis" directive (see rotLevel.ts rotLevelBlock).
+    //   respondWithMedia=false  → skip the nano media decider entirely, so the
+    //     turn never attaches a reaction GIF/meme.
+    respondWithEmojis: z.boolean().optional().default(true),
+    respondWithMedia: z.boolean().optional().default(true),
   })
   .refine(
     (body) =>

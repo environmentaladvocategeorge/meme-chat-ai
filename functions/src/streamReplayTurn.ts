@@ -6,6 +6,7 @@ import { onRequest } from "firebase-functions/v2/https";
 import { randomReplaySampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import { MemoryService } from "./agent/memory";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
@@ -44,6 +45,9 @@ import { streamReplayRequestSchema } from "./streamReplayRequest";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+
+// One reusable, stateless memory-service instance per function instance.
+const memoryService = new MemoryService();
 
 type SseResponse = {
   write: (chunk: string) => unknown;
@@ -173,6 +177,10 @@ export const streamReplayTurn = onRequest(
     // match the request schema's default for turns stored before the dial.
     const personaId = targets.agent.personaId;
     const levelOfRot = userTurn.levelOfRot ?? 2;
+    // Rebuild the original turn's local answering prefs. Absent = on (the
+    // default), since the user turn only stores the OFF state.
+    const respondWithEmojis = userTurn.respondWithEmojis ?? true;
+    const respondWithMedia = userTurn.respondWithMedia ?? true;
 
     if (images.length > 0) {
       logger.info("[streamReplayTurn] replaying image turn", {
@@ -260,10 +268,15 @@ export const streamReplayTurn = onRequest(
     // is only fetched/decoded once per replay.
     let deciderGifFrames: ExtractedGifFrames | undefined;
     const klipyApiKey = KLIPY_APP_KEY.value();
-    const mediaEnabled = klipyApiKey.length > 0;
+    // Honor the replayed turn's "Respond with media" pref: off skips the decider.
+    const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
-      const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
+      const promptResult = await buildSystemPromptForStream(
+        personaId,
+        levelOfRot,
+        respondWithEmojis,
+      );
       resolvedPersona = promptResult.persona;
       const systemPrompt = promptResult.systemPrompt;
 
@@ -287,9 +300,15 @@ export const streamReplayTurn = onRequest(
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
-          systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          systemPrompt: deciderSystemPrompt,
+          // Taste-only memory so the regenerated reaction can be more personal,
+          // matching the normal turn path.
+          memoryBlock: (
+            await memoryService.getMemoryViews(uid, entitlement.plan)
+          ).media,
           history,
           currentMessage: currentForDecider,
           recentReactions,

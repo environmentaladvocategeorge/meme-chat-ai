@@ -146,6 +146,14 @@ export async function appendMessage(
     // Brainrot intensity selected for this turn (1–3). Stored as-is on the
     // message; nothing downstream consumes it yet.
     levelOfRot?: number;
+    // The turn's local-only answering prefs (Respond with emojis / with media).
+    // Denormalized onto the user message so turn replay can reconstruct the same
+    // prefs server-side, exactly like levelOfRot. Stored as their own boolean
+    // fields (NOT folded into `text`) so the memory extractor — which only reads
+    // message text — never picks them up. Only written when explicitly false, so
+    // the common "both on" turn stays byte-identical to the pre-toggle format.
+    respondWithEmojis?: boolean;
+    respondWithMedia?: boolean;
     // The conversation owner's current plan, denormalized onto the conversation
     // doc so the background summarizer (which only sees the conversation, not
     // the user) can size the verbatim window to the plan's token budget. Stamped
@@ -181,6 +189,15 @@ export async function appendMessage(
 
   if (typeof message.levelOfRot === "number") {
     messageData.levelOfRot = message.levelOfRot;
+  }
+
+  // Persist only the OFF state — both default to true everywhere, so writing the
+  // field only when it's false keeps "both on" turns identical to before.
+  if (message.respondWithEmojis === false) {
+    messageData.respondWithEmojis = false;
+  }
+  if (message.respondWithMedia === false) {
+    messageData.respondWithMedia = false;
   }
 
   if (message.persona) {
@@ -304,6 +321,10 @@ export type ReplayMessageRecord = {
   images?: MessageImage[];
   gifs?: MessageGif[];
   levelOfRot?: number;
+  // The turn's local-only answering prefs, read back for replay. Absent fields
+  // mean "on" (the default), since appendMessage only persists the OFF state.
+  respondWithEmojis?: boolean;
+  respondWithMedia?: boolean;
   // Persona the agent reply was generated with (agent records only). Replay
   // reuses it so the same character answers again.
   personaId?: string;
@@ -329,6 +350,8 @@ function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null 
     clientMessageId?: string;
     inReplyToClientMessageId?: string;
     levelOfRot?: number;
+    respondWithEmojis?: boolean;
+    respondWithMedia?: boolean;
     personaId?: string;
   };
   if (data.role !== "user" && data.role !== "agent") return null;
@@ -352,6 +375,12 @@ function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null 
   }
   if (typeof data.levelOfRot === "number") {
     record.levelOfRot = data.levelOfRot;
+  }
+  if (typeof data.respondWithEmojis === "boolean") {
+    record.respondWithEmojis = data.respondWithEmojis;
+  }
+  if (typeof data.respondWithMedia === "boolean") {
+    record.respondWithMedia = data.respondWithMedia;
   }
   if (typeof data.personaId === "string") {
     record.personaId = data.personaId;

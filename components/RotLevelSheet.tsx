@@ -20,11 +20,13 @@ import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
-  BottomSheetView,
+  BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
+import { Smiley, Sticker } from "phosphor-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Text, View } from "react-native";
+import { Switch, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -49,6 +51,21 @@ const PREVIEW_HEIGHT = 220;
 
 function clampLevel(level: number): number {
   return Math.min(Math.max(Math.round(level), 1), LEVEL_COUNT);
+}
+
+// Strips emoji (pictographs, dingbats, flags, ZWJ/variation selectors) from a
+// string and tidies the whitespace they leave behind. Used to make the live
+// preview honor "Respond with emojis: off" so the vibe sample matches what the
+// user will actually get. Explicit codepoint ranges (not \p{...}) so it behaves
+// the same across JS engines (Hermes included).
+function stripEmojis(text: string): string {
+  return text
+    .replace(
+      /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{FE00}-\u{FE0F}\u{1F1E6}-\u{1F1FF}\u{200D}]/gu,
+      "",
+    )
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 // Tone tile. Built on AppPressable: inside the sheet it resolves to the
@@ -114,18 +131,78 @@ function ToneCard({
   );
 }
 
+// A single answering-preference row (icon + label + switch). Local-only prefs
+// that ride alongside the rot dial: emojis and reaction GIFs/memes.
+function ToggleRow({
+  icon,
+  label,
+  value,
+  onValueChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: boolean;
+  onValueChange: (next: boolean) => void;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+        backgroundColor: theme["--color-card"],
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+      }}
+    >
+      {icon}
+      <Typography
+        variant="body"
+        weight="semibold"
+        style={{ flex: 1, color: theme["--color-foreground"] }}
+      >
+        {label}
+      </Typography>
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        accessibilityLabel={label}
+        trackColor={{
+          false: theme["--color-background-muted"],
+          true: theme["--color-primary-subtle"],
+        }}
+        thumbColor={
+          value ? theme["--color-primary"] : theme["--color-foreground-muted"]
+        }
+      />
+    </View>
+  );
+}
+
 export function RotLevelSheet() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion();
 
   const isOpen = useRotLevelSheetStore((s) => s.isOpen);
   const close = useRotLevelSheetStore((s) => s.close);
   const level = useChatStore((s) => s.rotLevel);
   const setRotLevel = useChatStore((s) => s.setRotLevel);
+  // Local-only answering prefs, persisted on device and sent per turn.
+  const respondWithEmojis = useChatStore((s) => s.respondWithEmojis);
+  const respondWithMedia = useChatStore((s) => s.respondWithMedia);
+  const setRespondWithEmojis = useChatStore((s) => s.setRespondWithEmojis);
+  const setRespondWithMedia = useChatStore((s) => s.setRespondWithMedia);
 
   const sheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["52%"], []);
+  // Scroll content sizes itself; the snap point is just the resting height. Tall
+  // enough to seat the dial, both answering toggles, and the preview at once.
+  const snapPoints = useMemo(() => ["74%"], []);
 
   useEffect(() => {
     if (isOpen) sheetRef.current?.present();
@@ -155,7 +232,12 @@ export function RotLevelSheet() {
   );
 
   const active = ROT_LEVELS[selected - 1] ?? ROT_LEVELS[1];
-  const levelReply = t(`chat.rot.levels.level${selected}.reply`);
+  const rawLevelReply = t(`chat.rot.levels.level${selected}.reply`);
+  // Mirror the emoji toggle in the live preview: with emojis off, the sample
+  // reply shows no emojis either, so the vibe matches the real output.
+  const levelReply = respondWithEmojis
+    ? rawLevelReply
+    : stripEmojis(rawLevelReply);
 
   return (
     <BottomSheetModal
@@ -170,18 +252,24 @@ export function RotLevelSheet() {
         backgroundColor: theme["--color-foreground-muted"],
       }}
     >
-      <BottomSheetView style={{ flex: 1, width: "100%", alignItems: "center" }}>
+      <BottomSheetScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          // The sheet itself is full-width; on wide screens (iPad) constrain and
+          // center the content to the same column as the rest of the app,
+          // matching the PlanSheet. Scroll keeps the dial + preview + toggles
+          // reachable on short devices where they'd otherwise overflow the snap.
+          width: "100%",
+          maxWidth: MAX_CONTENT_WIDTH,
+          alignSelf: "center",
+          paddingHorizontal: 20,
+          paddingBottom: insets.bottom + 24,
+        }}
+      >
        <SheetTouchableProvider>
-        {/* The sheet itself is full-width; on wide screens (iPad) constrain and
-            center the content to the same column as the rest of the app,
-            matching the PlanSheet. */}
         <View
           style={{
-            flex: 1,
             width: "100%",
-            maxWidth: MAX_CONTENT_WIDTH,
-            paddingHorizontal: 20,
-            paddingBottom: 24,
           }}
         >
           {/* Header */}
@@ -218,6 +306,30 @@ export function RotLevelSheet() {
                 />
               );
             })}
+          </View>
+
+          {/* Answering toggles — local-only prefs that ride with the dial. */}
+          <View style={{ marginTop: 16, gap: 8 }}>
+            <ToggleRow
+              icon={
+                <Smiley size={20} weight="bold" color={theme["--color-foreground"]} />
+              }
+              label={t("settings.answering.emojisLabel")}
+              value={respondWithEmojis}
+              onValueChange={setRespondWithEmojis}
+            />
+            <ToggleRow
+              icon={
+                <Sticker
+                  size={20}
+                  weight="bold"
+                  color={theme["--color-foreground"]}
+                />
+              }
+              label={t("settings.answering.mediaLabel")}
+              value={respondWithMedia}
+              onValueChange={setRespondWithMedia}
+            />
           </View>
 
           {/* Preview — subtle chat-surface container */}
@@ -321,7 +433,7 @@ export function RotLevelSheet() {
           </View>
         </View>
        </SheetTouchableProvider>
-      </BottomSheetView>
+      </BottomSheetScrollView>
     </BottomSheetModal>
   );
 }

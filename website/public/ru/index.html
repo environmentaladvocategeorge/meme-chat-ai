@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Marks JS as available so scroll-reveal only hides content when it can
+         later un-hide it (no-JS visitors see every section immediately). -->
+    <script>
+      document.documentElement.classList.add("js");
+    </script>
+    <title>Meme Chat AI | Весёлый ИИ-чат для ответов, которые попадают в точку</title>
+    <meta name="description" content="Meme Chat AI — весёлое ИИ-приложение для чата: оживляет сухие сообщения, быстро объясняет непонятное, с пользой разносит сырые идеи и превращает кашу в голове в ответы, подписи и планы." />
+    <meta name="keywords" content="ИИ-чат мемы, весёлый ИИ-ассистент, ИИ переписывает текст, приложение ИИ-чат, мем-чатбот, ИИ-чат iPhone" />
+    <link rel="canonical" href="https://meme-chat-ai.com/ru" />
+    <link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
+    <link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
+    <link rel="alternate" hreflang="pt" href="https://meme-chat-ai.com/pt" />
+    <link rel="alternate" hreflang="fr" href="https://meme-chat-ai.com/fr" />
+    <link rel="alternate" hreflang="de" href="https://meme-chat-ai.com/de" />
+    <link rel="alternate" hreflang="ru" href="https://meme-chat-ai.com/ru" />
+    <link rel="alternate" hreflang="ja" href="https://meme-chat-ai.com/ja" />
+    <link rel="alternate" hreflang="zh" href="https://meme-chat-ai.com/zh" />
+    <link rel="alternate" hreflang="hi" href="https://meme-chat-ai.com/hi" />
+    <link rel="alternate" hreflang="x-default" href="https://meme-chat-ai.com/" />
+    <link rel="icon" href="/assets/images/app-icon.png?v=2" />
+    <meta name="theme-color" content="#0F7B85" />
+    <meta property="og:title" content="Meme Chat AI" />
+    <meta property="og:description" content="Весёлое ИИ-приложение для чата: оживляет сухие сообщения, объясняет непонятное, с пользой разносит идеи и превращает кашу в голове в ответы, подписи и планы." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://meme-chat-ai.com/ru" />
+    <meta property="og:image" content="https://meme-chat-ai.com/assets/images/app-icon.png?v=2" />
+    <meta property="og:locale" content="ru" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="/styles.css" />
+    <style>
+      /* "Send a meme" callout — white KLIPY mark sits on a teal panel. */
+      .meme-card {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 28px;
+        border-radius: calc(var(--radius-card) * 2.5);
+        padding: clamp(28px, 5vw, 48px);
+        background: linear-gradient(135deg, #0f7b85 0%, #34abb5 55%, #58c2ca 100%);
+        box-shadow: 0 22px 50px rgba(15, 123, 133, 0.32);
+        color: #ffffff;
+      }
+      .meme-card-copy {
+        max-width: 540px;
+      }
+      .meme-card .eyebrow {
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .meme-card h2 {
+        color: #ffffff;
+        margin: 6px 0 10px;
+      }
+      .meme-card p {
+        color: rgba(255, 255, 255, 0.92);
+        margin: 0;
+      }
+      .meme-card-emojis {
+        font-size: 30px;
+        margin-top: 16px;
+        letter-spacing: 6px;
+      }
+      .klipy-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 26px;
+        border-radius: calc(var(--radius-card) * 2);
+        background: rgba(14, 17, 19, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+      }
+      .klipy-badge img {
+        display: block;
+        height: 34px;
+        width: auto;
+      }
+    </style>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Meme Chat AI",
+        "description": "A funny AI chat app that fixes dry texts, explains confusing stuff fast, roasts ideas usefully, and turns brain soup into replies, captions, and plans.",
+        "applicationCategory": "LifestyleApplication",
+        "operatingSystem": "iOS",
+        "url": "https://meme-chat-ai.com/",
+        "image": "https://meme-chat-ai.com/assets/images/app-icon.png?v=2",
+        "installUrl": "https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629",
+        "downloadUrl": "https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "Jorge Jimenez"
+        }
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is Meme Chat AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Meme Chat AI is a funny AI chat app for writing replies that do not sound like an NPC, getting quick explanations, brainstorming captions, and making half-baked ideas actually useful."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is the iOS app available?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Meme Chat AI is live on the App Store. Download it on iPhone and start chatting with Brainrot Bot for free."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What are meme-power plans?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Hatchling (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/ru" aria-label="Meme Chat AI home">
+        <img src="/assets/images/app-icon.png?v=2" alt="" />
+        <span>Meme Chat AI</span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="#how">Как это работает</a>
+        <a href="#memory">Память</a>
+        <a href="#plans">Тарифы</a>
+        <a href="/ru/ios">iOS</a>
+        <a href="/ru/support">Поддержка</a>
+      </nav>
+      <details class="lang-switch">
+        <summary aria-label="Язык">🌐 Русский</summary>
+        <div class="lang-menu">
+        <a href="/" data-lang="en">English</a>
+        <a href="/es" data-lang="es">Español</a>
+        <a href="/pt" data-lang="pt">Português</a>
+        <a href="/fr" data-lang="fr">Français</a>
+        <a href="/de" data-lang="de">Deutsch</a>
+        <a href="/ru" data-lang="ru" aria-current="true">Русский</a>
+        <a href="/ja" data-lang="ja">日本語</a>
+        <a href="/zh" data-lang="zh">中文</a>
+        <a href="/hi" data-lang="hi">हिन्दी</a>
+        </div>
+      </details>
+    </header>
+
+    <main>
+      <section class="hero section">
+        <div class="hero-copy">
+          <p class="eyebrow">ИИ-чат с энергией дружеской беседы</p>
+          <h1>Скажи как есть, не звуча как NPC.</h1>
+          <p class="lead">Brainrot Bot оживляет сухие сообщения, объясняет непонятное без учебникового тумана, с пользой разносит сырые идеи и превращает кашу в голове в ответы, подписи, планы и настоящий lore.</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629">Скачать в App Store</a>
+            <a class="button button-secondary" href="#demo">Посмотреть lore чата</a>
+          </div>
+          <ul class="quick-tags" aria-label="Popular uses">
+            <li>Спасение NPC-ответов</li>
+            <li>Полезные роасты</li>
+            <li>Реанимация подписей</li>
+            <li>Идеи для сайд-квестов</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual" id="demo" aria-label="Example Meme Chat AI conversation">
+          <div class="phone-shell">
+            <div class="phone-top">
+              <div class="phone-brand">
+                <img src="/assets/images/app-icon.png?v=2" alt="" />
+                <span>Brainrot Bot</span>
+              </div>
+              <span class="status-pill">meme-power: 82%</span>
+            </div>
+            <div class="chat-stack">
+              <div class="bubble user">сделай это менее NPC</div>
+              <div class="bubble agent">
+                <img src="/assets/images/app-icon.png?v=2" alt="" />
+                <p>«я за» — норм. «я в деле, кидай план, пока ко мне не вернулся здравый смысл» — вот тут есть пульс.</p>
+              </div>
+              <div class="bubble user">объясни это так, будто я залип в думскролле</div>
+              <div class="bubble agent compact">
+                <img src="/assets/images/meme-loading.png?v=2" alt="" />
+                <p>ты не обречён. плану нужен всего один чёткий следующий шаг. lore под контролем.</p>
+              </div>
+            </div>
+          </div>
+          <img
+            class="hero-avatar"
+            src="/assets/images/meme-level-up.png?v=2"
+            alt="Brainrot Bot avatar wearing sunglasses"
+          />
+        </div>
+      </section>
+
+      <section class="status-strip reveal" aria-label="Launch status">
+        <span>Сделано для iPhone</span>
+        <span>Уже в App Store</span>
+        <span>Память в платных тарифах</span>
+      </section>
+
+      <section class="section split-section reveal" id="how">
+        <div>
+          <p class="eyebrow">Что это</p>
+          <h2>Для каши в голове, которой нужна упаковка получше.</h2>
+          <p>Meme Chat AI — это то, что открываешь, когда сообщение сухое, идея сырая, а мозг ушёл на сайд-квесты. Помогает подобрать более чёткие слова, не теряя индивидуальности, без энергии корпоративного дашборда.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Переписывает ответы</h3>
+            <p>Превращает сухие сообщения в тексты с пульсом, а не в нечто, собранное в таблице.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Разносит, потом чинит</h3>
+            <p>Получай честный фидбэк по идеям без эмоционального удара с ноги.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Объясняет быстро</h3>
+            <p>Когда нужен ответ, а не учебник, делающий паркур в 2 часа ночи.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Находит угол</h3>
+            <p>Подписи, промпты, планы и итоги дня, которые больше не борются за выживание.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section prompt-section reveal">
+        <div class="prompt-copy">
+          <p class="eyebrow">Промпты для старта</p>
+          <h2>Открой чат, выбери вайб, двигайся дальше.</h2>
+        </div>
+        <div class="prompt-list" aria-label="Example prompts">
+          <span>сделай это менее NPC</span>
+          <span>я всё или это ещё можно спасти?</span>
+          <span>дай lore в 5 строк</span>
+          <span>разнеси эту идею, а потом спаси её</span>
+          <span>преврати мою кашу в голове в сообщение</span>
+          <span>помоги мне сосредоточиться на 30 минут</span>
+        </div>
+      </section>
+
+      <section class="section rot-section reveal">
+        <div class="section-heading">
+          <p class="eyebrow">Rot Level</p>
+          <h2>Прибавь или убавь brainrot.</h2>
+          <p>Rot Level задаёт, насколько безбашенным становится Brainrot Bot — от слегка приправленного до полного Goblin Mode. Полезный ответ остаётся под низом; ты просто выбираешь энергию. Переключай в любой момент, прямо в чате.</p>
+        </div>
+        <div class="rot-grid">
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">🤓</span>
+            <h3>Lightly Cooked</h3>
+            <p>В основном по делу, слегка с мемами. Всё равно не читается как стандартный корпоративный ассистент.</p>
+            <span class="rot-tag">в основном по делу</span>
+          </article>
+          <article class="rot-card rot-card-featured">
+            <span class="rot-pill">По умолчанию</span>
+            <span class="rot-emoji" aria-hidden="true">😤</span>
+            <h3>Rotted</h3>
+            <p>Полная энергия Brainrot Bot: шутки и сленг всю дорогу, но к цели всё равно приводит.</p>
+            <span class="rot-tag">шутки + сленг</span>
+          </article>
+          <article class="rot-card">
+            <span class="rot-emoji" aria-hidden="true">💀</span>
+            <h3>Goblin Mode</h3>
+            <p>Максимальный brainrot. Проклятые метафоры и драматичные перегибы — всё ещё полезно, просто дико.</p>
+            <span class="rot-tag">проклято + дико</span>
+          </article>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="meme-card">
+          <div class="meme-card-copy">
+            <p class="eyebrow">Мемы по запросу</p>
+            <h2>Когда слов не хватает — отправь мем.</h2>
+            <p>Прямо в чате открой ленту трендовых мемов или найди нужную реакцию и кинь её прямо в разговор. Некоторые моменты заслуживают лица, а не абзаца.</p>
+            <p class="meme-card-emojis" aria-hidden="true">😎 🔥 💀 ✨</p>
+          </div>
+          <a
+            class="klipy-badge"
+            href="https://klipy.com"
+            target="_blank"
+            rel="noopener"
+            aria-label="Meme media powered by KLIPY"
+          >
+            <img src="/assets/images/powered-by-klipy-white.png" alt="Powered by KLIPY" />
+          </a>
+        </div>
+      </section>
+
+      <section class="section split-section reveal" id="memory">
+        <div>
+          <p class="eyebrow">Память</p>
+          <h2>Brainrot Bot, который реально тебя знает.</h2>
+          <p>В платных тарифах Brainrot Bot улавливает твой вайб, людей, которых ты упоминаешь, и темы, к которым ты возвращаешься. Следующий чат продолжает с того места, где закончился прошлый. Без повторных объяснений, без старта с нуля.</p>
+          <p>Контроль остаётся за тобой. Выключи память или сотри её в Настройках в любой момент, без лишних вопросов.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Улавливает контекст</h3>
+            <p>Запоминает твой вайб, твоих людей и темы, к которым ты возвращаешься, и пропускает повторное знакомство каждую сессию.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Живёт в твоём аккаунте</h3>
+            <p>Привязана к аккаунту, а не к устройству. Та же память при каждом входе.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Ты главный</h3>
+            <p>Выключи или сотри в Настройках. Останавливается сразу, без ожидания.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Только платные тарифы</h3>
+            <p>Доступна в Sidekick, Wingman и MVP. В бесплатном тарифе есть весь бот, только без памяти.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section plans-section reveal" id="plans">
+        <div class="section-heading">
+          <p class="eyebrow">Meme-power</p>
+          <h2>Тарифы под то, как активно ты общаешься.</h2>
+          <p>Один и тот же умный Brainrot Bot во всех тарифах. Уровни задают месячный лимит, помнит ли тебя Brainrot Bot и можешь ли ты менять стиль чата. Wingman — народный выбор; MVP — самый мощный.</p>
+        </div>
+        <div class="plan-grid">
+          <article class="plan-card">
+            <span class="plan-kicker">Бесплатно</span>
+            <h3>Hatchling</h3>
+            <p>Полный бот, стартовый хаос.</p>
+            <strong>1x чатов</strong>
+          </article>
+          <article class="plan-card">
+            <span class="plan-kicker">Базовый</span>
+            <h3>Sidekick</h3>
+            <p>Больше чатов, меньше долгов по ауре.</p>
+            <strong>9x чатов &middot; Память &middot; Темы приложения &middot; Без рекламы</strong>
+          </article>
+          <article class="plan-card">
+            <span class="plan-kicker">Популярный</span>
+            <h3>Wingman</h3>
+            <p>Куча чатов, память, импульс.</p>
+            <strong>25x чатов &middot; Память &middot; Темы приложения &middot; Без рекламы</strong>
+          </article>
+          <article class="plan-card recommended">
+            <span class="plan-kicker">Лучший</span>
+            <h3>MVP</h3>
+            <p>Для дней с тяжёлой перепиской и профессионального яппинга.</p>
+            <strong>50x чатов &middot; Память &middot; Темы приложения &middot; Без рекламы</strong>
+          </article>
+        </div>
+      </section>
+
+      <section class="section ios-callout reveal">
+        <img src="/assets/images/meme-level-up.png?v=2" alt="Brainrot Bot avatar celebrating" />
+        <div>
+          <p class="eyebrow">iOS — уже доступно</p>
+          <h2>Meme Chat AI уже в App Store.</h2>
+          <p>Скачай на iPhone, открой чат и дай Brainrot Bot поработать над твоими сухими сообщениями, сырыми идеями и кашей в голове. Бесплатно для старта, с тарифами meme-power, когда захочется большего.</p>
+          <a class="button button-primary" href="https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629">Скачать в App Store</a>
+        </div>
+      </section>
+
+      <section class="section faq-section reveal">
+        <div class="section-heading">
+          <p class="eyebrow">FAQ</p>
+          <h2>Вопросы — без стены lore.</h2>
+        </div>
+        <div class="faq-grid">
+          <details>
+            <summary>Это для бизнес-чат-агентов?</summary>
+            <p>Пока нет. Meme Chat AI — это персональное ИИ-приложение для чата: юмор, помощь с текстами, объяснения и доведение твоих идей до ума.</p>
+          </details>
+          <details>
+            <summary>Можно скачать сегодня?</summary>
+            <p>Да. Meme Chat AI уже в App Store. Скачай на iPhone и начинай общаться. Бесплатно для старта, с тарифами meme-power, когда захочется больше чатов и памяти.</p>
+          </details>
+          <details>
+            <summary>Сайт использует реальные ассеты приложения?</summary>
+            <p>Да. На главной используются иконка приложения, изображения аватара Brainrot Bot, Poppins, Fredoka и те же фирменные цвета, что и в приложении.</p>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand" href="/ru">
+        <img src="/assets/images/app-icon.png?v=2" alt="" />
+        <span>Meme Chat AI</span>
+      </a>
+      <div class="footer-links">
+        <a href="/privacy">Конфиденциальность</a>
+        <a href="/ru/support">Поддержка</a>
+        <a href="/ru/ios">iOS</a>
+      </div>
+      <span>&copy; Jorge Jimenez</span>
+    </footer>
+
+    <!-- Scroll-reveal: fade + rise each .reveal section in as it enters view.
+         Falls back to showing everything if IntersectionObserver is missing. -->
+    <script>
+      (function () {
+        var els = document.querySelectorAll(".reveal");
+        if (!("IntersectionObserver" in window) || !els.length) {
+          for (var i = 0; i < els.length; i++) els[i].classList.add("is-visible");
+          return;
+        }
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (entry) {
+              if (entry.isIntersecting) {
+                entry.target.classList.add("is-visible");
+                io.unobserve(entry.target);
+              }
+            });
+          },
+          { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
+        );
+        els.forEach(function (el) {
+          io.observe(el);
+        });
+      })();
+    </script>
+    <script>try{localStorage.setItem("mcai_lang","ru");}catch(e){}</script>
+    <script>
+      document.addEventListener("click", function (e) {
+        var a = e.target.closest && e.target.closest(".lang-menu a[data-lang]");
+        if (a) { try { localStorage.setItem("mcai_lang", a.getAttribute("data-lang")); } catch (err) {} }
+      });
+    </script>
+  </body>
+</html>

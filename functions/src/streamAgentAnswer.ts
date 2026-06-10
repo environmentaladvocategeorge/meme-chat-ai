@@ -4,7 +4,11 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
-import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import {
+  buildDeciderContext,
+  computeColdStartIndex,
+  decideMedia,
+} from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
@@ -17,8 +21,9 @@ import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
 import { chooseModel } from "./billing/router";
-import { assembleContext } from "./context/assemble";
 import { IMAGE_TOKENS_LOW } from "./context/tokens";
+import { Agent, type ReplyContext } from "./agent/Agent";
+import { MemoryService } from "./agent/memory";
 import {
   appendMessage,
   assertConversationOwner,
@@ -38,10 +43,7 @@ import {
   resolveImageInputs,
 } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
-import {
-  buildMediaDeciderPrompt,
-  buildSystemPromptForStream,
-} from "./personas/prompts";
+import { buildMediaDeciderPrompt } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 import { checkHateSpeech } from "./moderation/checkHateSpeech";
 import { logFlaggedContent } from "./moderation/logFlaggedContent";
@@ -50,6 +52,9 @@ const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
 // configured the tool is simply not offered and the agent replies text-only.
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+
+// One reusable, stateless memory-service instance per function instance.
+const memoryService = new MemoryService();
 
 type SseResponse = {
   write: (chunk: string) => unknown;
@@ -147,6 +152,10 @@ export const streamAgentAnswer = onRequest(
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
     const language = parsed.data.language;
+    // Local-only answering prefs (default true). emojis → prompt content;
+    // media → whether the nano decider runs at all.
+    const respondWithEmojis = parsed.data.respondWithEmojis;
+    const respondWithMedia = parsed.data.respondWithMedia;
 
     // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
     // Never log full asset URLs.
@@ -307,9 +316,7 @@ export const streamAgentAnswer = onRequest(
     // ---------- routing + media decision + context ----------
     let internalModel;
     let assembleResult;
-    let resolvedPersona:
-      | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
-      | null = null;
+    let resolvedPersona: ReplyContext["persona"] | null = null;
     // Nano media-decider usage (billed alongside the reply), and the reaction
     // GIF/meme it picked — fetched BEFORE the reply so the model knows what's
     // attached and the client can show it first (like texting a gif, then typing).
@@ -320,12 +327,17 @@ export const streamAgentAnswer = onRequest(
     // is only fetched/decoded once per turn.
     let deciderGifFrames: ExtractedGifFrames | undefined;
     const klipyApiKey = KLIPY_APP_KEY.value();
-    const mediaEnabled = klipyApiKey.length > 0;
+    // Media off (user toggle) skips the decider entirely — no nano call, no
+    // reaction GIF/meme, no attachedMedia note — so the reply is purely text.
+    const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
-      const promptResult = await buildSystemPromptForStream(personaId, levelOfRot);
-      resolvedPersona = promptResult.persona;
-      const systemPrompt = promptResult.systemPrompt;
+
+      // Read the user's memory ONCE for the whole turn and render both views:
+      // the taste-only `media` view nudges the decider toward more personal
+      // reactions; the full `reply` view is handed to the Agent below so it
+      // isn't read twice. Paid-gated + never throws — free users get empties.
+      const memViews = await memoryService.getMemoryViews(uid, entitlement.plan);
 
       // Cheap nano pre-step: decide whether this turn warrants a reaction
       // GIF/meme and pick the search term, then fetch it. The reply model gets a
@@ -343,21 +355,36 @@ export const streamAgentAnswer = onRequest(
             : gifs.length > 0
               ? "[user sent a GIF]"
               : "");
+        // On the very first turn of a conversation, when the user sends a bare
+        // greeting with no attachments, inject a random cold-start index so the
+        // decider picks a varied greeting reaction from its GREETING_ROW. Without
+        // this, the model defaults to the same query for every "hi" / "yo".
+        // The check is !== undefined — index 0 is a valid binding index.
+        const coldStartIndex = computeColdStartIndex({
+          isFirstTurn: priorMessages.length === 0,
+          hasImages: images.length > 0,
+          hasGifs: gifs.length > 0,
+          userText,
+        });
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
-          systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          systemPrompt: deciderSystemPrompt,
+          // Taste-only memory so nano can pick a more on-point reaction.
+          memoryBlock: memViews.media,
           history,
           currentMessage: currentForDecider,
           recentReactions,
           // Hand nano the actual pixels of the current turn's attachments so its
           // reaction matches what the user sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
+          coldStartIndex,
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -368,6 +395,7 @@ export const streamAgentAnswer = onRequest(
             query: decision.query,
             randomness_factor: decision.randomnessFactor,
           });
+          let klipyEmptyResult = false;
           try {
             if (decision.type === "gif") {
               const r = await runGetGif(rawArgs, klipyDeps);
@@ -377,6 +405,8 @@ export const streamAgentAnswer = onRequest(
                   kind: "gif",
                   description: r.title ?? decision.query,
                 };
+              } else {
+                klipyEmptyResult = true;
               }
             } else {
               const r = await runGetMeme(rawArgs, klipyDeps);
@@ -386,6 +416,8 @@ export const streamAgentAnswer = onRequest(
                   kind: "meme",
                   description: r.title ?? decision.query,
                 };
+              } else {
+                klipyEmptyResult = true;
               }
             }
           } catch (err) {
@@ -393,22 +425,46 @@ export const streamAgentAnswer = onRequest(
               "[streamAgentAnswer] media fetch failed; replying text-only",
               { conversationId, err },
             );
+            klipyEmptyResult = true;
+          }
+          if (klipyEmptyResult) {
+            logger.info("[streamAgentAnswer] klipy empty result", {
+              query: decision.query,
+              decisionType: decision.type,
+              coldStartIndex: coldStartIndex ?? null,
+              doNotRepeatCollision: recentReactions.includes(decision.query),
+            });
           }
         }
       }
 
-      assembleResult = await assembleContext({
-        conversationId,
+      // Persona + (paid-gated) long-term memory + conversation history, composed
+      // behind the Agent so this orchestrator carries no context-assembly or
+      // memory logic itself. Memory adds no model call and runs in parallel with
+      // persona resolution, so it doesn't affect turn latency.
+      const agent = new Agent({
+        uid,
         plan: entitlement.plan,
+        personaId,
+        levelOfRot,
+        respondWithEmojis,
+        memory: memoryService,
+      });
+      const replyContext = await agent.buildReplyContext({
+        conversationId,
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
         attachedMedia,
-        systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
+        // Already read above for the decider — hand the reply view to the Agent
+        // so it doesn't read the memory state a second time.
+        memoryBlock: memViews.reply,
       });
+      resolvedPersona = replyContext.persona;
+      assembleResult = replyContext.assembled;
     } catch (err) {
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });
@@ -512,6 +568,10 @@ export const streamAgentAnswer = onRequest(
         images: images.length > 0 ? images : undefined,
         gifs: gifs.length > 0 ? gifs : undefined,
         levelOfRot,
+        // Denormalized so turn replay can rebuild the same prefs (only the OFF
+        // state is actually written — see appendMessage).
+        respondWithEmojis,
+        respondWithMedia,
         // Denormalize the owner's plan onto the conversation so the background
         // summarizer can size its verbatim window to this plan's token budget.
         plan: entitlement.plan,

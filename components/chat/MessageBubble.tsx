@@ -12,10 +12,11 @@ import { stripMemeArtifacts } from "@/domain/agentText";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
+import { useChatStore } from "@/store/chat";
 import { LinearGradient } from "expo-linear-gradient";
 import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
 import { useColorScheme } from "nativewind";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Markdown, {
   type RenderRules,
@@ -32,6 +33,8 @@ import Animated, {
   Easing,
   FadeIn,
   FadeOut,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -42,6 +45,8 @@ import {
   formatMessageTimestamp,
   shouldRenderMarkdown,
 } from "./messageFormat";
+import { StreamingFadeText } from "./StreamingFadeText";
+import { useThinkingLabel } from "./ThinkingLabelContext";
 import { ThinkingText } from "./ThinkingText";
 import { type RenderMessage } from "./types";
 
@@ -53,11 +58,25 @@ const BUBBLE_TAIL_RADIUS = 6;
 const AVATAR_SIZE = 36;
 const AVATAR_GUTTER = 10;
 
-export function MessageBubble({
+// Renders the playful in-flight label. A separate component so only the ONE
+// thinking bubble subscribes to ThinkingLabelContext — if MessageBubble itself
+// consumed it, every bubble would re-render each turn when the label
+// reshuffles, defeating the memo.
+function StreamingThinkingText({
+  baseColor,
+  gradient,
+}: {
+  baseColor: string;
+  gradient: readonly string[];
+}) {
+  const label = useThinkingLabel();
+  return <ThinkingText label={label} baseColor={baseColor} gradient={gradient} />;
+}
+
+export const MessageBubble = memo(function MessageBubble({
   message,
   retryLabel,
   errorLabel,
-  thinkingLabel,
   onRetry,
   onRate,
   onEmoji,
@@ -67,7 +86,6 @@ export function MessageBubble({
   message: RenderMessage;
   retryLabel: string;
   errorLabel: string;
-  thinkingLabel: string;
   onRetry: () => void;
   onRate: (serverId: string, reaction: MessageReaction) => void;
   onEmoji: (serverId: string, emoji: string) => void;
@@ -85,7 +103,29 @@ export function MessageBubble({
   const mine = message.role === "user";
   const errored = message.status === "error";
   const isErrorCard = message.role === "agent" && errored;
-  const thinking = message.thinking === true;
+
+  // The in-flight reply subscribes to the live stream itself, so delta flushes
+  // re-render only this one bubble. For every other bubble the ternaries keep
+  // the selector output constant ("" / null), so zustand never re-renders them
+  // on a flush. Hooks run unconditionally — no rules-of-hooks issue.
+  const isStreamingBubble =
+    message.status === "streaming" && message.role === "agent";
+  const streamingText = useChatStore((s) =>
+    isStreamingBubble ? s.streamingText : "",
+  );
+  const streamingMeme = useChatStore((s) =>
+    isStreamingBubble ? s.streamingMeme : null,
+  );
+  const streamingGif = useChatStore((s) =>
+    isStreamingBubble ? s.streamingGif : null,
+  );
+  // Mirrors texting a friend: sending a GIF/meme doesn't stop your "typing…"
+  // indicator — you're still composing the message. The media lands (gif/meme
+  // event), the indicator stays up through the gap before the responder call
+  // streams, and it drops the moment the first tokens arrive (so it never
+  // shows alongside the text).
+  const thinking = isStreamingBubble && streamingText.length === 0;
+
   // The user's own bubble can be a custom gradient or a custom solid (paid
   // App Customization); agent/error bubbles are unaffected.
   const useGradient = mine && !errored && bubble.kind === "gradient";
@@ -95,19 +135,27 @@ export function MessageBubble({
 
   // Agent replies may carry meme markdown/attachment artifacts (stripped on the
   // backend now, but older stored messages and the live stream still need it).
-  const rawText =
-    errored && message.text.length === 0 ? errorLabel : message.text;
+  const liveText = isStreamingBubble ? streamingText : message.text;
+  const rawText = errored && liveText.length === 0 ? errorLabel : liveText;
   const messageText =
     message.role === "agent" ? stripMemeArtifacts(rawText) : rawText;
 
   // A user turn may carry staged/persisted Klipy memes. Render the images, and
   // only render the text bubble when there's actual text (or the streaming
   // "thinking" placeholder) — so an image-only turn shows just the image.
-  const messageImages = message.images ?? [];
+  const messageImages = isStreamingBubble
+    ? streamingMeme
+      ? [streamingMeme]
+      : []
+    : (message.images ?? []);
   const hasImages = messageImages.length > 0;
-  const messageGifs = message.gifs ?? [];
+  const messageGifs = isStreamingBubble
+    ? streamingGif
+      ? [streamingGif]
+      : []
+    : (message.gifs ?? []);
   const hasGifs = messageGifs.length > 0;
-  const hasTextBubble = message.thinking === true || messageText.length > 0;
+  const hasTextBubble = thinking || messageText.length > 0;
 
   // The copy/thumbs action row shows only on a finalized agent reply (one
   // that's persisted, so it has a serverId to rate) — never while streaming,
@@ -503,10 +551,17 @@ export function MessageBubble({
     });
   }, [useGradient, bubbleGradient, anchorWinY, anchorScroll, gradientReady]);
 
-  const measureTick = bubbleGradient?.measureTick;
-  useEffect(() => {
-    if (useGradient) remeasureGradient();
-  }, [useGradient, remeasureGradient, measureTick]);
+  // Re-measure on every tick of the shared measureTick — and once on mount
+  // (the reaction's first run has prev === null, so it always fires). The tick
+  // is a SharedValue, so bumping it re-renders nothing; only this reaction
+  // runs, and `measureInWindow` itself stays on the JS thread via runOnJS.
+  useAnimatedReaction(
+    () => bubbleGradient?.measureTick.value ?? 0,
+    (tick, prev) => {
+      if (useGradient && tick !== prev) runOnJS(remeasureGradient)();
+    },
+    [useGradient, remeasureGradient, bubbleGradient],
+  );
 
   const pageGradientStyle = useAnimatedStyle(() => {
     const screenY = bubbleGradient
@@ -765,8 +820,7 @@ export function MessageBubble({
                 </Animated.View>
               ) : null}
               {thinking ? (
-                <ThinkingText
-                  label={thinkingLabel}
+                <StreamingThinkingText
                   baseColor={theme["--color-foreground-muted"]}
                   gradient={primaryGradient.colors}
                 />
@@ -774,6 +828,17 @@ export function MessageBubble({
                 <Markdown rules={selectableMarkdownRules} style={markdownStyles}>
                   {messageText}
                 </Markdown>
+              ) : isStreamingBubble ? (
+                // In-flight reply: newly streamed runs of text ease in
+                // (ChatGPT-style) instead of popping. Markdown replies above
+                // keep the plain re-parse — chunk fades can't survive a
+                // markdown re-render. Settles back to the Typography branch
+                // when the finalized message replaces this bubble's content.
+                <StreamingFadeText
+                  text={messageText}
+                  color={messageColor}
+                  selectionColor={selectionColor}
+                />
               ) : (
                 <Typography
                   variant="body"
@@ -839,4 +904,4 @@ export function MessageBubble({
       ) : null}
     </Animated.View>
   );
-}
+});

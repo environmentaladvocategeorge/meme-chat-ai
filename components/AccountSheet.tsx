@@ -19,6 +19,7 @@ import {
   type AccountSheetView,
   useAccountSheetStore,
 } from "@/store/accountSheet";
+import { useAuthStore } from "@/store/auth";
 import {
   type BottomSheetBackdropProps,
   BottomSheetModal,
@@ -50,6 +51,20 @@ export function AccountSheet() {
     if (isOpen) sheetRef.current?.present();
     else sheetRef.current?.dismiss();
   }, [isOpen]);
+
+  // The sheet is mounted in the ROOT layout, above navigation — so it
+  // survives the auth redirect to the landing page. The hub's sign-out row
+  // does call close(), but that animated dismiss races the auth flip and the
+  // navigation churn it triggers, and can lose — leaving the sheet (and its
+  // backdrop) parked over the logged-out landing screen. Tying dismissal to
+  // the identity itself is deterministic and covers every sign-out path:
+  // the hub row, account deletion, and server-side token revocation.
+  const uid = useAuthStore((s) => s.uid);
+  useEffect(() => {
+    if (uid) return;
+    close();
+    sheetRef.current?.dismiss();
+  }, [uid, close]);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (

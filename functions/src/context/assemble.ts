@@ -43,6 +43,10 @@ export type AssembleArgs = {
   // resolved client-side — never the literal "system". Folded into the same
   // second system message as the alias so the model defaults to it.
   userLanguage?: string | null;
+  // Paid-gated, precompiled user memory block (guaranteed <=500 tokens). Injected
+  // as its own system message right after the cacheable persona prompt. Empty or
+  // omitted = no memory (free plan, or nothing learned yet).
+  memoryBlock?: string;
   summary?: string | null;
   recent: ChatMessage[]; // ordered oldest → newest, already filtered to status: complete
   currentText: string;
@@ -215,6 +219,13 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
     if (userContext) {
       out.push({ role: "system", content: userContext });
     }
+    // User memory (paid-gated, already capped at 500 tokens upstream). Sits after
+    // the big cacheable persona prompt so that prompt's prefix stays identical
+    // across users; this per-user block changes only when memory is refreshed.
+    const memoryBlock = args.memoryBlock?.trim();
+    if (memoryBlock) {
+      out.push({ role: "system", content: memoryBlock });
+    }
     if (summaryUsed) {
       out.push({
         role: "system",
@@ -328,6 +339,9 @@ export type AssembleContextArgs = {
   userAlias?: string | null;
   // Resolved app language (e.g. "en", "es") — never "system".
   userLanguage?: string | null;
+  // Paid-gated, precompiled user memory block (<=500 tokens). Passed straight
+  // through to the assembler; omitted on plans without memory.
+  memoryBlock?: string;
   // Message doc IDs to drop from the recent window before assembly. Used by
   // turn replay: the user turn being regenerated still lives in Firestore, but
   // it's passed in as `currentUserMessage` instead — so excluding it here keeps
@@ -391,6 +405,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     systemPrompt: args.systemPrompt,
     userAlias: args.userAlias,
     userLanguage: args.userLanguage,
+    memoryBlock: args.memoryBlock,
     summary,
     recent,
     currentText: args.currentUserMessage,

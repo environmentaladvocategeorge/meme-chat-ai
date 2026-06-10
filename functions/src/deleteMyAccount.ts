@@ -16,6 +16,7 @@ function logUserKey(uid: string): string {
 //
 //   - profiles/{uid} AND all its subcollections (reservations, …) via
 //     recursiveDelete — deleting just the doc would orphan the subcollections.
+//   - memories/{uid} AND its facts subcollection (the user's long-term memory).
 //   - conversations/{cid} owned by the user + each one's messages subcollection.
 //   - top-level usageEvents docs where uid == the user.
 //
@@ -36,6 +37,8 @@ export async function deleteUserData(uid: string, db: Firestore): Promise<void> 
   const pending: Promise<unknown>[] = [
     // Profile doc + every subcollection under it (reservations, …).
     db.recursiveDelete(db.doc(`profiles/${uid}`), writer),
+    // User memory: the state doc + its facts subcollection.
+    db.recursiveDelete(db.doc(`memories/${uid}`), writer),
   ];
 
   // Conversations the user owns, each with its messages subcollection.

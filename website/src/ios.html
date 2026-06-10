@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="{{__HTML_LANG__}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ios.meta.title}}</title>
+    <meta name="description" content="{{ios.meta.description}}" />
+    <link rel="canonical" href="{{__CANONICAL__}}" />
+{{__ALTERNATES__}}
+    <link rel="icon" href="/assets/images/app-icon.png?v=2" />
+    <meta name="theme-color" content="#0F7B85" />
+    <meta property="og:title" content="{{ios.meta.ogTitle}}" />
+    <meta property="og:description" content="{{ios.meta.ogDescription}}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{__CANONICAL__}}" />
+    <meta property="og:image" content="{{__ORIGIN__}}/assets/images/app-icon.png?v=2" />
+    <meta property="og:locale" content="{{__HTML_LANG__}}" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="{{__HOME__}}" aria-label="Meme Chat AI home">
+        <img src="/assets/images/app-icon.png?v=2" alt="" />
+        <span>Meme Chat AI</span>
+      </a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="{{__HOME__}}">{{nav.home}}</a>
+        <a href="{{__HOME__}}#plans">{{nav.plans}}</a>
+        <a href="{{__PREFIX__}}/support">{{nav.support}}</a>
+        <a href="/privacy">{{nav.privacy}}</a>
+      </nav>
+{{__SWITCHER__}}
+    </header>
+
+    <main class="section ios-page">
+      <section class="ios-panel">
+        <img src="/assets/images/app-icon.png?v=2" alt="Meme Chat AI app icon" />
+        <div>
+          <p class="eyebrow">{{ios.body.eyebrow}}</p>
+          <h1>{{ios.body.h1}}</h1>
+          <p class="lead">{{ios.body.lead}}</p>
+          <ul class="launch-list">
+            <li>{{ios.body.li1}}</li>
+            <li>{{ios.body.li2}}</li>
+            <li>{{ios.body.li3}}</li>
+          </ul>
+          <a class="button button-primary" href="https://apps.apple.com/us/app/meme-chat-ai-brainrot-bot/id6774211629">{{common.download}}</a>
+          <a class="button button-secondary" href="{{__HOME__}}">{{ios.body.back}}</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand" href="{{__HOME__}}">
+        <img src="/assets/images/app-icon.png?v=2" alt="" />
+        <span>Meme Chat AI</span>
+      </a>
+      <div class="footer-links">
+        <a href="/privacy">{{nav.privacy}}</a>
+        <a href="{{__PREFIX__}}/support">{{nav.support}}</a>
+      </div>
+      <span>&copy; Jorge Jimenez</span>
+    </footer>
+{{__SCRIPTS__}}
+  </body>
+</html>

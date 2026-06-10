@@ -80,6 +80,10 @@ type StreamAgentAnswerParams = {
   // The backend folds it into the per-user system message so the model defaults
   // to replying in this language.
   language?: string;
+  // Local-only answering prefs. Omit (or pass true) to keep the backend default
+  // of "on"; pass false to turn emojis / reaction media off for this turn.
+  respondWithEmojis?: boolean;
+  respondWithMedia?: boolean;
   signal?: AbortSignal;
 };
 
@@ -498,6 +502,8 @@ export async function* streamAgentAnswer({
   personaId,
   levelOfRot,
   language,
+  respondWithEmojis,
+  respondWithMedia,
   signal,
 }: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
   const body = JSON.stringify({
@@ -511,6 +517,10 @@ export async function* streamAgentAnswer({
     personaId: personaId ?? undefined,
     levelOfRot,
     language,
+    // Omit when undefined/on so the payload stays identical to before for the
+    // default case; the backend treats a missing flag as true.
+    respondWithEmojis,
+    respondWithMedia,
   });
 
   yield* runAuthedStream(getFunctionUrl("streamAgentAnswer"), body, signal);

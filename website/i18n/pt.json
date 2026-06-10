@@ -1,0 +1,167 @@
+{
+  "common": {
+    "download": "Baixe na App Store",
+    "languageLabel": "Idioma"
+  },
+  "nav": {
+    "how": "Como funciona",
+    "memory": "Memória",
+    "plans": "Planos",
+    "ios": "iOS",
+    "support": "Suporte",
+    "home": "Início",
+    "privacy": "Privacidade"
+  },
+  "index": {
+    "meta": {
+      "title": "Meme Chat AI | App de chat com IA engraçada para respostas que acertam",
+      "description": "Meme Chat AI é um app de chat com IA engraçada que conserta textos sem graça, explica o confuso rápido, critica ideias mal cozidas de um jeito útil e transforma sopa mental em respostas, legendas e planos.",
+      "keywords": "chat IA memes, assistente IA engraçado, reescritor de textos IA, app de chat IA, chatbot de memes, chat IA iPhone",
+      "ogTitle": "Meme Chat AI",
+      "ogDescription": "Um app de chat com IA engraçada que conserta textos sem graça, explica o confuso, critica ideias de um jeito útil e transforma sopa mental em respostas, legendas e planos."
+    },
+    "hero": {
+      "eyebrow": "Chat com IA com energia de grupo",
+      "h1": "Fale o que precisa sem parecer um NPC.",
+      "lead": "O Brainrot Bot conserta textos sem graça, explica o confuso sem a névoa do livro didático, critica ideias mal cozidas de um jeito útil e transforma sopa mental em respostas, legendas, planos e lore de verdade.",
+      "ctaSecondary": "Ver o lore do chat",
+      "tag1": "Resgate de respostas NPC",
+      "tag2": "Críticas úteis",
+      "tag3": "Ressuscitar legendas",
+      "tag4": "Ideias de missão secundária"
+    },
+    "phone": {
+      "status": "meme-power: 82%",
+      "user1": "faz isso soar menos NPC",
+      "agent1": "\"tô dentro\" funciona. \"tô dentro, manda o plano antes que eu recupere o bom senso\" tem pulso de verdade.",
+      "user2": "explica isso como se eu tivesse em doomscroll",
+      "agent2": "você não está perdido. o plano só precisa de um próximo passo limpo. lore contido."
+    },
+    "status": {
+      "s1": "Feito para iPhone",
+      "s2": "Já disponível na App Store",
+      "s3": "Memória nos planos pagos"
+    },
+    "what": {
+      "eyebrow": "O que é",
+      "h2": "Para a sopa mental que precisa de embalagem melhor.",
+      "p": "Meme Chat AI é o que você abre quando sua mensagem está sem graça, sua ideia está mal cozida ou seu cérebro foi fazer missões secundárias. Ele te ajuda a achar palavras mais claras sem perder a personalidade, sem energia de dashboard corporativo.",
+      "card1Title": "Reescreve respostas",
+      "card1Body": "Transforma textos sem graça em mensagens com pulso, não algo montado numa planilha.",
+      "card2Title": "Critica e depois conserta",
+      "card2Body": "Receba feedback honesto sobre suas ideias sem levar um chute emocional.",
+      "card3Title": "Explica rápido",
+      "card3Body": "Para quando você precisa da resposta, não de um livro fazendo parkour às 2h.",
+      "card4Title": "Acha o ângulo",
+      "card4Body": "Legendas, prompts, planos e resumos do dia que não estão mais lutando pela sobrevivência."
+    },
+    "prompts": {
+      "eyebrow": "Prompts para começar",
+      "h2": "Abre o chat, escolhe um vibe e segue.",
+      "p1": "faz isso soar menos NPC",
+      "p2": "tô ferrado ou dá pra consertar?",
+      "p3": "me dá o lore em 5 linhas",
+      "p4": "critica essa ideia e depois salva ela",
+      "p5": "transforma minha sopa mental num texto",
+      "p6": "me ajuda a focar por 30 minutos"
+    },
+    "rot": {
+      "eyebrow": "Rot Level",
+      "h2": "Aumente ou diminua o brainrot.",
+      "p": "O Rot Level define o quão pirado o Brainrot Bot fica, de levemente apimentado até Modo Goblin total. A resposta útil continua embaixo; você só escolhe a energia. Mude quando quiser, no meio do chat.",
+      "card1Title": "Levemente Cozido",
+      "card1Body": "Quase tudo sério, com um toque de meme. Mesmo assim não vai parecer um assistente corporativo padrão.",
+      "card1Tag": "quase sério",
+      "defaultPill": "Padrão",
+      "card2Title": "Rotted",
+      "card2Body": "Energia Brainrot Bot total: piadas e gírias o tempo todo, mas ainda te leva aonde você quer.",
+      "card2Tag": "piadas + gíria",
+      "card3Title": "Modo Goblin",
+      "card3Body": "Brainrot no máximo. Metáforas amaldiçoadas e reações dramáticas exageradas, ainda útil, só que selvagem.",
+      "card3Tag": "amaldiçoado + selvagem"
+    },
+    "meme": {
+      "eyebrow": "Memes na hora",
+      "h2": "Quando faltam palavras, manda o meme.",
+      "p": "No meio do chat, abra uma tira de memes em alta ou busque a reação exata e solte direto na conversa. Alguns momentos merecem uma cara, não um parágrafo."
+    },
+    "memory": {
+      "eyebrow": "Memória",
+      "h2": "Um Brainrot Bot que realmente te conhece.",
+      "p1": "Nos planos pagos, o Brainrot Bot capta o seu vibe, as pessoas que você menciona e as coisas que você repete. O próximo chat continua de onde o anterior parou. Sem reexplicar, sem começar do zero.",
+      "p2": "Você fica no controle. Desligue a memória ou apague tudo em Ajustes quando quiser, sem perguntas.",
+      "card1Title": "Capta o contexto",
+      "card1Body": "Anota seu vibe, sua gente e os temas que você repete, então pula a reapresentação a cada sessão.",
+      "card2Title": "Mora na sua conta",
+      "card2Body": "Ligada à sua conta, não ao aparelho. A mesma memória em cada login.",
+      "card3Title": "Você no comando",
+      "card3Body": "Desligue ou apague em Ajustes. Para na hora, sem espera.",
+      "card4Title": "Só nos planos pagos",
+      "card4Body": "Disponível no Sidekick, Wingman e MVP. O plano grátis tem o bot completo, só não tem a memória."
+    },
+    "plans": {
+      "eyebrow": "Meme-power",
+      "h2": "Planos que acompanham o quanto você conversa.",
+      "p": "O mesmo Brainrot Bot esperto em todos os planos. Os níveis definem sua cota mensal, se o Brainrot Bot lembra de você e se você pode mudar o estilo do chat. Wingman é o queridinho; MVP é o mais poderoso.",
+      "plan1Kicker": "Grátis",
+      "plan1Desc": "Bot completo, caos inicial.",
+      "plan1Meta": "1x chats",
+      "plan2Kicker": "Básico",
+      "plan2Desc": "Mais chats, menos dívida de aura.",
+      "plan2Meta": "9x chats &middot; Memória &middot; Temas do app &middot; Sem anúncios",
+      "plan3Kicker": "Popular",
+      "plan3Desc": "Toneladas de chats, memória, embalo.",
+      "plan3Meta": "25x chats &middot; Memória &middot; Temas do app &middot; Sem anúncios",
+      "plan4Kicker": "Melhor",
+      "plan4Desc": "Para dias de chat pesado e yapping profissional.",
+      "plan4Meta": "50x chats &middot; Memória &middot; Temas do app &middot; Sem anúncios"
+    },
+    "iosCallout": {
+      "eyebrow": "iOS — já disponível",
+      "h2": "Meme Chat AI já está na App Store.",
+      "p": "Pegue no iPhone, abra um chat e ponha o Brainrot Bot pra trabalhar nos seus textos sem graça, ideias mal cozidas e sopa mental. Grátis para começar, com planos meme-power quando quiser mais."
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "h2": "Perguntas, sem o paredão de lore.",
+      "q1": "Isso é para agentes de chat de empresas?",
+      "a1": "Por enquanto não. Meme Chat AI é um app de chat com IA pessoal para humor, ajuda na escrita, explicações e descozinhar suas ideias.",
+      "q2": "Posso baixar hoje?",
+      "a2": "Sim. Meme Chat AI já está na App Store. Baixe no iPhone e comece a conversar. Grátis para começar, com planos meme-power quando quiser mais chats e memória.",
+      "q3": "O site usa recursos reais do app?",
+      "a3": "Sim. A página usa o ícone do app, as imagens do avatar do Brainrot Bot, Poppins, Fredoka e as mesmas cores de marca do app."
+    }
+  },
+  "ios": {
+    "meta": {
+      "title": "Baixe o Meme Chat AI para iPhone | App Store",
+      "description": "Meme Chat AI já está na App Store. Baixe o app de chat com IA engraçada para iPhone e comece a conversar com o Brainrot Bot de graça.",
+      "ogTitle": "Meme Chat AI para iOS",
+      "ogDescription": "Meme Chat AI já está na App Store. Baixe o app de chat com IA engraçada para iPhone e comece a conversar com o Brainrot Bot."
+    },
+    "body": {
+      "eyebrow": "iOS — já disponível",
+      "h1": "Tenha o Meme Chat AI no seu iPhone.",
+      "lead": "Meme Chat AI já está na App Store. Baixe, abra um chat e deixe o Brainrot Bot consertar seus textos sem graça, explicar o confuso e transformar sopa mental em respostas, legendas e planos.",
+      "li1": "Grátis para começar — os planos meme-power liberam mais chats e memória.",
+      "li2": "Feito para iPhone, com temas do app em todo plano pago.",
+      "li3": "Os controles da sua conta e assinatura ficam no app.",
+      "back": "Voltar para a página inicial"
+    }
+  },
+  "support": {
+    "meta": {
+      "title": "Suporte · Meme Chat AI",
+      "description": "Suporte do Meme Chat AI."
+    },
+    "body": {
+      "h1": "Suporte",
+      "intro": "Precisa de ajuda com o Meme Chat AI? Escreva para <a href=\"mailto:memechataisupport@gmail.com\">memechataisupport@gmail.com</a> e a gente responde. Inclua o modelo do aparelho, a versão do sistema e uma breve descrição do que está acontecendo — isso costuma bastar para rastrear qualquer coisa.",
+      "h2": "Pedidos comuns",
+      "li1": "<strong>Excluir minha conta.</strong> Abra o app e vá em <em>Ajustes &rarr; Excluir todos os dados</em>. Sua conta, seu perfil nos nossos servidores e todas as preferências no aparelho são apagados na hora.",
+      "li2": "<strong>Mudar aparência ou idioma.</strong> <em>Ajustes &rarr; Aparência</em> / <em>Ajustes &rarr; Idioma</em>.",
+      "li3": "<strong>Esqueceu a senha.</strong> Na tela de login, toque no campo de e-mail e use o link de redefinição enviado pelo Meme Chat AI para criar uma nova.",
+      "back": "Voltar ao início"
+    }
+  }
+}

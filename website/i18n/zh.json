@@ -1,0 +1,167 @@
+{
+  "common": {
+    "download": "在 App Store 下载",
+    "languageLabel": "语言"
+  },
+  "nav": {
+    "how": "玩法",
+    "memory": "记忆",
+    "plans": "套餐",
+    "ios": "iOS",
+    "support": "支持",
+    "home": "首页",
+    "privacy": "隐私"
+  },
+  "index": {
+    "meta": {
+      "title": "Meme Chat AI | 让回复一击即中的搞笑 AI 聊天 App",
+      "description": "Meme Chat AI 是一款搞笑 AI 聊天 App，能救活干巴巴的消息、迅速讲清看不懂的东西、有用地吐槽半生不熟的点子，把一团浆糊的脑子变成回复、文案和计划。",
+      "keywords": "meme AI 聊天, 搞笑 AI 助手, AI 文案改写, AI 聊天 App, meme 聊天机器人, iPhone AI 聊天",
+      "ogTitle": "Meme Chat AI",
+      "ogDescription": "一款搞笑 AI 聊天 App，能救活干巴巴的消息、讲清看不懂的东西、有用地吐槽点子，把一团浆糊的脑子变成回复、文案和计划。"
+    },
+    "hero": {
+      "eyebrow": "带群聊能量的 AI 聊天",
+      "h1": "把话说出来，别像个 NPC。",
+      "lead": "Brainrot Bot 救活干巴巴的消息，讲清看不懂的东西却没有教科书的雾感，有用地吐槽半生不熟的点子，把一团浆糊的脑子变成回复、文案、计划和真正的梗。",
+      "ctaSecondary": "看看聊天里的梗",
+      "tag1": "NPC 回复急救",
+      "tag2": "有用的吐槽",
+      "tag3": "文案抢救",
+      "tag4": "支线任务点子"
+    },
+    "phone": {
+      "status": "meme-power：82%",
+      "user1": "把这个说得别那么 NPC",
+      "agent1": "“我可以”能用。“我加入，趁我还没恢复理智把计划发来”——这才有脉搏。",
+      "user2": "用我刷手机刷到脑死的状态也能懂的方式讲讲",
+      "agent2": "你没完蛋。计划只差一个清楚的下一步。梗已收好。"
+    },
+    "status": {
+      "s1": "为 iPhone 打造",
+      "s2": "现已上线 App Store",
+      "s3": "付费套餐含记忆"
+    },
+    "what": {
+      "eyebrow": "这是什么",
+      "h2": "为那团需要更好包装的脑浆而生。",
+      "p": "当你的消息干巴巴、点子半生不熟，或者脑子跑去刷支线任务时，就打开 Meme Chat AI。它帮你说得更清楚，又不丢个性，完全没有那种企业仪表盘的味道。",
+      "card1Title": "改写回复",
+      "card1Body": "把干巴巴的消息变成有脉搏的话，而不是从表格里拼出来的东西。",
+      "card2Title": "先吐槽，再修好",
+      "card2Body": "对你的点子给出诚实反馈，又不会把你情绪上一脚踹飞。",
+      "card3Title": "快速讲清",
+      "card3Body": "当你要的是答案，而不是凌晨两点在做跑酷的教科书。",
+      "card4Title": "找到切入点",
+      "card4Body": "文案、提示词、计划和当天总结，不再为了活命苦苦挣扎。"
+    },
+    "prompts": {
+      "eyebrow": "上手提示词",
+      "h2": "打开聊天，选个调调，继续往前。",
+      "p1": "把这个说得别那么 NPC",
+      "p2": "我是凉了还是还能救?",
+      "p3": "用 5 行给我讲清这个梗",
+      "p4": "吐槽这个点子，然后再把它救回来",
+      "p5": "把我一团浆糊的脑子变成一条消息",
+      "p6": "帮我专注 30 分钟"
+    },
+    "rot": {
+      "eyebrow": "Rot Level",
+      "h2": "把 brainrot 调高或调低。",
+      "p": "Rot Level 决定 Brainrot Bot 有多放飞，从微辣一路到全开的 Goblin Mode。有用的答案始终在底下，你只是挑能量。随时切换，聊到一半也行。",
+      "card1Title": "轻度熟透",
+      "card1Body": "基本正经，稍微加点梗。但读起来依然不像默认的企业助手。",
+      "card1Tag": "基本正经",
+      "defaultPill": "默认",
+      "card2Title": "Rotted",
+      "card2Body": "全开的 Brainrot Bot 能量：一路玩梗带俚语，但照样把你送到目的地。",
+      "card2Tag": "玩梗 + 俚语",
+      "card3Title": "Goblin模式",
+      "card3Body": "brainrot 拉满。诅咒级比喻加上夸张的反应——还是有用，只是野了点。",
+      "card3Tag": "诅咒 + 野性"
+    },
+    "meme": {
+      "eyebrow": "随手来梗图",
+      "h2": "词穷的时候，就发梗图。",
+      "p": "聊到一半，调出一排热门梗图，或者搜出那张刚好的反应图，直接丢进对话。有些瞬间值得一张脸，而不是一段话。"
+    },
+    "memory": {
+      "eyebrow": "记忆",
+      "h2": "真正懂你的 Brainrot Bot。",
+      "p1": "在付费套餐里，Brainrot Bot 会记住你的调调、你提到的人，以及你反复说起的事。下一次聊天从上次结束的地方继续。不用重新解释，不用从零开始。",
+      "p2": "掌控权在你手里。随时在“设置”里关掉记忆或一键清空，不会多问。",
+      "card1Title": "抓住上下文",
+      "card1Body": "记下你的调调、你的人和你反复提起的话题，每次都跳过重新自我介绍。",
+      "card2Title": "存在你的账号里",
+      "card2Body": "绑定账号，而非设备。每次登录都是同一份记忆。",
+      "card3Title": "你说了算",
+      "card3Body": "在“设置”里关掉或清空。立刻停止，无需等待。",
+      "card4Title": "仅限付费套餐",
+      "card4Body": "Sidekick、Wingman 和 MVP 可用。免费套餐有完整的机器人，只是没有记忆。"
+    },
+    "plans": {
+      "eyebrow": "Meme-power",
+      "h2": "套餐配得上你聊天的猛劲。",
+      "p": "每个套餐都是同一个聪明的 Brainrot Bot。档位决定你的每月额度、Brainrot Bot 是否记得你，以及你能不能给聊天换风格。Wingman 最受欢迎，MVP 最强。",
+      "plan1Kicker": "免费",
+      "plan1Desc": "完整机器人，入门级混乱。",
+      "plan1Meta": "1x 聊天",
+      "plan2Kicker": "基础",
+      "plan2Desc": "更多聊天，更少气场欠债。",
+      "plan2Meta": "9x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告",
+      "plan3Kicker": "热门",
+      "plan3Desc": "海量聊天、记忆、势头。",
+      "plan3Meta": "25x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告",
+      "plan4Kicker": "最佳",
+      "plan4Desc": "为高强度聊天日和专业级唠嗑而生。",
+      "plan4Meta": "50x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告"
+    },
+    "iosCallout": {
+      "eyebrow": "iOS — 现已上线",
+      "h2": "Meme Chat AI 已上线 App Store。",
+      "p": "在 iPhone 上拿下它，打开聊天，让 Brainrot Bot 处理你那些干巴巴的消息、半生不熟的点子和一团浆糊的脑子。免费上手，想要更多时再上 meme-power 套餐。"
+    },
+    "faq": {
+      "eyebrow": "常见问题",
+      "h2": "问题解答，不带成堆的梗。",
+      "q1": "这是给企业聊天客服用的吗?",
+      "a1": "暂时不是。Meme Chat AI 是一款个人 AI 聊天 App，用来搞笑、帮你写东西、做解释，把你半生不熟的点子救回来。",
+      "q2": "今天就能下载吗?",
+      "a2": "可以。Meme Chat AI 已上线 App Store。在 iPhone 上下载就能开聊。免费上手，想要更多聊天和记忆时再上 meme-power 套餐。",
+      "q3": "网站用的是真实的 App 素材吗?",
+      "a3": "是的。首页用的是 App 图标、Brainrot Bot 头像图、Poppins、Fredoka，以及和 App 一样的品牌配色。"
+    }
+  },
+  "ios": {
+    "meta": {
+      "title": "为 iPhone 下载 Meme Chat AI | App Store",
+      "description": "Meme Chat AI 已上线 App Store。为 iPhone 下载这款搞笑 AI 聊天 App，免费开始和 Brainrot Bot 聊天。",
+      "ogTitle": "Meme Chat AI for iOS",
+      "ogDescription": "Meme Chat AI 已上线 App Store。为 iPhone 下载这款搞笑 AI 聊天 App，开始和 Brainrot Bot 聊天。"
+    },
+    "body": {
+      "eyebrow": "iOS — 现已上线",
+      "h1": "为你的 iPhone 拿下 Meme Chat AI。",
+      "lead": "Meme Chat AI 已上线 App Store。下载它，打开聊天，让 Brainrot Bot 救活你干巴巴的消息、讲清看不懂的东西，把一团浆糊的脑子变成回复、文案和计划。",
+      "li1": "免费上手 —— meme-power 套餐解锁更多聊天和记忆。",
+      "li2": "为 iPhone 打造，每个付费套餐都含 App 主题。",
+      "li3": "账号和订阅的管理都在 App 内。",
+      "back": "返回首页"
+    }
+  },
+  "support": {
+    "meta": {
+      "title": "支持 · Meme Chat AI",
+      "description": "Meme Chat AI 的支持。"
+    },
+    "body": {
+      "h1": "支持",
+      "intro": "用 Meme Chat AI 遇到问题? 发邮件到 <a href=\"mailto:memechataisupport@gmail.com\">memechataisupport@gmail.com</a>，我们会回复你。请附上设备型号、系统版本，以及你看到的情况的简短描述——通常这就足够定位问题了。",
+      "h2": "常见请求",
+      "li1": "<strong>删除我的账号。</strong> 打开 App，进入 <em>设置 &rarr; 删除所有数据</em>。你的账号、我们服务器上的资料，以及设备上的每一项偏好都会被立即清除。",
+      "li2": "<strong>更改外观或语言。</strong> <em>设置 &rarr; 外观</em> / <em>设置 &rarr; 语言</em>。",
+      "li3": "<strong>忘记密码。</strong> 在登录界面点按邮箱输入框，然后用 Meme Chat AI 发送的密码重置链接设置一个新密码。",
+      "back": "返回首页"
+    }
+  }
+}

@@ -82,3 +82,6 @@ dashboard/
 # the iOS/Android app or accessible from the App Store binary). Keep it out of
 # the repo so the slur list is never publicly visible in source control.
 functions/src/moderation/
+
+# Firebase deploy cache
+.firebase/
