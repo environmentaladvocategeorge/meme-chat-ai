@@ -23,9 +23,6 @@ function baseInput(
     messages: [],
     status: "idle",
     activeReplyClientId: null,
-    streamingText: "",
-    streamingMeme: null,
-    streamingGif: null,
     settledReply: null,
     error: null,
     lastUserMessage: undefined,
@@ -79,6 +76,12 @@ describe("buildVisibleMessages — filtering & ordering", () => {
     );
     expect(result.map((m) => m.id)).toEqual(["err"]);
   });
+
+  it("returns persisted messages by reference (no cloning), so bubble memoization can hold", () => {
+    const stored = chatMessage({ id: "u1", role: "user", text: "hello" });
+    const result = buildVisibleMessages(baseInput({ messages: [stored] }));
+    expect(result[0]).toBe(stored);
+  });
 });
 
 describe("buildVisibleMessages — streaming reply", () => {
@@ -90,7 +93,9 @@ describe("buildVisibleMessages — streaming reply", () => {
     ],
   });
 
-  it("appends a thinking placeholder with a stable reply-anchored id", () => {
+  it("appends a fixed empty placeholder with a stable reply-anchored id", () => {
+    // The placeholder carries NO live stream state — the bubble subscribes to
+    // streamingText/meme/gif itself, so delta flushes never rebuild this list.
     const result = buildVisibleMessages(streamingBase);
     const synthetic = result[0];
 
@@ -98,27 +103,18 @@ describe("buildVisibleMessages — streaming reply", () => {
     expect(synthetic.role).toBe("agent");
     expect(synthetic.inReplyToClientMessageId).toBe("c1");
     expect(synthetic.status).toBe("streaming");
-    expect(synthetic.thinking).toBe(true);
+    expect(synthetic.text).toBe("");
+    expect(synthetic.images).toBeUndefined();
+    expect(synthetic.gifs).toBeUndefined();
   });
 
-  it("stops thinking once any text has streamed in", () => {
-    const result = buildVisibleMessages({
-      ...streamingBase,
-      streamingText: "partial answer",
-    });
-    expect(result[0].thinking).toBe(false);
-    expect(result[0].text).toBe("partial answer");
-  });
-
-  it("carries a streamed meme/gif and stops thinking even with no text", () => {
-    const result = buildVisibleMessages({
-      ...streamingBase,
-      streamingMeme: meme,
-      streamingGif: gif,
-    });
-    expect(result[0].thinking).toBe(false);
-    expect(result[0].images).toEqual([meme]);
-    expect(result[0].gifs).toEqual([gif]);
+  it("produces deep-equal output across calls with the same inputs", () => {
+    // Stability contract: with identical store inputs, consecutive rebuilds
+    // describe the same list (referential identity for persisted messages is
+    // covered above; the synthesized placeholder is at least value-stable).
+    expect(buildVisibleMessages(streamingBase)).toEqual(
+      buildVisibleMessages(streamingBase),
+    );
   });
 
   it("does not synthesize a streaming bubble without an active reply id", () => {
@@ -164,6 +160,26 @@ describe("buildVisibleMessages — settle bridge", () => {
 
     // Only the real stored message + the user turn — no synthetic "agent:c1".
     expect(result.map((m) => m.id)).toEqual(["server1", "u1"]);
+  });
+
+  it("carries the settled reply's attachments through the bridge", () => {
+    const result = buildVisibleMessages(
+      baseInput({
+        messages: [
+          chatMessage({ id: "u1", role: "user", text: "q", clientMessageId: "c1" }),
+        ],
+        settledReply: {
+          clientMessageId: "c1",
+          text: "",
+          images: [meme],
+          gifs: [gif],
+        },
+      }),
+    );
+
+    expect(result[0].id).toBe("agent:c1");
+    expect(result[0].images).toEqual([meme]);
+    expect(result[0].gifs).toEqual([gif]);
   });
 
   it("ignores the settle bridge while a stream is still active", () => {
@@ -215,6 +231,22 @@ describe("buildVisibleMessages — error card", () => {
     const result = buildVisibleMessages({ ...erroredBase, error: "signed-out" });
     expect(result[0].errorKind).toBe("signed-out");
     expect(result[0].retry).toBe(false);
+  });
+
+  it("synthesizes a standalone, non-retryable hate-speech card not anchored to any turn", () => {
+    // The flagged user message was already removed from state, so the card
+    // stands alone (no inReplyToClientMessageId, no retry).
+    const result = buildVisibleMessages({
+      ...erroredBase,
+      error: "hate_speech",
+      messages: [],
+      lastUserMessage: undefined,
+    });
+
+    expect(result.map((m) => m.id)).toEqual(["agent-error:hate_speech"]);
+    expect(result[0].errorKind).toBe("hate_speech");
+    expect(result[0].retry).toBe(false);
+    expect(result[0].inReplyToClientMessageId).toBeUndefined();
   });
 
   it("does not synthesize a card when the backend already persisted one", () => {

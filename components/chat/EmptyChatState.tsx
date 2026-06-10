@@ -6,7 +6,7 @@ import { gradients } from "@/nativewind-theme";
 import { useOnboardingStore } from "@/store/onboarding";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import Animated, {
@@ -33,9 +33,15 @@ function pickRandom<T>(items: T[], n: number): T[] {
 export function EmptyChatState({
   onStarterPress,
   atLimit,
+  header,
 }: {
   onStarterPress: (text: string) => void;
   atLimit: boolean;
+  // Optional slot above the intro (e.g. the "Memory is on" banner). Rendered
+  // INSIDE the counter-flipped, scrollable empty state so it moves with the
+  // content instead of pinning above the list and shearing against it when
+  // the keyboard shrinks the viewport.
+  header?: ReactNode;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -129,6 +135,9 @@ export function EmptyChatState({
         paddingVertical: 28,
       }}
     >
+      {header ? (
+        <View style={{ width: "100%", marginBottom: 4 }}>{header}</View>
+      ) : null}
       <Animated.View
         style={[
           {

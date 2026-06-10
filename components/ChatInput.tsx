@@ -52,6 +52,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -197,6 +198,26 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       true,
     );
   }, [pulse]);
+
+  // Stop-button spinner: a thin arc orbiting the button's perimeter while a
+  // reply streams. Runs only during streaming so the worklet isn't looping
+  // for the life of the composer.
+  const spin = useSharedValue(0);
+  useEffect(() => {
+    if (streaming) {
+      spin.value = 0;
+      spin.value = withRepeat(
+        withTiming(360, { duration: 900, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(spin);
+    }
+  }, [streaming, spin]);
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value}deg` }],
+  }));
 
   const ringStyle = useAnimatedStyle(() => {
     // Breathe between 75% and 100% of the focus opacity so the glow has a
@@ -347,7 +368,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               onBlur={() => setFocused(false)}
               placeholder={placeholder}
               placeholderTextColor={theme["--color-foreground-muted"]}
-              editable={!streaming}
+              // Deliberately editable while streaming: the user can draft
+              // their next message during a reply — only SENDING is blocked
+              // (canSend gates the button; the screen + store guard the send
+              // path itself).
               multiline
               scrollEnabled
               style={{
@@ -422,15 +446,51 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               justifyContent: "center",
               // The "inactive" base color always lives underneath. The
               // active gradient fades over it via sendActiveStyle, so the
-              // transition is a smooth cross-fade rather than a snap.
+              // transition is a smooth cross-fade rather than a snap. While
+              // streaming there's no fill at all — the stop affordance is
+              // the spinner ring + icon.
               backgroundColor: showStop
-                ? theme["--color-error-muted"]
+                ? "transparent"
                 : theme["--color-background-muted"],
               overflow: "hidden",
             }}
           >
             {showStop ? (
-              <Stop size={18} color={theme["--color-error"]} weight="fill" />
+              <>
+                {/* Faint static track the arc orbits on. */}
+                <View
+                  pointerEvents="none"
+                  style={{
+                    ...StyleSheet.absoluteFillObject,
+                    borderRadius: SEND_BUTTON_SIZE / 2,
+                    borderWidth: 2.5,
+                    borderColor: theme["--color-border"],
+                  }}
+                />
+                {/* Rotating arc: only the top border segment is painted, so
+                    spinning the view reads as an indeterminate spinner. */}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    {
+                      ...StyleSheet.absoluteFillObject,
+                      borderRadius: SEND_BUTTON_SIZE / 2,
+                      borderWidth: 2.5,
+                      borderColor: "transparent",
+                      borderTopColor: theme["--color-primary"],
+                    },
+                    spinStyle,
+                  ]}
+                />
+                {/* --color-foreground: white in dark mode (the ask), and it
+                    stays near-black in light mode so the icon never vanishes
+                    against the light pill. */}
+                <Stop
+                  size={16}
+                  color={theme["--color-foreground"]}
+                  weight="fill"
+                />
+              </>
             ) : (
               <>
                 {/* Active layer: gradient + white icon, faded in by

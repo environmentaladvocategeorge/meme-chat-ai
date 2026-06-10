@@ -16,9 +16,22 @@ export type BubbleGradientValue = {
   // Live content offset of the message list (driven on the UI thread).
   scrollY: SharedValue<number>;
   // Bumped whenever bubbles may have shifted on screen (content resize,
-  // momentum settle) so each bubble re-measures its anchor.
-  measureTick: number;
+  // momentum settle) so each bubble re-measures its anchor. A SharedValue —
+  // not React state — so a tick re-renders nothing; bubbles react to it via
+  // useAnimatedReaction and re-measure off the render path.
+  measureTick: SharedValue<number>;
 };
+
+// Gate for content-size-driven ticks: while a reply is streaming the content
+// height changes on every delta flush (~10×/sec), and re-measuring every
+// gradient bubble that often is pure waste — nothing the user can see moves
+// until the stream settles. The screen fires one bump on the
+// streaming → idle/error transition instead.
+export function shouldBumpOnContentSizeChange(
+  status: "idle" | "streaming" | "error",
+): boolean {
+  return status !== "streaming";
+}
 
 export const BubbleGradientContext = createContext<BubbleGradientValue | null>(
   null,

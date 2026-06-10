@@ -16,9 +16,6 @@ export type BuildVisibleMessagesInput = {
   messages: ChatMessage[];
   status: "idle" | "streaming" | "error";
   activeReplyClientId: string | null;
-  streamingText: string;
-  streamingMeme: MessageImage | null;
-  streamingGif: MessageGif | null;
   settledReply: SettledReplySnapshot | null;
   error: string | null;
   // The most recent user turn, used to anchor the synthesized error card.
@@ -32,47 +29,44 @@ export type BuildVisibleMessagesInput = {
 //   2. a bridge for a just-settled reply not yet in the Firestore snapshot,
 //   3. a synthesized agent-side error card for a failed turn.
 // Pure and framework-free so the tricky de-duplication rules are unit-testable.
+//
+// Deliberately does NOT take the live streaming text/meme/gif: the streaming
+// bubble subscribes to those itself (see MessageBubble), so delta flushes
+// re-render only that one bubble instead of the whole screen + list.
 export function buildVisibleMessages({
   messages,
   status,
   activeReplyClientId,
-  streamingText,
-  streamingMeme,
-  streamingGif,
   settledReply,
   error,
   lastUserMessage,
 }: BuildVisibleMessagesInput): RenderMessage[] {
   // Drop empty placeholders, but keep errored agent bubbles so the user
-  // sees the failure state.
-  const base: RenderMessage[] = messages
-    .filter(
-      (message) =>
-        message.text.length > 0 ||
-        (message.images?.length ?? 0) > 0 ||
-        (message.gifs?.length ?? 0) > 0 ||
-        (message.role === "agent" && message.status === "error"),
-    )
-    .map((message) => ({ ...message }));
+  // sees the failure state. Persisted messages pass through by reference —
+  // no cloning — so MessageBubble's memo can hold across rebuilds.
+  const base: RenderMessage[] = messages.filter(
+    (message) =>
+      message.text.length > 0 ||
+      (message.images?.length ?? 0) > 0 ||
+      (message.gifs?.length ?? 0) > 0 ||
+      (message.role === "agent" && message.status === "error"),
+  );
 
   if (status === "streaming" && activeReplyClientId) {
     // The in-flight agent reply. We give it a STABLE id tied to the user
     // turn it answers, identical to the key the finalized Firestore
     // message resolves to (see `messageKey`). That continuity is what
     // stops the bubble from unmounting + replaying its entrance animation
-    // when the stream finishes. Empty text → the pulsating "Memeing…"
-    // indicator.
+    // when the stream finishes. A fixed placeholder: the bubble itself
+    // pulls the live streaming text/meme/gif from the store and derives
+    // the "thinking" state.
     base.push({
       id: `agent:${activeReplyClientId}`,
       role: "agent",
       inReplyToClientMessageId: activeReplyClientId,
-      text: streamingText,
-      images: streamingMeme ? [streamingMeme] : undefined,
-      gifs: streamingGif ? [streamingGif] : undefined,
+      text: "",
       status: "streaming",
       createdAt: null,
-      // Still "thinking" only when there's no text, meme, or gif yet.
-      thinking: streamingText.length === 0 && !streamingMeme && !streamingGif,
     });
   } else if (settledReply) {
     // Bridge: the stream is done but the finalized Firestore message

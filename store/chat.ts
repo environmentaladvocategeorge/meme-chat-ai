@@ -5,7 +5,10 @@ import {
   setMessageEmojiCallable,
 } from "@/services/firebase/callables";
 import {
+  fetchOlderMessages,
   subscribeToMessages,
+  type MessageCursor,
+  type MessagesSnapshotMeta,
   type StoredChatMessage,
 } from "@/services/firebase/conversations";
 import { streamAgentAnswer, streamReplayTurn } from "@/services/firebase/streamAgent";
@@ -71,7 +74,21 @@ type ChatState = {
   // `hydrateSession`. Both default to true.
   respondWithEmojis: boolean;
   respondWithMedia: boolean;
+  // The LIVE tail of the conversation: the most recent window of stored
+  // messages (mirrored from the capped Firestore listener) plus optimistic
+  // sends. All streaming/settled/optimistic logic operates on this list only.
   messages: ChatMessage[];
+  // Static prefix of older messages paged in on demand (oldest-first). The
+  // rendered thread is [...olderMessages, ...messages]; the prefix is never
+  // touched by snapshot reconciliation.
+  olderMessages: ChatMessage[];
+  // Cursor for the next older page: the oldest already-loaded doc. Seeded
+  // from the live window's oldest doc, then advanced by each fetched page.
+  olderCursor: MessageCursor | null;
+  hasMoreOlder: boolean;
+  loadingOlder: boolean;
+  // Page older history in (no-op while already loading or when exhausted).
+  loadOlderMessages: () => Promise<void>;
   streamingText: string;
   // A meme the agent attached to the in-flight reply (via the backend get_meme
   // tool), shown on the streaming bubble until the reply settles.
@@ -164,6 +181,25 @@ function cancelDeltaFlush() {
   deltaBuffer = "";
 }
 
+// End-of-stream flush: cancel the pending RAF and drain any buffered tokens
+// synchronously, so the final streamingText is complete before it's read —
+// the RAF may not have fired yet if the stream ended fast.
+function flushDeltaBufferSync(
+  set: (partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>)) => void,
+) {
+  if (deltaRafId !== null) {
+    cancelAnimationFrame(deltaRafId);
+    deltaRafId = null;
+  }
+  if (deltaBuffer.length > 0) {
+    const remaining = deltaBuffer;
+    deltaBuffer = "";
+    set((state: ChatState) => ({
+      streamingText: `${state.streamingText}${remaining}`,
+    }));
+  }
+}
+
 function createClientMessageId() {
   optimisticCounter += 1;
   return [
@@ -201,19 +237,68 @@ function fromStoredMessage(message: StoredChatMessage): ChatMessage {
   };
 }
 
+// Attachment arrays are equal when they pair up element-wise on id + url —
+// the only fields whose change should repaint a bubble. Both-absent (or
+// absent vs. empty) counts as equal.
+function sameAttachments(
+  a: { id: string; url: string }[] | undefined,
+  b: { id: string; url: string }[] | undefined,
+): boolean {
+  const aLen = a?.length ?? 0;
+  const bLen = b?.length ?? 0;
+  if (aLen !== bLen) return false;
+  for (let i = 0; i < aLen; i++) {
+    if (a![i].id !== b![i].id || a![i].url !== b![i].url) return false;
+  }
+  return true;
+}
+
+// Field-by-field equality over ChatMessage, used to keep a previous message
+// object (and thus its bubble's memo) when a Firestore snapshot re-delivers it
+// unchanged. Explicit on this hot path — no generic deep-equal.
+export function shallowEqualMessage(a: ChatMessage, b: ChatMessage): boolean {
+  return (
+    a.id === b.id &&
+    a.serverId === b.serverId &&
+    a.clientMessageId === b.clientMessageId &&
+    a.inReplyToClientMessageId === b.inReplyToClientMessageId &&
+    a.role === b.role &&
+    a.text === b.text &&
+    a.reaction === b.reaction &&
+    a.emojiReaction === b.emojiReaction &&
+    a.levelOfRot === b.levelOfRot &&
+    a.status === b.status &&
+    a.optimistic === b.optimistic &&
+    // Both-null/absent counts as equal; otherwise compare the instant.
+    (a.createdAt?.getTime() ?? null) === (b.createdAt?.getTime() ?? null) &&
+    sameAttachments(a.images, b.images) &&
+    sameAttachments(a.gifs, b.gifs)
+  );
+}
+
 function applySnapshotMessages(
   messages: StoredChatMessage[],
   get: () => ChatState,
   set: (partial: Partial<ChatState>) => void,
 ) {
   if (messages.length === 0 && get().status === "streaming") return;
+  // Reuse the previous object for any message the snapshot re-delivers
+  // unchanged, so its (memoized) bubble doesn't re-render. Only messages that
+  // actually changed get a fresh object.
+  const prevByServerId = new Map(
+    get().messages.flatMap((m) => (m.serverId ? [[m.serverId, m] as const] : [])),
+  );
   // While a reply is being regenerated, hide its (soon-to-be-deleted) doc so it
   // doesn't flash back beneath the new streaming bubble before the server-side
   // deletion reaches this snapshot.
   const replacingServerId = get().replacingServerId;
   const storedMessages = messages
     .filter((message) => message.id !== replacingServerId)
-    .map(fromStoredMessage);
+    .map((message) => {
+      const converted = fromStoredMessage(message);
+      const prev = prevByServerId.get(message.id);
+      return prev && shallowEqualMessage(prev, converted) ? prev : converted;
+    });
   const storedClientMessageIds = new Set(
     storedMessages.flatMap((message) =>
       message.clientMessageId ? [message.clientMessageId] : [],
@@ -245,12 +330,35 @@ function applySnapshotMessages(
   });
 }
 
+// Snapshot handler for the live listener: reconcile the tail, then seed the
+// pagination cursor from the window's oldest doc. The seed only runs until the
+// first older page is loaded (or while one is in flight) — after that the
+// paged-in prefix owns the cursor.
+function handleMessagesSnapshot(
+  messages: StoredChatMessage[],
+  meta: MessagesSnapshotMeta,
+  get: () => ChatState,
+  set: (partial: Partial<ChatState>) => void,
+) {
+  applySnapshotMessages(messages, get, set);
+  if (get().olderMessages.length === 0 && !get().loadingOlder) {
+    set({
+      olderCursor: meta.oldestDoc,
+      hasMoreOlder: meta.hasMore && meta.oldestDoc !== null,
+    });
+  }
+}
+
 export const useChatStore = create<ChatState>()((set, get) => ({
   conversationId: null,
   rotLevel: DEFAULT_ROT_LEVEL,
   respondWithEmojis: true,
   respondWithMedia: true,
   messages: [],
+  olderMessages: [],
+  olderCursor: null,
+  hasMoreOlder: false,
+  loadingOlder: false,
   streamingText: "",
   streamingMeme: null,
   streamingGif: null,
@@ -327,8 +435,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           // Remember this session so reopening the app returns to it.
           void ChatSessionStorage.write({ conversationId: event.id });
           if (!unsubscribeMessages) {
-            unsubscribeMessages = subscribeToMessages(event.id, (messages) => {
-              applySnapshotMessages(messages, get, set);
+            unsubscribeMessages = subscribeToMessages(event.id, (messages, meta) => {
+              handleMessagesSnapshot(messages, meta, get, set);
             });
           }
           continue;
@@ -419,19 +527,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         }
       }
 
-      // Flush any buffered delta tokens synchronously before reading the
-      // final text — the RAF may not have fired yet if the stream ended fast.
-      if (deltaRafId !== null) {
-        cancelAnimationFrame(deltaRafId);
-        deltaRafId = null;
-      }
-      if (deltaBuffer.length > 0) {
-        const remaining = deltaBuffer;
-        deltaBuffer = "";
-        set((state: ChatState) => ({
-          streamingText: `${state.streamingText}${remaining}`,
-        }));
-      }
+      flushDeltaBufferSync(set);
 
       const finalText = get().streamingText;
       const finalMeme = get().streamingMeme;
@@ -631,17 +727,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         }
       }
 
-      if (deltaRafId !== null) {
-        cancelAnimationFrame(deltaRafId);
-        deltaRafId = null;
-      }
-      if (deltaBuffer.length > 0) {
-        const remaining = deltaBuffer;
-        deltaBuffer = "";
-        set((state: ChatState) => ({
-          streamingText: `${state.streamingText}${remaining}`,
-        }));
-      }
+      flushDeltaBufferSync(set);
 
       const finalText = get().streamingText;
       const finalMeme = get().streamingMeme;
@@ -786,6 +872,36 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     });
   },
 
+  loadOlderMessages: async () => {
+    const { conversationId, olderCursor, hasMoreOlder, loadingOlder } = get();
+    if (!conversationId || !olderCursor || !hasMoreOlder || loadingOlder) {
+      return;
+    }
+    set({ loadingOlder: true });
+    try {
+      const page = await fetchOlderMessages(conversationId, olderCursor);
+      // A message can straddle the page/live boundary (or be re-fetched after
+      // a cursor race) — drop anything already loaded, by serverId.
+      const loaded = new Set<string>();
+      for (const m of get().olderMessages) if (m.serverId) loaded.add(m.serverId);
+      for (const m of get().messages) if (m.serverId) loaded.add(m.serverId);
+      const fresh = page.messages
+        .filter((message) => !loaded.has(message.id))
+        .map(fromStoredMessage);
+      set({
+        olderMessages: [...fresh, ...get().olderMessages],
+        olderCursor: page.cursor ?? get().olderCursor,
+        hasMoreOlder: page.hasMore,
+        loadingOlder: false,
+      });
+    } catch (err) {
+      console.warn("[chat] loading older messages failed:", err);
+      // Leave cursor + hasMoreOlder untouched so the user can retry by
+      // scrolling again.
+      set({ loadingOlder: false });
+    }
+  },
+
   loadConversation: (id) => {
     get().cancelStreaming();
     cleanupSubscription();
@@ -793,6 +909,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     set({
       conversationId: id,
       messages: [],
+      olderMessages: [],
+      olderCursor: null,
+      hasMoreOlder: false,
+      loadingOlder: false,
       streamingText: "",
       streamingMeme: null,
       streamingGif: null,
@@ -803,8 +923,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       error: null,
     });
 
-    unsubscribeMessages = subscribeToMessages(id, (messages) => {
-      applySnapshotMessages(messages, get, set);
+    unsubscribeMessages = subscribeToMessages(id, (messages, meta) => {
+      handleMessagesSnapshot(messages, meta, get, set);
     });
   },
 
@@ -816,6 +936,10 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     set({
       conversationId: null,
       messages: [],
+      olderMessages: [],
+      olderCursor: null,
+      hasMoreOlder: false,
+      loadingOlder: false,
       streamingText: "",
       streamingMeme: null,
       streamingGif: null,

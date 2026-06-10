@@ -5,10 +5,12 @@ import {
   onSnapshot,
   orderBy,
   query,
+  startAfter,
   where,
   type DocumentData,
   type FirestoreError,
   type Query,
+  type QueryDocumentSnapshot,
   type Unsubscribe,
 } from "firebase/firestore";
 import type { MessageGif } from "@/domain/gifs";
@@ -293,30 +295,91 @@ export function subscribeToConversations(
 }
 
 // Cap the live listener to the most recent N messages so the snapshot callback
-// cost stays bounded regardless of how long a conversation runs.
-const MESSAGES_LIVE_LIMIT = 100;
+// cost stays bounded regardless of how long a conversation runs. Older history
+// is paged in on demand via fetchOlderMessages.
+const MESSAGES_LIVE_LIMIT = 50;
 
+// Pagination cursor: the QueryDocumentSnapshot of the oldest loaded message.
+// A doc snapshot (not a timestamp) so equal-createdAt neighbors can't be
+// skipped or duplicated across page boundaries.
+export type MessageCursor = QueryDocumentSnapshot<DocumentData>;
+
+export type MessagesSnapshotMeta = {
+  // Cursor for the first fetchOlderMessages call: the oldest doc of the live
+  // window. Null on an empty conversation.
+  oldestDoc: MessageCursor | null;
+  // Whether the live window is full — if it isn't, there's nothing older to
+  // page in.
+  hasMore: boolean;
+};
+
+// Live window over the MOST RECENT messages. The query is descending +
+// limit(N) — `asc + limit` would pin the window to the *oldest* N docs and new
+// messages would never enter it — and the docs are reversed before the
+// callback so consumers keep receiving oldest-first.
 export function subscribeToMessages(
   conversationId: string,
-  cb: (messages: StoredChatMessage[]) => void,
+  cb: (messages: StoredChatMessage[], meta: MessagesSnapshotMeta) => void,
 ): Unsubscribe {
   const db = requireFirestore();
   const messagesQuery = query(
     collection(db, "conversations", conversationId, "messages"),
-    orderBy("createdAt", "asc"),
+    orderBy("createdAt", "desc"),
     limit(MESSAGES_LIVE_LIMIT),
   );
 
   return onSnapshot(
     messagesQuery,
     (snapshot) => {
-      cb(
-        snapshot.docs.flatMap((doc) => {
+      const messages = snapshot.docs
+        .flatMap((doc) => {
           const message = mapMessage(doc.id, doc.data());
           return message ? [message] : [];
-        }),
-      );
+        })
+        .reverse();
+      cb(messages, {
+        // Last doc of the desc query = oldest message in the window.
+        oldestDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
+        hasMore: snapshot.docs.length >= MESSAGES_LIVE_LIMIT,
+      });
     },
     handleSnapshotError("messages"),
   );
+}
+
+export type OlderMessagesPage = {
+  // Oldest-first, ready to prepend to the rendered thread.
+  messages: StoredChatMessage[];
+  // Cursor for the next page (oldest doc of THIS page); null when exhausted.
+  cursor: MessageCursor | null;
+  // False once a short page signals the conversation start was reached.
+  hasMore: boolean;
+};
+
+// One-shot fetch of the page of messages older than `cursor`, on the same
+// descending index as the live window.
+export async function fetchOlderMessages(
+  conversationId: string,
+  cursor: MessageCursor,
+  pageSize = 50,
+): Promise<OlderMessagesPage> {
+  const db = requireFirestore();
+  const pageQuery = query(
+    collection(db, "conversations", conversationId, "messages"),
+    orderBy("createdAt", "desc"),
+    startAfter(cursor),
+    limit(pageSize),
+  );
+  const snapshot = await getDocs(pageQuery);
+  const messages = snapshot.docs
+    .flatMap((doc) => {
+      const message = mapMessage(doc.id, doc.data());
+      return message ? [message] : [];
+    })
+    .reverse();
+  return {
+    messages,
+    cursor: snapshot.docs[snapshot.docs.length - 1] ?? null,
+    hasMore: snapshot.docs.length >= pageSize,
+  };
 }

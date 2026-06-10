@@ -5,8 +5,10 @@ import { ChatInput, type ChatInputRef } from "@/components/ChatInput";
 import { buildVisibleMessages } from "@/components/chat/buildVisibleMessages";
 import {
   BubbleGradientContext,
+  shouldBumpOnContentSizeChange,
   type BubbleGradientValue,
 } from "@/components/chat/BubbleGradientContext";
+import { ThinkingLabelContext } from "@/components/chat/ThinkingLabelContext";
 import { ChatLoading } from "@/components/chat/ChatLoading";
 import { CollapsiblePicker } from "@/components/chat/CollapsiblePicker";
 import {
@@ -61,6 +63,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ActivityIndicator,
   Alert,
   AppState,
   Keyboard,
@@ -131,9 +134,12 @@ export default function ChatScreen() {
   const openRotSheet = useRotLevelSheetStore((s) => s.open);
   const hydrateSession = useChatStore((s) => s.hydrateSession);
   const messages = useChatStore((s) => s.messages);
-  const streamingText = useChatStore((s) => s.streamingText);
-  const streamingMeme = useChatStore((s) => s.streamingMeme);
-  const streamingGif = useChatStore((s) => s.streamingGif);
+  // NOTE: deliberately NOT subscribed to streamingText/streamingMeme/
+  // streamingGif — the streaming bubble pulls those itself (MessageBubble), so
+  // delta flushes don't re-render the screen or rebuild the list.
+  const olderMessages = useChatStore((s) => s.olderMessages);
+  const loadingOlder = useChatStore((s) => s.loadingOlder);
+  const loadOlderMessages = useChatStore((s) => s.loadOlderMessages);
   const activeReplyClientId = useChatStore((s) => s.activeReplyClientId);
   const settledReply = useChatStore((s) => s.settledReply);
   const status = useChatStore((s) => s.status);
@@ -221,10 +227,21 @@ export default function ChatScreen() {
     void hydrateSession({ autoLoadConversation: !routeId });
   }, [hydrateSession, params.conversationId]);
 
-  const lastUserMessage = useMemo(
-    () => [...messages].reverse().find((message) => message.role === "user"),
-    [messages],
+  // Rendered thread = static paginated prefix (older pages, oldest-first) +
+  // the live snapshot tail. All optimistic/settled/streaming logic operates on
+  // the tail only (in the store); this is the single place they're joined.
+  const allMessages = useMemo(
+    () =>
+      olderMessages.length === 0 ? messages : [...olderMessages, ...messages],
+    [olderMessages, messages],
   );
+
+  const lastUserMessage = useMemo(() => {
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      if (allMessages[i].role === "user") return allMessages[i];
+    }
+    return undefined;
+  }, [allMessages]);
 
   // Loading label shown while a reply is in flight. We pick one of the playful
   // phrases at random, but lock it in for the duration of a given reply
@@ -248,12 +265,9 @@ export default function ChatScreen() {
   const visibleMessages = useMemo<RenderMessage[]>(
     () =>
       buildVisibleMessages({
-        messages,
+        messages: allMessages,
         status,
         activeReplyClientId,
-        streamingText,
-        streamingMeme,
-        streamingGif,
         settledReply,
         error,
         lastUserMessage,
@@ -262,12 +276,9 @@ export default function ChatScreen() {
       activeReplyClientId,
       error,
       lastUserMessage,
-      messages,
+      allMessages,
       settledReply,
       status,
-      streamingText,
-      streamingMeme,
-      streamingGif,
     ],
   );
 
@@ -287,6 +298,10 @@ export default function ChatScreen() {
 
   const handleSubmit = () => {
     if (atLimit) return;
+    // Typing is allowed during a reply, sending is not. Guarded here (before
+    // the draft is optimistically cleared — otherwise a bypassed send would
+    // eat the message) and again inside sendMessage itself.
+    if (useChatStore.getState().status === "streaming") return;
     const text = draft.trim();
     const images = stagedImages;
     const gif = stagedGif;
@@ -314,18 +329,28 @@ export default function ChatScreen() {
     chatInputRef.current?.focus();
   };
 
-  const handleRetry = () => {
-    if (!lastUserMessage) return;
+  // Stable for the memoized bubbles (empty deps): the last user turn is
+  // resolved from the store at press time, not closed over per render.
+  const handleRetry = useCallback(() => {
+    const state = useChatStore.getState();
+    let lastUser = null;
+    for (let i = state.messages.length - 1; i >= 0; i--) {
+      if (state.messages[i].role === "user") {
+        lastUser = state.messages[i];
+        break;
+      }
+    }
+    if (!lastUser) return;
     // Resend the failed turn's attachments too, so a meme/gif isn't dropped on
     // retry. Reuse the level the original turn carried, falling back to the
     // current dial if it predates the feature.
-    void sendMessage(
-      lastUserMessage.text,
-      lastUserMessage.images,
-      lastUserMessage.gifs?.[0] ?? null,
-      lastUserMessage.levelOfRot ?? rotLevel,
+    void state.sendMessage(
+      lastUser.text,
+      lastUser.images,
+      lastUser.gifs?.[0] ?? null,
+      lastUser.levelOfRot ?? state.rotLevel,
     );
-  };
+  }, []);
 
   // Apply a computed picker-visibility transition to the two backing flags.
   // The pure transitions in pickerVisibility.ts own the mutual-exclusion logic;
@@ -486,18 +511,34 @@ export default function ChatScreen() {
   // Shared scroll offset + re-measure signal for the page-level bubble
   // gradient (see BubbleGradientContext). The handler runs on the UI thread so
   // the gradient tracks scrolling smoothly; the tick nudges bubbles to
-  // re-anchor whenever the layout settles.
+  // re-anchor whenever the layout settles. Both are SharedValues, so a tick
+  // re-renders nothing — the context value never changes identity and bubbles
+  // react via useAnimatedReaction off the render path.
   const pageScrollY = useSharedValue(0);
-  const [gradientTick, setGradientTick] = useState(0);
-  const bumpGradient = useCallback(() => setGradientTick((t) => t + 1), []);
+  const measureTick = useSharedValue(0);
+  const bumpGradient = useCallback(() => {
+    measureTick.value += 1;
+  }, [measureTick]);
+  // Content-size ticks are gated off while streaming (the content height
+  // changes on every delta flush); one bump fires on the streaming → idle /
+  // error transition below instead. Status is read at call time so this
+  // callback stays stable.
+  const handleContentSizeChange = useCallback(() => {
+    if (shouldBumpOnContentSizeChange(useChatStore.getState().status)) {
+      bumpGradient();
+    }
+  }, [bumpGradient]);
+  useEffect(() => {
+    if (status !== "streaming") bumpGradient();
+  }, [status, bumpGradient]);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       pageScrollY.value = event.contentOffset.y;
     },
   });
   const bubbleGradient = useMemo<BubbleGradientValue>(
-    () => ({ scrollY: pageScrollY, measureTick: gradientTick }),
-    [pageScrollY, gradientTick],
+    () => ({ scrollY: pageScrollY, measureTick }),
+    [pageScrollY, measureTick],
   );
 
   const handleNewConversation = () => {
@@ -586,16 +627,8 @@ export default function ChatScreen() {
           composer + keyboard move. Hidden for Pro (any paid plan). */}
           <AdBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
 
-          {showMemoryBanner ? (
-            <MemoryOnBanner
-              label={t("chat.memory.bannerOn")}
-              a11yLabel={t("chat.memory.bannerA11y")}
-              color={theme["--color-foreground-muted"]}
-              onPress={openMemorySheet}
-            />
-          ) : null}
-
           <BubbleGradientContext.Provider value={bubbleGradient}>
+            <ThinkingLabelContext.Provider value={thinkingLabel}>
             <View style={{ flex: 1 }}>
               <Animated.FlatList
                 style={[contentFadeStyle, { flex: 1 }]}
@@ -605,8 +638,31 @@ export default function ChatScreen() {
                 keyboardShouldPersistTaps="handled"
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
-                onContentSizeChange={bumpGradient}
+                onContentSizeChange={handleContentSizeChange}
                 onMomentumScrollEnd={bumpGradient}
+                // Inverted list: "end" is the visual top — reaching it loads
+                // the next page of older messages (no-ops when exhausted).
+                onEndReached={loadOlderMessages}
+                onEndReachedThreshold={0.5}
+                // Virtualization tuning for long threads with variable-height
+                // rows (FlatList kept over FlashList — see perf plan, Phase 6
+                // fallback). removeClippedSubviews intentionally NOT set: it
+                // can break the gradient bubbles' measureInWindow anchoring.
+                windowSize={7}
+                maxToRenderPerBatch={8}
+                initialNumToRender={12}
+                updateCellsBatchingPeriod={50}
+                ListFooterComponent={
+                  // Visual top of the inverted list: paging spinner.
+                  loadingOlder ? (
+                    <View style={{ paddingVertical: 12 }}>
+                      <ActivityIndicator
+                        size="small"
+                        color={theme["--color-foreground-muted"]}
+                      />
+                    </View>
+                  ) : null
+                }
                 contentContainerStyle={{
                   flexGrow: 1,
                   justifyContent:
@@ -627,6 +683,19 @@ export default function ChatScreen() {
                     <EmptyChatState
                       onStarterPress={handleStarterPress}
                       atLimit={atLimit}
+                      // Lives inside the scrollable empty state (it only shows
+                      // on a fresh chat) so the content never shears against a
+                      // pinned banner when the keyboard shrinks the viewport.
+                      header={
+                        showMemoryBanner ? (
+                          <MemoryOnBanner
+                            label={t("chat.memory.bannerOn")}
+                            a11yLabel={t("chat.memory.bannerA11y")}
+                            color={theme["--color-foreground-muted"]}
+                            onPress={openMemorySheet}
+                          />
+                        ) : null
+                      }
                     />
                   )
                 }
@@ -635,7 +704,6 @@ export default function ChatScreen() {
                     message={item}
                     retryLabel={t("common.retry")}
                     errorLabel={t("chat.errors.generic")}
-                    thinkingLabel={thinkingLabel}
                     onRetry={handleRetry}
                     onRate={rateMessage}
                     onEmoji={setMessageEmoji}
@@ -660,6 +728,7 @@ export default function ChatScreen() {
                 />
               ) : null}
             </View>
+            </ThinkingLabelContext.Provider>
           </BubbleGradientContext.Provider>
 
           <View

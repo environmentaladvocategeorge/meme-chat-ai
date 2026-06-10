@@ -90,6 +90,9 @@ export function MessageGifAttachments({
               source={{ uri: gif.url }}
               placeholder={gif.previewUrl ? { uri: gif.previewUrl } : undefined}
               contentFit="cover"
+              // Keyed per asset so a recycled list cell never shows the
+              // previous GIF's frames while the new one loads.
+              recyclingKey={gif.id}
               style={{ width: "100%", height: "100%" }}
             />
             <Watermark />

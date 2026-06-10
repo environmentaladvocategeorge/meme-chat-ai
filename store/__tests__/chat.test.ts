@@ -3,6 +3,9 @@ const mockStreamReplayTurn = jest.fn();
 const mockSignOut = jest.fn().mockResolvedValue(undefined);
 // Controllable so a test can make the emoji persist resolve or reject (rollback).
 const mockSetMessageEmojiCallable = jest.fn();
+// Captured so snapshot tests can drive the live listener's callback directly.
+const mockSubscribeToMessages = jest.fn((...args: unknown[]) => () => {});
+const mockFetchOlderMessages = jest.fn();
 
 // Mock every module that would otherwise drag in the Firebase SDK / native
 // AsyncStorage at import time. SessionExpiredError is left REAL so the
@@ -17,7 +20,8 @@ jest.mock("@/services/firebase/callables", () => ({
     mockSetMessageEmojiCallable(...args),
 }));
 jest.mock("@/services/firebase/conversations", () => ({
-  subscribeToMessages: jest.fn(() => () => {}),
+  subscribeToMessages: (...args: unknown[]) => mockSubscribeToMessages(...args),
+  fetchOlderMessages: (...args: unknown[]) => mockFetchOlderMessages(...args),
 }));
 jest.mock("@/store/storage", () => ({
   DEFAULT_ROT_LEVEL: 2,
@@ -41,8 +45,17 @@ jest.mock("@/store/auth", () => ({
 // Imports come after the jest.mock block (which jest hoists) so no module
 // import precedes the mocks. SessionExpiredError stays REAL so the chat store's
 // `instanceof` check matches what these tests throw.
+import type {
+  MessageCursor,
+  MessagesSnapshotMeta,
+  StoredChatMessage,
+} from "@/services/firebase/conversations";
 import { SessionExpiredError } from "@/services/firebase/sessionErrors";
-import { useChatStore } from "@/store/chat";
+import {
+  shallowEqualMessage,
+  useChatStore,
+  type ChatMessage,
+} from "@/store/chat";
 
 // A stream stand-in that yields nothing and throws `error`.
 function throwingStream(error: unknown) {
@@ -83,6 +96,10 @@ async function flushMicrotasks() {
 const IDLE_STATE = {
   conversationId: null,
   messages: [],
+  olderMessages: [],
+  olderCursor: null,
+  hasMoreOlder: false,
+  loadingOlder: false,
   streamingText: "",
   streamingMeme: null,
   streamingGif: null,
@@ -337,5 +354,449 @@ describe("useChatStore setMessageEmoji", () => {
 
     expect(mockSetMessageEmojiCallable).not.toHaveBeenCalled();
     expect(emojiOf("a1")).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Snapshot reconciliation + pagination
+// ---------------------------------------------------------------------------
+
+type SnapshotCb = (
+  messages: StoredChatMessage[],
+  meta: MessagesSnapshotMeta,
+) => void;
+
+// The store treats the cursor as opaque (it only hands it back to
+// fetchOlderMessages), so a marker object stands in for the doc snapshot.
+const fakeCursor = (id: string) => ({ id }) as unknown as MessageCursor;
+
+const META_EMPTY: MessagesSnapshotMeta = { oldestDoc: null, hasMore: false };
+
+function storedMsg(overrides: Partial<StoredChatMessage>): StoredChatMessage {
+  return {
+    id: "s1",
+    role: "agent",
+    text: "hi",
+    status: "complete",
+    createdAt: null,
+    ...overrides,
+  };
+}
+
+// Open a conversation and grab the live listener's callback so tests can
+// drive Firestore snapshots directly through applySnapshotMessages.
+function openConversation(id = "c1"): SnapshotCb {
+  useChatStore.getState().loadConversation(id);
+  const call = mockSubscribeToMessages.mock.calls.at(-1);
+  return call![1] as SnapshotCb;
+}
+
+describe("shallowEqualMessage", () => {
+  const base = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
+    id: "c-1",
+    serverId: "s1",
+    clientMessageId: "c-1",
+    role: "user",
+    text: "hello",
+    status: "complete",
+    createdAt: null,
+    ...overrides,
+  });
+
+  it("treats two value-identical messages as equal", () => {
+    expect(shallowEqualMessage(base(), base())).toBe(true);
+  });
+
+  it.each([
+    ["text", { text: "edited" }],
+    ["reaction", { reaction: "up" as const }],
+    ["emojiReaction", { emojiReaction: "🔥" }],
+    ["status", { status: "error" as const }],
+    ["optimistic", { optimistic: true }],
+  ])("detects a changed %s", (_field, change) => {
+    expect(shallowEqualMessage(base(), base(change))).toBe(false);
+  });
+
+  it("compares createdAt by instant, with both-null equal", () => {
+    expect(shallowEqualMessage(base(), base())).toBe(true); // null vs null
+    expect(
+      shallowEqualMessage(base({ createdAt: null }), base({ createdAt: new Date(1000) })),
+    ).toBe(false);
+    expect(
+      shallowEqualMessage(
+        base({ createdAt: new Date(1000) }),
+        base({ createdAt: new Date(1000) }),
+      ),
+    ).toBe(true);
+    expect(
+      shallowEqualMessage(
+        base({ createdAt: new Date(1000) }),
+        base({ createdAt: new Date(2000) }),
+      ),
+    ).toBe(false);
+  });
+
+  it("compares attachments element-wise on id + url, with absent ≡ empty", () => {
+    const img = (id: string, url = "https://cdn/x.webp") => ({
+      id,
+      source: "klipy" as const,
+      url,
+      previewUrl: "https://cdn/x-p.webp",
+    });
+
+    expect(shallowEqualMessage(base({ images: [] }), base())).toBe(true);
+    expect(
+      shallowEqualMessage(base({ images: [img("m1")] }), base({ images: [img("m1")] })),
+    ).toBe(true);
+    expect(
+      shallowEqualMessage(base({ images: [img("m1")] }), base({ images: [img("m2")] })),
+    ).toBe(false);
+    expect(
+      shallowEqualMessage(
+        base({ images: [img("m1")] }),
+        base({ images: [img("m1", "https://cdn/other.webp")] }),
+      ),
+    ).toBe(false);
+    expect(shallowEqualMessage(base({ images: [img("m1")] }), base())).toBe(false);
+  });
+});
+
+describe("useChatStore snapshot reconciliation", () => {
+  beforeEach(() => {
+    useChatStore.setState({ ...IDLE_STATE });
+  });
+
+  afterEach(() => {
+    // Tear down the module-level live subscription opened by loadConversation
+    // so it can't leak into other suites.
+    useChatStore.getState().startNewConversation();
+  });
+
+  const snapshotPair = () => [
+    storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" }),
+    storedMsg({ id: "s2", role: "agent", text: "a", inReplyToClientMessageId: "c-1" }),
+  ];
+
+  it("keeps referential identity for messages a snapshot re-delivers unchanged", () => {
+    const cb = openConversation();
+
+    cb(snapshotPair(), META_EMPTY);
+    const first = useChatStore.getState().messages;
+    cb(snapshotPair(), META_EMPTY);
+    const second = useChatStore.getState().messages;
+
+    expect(second).toHaveLength(2);
+    expect(second[0]).toBe(first[0]);
+    expect(second[1]).toBe(first[1]);
+  });
+
+  it("re-creates only the message that actually changed", () => {
+    const cb = openConversation();
+
+    cb(snapshotPair(), META_EMPTY);
+    const first = useChatStore.getState().messages;
+    const changed = snapshotPair();
+    changed[1] = { ...changed[1], emojiReaction: "🔥" };
+    cb(changed, META_EMPTY);
+    const second = useChatStore.getState().messages;
+
+    expect(second[0]).toBe(first[0]);
+    expect(second[1]).not.toBe(first[1]);
+    expect(second[1].emojiReaction).toBe("🔥");
+  });
+
+  it("keeps a pending optimistic user turn until the snapshot lands it", () => {
+    const cb = openConversation();
+    const optimistic: ChatMessage = {
+      id: "c-9",
+      clientMessageId: "c-9",
+      role: "user",
+      text: "in flight",
+      status: "complete",
+      createdAt: null,
+      optimistic: true,
+    };
+    useChatStore.setState({ messages: [optimistic] });
+
+    // Snapshot without the in-flight turn: the optimistic copy is appended.
+    cb([storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" })], META_EMPTY);
+    expect(
+      useChatStore.getState().messages.map((m) => m.clientMessageId),
+    ).toEqual(["c-1", "c-9"]);
+
+    // Once the stored doc lands, the optimistic copy is dropped for it.
+    cb(
+      [
+        storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" }),
+        storedMsg({ id: "s9", role: "user", text: "in flight", clientMessageId: "c-9" }),
+      ],
+      META_EMPTY,
+    );
+    const landed = useChatStore.getState().messages;
+    expect(landed.map((m) => m.clientMessageId)).toEqual(["c-1", "c-9"]);
+    expect(landed[1].serverId).toBe("s9");
+    expect(landed[1].optimistic).toBeUndefined();
+  });
+
+  it("hides the doc being replaced during a turn replay", () => {
+    const cb = openConversation();
+    useChatStore.setState({ replacingServerId: "s2" });
+
+    cb(snapshotPair(), META_EMPTY);
+
+    expect(useChatStore.getState().messages.map((m) => m.serverId)).toEqual(["s1"]);
+  });
+
+  it("clears the settled-reply bridge once the finalized reply lands", () => {
+    const cb = openConversation();
+    useChatStore.setState({
+      settledReply: { clientMessageId: "c-1", text: "a" },
+    });
+
+    // A snapshot without the finalized reply leaves the bridge up…
+    cb([storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" })], META_EMPTY);
+    expect(useChatStore.getState().settledReply).not.toBeNull();
+
+    // …and the snapshot that lands it (non-empty text on the same turn) drops it.
+    cb(snapshotPair(), META_EMPTY);
+    expect(useChatStore.getState().settledReply).toBeNull();
+  });
+
+  it("leaves the paged-in older prefix untouched", () => {
+    const cb = openConversation();
+    const prefix: ChatMessage[] = [
+      {
+        id: "old-1",
+        serverId: "old-1",
+        role: "user",
+        text: "ancient history",
+        status: "complete",
+        createdAt: null,
+      },
+    ];
+    useChatStore.setState({ olderMessages: prefix });
+
+    cb(snapshotPair(), META_EMPTY);
+
+    expect(useChatStore.getState().olderMessages).toBe(prefix);
+  });
+
+  it("seeds the pagination cursor from the live window only until a page is loaded", () => {
+    const cb = openConversation();
+
+    cb(snapshotPair(), { oldestDoc: fakeCursor("w1"), hasMore: true });
+    expect(useChatStore.getState().olderCursor).toEqual(fakeCursor("w1"));
+    expect(useChatStore.getState().hasMoreOlder).toBe(true);
+
+    // Once a prefix exists, the prefix owns the cursor — the sliding live
+    // window must not reset it.
+    useChatStore.setState({
+      olderMessages: [
+        {
+          id: "old-1",
+          serverId: "old-1",
+          role: "user",
+          text: "x",
+          status: "complete",
+          createdAt: null,
+        },
+      ],
+      olderCursor: fakeCursor("page-oldest"),
+    });
+    cb(snapshotPair(), { oldestDoc: fakeCursor("w2"), hasMore: true });
+    expect(useChatStore.getState().olderCursor).toEqual(fakeCursor("page-oldest"));
+  });
+
+  it("reports no older history when the live window isn't full", () => {
+    const cb = openConversation();
+    cb(snapshotPair(), { oldestDoc: fakeCursor("w1"), hasMore: false });
+    expect(useChatStore.getState().hasMoreOlder).toBe(false);
+  });
+});
+
+describe("useChatStore loadOlderMessages", () => {
+  const tailMessage: ChatMessage = {
+    id: "c-tail",
+    serverId: "s-tail",
+    clientMessageId: "c-tail",
+    role: "user",
+    text: "latest",
+    status: "complete",
+    createdAt: null,
+  };
+
+  beforeEach(() => {
+    mockFetchOlderMessages.mockReset();
+    useChatStore.setState({
+      ...IDLE_STATE,
+      conversationId: "c1",
+      messages: [tailMessage],
+      olderCursor: fakeCursor("window-oldest"),
+      hasMoreOlder: true,
+    });
+  });
+
+  it("prepends the fetched page and advances the cursor", async () => {
+    mockFetchOlderMessages.mockResolvedValue({
+      messages: [
+        storedMsg({ id: "o1", role: "user", text: "old q" }),
+        storedMsg({ id: "o2", role: "agent", text: "old a" }),
+      ],
+      cursor: fakeCursor("o1"),
+      hasMore: true,
+    });
+
+    await useChatStore.getState().loadOlderMessages();
+
+    const state = useChatStore.getState();
+    expect(mockFetchOlderMessages).toHaveBeenCalledWith(
+      "c1",
+      fakeCursor("window-oldest"),
+    );
+    expect(state.olderMessages.map((m) => m.serverId)).toEqual(["o1", "o2"]);
+    expect(state.olderCursor).toEqual(fakeCursor("o1"));
+    expect(state.hasMoreOlder).toBe(true);
+    expect(state.loadingOlder).toBe(false);
+    // The live tail is untouched.
+    expect(state.messages).toEqual([tailMessage]);
+  });
+
+  it("prepends a second page BEFORE the existing prefix (oldest-first order)", async () => {
+    useChatStore.setState({
+      olderMessages: [
+        {
+          id: "o3",
+          serverId: "o3",
+          role: "agent",
+          text: "previous page",
+          status: "complete",
+          createdAt: null,
+        },
+      ],
+    });
+    mockFetchOlderMessages.mockResolvedValue({
+      messages: [storedMsg({ id: "o1", role: "user", text: "older still" })],
+      cursor: fakeCursor("o1"),
+      hasMore: true,
+    });
+
+    await useChatStore.getState().loadOlderMessages();
+
+    expect(
+      useChatStore.getState().olderMessages.map((m) => m.serverId),
+    ).toEqual(["o1", "o3"]);
+  });
+
+  it("marks history exhausted on a short page", async () => {
+    mockFetchOlderMessages.mockResolvedValue({
+      messages: [storedMsg({ id: "o1", text: "the very first" })],
+      cursor: fakeCursor("o1"),
+      hasMore: false,
+    });
+
+    await useChatStore.getState().loadOlderMessages();
+
+    expect(useChatStore.getState().hasMoreOlder).toBe(false);
+  });
+
+  it("ignores a duplicate call while a page is already in flight", async () => {
+    let resolvePage: (value: unknown) => void = () => {};
+    mockFetchOlderMessages.mockImplementation(
+      () => new Promise((resolve) => (resolvePage = resolve)),
+    );
+
+    const first = useChatStore.getState().loadOlderMessages();
+    const second = useChatStore.getState().loadOlderMessages();
+    resolvePage({ messages: [], cursor: null, hasMore: false });
+    await Promise.all([first, second]);
+
+    expect(mockFetchOlderMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("dedupes messages already present in the prefix or the live tail", async () => {
+    useChatStore.setState({
+      olderMessages: [
+        {
+          id: "o2",
+          serverId: "o2",
+          role: "agent",
+          text: "already paged",
+          status: "complete",
+          createdAt: null,
+        },
+      ],
+    });
+    mockFetchOlderMessages.mockResolvedValue({
+      messages: [
+        storedMsg({ id: "o1", text: "genuinely new" }),
+        storedMsg({ id: "o2", text: "already paged" }), // straddles page boundary
+        storedMsg({ id: "s-tail", role: "user", text: "latest" }), // straddles live window
+      ],
+      cursor: fakeCursor("o1"),
+      hasMore: true,
+    });
+
+    await useChatStore.getState().loadOlderMessages();
+
+    expect(
+      useChatStore.getState().olderMessages.map((m) => m.serverId),
+    ).toEqual(["o1", "o2"]);
+  });
+
+  it("no-ops when there is nothing older or no cursor yet", async () => {
+    useChatStore.setState({ hasMoreOlder: false });
+    await useChatStore.getState().loadOlderMessages();
+
+    useChatStore.setState({ hasMoreOlder: true, olderCursor: null });
+    await useChatStore.getState().loadOlderMessages();
+
+    expect(mockFetchOlderMessages).not.toHaveBeenCalled();
+  });
+
+  it("releases the loading flag and keeps the cursor on failure (scroll retries)", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    mockFetchOlderMessages.mockRejectedValue(new Error("offline"));
+
+    await useChatStore.getState().loadOlderMessages();
+
+    const state = useChatStore.getState();
+    expect(state.loadingOlder).toBe(false);
+    expect(state.hasMoreOlder).toBe(true);
+    expect(state.olderCursor).toEqual(fakeCursor("window-oldest"));
+    warn.mockRestore();
+  });
+
+  it("resets pagination state on loadConversation and startNewConversation", () => {
+    const filled = {
+      olderMessages: [
+        {
+          id: "o1",
+          serverId: "o1",
+          role: "user" as const,
+          text: "x",
+          status: "complete" as const,
+          createdAt: null,
+        },
+      ],
+      olderCursor: fakeCursor("o1"),
+      hasMoreOlder: true,
+      loadingOlder: true,
+    };
+
+    useChatStore.setState(filled);
+    useChatStore.getState().loadConversation("c2");
+    let state = useChatStore.getState();
+    expect(state.olderMessages).toEqual([]);
+    expect(state.olderCursor).toBeNull();
+    expect(state.hasMoreOlder).toBe(false);
+    expect(state.loadingOlder).toBe(false);
+
+    useChatStore.setState(filled);
+    useChatStore.getState().startNewConversation();
+    state = useChatStore.getState();
+    expect(state.olderMessages).toEqual([]);
+    expect(state.olderCursor).toBeNull();
+    expect(state.hasMoreOlder).toBe(false);
+    expect(state.loadingOlder).toBe(false);
   });
 });
