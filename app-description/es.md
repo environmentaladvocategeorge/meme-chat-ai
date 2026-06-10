@@ -22,62 +22,62 @@ Y Brainrot Bot subió de nivel por dentro. Es más listo, elige mejores GIFs y t
 
 ## Promotional Text (Texto promocional)
 
-Todas las IAs suenan igual. Brainrot Bot no. Hace roasts, habla en memes y hace que tus mensajes, captions e ideas peguen mucho más fuerte.
+Toda IA suena igual. El Brainrot Bot no. Responde con humor, contesta con memes y GIFs, y convierte tus ideas a medio escribir en captions y respuestas ingeniosas que funcionan.
 
 ## Description (Descripción)
 
-Meme Chat AI es una app de chat con IA que sí tiene personalidad: Brainrot Bot. Úsala para escribir mejor, generar ideas, reescribir, explicar, hacer roasts y crear, todo con una voz que suena a internet y no a soporte técnico corporativo. Se siente menos como hablar con un asistente aburrido y más como escribirle a la persona más graciosa de tu grupo, esa que además te da buenos consejos.
+Brainrot Bot es un chatbot de IA con personalidad de verdad. Escribe como la persona más graciosa de tu grupo: la que te hace un roast, manda el GIF perfecto y encima da buenos consejos.
 
-¿Necesitas una respuesta mejor? ¿Un caption que de verdad funcione? ¿Una explicación rápida que no suene a libro de texto? ¿Un roast divertido de una idea a medio cocinar? Para eso está Brainrot Bot.
+¿Atascado con una respuesta? ¿Necesitas un caption que funcione, una respuesta ingeniosa, o una explicación que no parezca un libro de texto? ¿Quieres que alguien destroce tu idea a medio formar antes de publicarla? Para eso está Brainrot Bot.
 
 LO QUE PUEDES HACER
 
-• Chatea con Brainrot Bot
-Habla con una persona de IA divertida y fluida en memes que te ayuda con respuestas, captions, ideas, explicaciones y planes.
+• Chatear con una IA que habla en memes
+El Brainrot Bot ayuda con respuestas, captions, ocurrencias, ideas, explicaciones y planes, con una voz que suena a internet y no a un call center.
 
-• Controla el caos
-Usa el dial de Rot Level para elegir qué tan normales, ridículas o completamente desquiciadas se sienten las respuestas de la IA.
+• Ajustar el Rot Level
+Un solo dial controla el caos. Ponlo de asistente normal a completamente desquiciado y el Brainrot Bot va a ese ritmo.
 
-• Una IA que te recuerda
-Activa la memoria y Brainrot Bot se queda con tu vibra, tu gente y los temas que siempre sacas, así los chats siguen donde los dejaste en vez de empezar en frío. Es una función de pago y tú la controlas desde Ajustes.
+• Recibir respuestas con memes y GIFs incluidos
+El Brainrot Bot mete memes y GIFs directamente en sus respuestas. También puedes buscar los que están en tendencia y adjuntar los tuyos.
 
-• Añade memes y GIFs
-Busca memes y GIFs en tendencia, adjúntalos en el chat y haz tus conversaciones más expresivas.
+• Enviar fotos
+Adjunta fotos de tu cámara o galería y recibe reacciones, captions o respuestas según lo que compartes.
 
-• Envía fotos
-Adjunta fotos de tu cámara o galería y recibe respuestas de IA según lo que compartas.
+• Activar la memoria
+El Brainrot Bot recuerda tu vibra, tu gente y los temas que siempre sacas, para que los chats continúen donde los dejaste en vez de empezar desde cero. Es una función de pago y la controlas desde Ajustes.
 
-• Guarda tus favoritos
-Descarga memes y GIFs con marca de agua en la galería de tu dispositivo.
+• Guardar tus favoritos
+Descarga memes y GIFs con marca de agua directamente en tu galería.
 
-• Mantén tus chats organizados
-El historial de conversaciones guardado incluye títulos generados automáticamente, resúmenes, búsqueda, secciones por tiempo y eliminación masiva.
+• Mantener tus chats organizados
+Los chats guardados tienen títulos y resúmenes generados automáticamente, más búsqueda, secciones por tiempo y eliminación masiva.
 
-• Personaliza tu vibe
-Los planes de pago desbloquean fondos de chat, temas de mensajes y opciones de apariencia adicionales.
+• Personalizarlo a tu gusto
+Los planes de pago desbloquean fondos de chat, temas de mensajes y opciones de apariencia extra.
 
-• Úsala en tu idioma
-Meme Chat AI admite 9 idiomas: inglés, español, francés, portugués, alemán, chino, japonés, hindi y ruso.
+• Úsalo en tu idioma
+Disponible en 9 idiomas: inglés, español, francés, portugués, alemán, chino, japonés, hindi y ruso.
 
 IDEAL PARA
 
-• Escribir respuestas de texto más divertidas
-• Generar ideas para captions y publicaciones en redes
-• Explicar cosas confusas rápidamente
-• Hacer roasts útiles de ideas
-• Planear mensajes, chistes, bios y respuestas ingeniosas
-• Hacer que los chats se sientan menos sosos
-• Añadir memes y GIFs a tus conversaciones con IA
+• Responder cuando no sabes qué decir
+• Captions para Instagram y TikTok que no se hundan
+• Respuestas ingeniosas y roasts
+• Explicar cosas confusas rápido
+• Bios, chistes y borradores de mensajes
+• Munición para el grupo de WhatsApp
+• Hacer las conversaciones con IA entretenidas de verdad
 
-HECHA PARA DIVERTIR, NO PARA SER UNA IA ABURRIDA
+EL MISMO BOT, GRATIS O DE PAGO
 
-Tienes el mismo Brainrot Bot en todos los planes, gratis o de pago. Los planes de pago solo le dan más espacio: memoria, mucho más uso, sin anuncios y personalización extra.
+Tienes el Brainrot Bot completo en todos los planes. Los de pago solo le dan más margen: memoria, mucho más uso, sin anuncios y personalización extra.
 
 PRIVACIDAD Y CONTROL
 
-Meme Chat AI te permite eliminar tu cuenta y tus conversaciones dentro de la app, y puedes desactivar o borrar la memoria de Brainrot Bot cuando quieras. La app está diseñada para usuarios de 16 años en adelante.
+Elimina tu cuenta y tus conversaciones desde la propia app, y desactiva o borra la memoria del Brainrot Bot cuando quieras. La app está diseñada para usuarios de 16 años en adelante.
 
-Descarga Meme Chat AI y deja que Brainrot Bot convierta tu brainrot en algo útil, divertido y compartible.
+Descarga Meme Chat AI y pon tu brainrot a trabajar.
 
 Términos de uso: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
 Política de privacidad: https://meme-chat-ai.com/privacy
