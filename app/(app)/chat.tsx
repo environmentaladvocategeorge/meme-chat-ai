@@ -95,6 +95,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Height of the gradient ramp above the floating composer dock — the zone
 // where scrolling messages dissolve into the backdrop instead of hard-cutting.
 const DOCK_FADE_HEIGHT = 21;
+// Ramp height while a reply streams: matches the in-flight bubble's 10px
+// action-row stand-in (see MessageBubble), so the resting bubble clears it.
+const DOCK_FADE_HEIGHT_STREAMING = 10;
 // Matching (smaller) ramp at the top of the thread, so messages dissolve just
 // before they touch the header instead of cutting at the viewport edge.
 const HEADER_FADE_HEIGHT = 20;
@@ -532,18 +535,25 @@ export default function ChatScreen() {
     opacity: contentOpacity.value,
   }));
 
-  // The dock's dissolve ramp ducks out while a reply is thinking/streaming —
-  // the in-flight bubble rests lower than a finalized one (no action row yet),
-  // and would otherwise sit washed-out in the fade the whole stream. It eases
-  // back in when the stream settles, alongside the action row's entrance.
-  const dockFadeOpacity = useSharedValue(1);
+  // The dock's dissolve ramp shrinks while a reply is thinking/streaming —
+  // the in-flight bubble rests lower than a finalized one (no action row yet,
+  // just the 10px stand-in), so the full ramp would wash out its last line
+  // for the whole stream. It stays 10px tall rather than vanishing so a
+  // message pulled down behind the dock mid-stream still dissolves instead
+  // of hard-cutting, then eases back to full height alongside the action
+  // row's entrance.
+  const dockFadeHeight = useSharedValue(DOCK_FADE_HEIGHT);
   useEffect(() => {
-    dockFadeOpacity.value = withTiming(status === "streaming" ? 0 : 1, {
-      duration: status === "streaming" ? 150 : 220,
-    });
-  }, [status, dockFadeOpacity]);
+    dockFadeHeight.value = withTiming(
+      status === "streaming" ? DOCK_FADE_HEIGHT_STREAMING : DOCK_FADE_HEIGHT,
+      { duration: status === "streaming" ? 150 : 220 },
+    );
+  }, [status, dockFadeHeight]);
+  // Anchored to the dock's top edge: top tracks -height so the ramp shrinks
+  // upward from the dock rather than detaching from it.
   const dockFadeStyle = useAnimatedStyle(() => ({
-    opacity: dockFadeOpacity.value,
+    height: dockFadeHeight.value,
+    top: -dockFadeHeight.value,
   }));
 
   // Shared scroll offset + re-measure signal for the page-level bubble
@@ -852,13 +862,7 @@ export default function ChatScreen() {
             <Animated.View
               pointerEvents="none"
               style={[
-                {
-                  position: "absolute",
-                  top: -DOCK_FADE_HEIGHT,
-                  left: 0,
-                  right: 0,
-                  height: DOCK_FADE_HEIGHT,
-                },
+                { position: "absolute", left: 0, right: 0 },
                 dockFadeStyle,
               ]}
             >
