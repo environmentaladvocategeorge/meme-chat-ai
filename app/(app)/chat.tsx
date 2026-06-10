@@ -94,7 +94,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Height of the gradient ramp above the floating composer dock — the zone
 // where scrolling messages dissolve into the backdrop instead of hard-cutting.
-const DOCK_FADE_HEIGHT = 32;
+const DOCK_FADE_HEIGHT = 21;
 // Matching (smaller) ramp at the top of the thread, so messages dissolve just
 // before they touch the header instead of cutting at the viewport edge.
 const HEADER_FADE_HEIGHT = 20;
@@ -739,11 +739,13 @@ export default function ChatScreen() {
                   paddingHorizontal: 18,
                   // Inverted list: paddingTop is the VISUAL BOTTOM. The
                   // floating dock overlays the list, so resting content needs
-                  // its measured height (plus breathing room reaching into
-                  // the fade ramp) to sit clear of it; scrolled content runs
-                  // behind the dock and dissolves in the scrim. Falls back to
-                  // 16 for the first frame, before the dock reports a height.
-                  paddingTop: dockHeight > 0 ? dockHeight + 8 : 16,
+                  // its measured height (plus breathing room — enough that
+                  // the last reply's action row mostly clears the fade ramp
+                  // without floating the thread too high) to sit clear of it;
+                  // scrolled content runs behind the dock and dissolves in
+                  // the scrim. Falls back to 16 for the first frame, before
+                  // the dock reports a height.
+                  paddingTop: dockHeight > 0 ? dockHeight + 10 : 16,
                   paddingBottom: 18,
                   gap: 10,
                 }}
