@@ -14,6 +14,7 @@
 //     in a much larger composer surface for longer messages.
 //   - Focus state fades in a soft brand-gradient glow ring around the pill.
 
+import { AppPressable } from "@/components/AppPressable";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { useChatAccentGradient, useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
@@ -60,8 +61,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-const PILL_RADIUS = 26;
-const SEND_BUTTON_SIZE = 40;
+// Exported for ComposerSkeleton, which mirrors the composer's resting
+// geometry (pill height = PILL_RADIUS * 2) while the app boots.
+export const PILL_RADIUS = 26;
+const SEND_BUTTON_SIZE = 36;
 const EXPAND_HIT_SIZE = 32;
 const RING_INSET = 2;
 const LINE_HEIGHT = 20;
@@ -212,7 +215,12 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
         false,
       );
     } else {
+      // Reset after cancelling: cancelAnimation freezes the value at an
+      // arbitrary angle, and the spinner's first frames on the NEXT stream
+      // paint before the effect re-runs — so a stale value made the arc
+      // appear at a random rotation each send.
       cancelAnimation(spin);
+      spin.value = 0;
     }
   }, [streaming, spin]);
   const spinStyle = useAnimatedStyle(() => ({
@@ -317,7 +325,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             backgroundColor: theme["--color-input"],
             flexDirection: "row",
             alignItems: "flex-end",
-            paddingLeft: 20,
+            paddingLeft: 16,
             paddingRight: (PILL_RADIUS * 2 - SEND_BUTTON_SIZE) / 2,
             paddingVertical: PILL_PADDING_Y,
           }}
@@ -374,6 +382,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               // path itself).
               multiline
               scrollEnabled
+              // Return deliberately inserts a newline (the multiline
+              // default) rather than sending — matches the Claude / ChatGPT
+              // composer convention. Sending is the button's job.
               style={{
                 minHeight: MIN_INPUT_HEIGHT,
                 maxHeight: MAX_INPUT_HEIGHT,
@@ -429,15 +440,26 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               </Pressable>
             </Animated.View>
 
-            <Pressable
+            <AppPressable
             onPress={showStop ? onCancel : canSend ? onSend : undefined}
             disabled={!showStop && !canSend}
-            accessibilityRole="button"
+            haptic
+            pressScale={0.08}
             accessibilityLabel={
               showStop ? cancelAccessibilityLabel : sendAccessibilityLabel
             }
             accessibilityState={{ disabled: !showStop && !canSend }}
             hitSlop={8}
+            containerStyle={{
+              width: SEND_BUTTON_SIZE,
+              height: SEND_BUTTON_SIZE,
+              // The button bottom-anchors to the input row (flex-end, so it
+              // tracks the last line as the input grows). Smaller than the
+              // 40px single-line row, it needs half the difference as bottom
+              // margin to sit vertically centered when there's one line —
+              // and the same comfortable lift off the pill floor when grown.
+              marginBottom: (MIN_INPUT_HEIGHT - SEND_BUTTON_SIZE) / 2,
+            }}
             style={{
               width: SEND_BUTTON_SIZE,
               height: SEND_BUTTON_SIZE,
@@ -514,7 +536,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     sendActiveStyle,
                   ]}
                 >
-                  <ArrowFatUp size={22} color={activeIconColor} weight="fill" />
+                  <ArrowFatUp size={20} color={activeIconColor} weight="fill" />
                 </Animated.View>
                 {/* Inactive layer: muted icon, faded out as the active
                     layer fades in. */}
@@ -527,14 +549,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   ]}
                 >
                   <ArrowFatUp
-                    size={22}
+                    size={20}
                     color={theme["--color-foreground-muted"]}
                     weight="fill"
                   />
                 </Animated.View>
               </>
             )}
-          </Pressable>
+          </AppPressable>
           </View>
         </View>
       </View>
@@ -667,7 +689,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                   sendActiveStyle,
                 ]}
               >
-                <ArrowFatUp size={24} color={activeIconColor} weight="fill" />
+                <ArrowFatUp size={22} color={activeIconColor} weight="fill" />
               </Animated.View>
               <Animated.View
                 pointerEvents="none"
@@ -678,7 +700,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                 ]}
               >
                 <ArrowFatUp
-                  size={24}
+                  size={22}
                   color={theme["--color-foreground-muted"]}
                   weight="fill"
                 />

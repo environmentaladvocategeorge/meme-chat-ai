@@ -17,6 +17,7 @@ import {
   PhotoButton,
   RotLevelButton,
 } from "@/components/chat/ComposerToggles";
+import { EdgeFadedScrollRow } from "@/components/chat/EdgeFadedScrollRow";
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
 import { MemoryOnBanner } from "@/components/chat/MemoryOnBanner";
 import { MessageBubble } from "@/components/chat/MessageBubble";
@@ -32,7 +33,7 @@ import { QuotaModal } from "@/components/chat/QuotaModal";
 import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
 import { UsageLimitBlock, UsageNudge } from "@/components/chat/UsageNotices";
-import { MemeAvatar } from "@/components/MemeAvatar";
+import { ComposerSkeleton } from "@/components/chat/ComposerSkeleton";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import {
   trendingGifToMessageGif,
@@ -70,7 +71,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
 } from "react-native";
@@ -741,15 +741,11 @@ export default function ChatScreen() {
             {!entitlementReady ? (
               // Don't render the composer OR the upgrade block until we know the
               // usage state — showing either would flicker into the other.
-              <Animated.View
-                entering={FadeIn.duration(220)}
-                style={{
-                  height: 52,
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MemeAvatar variant="loading" size={36} pulse />
+              // Shimmer placeholder in the composer's exact resting geometry
+              // (not a second brainrot avatar — the thread above already has
+              // one): when the real composer mounts it lands on these shapes.
+              <Animated.View entering={FadeIn.duration(220)}>
+                <ComposerSkeleton />
               </Animated.View>
             ) : atLimit && usage ? (
               // 100% of the binding allowance is spent: the composer is replaced
@@ -861,11 +857,16 @@ export default function ChatScreen() {
                 {/* Composer accessory row. The chips grow to fill the width
                 evenly when they fit, and the row scrolls horizontally rather
                 than cropping a label when they don't (narrow screens / long
-                locales). */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
+                locales) — with a trailing fade hinting at the hidden chips.
+                The fade needs the backdrop's actual color, so it only renders
+                over solid backgrounds; over a custom gradient it's disabled
+                (no single color matches the pixels beneath it). */}
+                <EdgeFadedScrollRow
+                  fadeColor={
+                    chatBackground.kind === "solid"
+                      ? (chatBackground.color ?? theme["--color-background"])
+                      : null
+                  }
                   style={{ marginTop: 8, marginHorizontal: -16 }}
                   contentContainerStyle={{
                     flexGrow: 1,
@@ -903,7 +904,7 @@ export default function ChatScreen() {
                     level={rotLevel}
                     onPress={handleOpenRot}
                   />
-                </ScrollView>
+                </EdgeFadedScrollRow>
               </View>
             )}
           </View>
