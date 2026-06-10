@@ -71,11 +71,11 @@ export function AppHeader({
         backgroundColor: headerBg,
         borderBottomLeftRadius: 28,
         borderBottomRightRadius: 28,
-        shadowColor: theme["--color-foreground"],
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 3,
+        // Deliberately NO shadow/elevation: a drop shadow pools in the
+        // concave notches left by the rounded corners and reads as a wrong-
+        // colored patch against the screen background. The surface color
+        // (white-on-grey in light, lightened card in dark) carries the
+        // separation on its own.
       }}
     >
       {/* Title row: button on the left, title flex-centered in the middle,

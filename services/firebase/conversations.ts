@@ -254,6 +254,12 @@ function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
   };
 }
 
+// Live window over the most recently updated conversations. Older history is
+// paged in on demand via fetchOlderConversations — same shape as the messages
+// live-window + pager below, so the history screen stays cheap no matter how
+// many conversations an account accumulates.
+const CONVERSATIONS_LIVE_LIMIT = 50;
+
 // The Firestore rule for listing conversations relies on this exact query
 // shape: clients must constrain reads to their own uid.
 export function listConversations(uid: string): Query<DocumentData> {
@@ -262,7 +268,7 @@ export function listConversations(uid: string): Query<DocumentData> {
     collection(db, "conversations"),
     where("uid", "==", uid),
     orderBy("updatedAt", "desc"),
-    limit(50),
+    limit(CONVERSATIONS_LIVE_LIMIT),
   );
 }
 
@@ -273,9 +279,25 @@ export async function getConversations(
   return snapshot.docs.map((doc) => mapConversation(doc.id, doc.data()));
 }
 
+// Pagination cursor: the QueryDocumentSnapshot of the oldest loaded
+// conversation. A doc snapshot (not a timestamp) so equal-updatedAt
+// neighbors can't be skipped or duplicated across page boundaries.
+export type ConversationCursor = QueryDocumentSnapshot<DocumentData>;
+
+export type ConversationsSnapshotMeta = {
+  // Cursor for the first fetchOlderConversations call: the oldest doc of the
+  // live window. Null when the account has no conversations.
+  oldestDoc: ConversationCursor | null;
+  // Whether the live window is full — if it isn't, there's nothing older.
+  hasMore: boolean;
+};
+
 export function subscribeToConversations(
   uid: string,
-  cb: (conversations: ConversationSummary[]) => void,
+  cb: (
+    conversations: ConversationSummary[],
+    meta: ConversationsSnapshotMeta,
+  ) => void,
   // Optional: invoked after the default log/swallow when the listener errors,
   // so a caller can resolve its loading state instead of spinning forever (the
   // success callback never fires on a hard error like a network failure).
@@ -285,13 +307,49 @@ export function subscribeToConversations(
   return onSnapshot(
     listConversations(uid),
     (snapshot) => {
-      cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())));
+      cb(snapshot.docs.map((doc) => mapConversation(doc.id, doc.data())), {
+        oldestDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
+        hasMore: snapshot.docs.length >= CONVERSATIONS_LIVE_LIMIT,
+      });
     },
     (error) => {
       logError(error);
       onError?.();
     },
   );
+}
+
+export type OlderConversationsPage = {
+  conversations: ConversationSummary[];
+  // Cursor for the next page; null when this page came back empty.
+  oldestDoc: ConversationCursor | null;
+  hasMore: boolean;
+};
+
+// One-shot page of conversations older (by updatedAt) than the cursor. Pages
+// aren't live — a paged-in conversation that gets updated re-enters through
+// the live window instead, and the caller dedupes by id.
+export async function fetchOlderConversations(
+  uid: string,
+  cursor: ConversationCursor,
+  pageSize = 50,
+): Promise<OlderConversationsPage> {
+  const db = requireFirestore();
+  const pageQuery = query(
+    collection(db, "conversations"),
+    where("uid", "==", uid),
+    orderBy("updatedAt", "desc"),
+    startAfter(cursor),
+    limit(pageSize),
+  );
+  const snapshot = await getDocs(pageQuery);
+  return {
+    conversations: snapshot.docs.map((doc) =>
+      mapConversation(doc.id, doc.data()),
+    ),
+    oldestDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
+    hasMore: snapshot.docs.length >= pageSize,
+  };
 }
 
 // Cap the live listener to the most recent N messages so the snapshot callback

@@ -1,5 +1,6 @@
 import { AdBanner } from "@/components/ads/AdBanner";
 import { AppHeader } from "@/components/AppHeader";
+import { AppKeyboardAvoidingView } from "@/components/AppKeyboardAvoidingView";
 import { AttachmentViewerProvider } from "@/components/AttachmentViewer";
 import { ChatInput, type ChatInputRef } from "@/components/ChatInput";
 import { buildVisibleMessages } from "@/components/chat/buildVisibleMessages";
@@ -34,6 +35,7 @@ import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
 import { UsageLimitBlock, UsageNudge } from "@/components/chat/UsageNotices";
 import { ComposerSkeleton } from "@/components/chat/ComposerSkeleton";
+import { ScrollToBottomButton } from "@/components/chat/ScrollToBottomButton";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
 import {
   trendingGifToMessageGif,
@@ -68,9 +70,8 @@ import {
   ActivityIndicator,
   Alert,
   AppState,
+  type FlatList,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   View,
@@ -82,6 +83,8 @@ import {
 } from "@/services/firebase/uploadMessageImage";
 import Animated, {
   FadeIn,
+  runOnJS,
+  useAnimatedReaction,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
@@ -118,6 +121,9 @@ export default function ChatScreen() {
   const [memesOpen, setMemesOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
   const chatInputRef = useRef<ChatInputRef>(null);
+  // Thread list ref — jump-to-latest button and the send path both scroll
+  // the inverted list back to offset 0 (the visual bottom).
+  const listRef = useRef<FlatList<RenderMessage>>(null);
   const newConvoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Memes the user has staged but not yet sent. Sent as multimodal image
   // inputs; capped at MAX_MESSAGE_IMAGES (the backend re-enforces the cap).
@@ -330,6 +336,12 @@ export default function ChatScreen() {
     // don't blur) so rapid follow-up messages stay frictionless.
     applyPickers(dismissPickers());
     void sendMessage(text, images, gif, rotLevel);
+    // If the user sent from up in their history, glide back to the live
+    // edge so the optimistic bubble (and the incoming reply) are in view.
+    // Next frame, so the optimistic message has rendered before the scroll.
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    });
   };
 
   // Tapping a starter chip drops its text into the composer and focuses it,
@@ -548,6 +560,30 @@ export default function ChatScreen() {
       pageScrollY.value = event.contentOffset.y;
     },
   });
+
+  // Floating "jump to latest" button. The list is inverted, so contentOffset.y
+  // IS the distance scrolled up from the newest message. The reaction runs on
+  // the UI thread and only crosses to JS when the threshold band is crossed —
+  // not per scroll frame. Hysteresis (show past 200, hide under 120) keeps it
+  // from flickering while hovering near the boundary.
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
+  const jumpShown = useSharedValue(false);
+  useAnimatedReaction(
+    () => pageScrollY.value,
+    (y) => {
+      if (!jumpShown.value && y > 200) {
+        jumpShown.value = true;
+        runOnJS(setShowJumpToLatest)(true);
+      } else if (jumpShown.value && y < 120) {
+        jumpShown.value = false;
+        runOnJS(setShowJumpToLatest)(false);
+      }
+    },
+  );
+  const handleJumpToLatest = useCallback(() => {
+    // Inverted list: offset 0 is the visual bottom (newest message).
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+  }, []);
   const bubbleGradient = useMemo<BubbleGradientValue>(
     () => ({ scrollY: pageScrollY, measureTick }),
     [pageScrollY, measureTick],
@@ -612,8 +648,11 @@ export default function ChatScreen() {
   return (
     <ChatToneContext.Provider value={chatThemeContext}>
       <AttachmentViewerProvider>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        {/* Not the stock KeyboardAvoidingView: that one can hold a stale
+            keyboard pad after a background/foreground cycle (iOS drops the
+            hide event), squishing the whole screen to the top until the next
+            keyboard cycle. See AppKeyboardAvoidingView. */}
+        <AppKeyboardAvoidingView
           style={{
             flex: 1,
             backgroundColor:
@@ -660,6 +699,7 @@ export default function ChatScreen() {
             <ThinkingLabelContext.Provider value={thinkingLabel}>
             <View style={{ flex: 1 }}>
               <Animated.FlatList
+                ref={listRef}
                 style={[contentFadeStyle, { flex: 1 }]}
                 inverted
                 data={visibleMessages}
@@ -988,13 +1028,30 @@ export default function ChatScreen() {
             </View>
           </View>
 
+          {/* Floating jump-to-latest. Sits just above the dock (which the
+              measured dockHeight tracks through picker opens and keyboard
+              moves) and right-aligned with the dock's 16px padding. */}
+          <View
+            style={{
+              position: "absolute",
+              right: 16,
+              bottom: dockHeight + 12,
+            }}
+          >
+            <ScrollToBottomButton
+              label={t("chat.scrollToBottom")}
+              visible={showJumpToLatest}
+              onPress={handleJumpToLatest}
+            />
+          </View>
+
           <QuotaModal
             quota={quota}
             isTopTier={isTopTier}
             onUpgrade={openPlan}
             onDismiss={dismissQuota}
           />
-        </KeyboardAvoidingView>
+        </AppKeyboardAvoidingView>
       </AttachmentViewerProvider>
     </ChatToneContext.Provider>
   );
