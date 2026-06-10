@@ -532,6 +532,20 @@ export default function ChatScreen() {
     opacity: contentOpacity.value,
   }));
 
+  // The dock's dissolve ramp ducks out while a reply is thinking/streaming —
+  // the in-flight bubble rests lower than a finalized one (no action row yet),
+  // and would otherwise sit washed-out in the fade the whole stream. It eases
+  // back in when the stream settles, alongside the action row's entrance.
+  const dockFadeOpacity = useSharedValue(1);
+  useEffect(() => {
+    dockFadeOpacity.value = withTiming(status === "streaming" ? 0 : 1, {
+      duration: status === "streaming" ? 150 : 220,
+    });
+  }, [status, dockFadeOpacity]);
+  const dockFadeStyle = useAnimatedStyle(() => ({
+    opacity: dockFadeOpacity.value,
+  }));
+
   // Shared scroll offset + re-measure signal for the page-level bubble
   // gradient (see BubbleGradientContext). The handler runs on the UI thread so
   // the gradient tracks scrolling smoothly; the tick nudges bubbles to
@@ -835,19 +849,26 @@ export default function ChatScreen() {
             onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
             style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}
           >
-            <LinearGradient
+            <Animated.View
               pointerEvents="none"
-              colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={{
-                position: "absolute",
-                top: -DOCK_FADE_HEIGHT,
-                left: 0,
-                right: 0,
-                height: DOCK_FADE_HEIGHT,
-              }}
-            />
+              style={[
+                {
+                  position: "absolute",
+                  top: -DOCK_FADE_HEIGHT,
+                  left: 0,
+                  right: 0,
+                  height: DOCK_FADE_HEIGHT,
+                },
+                dockFadeStyle,
+              ]}
+            >
+              <LinearGradient
+                colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
             <View
               pointerEvents="none"
               style={{
