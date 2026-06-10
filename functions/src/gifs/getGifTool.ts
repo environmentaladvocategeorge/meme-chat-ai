@@ -31,9 +31,9 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
         randomness_factor: {
           type: "integer",
           minimum: 1,
-          maximum: 4,
+          maximum: 6,
           description:
-            "How literal/exact your query is. Use 1 for an exact, specific reference — it returns that precise top GIF. Use 2–3 for a looser query where any of the top few hits would land (e.g. a generic word like 'cooked'); we then randomly pick from roughly the first N results, favoring earlier ones, instead of you reading them. Default 1.",
+            "How literal/exact your query is. Use 1 for an exact, specific reference — it returns that precise top GIF. Use 2–3 for a looser query where any of the top few hits would land (e.g. a generic word like 'cooked'); we then randomly pick from roughly the first N results, favoring earlier ones, instead of you reading them. Use 6 ONLY for pure no-subject chaos requests ('send me some brainrot') where any wild hit is the right answer. Default 1.",
         },
       },
       required: ["query"],
@@ -44,9 +44,10 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
 
 const gifArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),
-  // How widely to sample the ranked results. 1 = always the top hit. Invalid or
-  // missing values fall back to 1 (exact) rather than failing the tool.
-  randomness_factor: z.coerce.number().int().min(1).max(4).catch(1).default(1),
+  // How widely to sample the ranked results. 1 = always the top hit; 6 = the
+  // chaos band for pure brainrot requests. Invalid or missing values fall back
+  // to 1 (exact) rather than failing the tool.
+  randomness_factor: z.coerce.number().int().min(1).max(6).catch(1).default(1),
 });
 
 export type GetGifDeps = {

@@ -352,6 +352,24 @@ describe("parseDecision", () => {
     });
   });
 
+  it("accepts randomness 6 — the chaos band for pure brainrot requests", () => {
+    expect(
+      parseDecision('{"type":"gif","query":"random brainrot","randomness_factor":6}'),
+    ).toEqual({
+      type: "gif",
+      query: "random brainrot",
+      randomnessFactor: 6,
+    });
+    // 7 is past the band and still falls back to 1.
+    expect(
+      parseDecision('{"type":"gif","query":"random brainrot","randomness_factor":7}'),
+    ).toEqual({
+      type: "gif",
+      query: "random brainrot",
+      randomnessFactor: 1,
+    });
+  });
+
   it("falls back to none for a gif/meme with no usable query", () => {
     expect(parseDecision('{"type":"gif","query":"","randomness_factor":1}')).toEqual({
       type: "none",

@@ -201,7 +201,9 @@ export function parseDecision(raw: string): MediaDecision {
       return {
         type: o.type,
         query: o.query.trim().slice(0, 100),
-        randomnessFactor: Number.isInteger(rf) && rf >= 1 && rf <= 4 ? rf : 1,
+        // 1-4 is the normal literal→loose scale; 5-6 is the chaos band the
+        // prompt reserves for pure brainrot requests ("send me some brainrot").
+        randomnessFactor: Number.isInteger(rf) && rf >= 1 && rf <= 6 ? rf : 1,
       };
     }
   } catch {
