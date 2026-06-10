@@ -14,11 +14,7 @@ Meme Chat AI: Brainrot Bot
 
 ## What's New（更新内容）
 
-现在你可以自定义 Brainrot Bot 的回复方式了。
-
-新的开关让你决定它要不要用 emoji 回复、要不要在回答里加梗图和 GIF。聊天界面也大扫除了一遍：回复显示更流畅，长对话滚动不再卡顿，还修掉了一批小的显示问题。
-
-Brainrot Bot 本体也在幕后升级了。它更聪明、更会挑 GIF，而且比以前更加 brainrot。
+这次更新主打打磨。我们修复了某些回复显示异常的问题，还顺手清理了聊天界面里的一些小毛病。
 
 ## Promotional Text（推广文案）
 

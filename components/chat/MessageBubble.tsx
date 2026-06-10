@@ -871,6 +871,17 @@ export const MessageBubble = memo(function MessageBubble({
             </Pressable>
           ) : null}
 
+          {isStreamingBubble ? (
+            // Stand-in for the action row while the reply is thinking/streaming.
+            // Without it the in-flight bubble rests a full action-row lower than
+            // the finalized reply will, dipping its last line into the dock's
+            // fade ramp; reserving the slot also means the real row lands in
+            // already-claimed space instead of pushing the thread up. Height
+            // mirrors MessageActions: 18px icons + 4px vertical padding × 2,
+            // plus its 2px top margin.
+            <View style={{ height: 28 }} />
+          ) : null}
+
           {showActions && message.serverId ? (
             <MessageActions
               text={messageText}
