@@ -1,9 +1,5 @@
 import { describe, expect, it } from "@jest/globals";
-import {
-  applyRotLevel,
-  ROT_LEVEL_PLACEHOLDER,
-  rotLevelBlock,
-} from "../content";
+import { rotLevelBlock } from "../rotLevel";
 
 describe("rotLevelBlock", () => {
   it("returns a distinct block per level", () => {
@@ -40,37 +36,5 @@ describe("rotLevelBlock", () => {
   it("never leaves the emoji placeholder in the output", () => {
     expect(rotLevelBlock(1, true)).not.toContain("{{EMOJI_LINE}}");
     expect(rotLevelBlock(1, false)).not.toContain("{{EMOJI_LINE}}");
-  });
-});
-
-describe("applyRotLevel", () => {
-  it("replaces the placeholder in place", () => {
-    const prompt = `intro\n\n${ROT_LEVEL_PLACEHOLDER}\n\noutro`;
-    const out = applyRotLevel(prompt, 3);
-    expect(out).not.toContain(ROT_LEVEL_PLACEHOLDER);
-    expect(out).toContain("GOBLIN MODE");
-    expect(out.startsWith("intro")).toBe(true);
-    expect(out.endsWith("outro")).toBe(true);
-  });
-
-  it("appends the block when no placeholder is present", () => {
-    const out = applyRotLevel("just a persona", 1);
-    expect(out.startsWith("just a persona")).toBe(true);
-    expect(out).toContain("LIGHTLY COOKED");
-  });
-
-  it("never leaves a raw placeholder behind", () => {
-    expect(applyRotLevel(`x ${ROT_LEVEL_PLACEHOLDER} y`, 2)).not.toContain(
-      ROT_LEVEL_PLACEHOLDER,
-    );
-  });
-
-  it("threads the emoji toggle into the substituted block", () => {
-    const prompt = `intro\n\n${ROT_LEVEL_PLACEHOLDER}\n\noutro`;
-    const off = applyRotLevel(prompt, 2, false);
-    expect(off).toContain("Do NOT use any emojis");
-    expect(off).not.toContain("Use emojis in every reply");
-    // Default arg keeps emojis on.
-    expect(applyRotLevel(prompt, 2)).toContain("Use emojis in every reply");
   });
 });

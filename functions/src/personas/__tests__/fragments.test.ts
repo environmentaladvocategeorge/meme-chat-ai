@@ -4,7 +4,7 @@ import {
   assembleFragments,
   type FragmentedPrompt,
 } from "../fragments";
-import { rotLevelBlock } from "../content";
+import { rotLevelBlock } from "../rotLevel";
 
 function fp(fragments: FragmentedPrompt["fragments"]): FragmentedPrompt {
   return { fragmentsVersion: 1, joinWith: "\n\n", fragments };
@@ -91,7 +91,7 @@ describe("asFragmentedPrompt", () => {
     ).not.toBeNull();
   });
 
-  it("rejects malformed payloads so the caller can fall back to content", () => {
+  it("rejects malformed payloads so the doc validator can reject the doc", () => {
     expect(asFragmentedPrompt(null)).toBeNull();
     expect(asFragmentedPrompt("string")).toBeNull();
     expect(asFragmentedPrompt({})).toBeNull();

@@ -1,4 +1,4 @@
-import { rotLevelBlock } from "./content";
+import { rotLevelBlock } from "./rotLevel";
 
 // ── Fragmented prompts ───────────────────────────────────────────────────────
 // A prompt (persona or media-decider) can be stored in Firestore either as one

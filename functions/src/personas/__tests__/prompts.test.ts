@@ -1,23 +1,14 @@
-jest.mock("firebase-functions", () => ({
-  logger: {
-    warn: jest.fn(),
-  },
-}));
-
 jest.mock("firebase-admin/firestore", () => ({
   getFirestore: jest.fn(),
 }));
 
 import { getFirestore } from "firebase-admin/firestore";
 import {
-  BRAINROT_BOT_PERSONA_PROMPT_FALLBACK,
+  buildMediaDeciderPrompt,
+  buildSystemPromptForStream,
   DEFAULT_PERSONA_ID,
   MEDIA_DECIDER_KEY,
-  MEDIA_DECIDER_PROMPT_FALLBACK,
-  MEDIA_GUARDRAILS_FALLBACK,
-  PLATFORM_GUARDRAILS_FALLBACK,
-} from "../content";
-import { buildMediaDeciderPrompt, buildSystemPromptForStream } from "../prompts";
+} from "../prompts";
 
 type Doc = Record<string, unknown>;
 type Collections = Record<string, Record<string, Doc>>;
@@ -70,6 +61,16 @@ function makeQuery(collections: Collections, name: string) {
   return query;
 }
 
+// Wraps prompt text as a minimal valid fragments payload — every prompt doc
+// carries its body this way; there is no monolithic `content` field anymore.
+function fragmentsOf(...texts: string[]) {
+  return {
+    fragmentsVersion: 1,
+    joinWith: "\n\n",
+    fragments: texts.map((text, i) => ({ key: `f${i}`, text })),
+  };
+}
+
 function persona(id: string, overrides: Partial<Doc> = {}): Doc {
   return {
     id,
@@ -89,13 +90,21 @@ function persona(id: string, overrides: Partial<Doc> = {}): Doc {
   };
 }
 
-function personaPrompt(id: string, personaId: string, content: string, createdAt = 1): Doc {
+function personaPrompt(id: string, personaId: string, body: string, createdAt = 1): Doc {
   return {
     id,
     personaId,
     name: id,
     version: "1.0.0",
-    content,
+    // Body text + the dynamic rot-level block, like the real Firestore doc.
+    fragments: {
+      fragmentsVersion: 1,
+      joinWith: "\n\n",
+      fragments: [
+        { key: "body", text: body },
+        { key: "rot_level_block", dynamic: "rot_level_block" },
+      ],
+    },
     isActive: true,
     createdAt,
     addedBy: "test",
@@ -104,7 +113,7 @@ function personaPrompt(id: string, personaId: string, content: string, createdAt
 }
 
 function platformPrompt(
-  content = "PLATFORM",
+  guardrails = "PLATFORM",
   createdAt = 1,
   mediaContent?: string,
 ): Doc {
@@ -113,7 +122,7 @@ function platformPrompt(
     name: "Platform Guardrails",
     key: "platform_guardrails",
     version: "1.0.0",
-    content,
+    fragments: fragmentsOf(guardrails),
     ...(mediaContent !== undefined ? { mediaContent } : {}),
     isActive: true,
     createdAt,
@@ -124,13 +133,13 @@ function platformPrompt(
 
 // The media-decider instruction doc (separate platform_prompts record, keyed
 // media_decider) — the picker body/bank, distinct from the guardrails.
-function deciderPrompt(content = "DECIDER-BODY", createdAt = 1): Doc {
+function deciderPrompt(body = "DECIDER-BODY", createdAt = 1): Doc {
   return {
     id: "media_decider_v1",
     name: "Media Decider",
     key: MEDIA_DECIDER_KEY,
     version: "1.0.0",
-    content,
+    fragments: fragmentsOf(body),
     isActive: true,
     createdAt,
     addedBy: "test",
@@ -160,8 +169,7 @@ describe("persona prompt resolution", () => {
 
     expect(result.persona.id).toBe(DEFAULT_PERSONA_ID);
     // Platform guardrails first, then the persona prompt, then the active
-    // rot-level block (level 2 by default, appended when the persona prompt
-    // has no {{ROT_LEVEL_BLOCK}} placeholder).
+    // rot-level block (level 2 by default, from the dynamic fragment).
     expect(result.systemPrompt).toContain(
       "PLATFORM\n\nActive persona prompt:\nBRAINROT",
     );
@@ -187,7 +195,7 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).toContain("Active persona prompt:\nOTHER");
   });
 
-  it("falls back to default for an invalid personaId", async () => {
+  it("falls back to the default persona for an invalid personaId", async () => {
     setDb({
       platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
@@ -202,7 +210,7 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).toContain("BRAINROT");
   });
 
-  it("falls back to default for a disabled personaId", async () => {
+  it("falls back to the default persona for a disabled personaId", async () => {
     setDb({
       platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
       personas: {
@@ -221,7 +229,7 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).not.toContain("DISABLED");
   });
 
-  it("uses the platform fallback when no active platform prompt exists", async () => {
+  it("throws when no active platform prompt exists — Firestore is the source of truth", async () => {
     setDb({
       platform_prompts: {},
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
@@ -230,21 +238,47 @@ describe("persona prompt resolution", () => {
       },
     });
 
-    const result = await buildSystemPromptForStream();
-
-    expect(result.systemPrompt.startsWith(PLATFORM_GUARDRAILS_FALLBACK)).toBe(true);
+    await expect(buildSystemPromptForStream()).rejects.toThrow(
+      /platform_guardrails/,
+    );
   });
 
-  it("uses the persona fallback when no active persona prompt exists", async () => {
+  it("throws when no active persona prompt exists", async () => {
     setDb({
       platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
       personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
       persona_prompts: {},
     });
 
-    const result = await buildSystemPromptForStream();
+    await expect(buildSystemPromptForStream()).rejects.toThrow(
+      /no active persona prompt/,
+    );
+  });
 
-    expect(result.systemPrompt).toContain(BRAINROT_BOT_PERSONA_PROMPT_FALLBACK);
+  it("throws when no enabled persona exists at all", async () => {
+    setDb({
+      platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+      personas: {},
+      persona_prompts: {},
+    });
+
+    await expect(buildSystemPromptForStream()).rejects.toThrow(
+      /no enabled persona/,
+    );
+  });
+
+  it("rejects a persona prompt doc whose fragments are malformed", async () => {
+    const bad = personaPrompt("bad", DEFAULT_PERSONA_ID, "BAD");
+    (bad as { fragments: unknown }).fragments = { fragmentsVersion: 1 };
+    setDb({
+      platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+      personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+      persona_prompts: { bad },
+    });
+
+    await expect(buildSystemPromptForStream()).rejects.toThrow(
+      /no active persona prompt/,
+    );
   });
 
   it("composes platform guardrails before persona prompt", async () => {
@@ -268,7 +302,7 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).not.toContain("OLD-PERSONA");
   });
 
-  it("persona path uses `content`, never `mediaContent`", async () => {
+  it("persona path uses the guardrails fragments, never `mediaContent`", async () => {
     setDb({
       platform_prompts: {
         platform_guardrails_v1: platformPrompt("PERSONA-GUARDS", 1, "MEDIA-GUARDS"),
@@ -312,7 +346,7 @@ describe("media decider prompt resolution", () => {
     jest.clearAllMocks();
   });
 
-  it("composes mediaContent guardrails + decider body + rot line (not persona guardrails)", async () => {
+  it("composes mediaContent guardrails + decider fragments + rot line (not persona guardrails)", async () => {
     setDb({
       platform_prompts: {
         platform_guardrails_v1: platformPrompt("PERSONA-GUARDS", 1, "MEDIA-GUARDS"),
@@ -341,32 +375,30 @@ describe("media decider prompt resolution", () => {
     expect(await buildMediaDeciderPrompt(3)).toContain("Current rot level: 3/3");
   });
 
-  it("falls back to MEDIA_GUARDRAILS_FALLBACK when the platform doc is missing", async () => {
+  it("throws when the platform doc is missing", async () => {
     setDb({ platform_prompts: { media_decider_v1: deciderPrompt("D") } });
-    const out = await buildMediaDeciderPrompt();
-    expect(out.startsWith(MEDIA_GUARDRAILS_FALLBACK)).toBe(true);
+    await expect(buildMediaDeciderPrompt()).rejects.toThrow(/mediaContent/);
   });
 
-  it("falls back to MEDIA_GUARDRAILS_FALLBACK when the mediaContent field is absent", async () => {
-    // Platform doc exists but carries only the persona `content`, no mediaContent.
+  it("throws when the mediaContent field is absent", async () => {
+    // Platform doc exists but carries only the persona guardrails fragments.
     setDb({
       platform_prompts: {
         platform_guardrails_v1: platformPrompt("PERSONA-ONLY"),
         media_decider_v1: deciderPrompt("D"),
       },
     });
-    const out = await buildMediaDeciderPrompt();
-    expect(out).toContain(MEDIA_GUARDRAILS_FALLBACK);
-    expect(out).not.toContain("PERSONA-ONLY");
+    await expect(buildMediaDeciderPrompt()).rejects.toThrow(/mediaContent/);
   });
 
-  it("falls back to MEDIA_DECIDER_PROMPT_FALLBACK when the decider doc is missing", async () => {
+  it("throws when the decider doc is missing", async () => {
     setDb({
       platform_prompts: {
         platform_guardrails_v1: platformPrompt("P", 1, "MEDIA-GUARDS"),
       },
     });
-    const out = await buildMediaDeciderPrompt();
-    expect(out).toContain(MEDIA_DECIDER_PROMPT_FALLBACK);
+    await expect(buildMediaDeciderPrompt()).rejects.toThrow(
+      /media_decider/,
+    );
   });
 });

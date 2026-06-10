@@ -6,16 +6,13 @@ export type PlatformPrompt = {
   name: string;
   key: string;
   version: string;
-  // Guardrails for the conversational (persona) path.
-  content: string;
-  // Guardrails for the media-decider path. Different language because the
-  // decider never writes a reply — it only picks ONE reaction image. Optional
-  // for backward-compat; the decider falls back to MEDIA_GUARDRAILS_FALLBACK.
+  // Guardrails for the media-decider path (platform_guardrails doc only).
+  // Different language because the decider never writes a reply — it only picks
+  // ONE reaction image.
   mediaContent?: string;
-  // Optional fragmented form of `content` (media_decider doc). When present and
-  // valid it's assembled in place of `content`; otherwise `content` is used. See
+  // The prompt body, as ordered fragments. The single source of truth — see
   // ./fragments.
-  fragments?: FragmentedPrompt;
+  fragments: FragmentedPrompt;
   isActive: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
@@ -48,11 +45,9 @@ export type PersonaPrompt = {
   personaId: string;
   name: string;
   version: string;
-  content: string;
-  // Optional fragmented form of `content`. When present and valid it's assembled
-  // (with the active rot level + emoji flag) in place of `content`; otherwise the
-  // legacy `content` path runs. See ./fragments.
-  fragments?: FragmentedPrompt;
+  // The prompt body, as ordered fragments assembled with the active rot level +
+  // emoji flag. The single source of truth — see ./fragments.
+  fragments: FragmentedPrompt;
   isActive: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

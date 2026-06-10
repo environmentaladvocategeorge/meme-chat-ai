@@ -4,7 +4,11 @@ import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
-import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import {
+  buildDeciderContext,
+  computeColdStartIndex,
+  decideMedia,
+} from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
@@ -351,15 +355,27 @@ export const streamAgentAnswer = onRequest(
             : gifs.length > 0
               ? "[user sent a GIF]"
               : "");
+        // On the very first turn of a conversation, when the user sends a bare
+        // greeting with no attachments, inject a random cold-start index so the
+        // decider picks a varied greeting reaction from its GREETING_ROW. Without
+        // this, the model defaults to the same query for every "hi" / "yo".
+        // The check is !== undefined — index 0 is a valid binding index.
+        const coldStartIndex = computeColdStartIndex({
+          isFirstTurn: priorMessages.length === 0,
+          hasImages: images.length > 0,
+          hasGifs: gifs.length > 0,
+          userText,
+        });
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
-          systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          systemPrompt: deciderSystemPrompt,
           // Taste-only memory so nano can pick a more on-point reaction.
           memoryBlock: memViews.media,
           history,
@@ -368,6 +384,7 @@ export const streamAgentAnswer = onRequest(
           // Hand nano the actual pixels of the current turn's attachments so its
           // reaction matches what the user sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
+          coldStartIndex,
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -378,6 +395,7 @@ export const streamAgentAnswer = onRequest(
             query: decision.query,
             randomness_factor: decision.randomnessFactor,
           });
+          let klipyEmptyResult = false;
           try {
             if (decision.type === "gif") {
               const r = await runGetGif(rawArgs, klipyDeps);
@@ -387,6 +405,8 @@ export const streamAgentAnswer = onRequest(
                   kind: "gif",
                   description: r.title ?? decision.query,
                 };
+              } else {
+                klipyEmptyResult = true;
               }
             } else {
               const r = await runGetMeme(rawArgs, klipyDeps);
@@ -396,6 +416,8 @@ export const streamAgentAnswer = onRequest(
                   kind: "meme",
                   description: r.title ?? decision.query,
                 };
+              } else {
+                klipyEmptyResult = true;
               }
             }
           } catch (err) {
@@ -403,6 +425,15 @@ export const streamAgentAnswer = onRequest(
               "[streamAgentAnswer] media fetch failed; replying text-only",
               { conversationId, err },
             );
+            klipyEmptyResult = true;
+          }
+          if (klipyEmptyResult) {
+            logger.info("[streamAgentAnswer] klipy empty result", {
+              query: decision.query,
+              decisionType: decision.type,
+              coldStartIndex: coldStartIndex ?? null,
+              doNotRepeatCollision: recentReactions.includes(decision.query),
+            });
           }
         }
       }

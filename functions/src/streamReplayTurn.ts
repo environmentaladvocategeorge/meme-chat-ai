@@ -300,9 +300,10 @@ export const streamReplayTurn = onRequest(
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
-          systemPrompt: await buildMediaDeciderPrompt(levelOfRot),
+          systemPrompt: deciderSystemPrompt,
           // Taste-only memory so the regenerated reaction can be more personal,
           // matching the normal turn path.
           memoryBlock: (

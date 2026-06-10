@@ -28,7 +28,7 @@ export const streamAgentRequestSchema = z
     // synced to the cloud as profile settings, NOT stored in memory). Both
     // default to true so older clients that omit them keep today's behavior:
     //   respondWithEmojis=false → strip emoji guidance from the prompt + add an
-    //     explicit "no emojis" directive (see content.ts rotLevelBlock).
+    //     explicit "no emojis" directive (see rotLevel.ts rotLevelBlock).
     //   respondWithMedia=false  → skip the nano media decider entirely, so the
     //     turn never attaches a reaction GIF/meme.
     respondWithEmojis: z.boolean().optional().default(true),
