@@ -3,23 +3,24 @@
 // The one circular bot-avatar primitive. Renders the bot art in a circle and
 // animates it per `motion`:
 //   - "none"  → static.
-//   - "think" → squash-stretch wobble + an amber spark orbiting with a comet
-//               trail. The shared "bot is thinking" loader (NOT the generic
-//               breathing pulse), used wherever a reply is streaming / loading.
+//   - "think" → a looping "thinking hop": crouch, a small jelly hop with
+//               squash & stretch, land, settle, rest. The shared "bot is
+//               thinking" loader, used wherever a reply is streaming /
+//               loading. Deliberately no rotation, no orbiting elements and
+//               no radiating pulse — earlier versions of those read as
+//               annoying or generic.
 //   - "float" → a slow vertical bob, the same "floaty" feel as the landing hero.
 //
-// Both think and float avoid scaling the avatar bitmap on its own axis in a way
-// that resamples it ugly: float is pure translate, and think's squash is tiny
-// and intentional. Consumed by AgentAvatar (app icon) and MemeAvatar (face art)
-// so motion stays identical everywhere.
+// Both think and float avoid resampling the avatar bitmap ugly: float is pure
+// translate, and the hop's squash is small and brief. Consumed by AgentAvatar
+// (app icon) and MemeAvatar (face art) so motion stays identical everywhere.
 
-import { gradients } from "@/nativewind-theme";
 import { Image } from "expo-image";
-import { useColorScheme } from "nativewind";
 import { useEffect } from "react";
 import { View } from "react-native";
 import Animated, {
   Easing,
+  interpolate,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -33,13 +34,10 @@ export type BotMotion = "none" | "think" | "float";
 // white edge against the dark icon (the old "#FFFFFF" backing did, top/bottom).
 const ICON_BG = "#07080A";
 
-// The orbiting comet trail: three dots at decreasing size/opacity, each set back
-// a few degrees so the cluster reads as one spark with a tail.
-const TRAIL = [
-  { lag: 0, scale: 1, opacity: 1 },
-  { lag: 16, scale: 0.78, opacity: 0.5 },
-  { lag: 32, scale: 0.58, opacity: 0.24 },
-];
+// One full hop cycle. The hop itself lives in the first ~60% of the phase;
+// the remainder is a rest beat so the motion reads as a creature idling, not
+// a metronome.
+const HOP_MS = 1400;
 
 interface BotAvatarProps {
   size: number;
@@ -49,24 +47,17 @@ interface BotAvatarProps {
 }
 
 export function BotAvatar({ size, source, motion }: BotAvatarProps) {
-  const { colorScheme } = useColorScheme();
-  const sparkColor = gradients[colorScheme ?? "light"].accent.colors[0];
-
-  // `spin` + `wobble` drive the thinking loader; `bob` the float. All run as
-  // continuous phases so motion is seamless (wobble read through Math.sin).
-  const spin = useSharedValue(0);
-  const wobble = useSharedValue(0);
+  // `hop` drives the thinking loop; `bob` the float. Each runs as a single
+  // continuous 0→1 phase so the loop is seamless (keyframes start and end
+  // neutral) and a restart can never catch a stale mid-cycle value.
+  const hop = useSharedValue(0);
   const bob = useSharedValue(0);
 
   useEffect(() => {
     if (motion === "think") {
-      spin.value = withRepeat(
-        withTiming(1, { duration: 1300, easing: Easing.linear }),
-        -1,
-        false,
-      );
-      wobble.value = withRepeat(
-        withTiming(1, { duration: 900, easing: Easing.linear }),
+      hop.value = 0;
+      hop.value = withRepeat(
+        withTiming(1, { duration: HOP_MS, easing: Easing.linear }),
         -1,
         false,
       );
@@ -77,35 +68,42 @@ export function BotAvatar({ size, source, motion }: BotAvatarProps) {
         -1,
         true,
       );
-      spin.value = 0;
-      wobble.value = withTiming(0, { duration: 200 });
+      hop.value = withTiming(0, { duration: 200 });
     } else {
-      spin.value = 0;
-      wobble.value = withTiming(0, { duration: 200 });
+      hop.value = withTiming(0, { duration: 200 });
       bob.value = withTiming(0, { duration: 200 });
     }
-  }, [motion, spin, wobble, bob]);
+  }, [motion, hop, bob]);
 
   const avatarStyle = useAnimatedStyle(() => {
-    const s = Math.sin(wobble.value * Math.PI * 2); // -1 → 1, seamless
+    const p = hop.value;
+    // Keyframes over the linear phase: crouch (anticipation squash) → hop up
+    // with stretch → fall → landing squash → jelly settle → rest. Timing
+    // character comes from the keyframe spacing, so the phase itself stays
+    // linear and loop-seamless.
+    const translateY = interpolate(
+      p,
+      [0, 0.1, 0.3, 0.46, 1],
+      [0, size * 0.02, -size * 0.12, 0, 0],
+    );
+    const scaleY = interpolate(
+      p,
+      [0, 0.1, 0.3, 0.46, 0.58, 0.72, 1],
+      [1, 0.9, 1.07, 0.92, 1.03, 1, 1],
+    );
+    const scaleX = interpolate(
+      p,
+      [0, 0.1, 0.3, 0.46, 0.58, 0.72, 1],
+      [1, 1.07, 0.95, 1.06, 0.98, 1, 1],
+    );
     return {
       transform: [
-        { translateY: -size * 0.06 * bob.value },
-        { rotate: `${s * 5}deg` },
-        { scaleX: 1 + s * 0.045 },
-        { scaleY: 1 - s * 0.045 },
+        { translateY: translateY - size * 0.06 * bob.value },
+        { scaleX },
+        { scaleY },
       ],
     };
   });
-
-  const orbitStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value * 360}deg` }],
-  }));
-
-  // The spark orbits just outside the avatar rim; the box is grown by the dot
-  // size so the trail clears the face.
-  const dot = Math.max(6, size * 0.13);
-  const orbitBox = size + dot * 1.8;
 
   return (
     <View
@@ -116,51 +114,6 @@ export function BotAvatar({ size, source, motion }: BotAvatarProps) {
         justifyContent: "center",
       }}
     >
-      {motion === "think" ? (
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: "absolute",
-              width: orbitBox,
-              height: orbitBox,
-              left: (size - orbitBox) / 2,
-              top: (size - orbitBox) / 2,
-            },
-            orbitStyle,
-          ]}
-        >
-          {TRAIL.map((t, i) => (
-            <View
-              key={i}
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                width: orbitBox,
-                height: orbitBox,
-                alignItems: "center",
-                transform: [{ rotate: `-${t.lag}deg` }],
-              }}
-            >
-              <View
-                style={{
-                  width: dot * t.scale,
-                  height: dot * t.scale,
-                  borderRadius: dot,
-                  backgroundColor: sparkColor,
-                  opacity: t.opacity,
-                  // Glow only the lead dot so the trail reads as a fading tail.
-                  shadowColor: sparkColor,
-                  shadowOpacity: i === 0 ? 0.7 : 0,
-                  shadowRadius: dot * 0.6,
-                  shadowOffset: { width: 0, height: 0 },
-                }}
-              />
-            </View>
-          ))}
-        </Animated.View>
-      ) : null}
-
       <Animated.View
         style={[
           {
@@ -169,6 +122,9 @@ export function BotAvatar({ size, source, motion }: BotAvatarProps) {
             borderRadius: size / 2,
             overflow: "hidden",
             backgroundColor: ICON_BG,
+            // Squash & stretch anchor at the "ground" so the crouch and the
+            // landing read as grounded instead of compressing around center.
+            transformOrigin: "50% 100%",
           },
           avatarStyle,
         ]}
