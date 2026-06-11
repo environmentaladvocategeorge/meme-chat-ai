@@ -22,6 +22,7 @@ import {
   type ResendVerificationResult,
   type SignInEmailResult,
 } from "@/services/firebase/emailAuth";
+import { fetchOnboardingCompleted } from "@/services/firebase/profile";
 import { useChatStore } from "@/store/chat";
 import { useEntitlementStore } from "@/store/entitlement";
 import { useOnboardingStore } from "@/store/onboarding";
@@ -113,6 +114,62 @@ function mapUser(user: User) {
   };
 }
 
+// In-flight onboarding restore, deduped by uid — the auth listener and an
+// explicit sign-in call can both ask for it in the same beat.
+let onboardingRestore: { uid: string; promise: Promise<void> } | null = null;
+
+// The device-local onboarding flag is wiped on every sign-out and lost on
+// reinstall, but the account's profile keeps the durable marker
+// (profiles/{uid}.onboardingCompleted, written by the updateProfile callable
+// when the flow finishes). Restore it BEFORE the session flips to
+// authenticated so the router never bounces an established account back
+// through /onboarding. No-ops synchronously when the local flag is already
+// set, so the common cold start pays no extra read.
+function restoreOnboardingFromProfile(uid: string): Promise<void> {
+  if (useOnboardingStore.getState().completed) return Promise.resolve();
+  if (onboardingRestore?.uid === uid) return onboardingRestore.promise;
+
+  const promise = (async () => {
+    const completed = await fetchOnboardingCompleted(uid);
+    if (completed) useOnboardingStore.getState().markCompletedFromServer();
+  })().finally(() => {
+    onboardingRestore = null;
+  });
+
+  onboardingRestore = { uid, promise };
+  return promise;
+}
+
+// Settles an auth-listener "user present" event into the authenticated state.
+// Async because the onboarding restore must land first (see above); the
+// re-check guards against the session changing while we awaited.
+async function applyAuthenticatedSession(
+  auth: import("firebase/auth").Auth,
+  user: User,
+  set: (partial: Partial<AuthSessionState>) => void,
+): Promise<void> {
+  // The profiles/{uid} rule requires email_verified, so the read can only
+  // succeed for verified users — skip the guaranteed-denied roundtrip
+  // otherwise (unverified users are routed to verify-email regardless).
+  if (user.emailVerified) {
+    await restoreOnboardingFromProfile(user.uid);
+    if (auth.currentUser?.uid !== user.uid) return;
+  }
+
+  set({
+    status: "authenticated",
+    ...mapUser(user),
+    error: null,
+    unavailableReason: null,
+  });
+  // Bind the RevenueCat App User ID to the Firebase uid so the RC
+  // webhook can resolve back to this user's Firestore profile.
+  void useSubscriptionStore.getState().setRcUser(user.uid);
+  // Subscribe to the user's billing profile so the UI can live-
+  // update credit counts as the backend settles usage events.
+  useEntitlementStore.getState().bindUid(user.uid);
+}
+
 const SIGNED_OUT_STATE = {
   uid: null,
   email: null,
@@ -180,18 +237,7 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
               return;
             }
 
-            set({
-              status: "authenticated",
-              ...mapUser(user),
-              error: null,
-              unavailableReason: null,
-            });
-            // Bind the RevenueCat App User ID to the Firebase uid so the RC
-            // webhook can resolve back to this user's Firestore profile.
-            void useSubscriptionStore.getState().setRcUser(user.uid);
-            // Subscribe to the user's billing profile so the UI can live-
-            // update credit counts as the backend settles usage events.
-            useEntitlementStore.getState().bindUid(user.uid);
+            void applyAuthenticatedSession(auth, user, set);
           },
           (error) => {
             set({ status: "error", error: getAuthErrorCode(error) });
@@ -204,6 +250,7 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
 
         const user = auth.currentUser;
         if (user && !user.isAnonymous) {
+          if (user.emailVerified) await restoreOnboardingFromProfile(user.uid);
           set({
             status: "authenticated",
             ...mapUser(user),
@@ -257,6 +304,11 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
     const result = await signInWithEmail(email, password);
 
     if (result.success) {
+      // Pull the durable onboarding marker before the status flip so the
+      // router's first decision for this session already sees it (the local
+      // flag was wiped at the last sign-out). Verified-only: the profiles
+      // rule denies unverified tokens, and those users route to verify-email.
+      if (result.emailVerified) await restoreOnboardingFromProfile(result.uid);
       set({
         status: "authenticated",
         uid: result.uid,
@@ -274,6 +326,9 @@ export const useAuthStore = create<AuthSessionState>()((set) => ({
     const result = await signInWithApple();
 
     if (result.success) {
+      // Same durable-marker restore as the email path: an Apple re-sign-in on
+      // an established account must not replay onboarding.
+      if (result.emailVerified) await restoreOnboardingFromProfile(result.uid);
       set({
         status: "authenticated",
         uid: result.uid,

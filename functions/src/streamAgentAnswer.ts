@@ -1,4 +1,3 @@
-import { getAuth } from "firebase-admin/auth";
 import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
@@ -47,6 +46,7 @@ import {
 import { summarizeGifsForLog } from "./messages/messageGif";
 import { buildMediaDeciderPrompt } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
+import { authenticateStreamRequest } from "./streamAuth";
 import { checkHateSpeech } from "./moderation/checkHateSpeech";
 import { logFlaggedContent } from "./moderation/logFlaggedContent";
 
@@ -61,12 +61,6 @@ const memoryService = new MemoryService();
 type SseResponse = {
   write: (chunk: string) => unknown;
 };
-
-function getBearerToken(header: string | undefined): string | null {
-  if (!header?.startsWith("Bearer ")) return null;
-  const token = header.slice("Bearer ".length).trim();
-  return token.length > 0 ? token : null;
-}
 
 function writeSse(res: SseResponse, event: string, data: unknown) {
   res.write(`event: ${event}\n`);
@@ -124,21 +118,8 @@ export const streamAgentAnswer = onRequest(
       return;
     }
 
-    const token = getBearerToken(req.header("authorization"));
-    if (!token) {
-      res.status(401).end();
-      return;
-    }
-
-    let uid: string;
-    try {
-      const decoded = await getAuth().verifyIdToken(token, true);
-      uid = decoded.uid;
-    } catch (err) {
-      logger.warn("[streamAgentAnswer] invalid auth token", { err });
-      res.status(401).end();
-      return;
-    }
+    const uid = await authenticateStreamRequest(req, res, "streamAgentAnswer");
+    if (!uid) return;
 
     const parsed = streamAgentRequestSchema.safeParse(req.body);
     if (!parsed.success) {

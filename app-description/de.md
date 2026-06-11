@@ -14,7 +14,7 @@ gif,roast,spruch,antwort,humor,witz,sticker,reaktion,slang,chatbot,umschreiben,b
 
 ## What's New (Neuigkeiten)
 
-Dieses Update ist reine Politur. Wir haben einen Bug behoben, durch den manche Antworten falsch dargestellt wurden, und ein paar kleine UI-Probleme im Chat bereinigt.
+Zwei große Bugs weniger. Wir haben den Fehler behoben, der manche Nutzer immer wieder abgemeldet hat (teils stündlich), und den, der nach erneuter Anmeldung das Onboarding wiederholen ließ. Ihr bleibt jetzt angemeldet — und das Onboarding gibt's nur einmal.
 
 ## Promotional Text (Werbetext)
 

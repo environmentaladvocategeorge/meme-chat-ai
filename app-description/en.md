@@ -14,7 +14,7 @@ gif,roast,caption,reply,texting,humor,joke,sticker,reaction,slang,chatbot,rewrit
 
 ## What's New
 
-This one's all polish. We fixed a bug that could make some replies display weird and cleaned up a handful of small UI issues across the chat.
+Two big ones squashed. We fixed a bug that kept signing some users out (sometimes every hour) and another that made you repeat onboarding after signing back in. You stay signed in now — and onboarding is one-and-done.
 
 ## Promotional Text
 

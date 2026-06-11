@@ -8,8 +8,11 @@ import {
 
 const HOUR_MS = 60 * 60 * 1000;
 
-// Baseline: plenty of headroom on both windows. Individual tests override only
-// the fields they care about.
+// Baseline: plenty of headroom on both windows, evaluated at a pinned instant
+// BEFORE both reset moments (so neither window reads as elapsed). Individual
+// tests override only the fields they care about.
+const NOW = new Date("2026-05-29T12:00:00Z").getTime();
+
 function input(overrides: Partial<UsageInput> = {}): UsageInput {
   return {
     plan: "free",
@@ -19,6 +22,7 @@ function input(overrides: Partial<UsageInput> = {}): UsageInput {
     softDailyCredits: 20,
     creditsResetAt: new Date("2026-07-01T00:00:00Z"),
     dailyResetAt: new Date("2026-05-30T00:00:00Z"),
+    now: NOW,
     ...overrides,
   };
 }
@@ -120,6 +124,47 @@ describe("computeUsageState", () => {
 
     expect(state.monthlyRatioUsed).toBe(0);
     expect(state.atLimit).toBe(false);
+  });
+
+  it("treats an elapsed daily window as reset (server rolls it lazily)", () => {
+    // At the daily cap, but the reset moment has passed while the mirror is
+    // still stale — must NOT read as at-limit (the phantom "out of usage").
+    const state = computeUsageState(
+      input({
+        softDailyCredits: 20,
+        dailyCreditsUsed: 20,
+        dailyResetAt: new Date(NOW - 1000),
+      }),
+    );
+
+    expect(state.dailyRatioUsed).toBe(0);
+    expect(state.atLimit).toBe(false);
+  });
+
+  it("treats an elapsed monthly window as refilled (server rolls it lazily)", () => {
+    const state = computeUsageState(
+      input({
+        monthlyCredits: 100,
+        creditsRemaining: 0,
+        softDailyCredits: 0,
+        creditsResetAt: new Date(NOW - 1000),
+      }),
+    );
+
+    expect(state.monthlyRatioUsed).toBe(0);
+    expect(state.atLimit).toBe(false);
+  });
+
+  it("still reports at-limit while the binding window has not elapsed", () => {
+    const state = computeUsageState(
+      input({
+        softDailyCredits: 20,
+        dailyCreditsUsed: 20,
+        dailyResetAt: new Date(NOW + 1000),
+      }),
+    );
+
+    expect(state.atLimit).toBe(true);
   });
 
   it("nearLimit trips exactly at the NEAR_LIMIT_RATIO threshold", () => {

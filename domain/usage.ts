@@ -79,6 +79,9 @@ export type UsageInput = {
   softDailyCredits: number;
   creditsResetAt: Date | null;
   dailyResetAt: Date | null;
+  // Evaluation instant; defaults to Date.now(). Exposed so callers can force a
+  // recompute (e.g. on app foreground) and tests can pin the clock.
+  now?: number;
 };
 
 export type UsageState = {
@@ -113,14 +116,29 @@ function displayPercentLeft(ratioUsed: number): number {
 // yet hit "today's limit". This collapses both windows into a single picture
 // so the UI can surface whichever one is actually binding.
 export function computeUsageState(input: UsageInput): UsageState {
-  const monthlyUsed = Math.max(0, input.monthlyCredits - input.creditsRemaining);
+  // The server rolls both windows LAZILY — the profiles/{uid} mirror keeps
+  // yesterday's counts until the user's next request touches the ledger. So a
+  // window whose reset moment has already passed must read as reset here, or a
+  // user who hit their cap, backgrounded the app, and came back after the
+  // boundary sees a phantom "out of usage" block until a fresh snapshot lands.
+  // Mirrors functions/src/entitlement/reset.ts (computeResets): an elapsed
+  // monthly window refills the balance, an elapsed daily window zeros the count.
+  const now = input.now ?? Date.now();
+  const monthlyElapsed =
+    input.creditsResetAt !== null && input.creditsResetAt.getTime() <= now;
+  const dailyElapsed =
+    input.dailyResetAt !== null && input.dailyResetAt.getTime() <= now;
+  const creditsRemaining = monthlyElapsed
+    ? input.monthlyCredits
+    : input.creditsRemaining;
+  const dailyCreditsUsed = dailyElapsed ? 0 : input.dailyCreditsUsed;
+
+  const monthlyUsed = Math.max(0, input.monthlyCredits - creditsRemaining);
   const monthlyRatioUsed = clampRatio(
     input.monthlyCredits > 0 ? monthlyUsed / input.monthlyCredits : 0,
   );
   const dailyRatioUsed = clampRatio(
-    input.softDailyCredits > 0
-      ? input.dailyCreditsUsed / input.softDailyCredits
-      : 0,
+    input.softDailyCredits > 0 ? dailyCreditsUsed / input.softDailyCredits : 0,
   );
 
   const dailyBinds = dailyRatioUsed >= monthlyRatioUsed;

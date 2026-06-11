@@ -13,6 +13,10 @@ interface OnboardingState {
   hydrate: () => Promise<void>;
   setStep: (step: number) => void;
   setCompleted: (v: boolean) => void;
+  // Restore from the server-side profiles/{uid} marker at sign-in: marks
+  // onboarding complete WITHOUT the justCompleted one-shot, so an established
+  // account re-signing-in never re-seeds the welcome chat.
+  markCompletedFromServer: () => void;
   consumeJustCompleted: () => void;
   reset: () => Promise<void>;
 }
@@ -39,6 +43,12 @@ export const useOnboardingStore = create<OnboardingState>()((set, get) => ({
     // first chat fires exactly once, never on a redundant set.
     set({ completed, justCompleted: completed });
     OnboardingStorage.write({ completed });
+  },
+
+  markCompletedFromServer: () => {
+    if (get().completed) return;
+    set({ completed: true });
+    OnboardingStorage.write({ completed: true });
   },
 
   consumeJustCompleted: () => {
