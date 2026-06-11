@@ -1,4 +1,17 @@
-import { randomReplaySampling } from "../replaySampling";
+import { randomReplaySampling, rotLevelSampling } from "../replaySampling";
+
+describe("rotLevelSampling", () => {
+  it("narrows top_p at level 1 only", () => {
+    expect(rotLevelSampling(1)).toEqual({ topP: 0.9 });
+    expect(rotLevelSampling(0)).toEqual({ topP: 0.9 });
+  });
+
+  it("returns undefined at levels 2-3 so the request stays param-free", () => {
+    expect(rotLevelSampling(2)).toBeUndefined();
+    expect(rotLevelSampling(3)).toBeUndefined();
+    expect(rotLevelSampling(99)).toBeUndefined();
+  });
+});
 
 describe("randomReplaySampling", () => {
   it("keeps top_p within [0.85, 1.0] and seed a non-negative integer", () => {

@@ -17,3 +17,15 @@ export function randomReplaySampling(rng: () => number = Math.random): SamplingO
   const seed = Math.floor(rng() * SEED_MAX);
   return { topP, seed };
 }
+
+// Dial → top_p for NORMAL turns. With temperature off the table, top_p is the
+// only sampling garnish: Lightly Cooked narrows the token pool slightly toward
+// its controlled register; 2 and 3 keep the default (1.0 IS the default, so
+// there is no "wider than normal" — the few-shot examples in the rot blocks
+// are the real intensity dial). Returning undefined omits sampling params
+// entirely, keeping those requests byte-identical to before.
+const LIGHTLY_COOKED_TOP_P = 0.9;
+
+export function rotLevelSampling(level: number): SamplingOverrides | undefined {
+  return Math.round(level) <= 1 ? { topP: LIGHTLY_COOKED_TOP_P } : undefined;
+}

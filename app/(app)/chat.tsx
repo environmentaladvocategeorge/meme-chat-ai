@@ -94,7 +94,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Height of the gradient ramp above the floating composer dock — the zone
 // where scrolling messages dissolve into the backdrop instead of hard-cutting.
-const DOCK_FADE_HEIGHT = 32;
+const DOCK_FADE_HEIGHT = 21;
+// Ramp height while a reply streams: matches the in-flight bubble's 10px
+// action-row stand-in (see MessageBubble), so the resting bubble clears it.
+const DOCK_FADE_HEIGHT_STREAMING = 10;
 // Matching (smaller) ramp at the top of the thread, so messages dissolve just
 // before they touch the header instead of cutting at the viewport edge.
 const HEADER_FADE_HEIGHT = 20;
@@ -532,6 +535,27 @@ export default function ChatScreen() {
     opacity: contentOpacity.value,
   }));
 
+  // The dock's dissolve ramp shrinks while a reply is thinking/streaming —
+  // the in-flight bubble rests lower than a finalized one (no action row yet,
+  // just the 10px stand-in), so the full ramp would wash out its last line
+  // for the whole stream. It stays 10px tall rather than vanishing so a
+  // message pulled down behind the dock mid-stream still dissolves instead
+  // of hard-cutting, then eases back to full height alongside the action
+  // row's entrance.
+  const dockFadeHeight = useSharedValue(DOCK_FADE_HEIGHT);
+  useEffect(() => {
+    dockFadeHeight.value = withTiming(
+      status === "streaming" ? DOCK_FADE_HEIGHT_STREAMING : DOCK_FADE_HEIGHT,
+      { duration: status === "streaming" ? 150 : 220 },
+    );
+  }, [status, dockFadeHeight]);
+  // Anchored to the dock's top edge: top tracks -height so the ramp shrinks
+  // upward from the dock rather than detaching from it.
+  const dockFadeStyle = useAnimatedStyle(() => ({
+    height: dockFadeHeight.value,
+    top: -dockFadeHeight.value,
+  }));
+
   // Shared scroll offset + re-measure signal for the page-level bubble
   // gradient (see BubbleGradientContext). The handler runs on the UI thread so
   // the gradient tracks scrolling smoothly; the tick nudges bubbles to
@@ -739,11 +763,13 @@ export default function ChatScreen() {
                   paddingHorizontal: 18,
                   // Inverted list: paddingTop is the VISUAL BOTTOM. The
                   // floating dock overlays the list, so resting content needs
-                  // its measured height (plus breathing room reaching into
-                  // the fade ramp) to sit clear of it; scrolled content runs
-                  // behind the dock and dissolves in the scrim. Falls back to
-                  // 16 for the first frame, before the dock reports a height.
-                  paddingTop: dockHeight > 0 ? dockHeight + 8 : 16,
+                  // its measured height (plus breathing room — enough that
+                  // the last reply's action row mostly clears the fade ramp
+                  // without floating the thread too high) to sit clear of it;
+                  // scrolled content runs behind the dock and dissolves in
+                  // the scrim. Falls back to 16 for the first frame, before
+                  // the dock reports a height.
+                  paddingTop: dockHeight > 0 ? dockHeight + 10 : 16,
                   paddingBottom: 18,
                   gap: 10,
                 }}
@@ -833,19 +859,20 @@ export default function ChatScreen() {
             onLayout={(e) => setDockHeight(e.nativeEvent.layout.height)}
             style={{ position: "absolute", left: 0, right: 0, bottom: 0 }}
           >
-            <LinearGradient
+            <Animated.View
               pointerEvents="none"
-              colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={{
-                position: "absolute",
-                top: -DOCK_FADE_HEIGHT,
-                left: 0,
-                right: 0,
-                height: DOCK_FADE_HEIGHT,
-              }}
-            />
+              style={[
+                { position: "absolute", left: 0, right: 0 },
+                dockFadeStyle,
+              ]}
+            >
+              <LinearGradient
+                colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+            </Animated.View>
             <View
               pointerEvents="none"
               style={{

@@ -33,7 +33,7 @@ describe("streamReplayTurn billing contract (source guard)", () => {
   });
 
   it("charges only after usage is known, never reserves up front", () => {
-    // chargeForUsage builds the per-model usage list (nano decider + mini reply)
+    // chargeForUsage builds the per-model usage list (media decider + reply)
     // and bails when nothing ran, so an aborted/empty replay is free — mirroring
     // the read-only quota gate (no pre-charge).
     expect(source).toMatch(/if \(usages\.length === 0\) return;/);

@@ -15,6 +15,9 @@ export type HistoryAssembleArgs = {
   currentGif?: MessageGif;
   currentGifFrames?: ExtractedGifFrames;
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Per-turn style note (word-bank rotation + safety recap) injected in the
+  // fresh tail right before the current turn.
+  perTurnNote?: string;
   userAlias?: string | null;
   userLanguage?: string | null;
   excludeMessageIds?: string[];
@@ -39,6 +42,7 @@ export class ConversationHistory {
       currentGif: args.currentGif,
       currentGifFrames: args.currentGifFrames,
       attachedMedia: args.attachedMedia,
+      perTurnNote: args.perTurnNote,
       systemPrompt: args.systemPrompt,
       memoryBlock: args.memoryBlock,
       userAlias: args.userAlias,

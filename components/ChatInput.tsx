@@ -53,7 +53,6 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -202,29 +201,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     );
   }, [pulse]);
 
-  // Stop-button spinner: a thin arc orbiting the button's perimeter while a
-  // reply streams. Runs only during streaming so the worklet isn't looping
-  // for the life of the composer.
-  const spin = useSharedValue(0);
-  useEffect(() => {
-    if (streaming) {
-      spin.value = 0;
-      spin.value = withRepeat(
-        withTiming(360, { duration: 900, easing: Easing.linear }),
-        -1,
-        false,
-      );
-    } else {
-      // Reset after cancelling: cancelAnimation freezes the value at an
-      // arbitrary angle, and the spinner's first frames on the NEXT stream
-      // paint before the effect re-runs — so a stale value made the arc
-      // appear at a random rotation each send.
-      cancelAnimation(spin);
-      spin.value = 0;
-    }
-  }, [streaming, spin]);
-  const spinStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${spin.value}deg` }],
+  // Stop-button "working" treatment: the ring breathes (opacity pulse) while
+  // a reply streams. Deliberately NOT a rotating arc — the arc's first frames
+  // on each send painted at whatever angle the previous stream's cancelled
+  // animation froze at (before the reset effect ran), which read as the send
+  // button snapping to a random rotation. An opacity pulse has no angle to be
+  // stale at. Rides the composer's always-running `pulse` loop.
+  const stopRingStyle = useAnimatedStyle(() => ({
+    opacity: 0.35 + pulse.value * 0.65,
   }));
 
   const ringStyle = useAnimatedStyle(() => {
@@ -488,8 +472,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                     borderColor: theme["--color-border"],
                   }}
                 />
-                {/* Rotating arc: only the top border segment is painted, so
-                    spinning the view reads as an indeterminate spinner. */}
+                {/* Breathing ring: the full primary ring pulses over the track
+                    to read as "working" without any rotation. */}
                 <Animated.View
                   pointerEvents="none"
                   style={[
@@ -497,10 +481,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
                       ...StyleSheet.absoluteFillObject,
                       borderRadius: SEND_BUTTON_SIZE / 2,
                       borderWidth: 2.5,
-                      borderColor: "transparent",
-                      borderTopColor: theme["--color-primary"],
+                      borderColor: theme["--color-primary"],
                     },
-                    spinStyle,
+                    stopRingStyle,
                   ]}
                 />
                 {/* --color-foreground: white in dark mode (the ask), and it

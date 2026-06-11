@@ -12,8 +12,9 @@ import {
 export type QuotaReason = "monthly" | "daily";
 
 // Real token usage for ONE model invocation within a billable unit of work. A
-// single turn can now span multiple models (e.g. the nano GIF-decider + the
-// mini reply), so settlement carries a list of these rather than one model.
+// single turn can span multiple invocations (the media decider + the reply —
+// both mini since 2026-06-10), so settlement carries a list of these rather
+// than one model.
 export type ModelUsage = {
   model: ModelId;
   inputTokens: number;

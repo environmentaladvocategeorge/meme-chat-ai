@@ -14,6 +14,7 @@ import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
+import { lintAgentReply } from "./monitoring/outputLinters";
 import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger";
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
@@ -37,6 +38,7 @@ import {
 } from "./messages/messageImage";
 import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
+import { buildPerTurnNote } from "./personas/perTurnNote";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
@@ -272,6 +274,18 @@ export const streamReplayTurn = onRequest(
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
+      // The word-bank sampler (per-turn note below) excludes bank terms seen
+      // in recent bot replies — which includes the original reply being
+      // replayed, nudging the regeneration toward different wording.
+      const priorMessages = await loadRecentMessages(conversationId, 12);
+      const recentAssistantTexts = priorMessages
+        .filter((m) => m.role === "agent" && m.text)
+        .map((m) => m.text);
+      const perTurnNote = buildPerTurnNote({
+        levelOfRot,
+        respondWithEmojis,
+        recentAssistantTexts,
+      });
       const promptResult = await buildSystemPromptForStream(
         personaId,
         levelOfRot,
@@ -280,13 +294,12 @@ export const streamReplayTurn = onRequest(
       resolvedPersona = promptResult.persona;
       const systemPrompt = promptResult.systemPrompt;
 
-      // Same nano media pre-step as a normal turn: decide + fetch a reaction
+      // Same media-decider pre-step as a normal turn: decide + fetch a reaction
       // GIF/meme for the regenerated reply, so replay keeps the media beat.
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
       if (mediaEnabled) {
-        const priorMessages = await loadRecentMessages(conversationId, 12);
         const { history, recentReactions } = buildDeciderContext(priorMessages);
         const currentForDecider =
           userText ||
@@ -312,8 +325,8 @@ export const streamReplayTurn = onRequest(
           history,
           currentMessage: currentForDecider,
           recentReactions,
-          // Hand nano the actual pixels of the replayed turn's attachments so the
-          // regenerated reaction matches what the user originally sent.
+          // Hand the decider the actual pixels of the replayed turn's attachments
+          // so the regenerated reaction matches what the user originally sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
         });
         decideUsage = usage;
@@ -362,6 +375,7 @@ export const streamReplayTurn = onRequest(
         currentGif,
         currentGifFrames: deciderGifFrames,
         attachedMedia,
+        perTurnNote,
         systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
@@ -511,7 +525,7 @@ export const streamReplayTurn = onRequest(
         // The whole point of replay: a fresh seed + nudged top_p so the answer
         // differs from the one we just deleted.
         sampling: randomReplaySampling(),
-        // No tools: media was already decided + fetched by the nano pre-step.
+        // No tools: media was already decided + fetched by the decider pre-step.
         signal: abortController.signal,
       })) {
         if (clientClosed) {
@@ -550,6 +564,27 @@ export const streamReplayTurn = onRequest(
       writeSse(res, "done", {});
       finalized = true;
       res.end();
+
+      // Same post-hoc output lint as streamAgentAnswer — advisory, log-only.
+      try {
+        const lintFindings = lintAgentReply(fullText, {
+          rotLevel: levelOfRot,
+          emojisEnabled: respondWithEmojis,
+        });
+        if (lintFindings.length > 0) {
+          logger.warn("[outputLint] reply flagged", {
+            conversationId,
+            agentMessageId: agentMessageIdNew,
+            rotLevel: levelOfRot,
+            emojisEnabled: respondWithEmojis,
+            replyChars: fullText.length,
+            findings: lintFindings,
+            replay: true,
+          });
+        }
+      } catch (err) {
+        logger.error("[outputLint] linter threw", { err });
+      }
 
       try {
         await finalizeAgentMessage(

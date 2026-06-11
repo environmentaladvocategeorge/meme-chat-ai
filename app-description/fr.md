@@ -14,11 +14,7 @@ gif,roast,légende,réponse,humour,blague,sticker,réaction,argot,chatbot,rééc
 
 ## What's New (Nouveautés)
 
-Tu peux maintenant personnaliser la façon dont Brainrot Bot te répond.
-
-De nouveaux réglages te laissent choisir s'il répond avec des emojis et s'il glisse des memes et des GIFs dans ses réponses. Le chat a aussi eu droit à un bon nettoyage : les réponses s'affichent plus fluidement, les longues conversations défilent sans accroc et plusieurs petits bugs visuels ont disparu.
-
-Et Brainrot Bot a pris un niveau en coulisses. Il est plus malin, choisit de meilleurs GIFs et a plus de brainrot que jamais.
+Cette mise à jour, c'est du peaufinage. On a corrigé un bug qui pouvait déformer l'affichage de certaines réponses et nettoyé plusieurs petits soucis d'interface dans le chat.
 
 ## Promotional Text (Texte promotionnel)
 

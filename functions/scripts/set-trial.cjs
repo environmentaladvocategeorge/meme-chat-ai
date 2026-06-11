@@ -6,7 +6,7 @@ const { Timestamp } = require("firebase-admin/firestore");
 const { getAuth } = require("firebase-admin/auth");
 const { getDb } = require("./admin-app.cjs");
 
-const MONTHLY_CREDITS_PLUS = 4463;
+const MONTHLY_CREDITS_PLUS = 5103; // mirror of PLANS.plus.monthlyCredits — keep in sync
 const MONTHLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const TRIAL_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 

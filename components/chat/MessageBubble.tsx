@@ -276,6 +276,21 @@ export const MessageBubble = memo(function MessageBubble({
         list_item: {
           marginBottom: 2,
         },
+        // The library defaults these to `flex: 1` (flexBasis 0), so the item
+        // text contributes no intrinsic width. Inside this content-sized
+        // bubble that collapses the whole list to the marker's width and the
+        // text wraps one character per line. Size the content by its text and
+        // let it shrink so long items still wrap at the bubble's max width.
+        bullet_list_content: {
+          flex: 0,
+          flexShrink: 1,
+          flexBasis: "auto",
+        },
+        ordered_list_content: {
+          flex: 0,
+          flexShrink: 1,
+          flexBasis: "auto",
+        },
         bullet_list_icon: {
           color: messageColor,
           marginRight: 6,
@@ -854,6 +869,14 @@ export const MessageBubble = memo(function MessageBubble({
                 </Typography>
               )}
             </Pressable>
+          ) : null}
+
+          {isStreamingBubble ? (
+            // Small stand-in under the in-flight bubble. The dock's fade ramp
+            // ducks out during the stream (see chat.tsx dockFadeOpacity), so
+            // this no longer needs to clear it — it just softens the push when
+            // the full action row lands at finalize.
+            <View style={{ height: 10 }} />
           ) : null}
 
           {showActions && message.serverId ? (

@@ -14,11 +14,7 @@ gif,roast,caption,reply,texting,humor,joke,sticker,reaction,slang,chatbot,rewrit
 
 ## What's New
 
-You can now customize how Brainrot Bot answers you.
-
-New toggles let you choose whether it replies with emojis and whether it throws memes and GIFs into its answers. The chat got a big cleanup too: replies stream in smoother, long conversations scroll without the stutter, and a bunch of small visual bugs are gone.
-
-Brainrot Bot itself leveled up behind the scenes. It's smarter, picks better GIFs, and is more rotted than ever.
+This one's all polish. We fixed a bug that could make some replies display weird and cleaned up a handful of small UI issues across the chat.
 
 ## Promotional Text
 
