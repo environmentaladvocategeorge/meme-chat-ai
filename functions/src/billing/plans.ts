@@ -55,31 +55,43 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 //
 // Credits map to AI cost at 1 credit = $0.001 (see credits.ts USD_PER_CREDIT),
 // so monthlyCredits is the MAX monthly AI spend per user. Credits are charged
-// once per turn from real token usage (no up-front reservation). At the average
-// message (~3,000 in / ~60 out on mini ≈ $0.00252 ≈ 2.52 credits), the buckets
-// below cover roughly: free ~90, basic ~660, plus ~1,770, power ~3,780
-// messages/month. Allocations are sized to hold a tiered post-app-store-fee
-// margin (30% fee assumed); higher tiers commit more so we accept a thinner
-// margin in exchange for far more usage:
-//   Basic monthly_1  $3.99  → ~$2.79 net, $1.66 max cost → ~41% margin
-//   Plus  monthly_2  $9.99  → ~$6.99 net, $4.46 max cost → ~36% margin
-//   Power monthly_3  $19.99 → ~$13.99 net, $9.52 max cost → ~32% margin
+// once per turn from real token usage (no up-front reservation).
+//
+// 2026-06-11 re-sizing — the media decider moved gpt-5.4-nano → gpt-5.4-mini
+// (vision-first ladder prompt, see personas/mediaDeciderPrompt.ts), which
+// raised the measured per-turn cost. From 533 live turns: avg 1.99 credits on
+// the nano decider; re-pricing those same decider tokens at mini rates (after
+// v4's ~520-token prompt trim) projects ~2.69 credits/turn — decider share
+// ~0.41 → ~1.15. Budgets below are sized from that 2.69 figure against
+// explicit per-tier margin targets at FULL burn (worst case — typical burn is
+// lower, so realized margins run higher). Net revenue assumes the 30%
+// app-store fee; credits = net × (1 − target margin) / $0.001:
+//   Basic monthly_1  $3.99  → ~$2.79 net, 30% margin → 1953 cr ($1.95 max cost)
+//   Plus  monthly_2  $9.99  → ~$6.99 net, 27% margin → 5103 cr ($5.10 max cost)
+//   Power monthly_3  $19.99 → ~$13.99 net, 21% margin → 11052 cr ($11.05 max cost)
+// Free is the conversion funnel and partly ad-offset: 260 cr ≈ $0.26 max
+// cost/user/month ≈ ~97 turns/month, daily cap 26 (30-day month) ≈ ~10
+// turns/day. Coverage at 2.69 cr/turn: free ~97, basic ~726, plus ~1,897,
+// power ~4,109 messages/month.
 // (Plan IDs free/basic/plus/power map to RC products free/monthly_1/monthly_2/
 // monthly_3 — see billing/revenuecat.ts.)
 //
-// Credit budgets were trimmed 15% from the original 325 / 1950 / 5250 / 11200
-// after real usage showed per-turn cost sitting at/under the 2.52-credit plan
-// estimate — reclaiming the headroom as margin (~+10pp).
+// History: original 325 / 1950 / 5250 / 11200, trimmed 15% when real usage ran
+// under the 2.52-credit estimate; free re-tuned during launch week and raised
+// to 205 on 2026-06-10; all tiers raised to the table above on 2026-06-11 for
+// the mini-decider cost. Re-check against real v4 usage after a few days
+// (scripts/analyze-usage.cjs — decider tokens now land in the mini* split
+// fields, so the nano* columns are memory-extraction only).
 //
-// Free was then trimmed a further 15% (220 → 187) on day 5 of launch to tighten
-// the funnel tier's cost. New free daily cap ≈ 19 (30-day month) ≈ ~9-10
-// turns/day, ~90 turns/month at ~2 cr/turn — still usable. Existing free users
-// were migrated down via scripts/patch-free-credits.cjs (spend-preserving:
-// their remaining was recomputed as 187 − credits already spent this cycle).
+// Existing users are migrated in place on every re-size via
+// scripts/migrate-plan-credits.cjs (spend-preserving: remaining recomputed as
+// new monthly − credits already spent this cycle; softDailyCredits re-derived
+// for the current month). PLANS here drives new grants + cycle resets, so a
+// functions deploy must accompany any change.
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
-    monthlyCredits: 187,
+    monthlyCredits: 260,
     // The static persona/platform prompt is ~4k tokens on its own, so a 4k input
     // budget left free with literally zero room for conversational memory — every
     // turn was persona + current message only. 6k gives ~2k of working headroom
@@ -91,19 +103,19 @@ export const PLANS: Record<PlanId, PlanConfig> = {
   },
   basic: {
     model: "mini",
-    monthlyCredits: 1658,
+    monthlyCredits: 1953,
     maxInputTokens: 8000,
     maxOutputTokens: 1024,
   },
   plus: {
     model: "mini",
-    monthlyCredits: 4463,
+    monthlyCredits: 5103,
     maxInputTokens: 16_000,
     maxOutputTokens: 2048,
   },
   power: {
     model: "mini",
-    monthlyCredits: 9520,
+    monthlyCredits: 11052,
     maxInputTokens: 32_000,
     maxOutputTokens: 4096,
   },

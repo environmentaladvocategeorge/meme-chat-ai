@@ -38,10 +38,10 @@ An AI chat app powered by Claude. Send a message, get back a reply — sometimes
 
 | Plan | Monthly credits | Approx. messages/month |
 |---|---|---|
-| Free | 276 | ~110 |
-| Basic | 1,658 | ~660 |
-| Plus | 4,463 | ~1,770 |
-| Power | 9,520 | ~3,780 |
+| Free | 260 | ~97 |
+| Basic | 1,953 | ~726 |
+| Plus | 5,103 | ~1,897 |
+| Power | 11,052 | ~4,109 |
 
 ---
 
