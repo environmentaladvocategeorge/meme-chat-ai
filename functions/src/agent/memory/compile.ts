@@ -15,7 +15,7 @@ export const MEMORY_BLOCK_HEADER =
 // list") is meaningless to it. This tells it to use the user's durable taste to
 // pick a MORE on-point reaction, never to attach one it otherwise wouldn't.
 export const MEDIA_MEMORY_HEADER =
-  "WHAT THIS USER IS INTO (durable taste from past chats — their fandoms, teams, shows, running jokes). When you're already attaching a reaction, use this to pick a more on-point one (their team, a show they love, a running bit). Do NOT attach media you otherwise wouldn't just because of it, and never force a reference that doesn't fit the actual message.";
+  "WHAT THIS USER IS INTO (durable taste from past chats). Use this ONLY to sharpen a pick you're already making — never attach because of it, never force a reference that doesn't fit this message.";
 
 // A tighter budget for the media view than the reply view: it's a light nudge
 // for a small model, not the full memory dump.

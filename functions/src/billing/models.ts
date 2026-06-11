@@ -5,7 +5,9 @@ export type ModelId = "nano" | "mini";
 
 export const MODEL_IDS: readonly ModelId[] = ["nano", "mini"] as const;
 
-// nano → free + basic, mini → plus + power. Resolved to live OpenAI models here.
+// mini → every chat reply (all plans) AND the media decider (vision-first since
+// 2026-06-10); nano → background memory extraction only. Resolved to live
+// OpenAI models here.
 const OPENAI_MODEL_BY_INTERNAL_ID: Record<ModelId, string> = {
   nano: "gpt-5.4-nano",
   mini: "gpt-5.4-mini",

@@ -280,7 +280,7 @@ export const streamReplayTurn = onRequest(
       resolvedPersona = promptResult.persona;
       const systemPrompt = promptResult.systemPrompt;
 
-      // Same nano media pre-step as a normal turn: decide + fetch a reaction
+      // Same media-decider pre-step as a normal turn: decide + fetch a reaction
       // GIF/meme for the regenerated reply, so replay keeps the media beat.
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
@@ -312,8 +312,8 @@ export const streamReplayTurn = onRequest(
           history,
           currentMessage: currentForDecider,
           recentReactions,
-          // Hand nano the actual pixels of the replayed turn's attachments so the
-          // regenerated reaction matches what the user originally sent.
+          // Hand the decider the actual pixels of the replayed turn's attachments
+          // so the regenerated reaction matches what the user originally sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
         });
         decideUsage = usage;
@@ -511,7 +511,7 @@ export const streamReplayTurn = onRequest(
         // The whole point of replay: a fresh seed + nudged top_p so the answer
         // differs from the one we just deleted.
         sampling: randomReplaySampling(),
-        // No tools: media was already decided + fetched by the nano pre-step.
+        // No tools: media was already decided + fetched by the decider pre-step.
         signal: abortController.signal,
       })) {
         if (clientClosed) {

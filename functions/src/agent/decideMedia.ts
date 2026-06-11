@@ -6,10 +6,11 @@ import { resolveModelId } from "../billing/models";
 import type { ChatMessage } from "./types";
 
 // Number of distinct greeting-reaction queries in the prompt's greeting row
-// (evergreen_reaction_bank fragment, "- greeting:" line). The sync test in
-// prompt.lint.test.ts asserts this equals the parsed term count in the fixture —
-// change both in the same commit. Value = 14 (from the current live prompt row).
-export const GREETING_BANK_SIZE = 14;
+// (reaction_bank fragment, "- greeting:" line — see personas/mediaDeciderPrompt).
+// The sync test in mediaDeciderPrompt.test.ts asserts this equals the parsed
+// term count in the canonical fragments — change both in the same commit.
+// Value = 7 (the v4 trimmed greeting row).
+export const GREETING_BANK_SIZE = 7;
 
 // Returns true when the message is a bare opener with no other content: "hi",
 // "heyyy", "yo", "wsg", etc. Used by the orchestrator to inject a cold-start
@@ -96,9 +97,9 @@ export function computeColdStartIndex(args: {
 
 // Builds the decider's context from recent turns (oldest → newest): a compact
 // transcript that ALSO marks which reaction GIF/meme the bot already sent on
-// each turn, plus the flat list of those reaction titles. Feeding both to nano
-// is what stops it repeating the same memes — without it, nano only sees text
-// and has no idea what it already used.
+// each turn, plus the flat list of those reaction titles. Feeding both to the
+// decider is what stops it repeating the same memes — without it, it only sees
+// text and has no idea what it already used.
 export function buildDeciderContext(messages: ChatMessage[]): {
   history: string;
   recentReactions: string[];
@@ -123,7 +124,7 @@ export function buildDeciderContext(messages: ChatMessage[]): {
   return { history: lines.join("\n"), recentReactions };
 }
 
-// The cheap nano pre-step's verdict. Either no media, or a GIF/meme with a Klipy
+// The decider pre-step's verdict. Either no media, or a GIF/meme with a Klipy
 // search term. `randomnessFactor` mirrors get_gif/get_meme's sampling knob.
 export type MediaDecision =
   | { type: "none" }
@@ -131,15 +132,15 @@ export type MediaDecision =
 
 // Billing record for a decider call that didn't actually hit the API (error /
 // skipped). Zero tokens → zero cost, so it never charges the user.
-const ZERO_NANO_USAGE: ModelUsage = {
-  model: "nano",
+const ZERO_DECIDER_USAGE: ModelUsage = {
+  model: "mini",
   inputTokens: 0,
   cachedInputTokens: 0,
   outputTokens: 0,
   reasoningTokens: 0,
 };
 
-// Strict JSON shape we force out of nano so parsing never depends on prose.
+// Strict JSON shape we force out of the decider so parsing never depends on prose.
 const RESPONSE_FORMAT = {
   type: "json_schema" as const,
   json_schema: {
@@ -158,11 +159,10 @@ const RESPONSE_FORMAT = {
   },
 };
 
-// Parses greeting-row terms from an assembled prompt fixture. Supports both
+// Parses greeting-row terms from an assembled prompt. Supports both
 // the explicit-line format ("GREETING_ROW: a | b | c") and the fragment bank
 // format ("- greeting: a, b, c"). Returns [] if no row is found.
-// Shared by the eval harness (obedience gate) and the prompt lint tests
-// (GREETING_BANK_SIZE sync) so neither duplicates the parse logic.
+// Used by the GREETING_BANK_SIZE sync test in mediaDeciderPrompt.test.ts.
 export function parseGreetingRow(promptText: string): string[] {
   const explicitMatch = promptText.match(/^GREETING_ROW:\s*(.+)$/m);
   const bankMatch = promptText.match(/^- greeting:\s*(.+)$/m);
@@ -175,11 +175,17 @@ export function parseGreetingRow(promptText: string): string[] {
     .filter(Boolean);
 }
 
-// Shared call config for both production decideMedia and the eval harness.
-// Exported so the harness can import it from the compiled lib and never drift
-// from production on model, effort, token budget, or response schema.
+// Shared call config for production decideMedia, the smoke script, and tests.
+// Exported so they import it from one place and never drift from production on
+// model, effort, token budget, or response schema.
+//
+// Model: mini (gpt-5.4-mini), upgraded from nano 2026-06-10. The decider is now
+// vision-first (recognize meme formats vs. describe subjects from GIF frames),
+// which is exactly the nano/mini capability gap — nano's vague image readings
+// ("dog, sad") collapsed into reaction-bank terms. Billing follows: every usage
+// this module emits is model "mini" so the ledger prices it at mini rates.
 export const DECIDER_CALL_CONFIG = {
-  model: resolveModelId("nano"),
+  model: resolveModelId("mini"),
   reasoning_effort: "low" as const,
   max_completion_tokens: 1000,
   response_format: RESPONSE_FORMAT,
@@ -249,9 +255,9 @@ export function buildDeciderMessages(args: {
     avoid +
     coldStartTag;
 
-  // When the user attached media, hand nano the actual pixels (image and/or GIF
-  // frames) as low-detail image parts so its reaction matches the content.
-  // Otherwise keep the cheap text-only payload.
+  // When the user attached media, hand the decider the actual pixels (image
+  // and/or GIF frames) as low-detail image parts so its reaction matches the
+  // content. Otherwise keep the cheap text-only payload.
   const userMessage: ChatCompletionMessageParam =
     imageUrls.length > 0
       ? {
@@ -259,7 +265,12 @@ export function buildDeciderMessages(args: {
           content: [
             {
               type: "text",
-              text: `${baseText}\n\nThe image(s) below ARE what the user just sent (a photo and/or the frames of a single GIF) — base your reaction on what is actually shown in them, not just the text.`,
+              // Restates ladder rungs 1-2 at the point of decision: small
+              // models lose instruction force across long context, and this is
+              // what fixes the "no thoughts head empty" failure mode (a bank
+              // term reflecting how the model FELT about the image instead of
+              // what was in it). The last sentence targets that bug directly.
+              text: `${baseText}\n\nThe image(s) below are the frames of ONE GIF (or a single photo) the user just sent. First check: is this a recognizable named meme/format/character? If YES → that name is your query (ladder rung 1). If NO → your query is the literal subject + action you see, like "crying dog meme" (ladder rung 2). Base your pick on what is actually shown — never on what the frames make YOU feel.`,
             },
             ...imageUrls.map((url) => ({
               type: "image_url" as const,
@@ -278,11 +289,11 @@ export function buildDeciderMessages(args: {
   return messages;
 }
 
-// Runs the nano media decider: given the assembled decider system prompt plus a
-// compact history and the latest user message, returns whether to attach a
+// Runs the media decider (mini): given the assembled decider system prompt plus
+// a compact history and the latest user message, returns whether to attach a
 // reaction GIF/meme and the search term. Never throws — any failure (API error,
 // bad JSON) resolves to "none" so the turn still produces a normal reply. Always
-// reports usage so the orchestrator can bill the nano call alongside the reply.
+// reports usage so the orchestrator can bill the decider call alongside the reply.
 export async function decideMedia(args: {
   apiKey: string;
   systemPrompt: string;
@@ -291,7 +302,7 @@ export async function decideMedia(args: {
   history: string;
   currentMessage: string;
   // Reaction titles already sent recently (from buildDeciderContext). Surfaced
-  // as an explicit "do not repeat" list so nano varies its picks.
+  // as an explicit "do not repeat" list so the decider varies its picks.
   recentReactions?: string[];
   // Model-ready image URLs for the CURRENT user turn — uploaded image(s) and/or
   // decoded GIF frames. When present they're attached to the decider's user
@@ -329,7 +340,7 @@ export async function decideMedia(args: {
 
     const u = completion.usage;
     const usage: ModelUsage = {
-      model: "nano",
+      model: "mini",
       inputTokens: u?.prompt_tokens ?? 0,
       cachedInputTokens:
         (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)
@@ -354,6 +365,6 @@ export async function decideMedia(args: {
     return { decision, usage };
   } catch (err) {
     logger.warn("[decideMedia] failed; defaulting to no media", { err });
-    return { decision: { type: "none" }, usage: ZERO_NANO_USAGE };
+    return { decision: { type: "none" }, usage: ZERO_DECIDER_USAGE };
   }
 }

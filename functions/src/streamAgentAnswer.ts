@@ -153,7 +153,7 @@ export const streamAgentAnswer = onRequest(
     const levelOfRot = parsed.data.levelOfRot;
     const language = parsed.data.language;
     // Local-only answering prefs (default true). emojis → prompt content;
-    // media → whether the nano decider runs at all.
+    // media → whether the media decider runs at all.
     const respondWithEmojis = parsed.data.respondWithEmojis;
     const respondWithMedia = parsed.data.respondWithMedia;
 
@@ -327,7 +327,7 @@ export const streamAgentAnswer = onRequest(
     // is only fetched/decoded once per turn.
     let deciderGifFrames: ExtractedGifFrames | undefined;
     const klipyApiKey = KLIPY_APP_KEY.value();
-    // Media off (user toggle) skips the decider entirely — no nano call, no
+    // Media off (user toggle) skips the decider entirely — no decider call, no
     // reaction GIF/meme, no attachedMedia note — so the reply is purely text.
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
@@ -339,9 +339,10 @@ export const streamAgentAnswer = onRequest(
       // isn't read twice. Paid-gated + never throws — free users get empties.
       const memViews = await memoryService.getMemoryViews(uid, entitlement.plan);
 
-      // Cheap nano pre-step: decide whether this turn warrants a reaction
-      // GIF/meme and pick the search term, then fetch it. The reply model gets a
-      // note about what's attached (cohesion) and never makes a tool round-trip.
+      // Decider pre-step (mini — vision-first since 2026-06-10): decide whether
+      // this turn warrants a reaction GIF/meme and pick the search term, then
+      // fetch it. The reply model gets a note about what's attached (cohesion)
+      // and never makes a tool round-trip.
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
@@ -376,13 +377,13 @@ export const streamAgentAnswer = onRequest(
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: deciderSystemPrompt,
-          // Taste-only memory so nano can pick a more on-point reaction.
+          // Taste-only memory so the decider can pick a more on-point reaction.
           memoryBlock: memViews.media,
           history,
           currentMessage: currentForDecider,
           recentReactions,
-          // Hand nano the actual pixels of the current turn's attachments so its
-          // reaction matches what the user sent.
+          // Hand the decider the actual pixels of the current turn's attachments
+          // so its reaction matches what the user sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
           coldStartIndex,
         });
@@ -477,7 +478,7 @@ export const streamAgentAnswer = onRequest(
     let clientClosed = false;
     let sawDelta = false;
     let lastUsage: AgentUsage | null = null;
-    // The reaction GIF/meme chosen by the nano decider before streaming, if any.
+    // The reaction GIF/meme chosen by the media decider before streaming, if any.
     // Emitted to the client first (media-then-text), then persisted on the agent
     // message at finalize. At most one is set.
     let agentMeme: MessageImage | null = pendingMeme;
@@ -485,9 +486,11 @@ export const streamAgentAnswer = onRequest(
     const abortController = new AbortController();
 
     // Charge the turn's real cost once the stream's final usage is known. Sums
-    // both models that ran: the nano media decider (always) + the mini reply.
-    // If neither produced usage (e.g. the client aborted before any output and
-    // the decider was skipped), the turn is free.
+    // both calls that ran: the media decider (mini, always) + the mini reply —
+    // each usage carries its own model id, so the ledger prices the decider at
+    // mini rates since the 2026-06-10 nano→mini upgrade. If neither produced
+    // usage (e.g. the client aborted before any output and the decider was
+    // skipped), the turn is free.
     const chargeForUsage = async (reason: string) => {
       const usages: ModelUsage[] = [];
       if (
@@ -634,7 +637,7 @@ export const streamAgentAnswer = onRequest(
         model: resolveModelId(internalModel),
         maxOutputTokens: entitlement.maxOutputTokens,
         // No tools: the reaction GIF/meme was already decided + fetched by the
-        // nano pre-step, so the reply model just writes text in a single call.
+        // decider pre-step, so the reply model just writes text in a single call.
         signal: abortController.signal,
       })) {
         if (clientClosed) {
