@@ -153,6 +153,68 @@ describe("assembleFromInputs", () => {
     expect(result.messages[result.messages.length - 1].content).toBe("current");
   });
 
+  it("over-drops to ~80% of the cap on overflow (truncation hysteresis)", () => {
+    // ~25 tokens per message, cap 1000 → ideal target 800. On overflow the
+    // window must land at or under the target, not just barely under the cap.
+    const recent = mkMessages(60);
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "current",
+      maxInputTokens: 1000,
+    });
+    expect(result.inputTokens).toBeLessThanOrEqual(800);
+    // Sanity: it kept a real window, not a drained one.
+    expect(result.recentMessageCount).toBeGreaterThan(10);
+  });
+
+  it("keeps the window head byte-stable across following turns (cacheable prefix)", () => {
+    // Turn N overflows and slides. Turns N+1 and N+2 add one exchange each;
+    // with hysteresis headroom they must NOT slide again, so the first
+    // surviving history message stays identical.
+    const recent = mkMessages(60);
+    const turnN = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "current",
+      maxInputTokens: 1000,
+    });
+    const headAfterSlide = turnN.messages[1].content; // first history msg (no second system msg here)
+
+    let history = recent.slice();
+    for (const text of ["current", "reply", "next current"]) {
+      history = [
+        ...history,
+        { role: history.length % 2 === 0 ? "user" : "agent", text },
+      ];
+    }
+    const turnN1 = assembleFromInputs({
+      summary: null,
+      recent: history,
+      currentText: "and again",
+      maxInputTokens: 1000,
+    });
+    // Same head: the prefix up to the new messages is unchanged → cache hit.
+    expect(turnN1.messages[1].content).toBe(headAfterSlide);
+    expect(turnN1.inputTokens).toBeLessThanOrEqual(1000);
+  });
+
+  it("falls back to minimal dropping when fixed parts leave no hysteresis room", () => {
+    // A current turn so large that (fixed + 512) exceeds the 80% target: the
+    // assembler must not drain the whole window chasing an unreachable target.
+    const recent = mkMessages(40);
+    const bigCurrent = "word ".repeat(700); // ~700 tokens of fixed cost
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: bigCurrent,
+      maxInputTokens: 1000,
+    });
+    expect(result.inputTokens).toBeLessThanOrEqual(1000);
+    // Legacy behavior: it kept as much history as fits under the hard cap.
+    expect(result.recentMessageCount).toBeGreaterThan(0);
+  });
+
   it("never exceeds maxInputTokens for adversarially long history", () => {
     const huge = Array.from({ length: 30 }, (_, i) => ({
       role: i % 2 === 0 ? "user" as const : "agent" as const,
@@ -211,6 +273,45 @@ describe("assembleFromInputs", () => {
     });
     // Only the base system prompt — no extra system note.
     expect(result.messages.filter((m) => m.role === "system")).toHaveLength(1);
+  });
+
+  it("injects the per-turn note after history, before the media note and current turn", () => {
+    const result = assembleFromInputs({
+      summary: null,
+      recent: [
+        { role: "user", text: "earlier" },
+        { role: "agent", text: "earlier reply" },
+      ],
+      currentText: "what's the move",
+      maxInputTokens: 10_000,
+      perTurnNote:
+        "WORD BANK (this turn's rotation)\n\nReactions: tragic\n\nSAFETY OVERRIDE REMINDER",
+      attachedMedia: { kind: "gif", description: "rat dancing" },
+    });
+    const msgs = result.messages;
+    // Order: [...prefix, history..., per-turn note, media note, current user] —
+    // every per-turn message stays behind the cacheable history prefix.
+    const last = msgs[msgs.length - 1];
+    const mediaNote = msgs[msgs.length - 2];
+    const styleNote = msgs[msgs.length - 3];
+    const lastHistory = msgs[msgs.length - 4];
+    expect(last).toEqual({ role: "user", content: "what's the move" });
+    expect(mediaNote.role).toBe("system");
+    expect(mediaNote.content).toContain("rat dancing");
+    expect(styleNote.role).toBe("system");
+    expect(styleNote.content).toContain("WORD BANK (this turn's rotation)");
+    expect(lastHistory).toEqual({ role: "assistant", content: "earlier reply" });
+  });
+
+  it("omits the per-turn note message when none is provided", () => {
+    const without = assembleFromInputs({
+      summary: null,
+      recent: [],
+      currentText: "hi",
+      maxInputTokens: 10_000,
+      perTurnNote: "",
+    });
+    expect(without.messages.filter((m) => m.role === "system")).toHaveLength(1);
   });
 
   it("maps user → user and agent → assistant", () => {

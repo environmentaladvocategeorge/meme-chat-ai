@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
+import { rotLevelSampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import {
   buildDeciderContext,
@@ -16,6 +17,7 @@ import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
+import { lintAgentReply } from "./monitoring/outputLinters";
 import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger";
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
@@ -346,8 +348,14 @@ export const streamAgentAnswer = onRequest(
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
+      // Loaded for every turn (not just media turns): the decider context needs
+      // it when media is on, and the word-bank sampler excludes bank terms seen
+      // in these recent bot replies either way.
+      const priorMessages = await loadRecentMessages(conversationId, 12);
+      const recentAssistantTexts = priorMessages
+        .filter((m) => m.role === "agent" && m.text)
+        .map((m) => m.text);
       if (mediaEnabled) {
-        const priorMessages = await loadRecentMessages(conversationId, 12);
         const { history, recentReactions } = buildDeciderContext(priorMessages);
         const currentForDecider =
           userText ||
@@ -463,6 +471,7 @@ export const streamAgentAnswer = onRequest(
         // Already read above for the decider — hand the reply view to the Agent
         // so it doesn't read the memory state a second time.
         memoryBlock: memViews.reply,
+        recentAssistantTexts,
       });
       resolvedPersona = replyContext.persona;
       assembleResult = replyContext.assembled;
@@ -638,6 +647,8 @@ export const streamAgentAnswer = onRequest(
         maxOutputTokens: entitlement.maxOutputTokens,
         // No tools: the reaction GIF/meme was already decided + fetched by the
         // decider pre-step, so the reply model just writes text in a single call.
+        // Dial-mapped sampling garnish: L1 narrows top_p, L2/L3 send nothing.
+        sampling: rotLevelSampling(levelOfRot),
         signal: abortController.signal,
       })) {
         if (clientClosed) {
@@ -678,6 +689,29 @@ export const streamAgentAnswer = onRequest(
       writeSse(res, "done", {});
       finalized = true;
       res.end();
+
+      // Post-hoc output lint: the no-eval behavior dashboard. Advisory only —
+      // the reply already streamed; findings land in Cloud Logging as warns
+      // (filter "[outputLint]", group by rule) so prompt rollouts are
+      // observable per rot level within a day.
+      try {
+        const lintFindings = lintAgentReply(fullText, {
+          rotLevel: levelOfRot,
+          emojisEnabled: respondWithEmojis,
+        });
+        if (lintFindings.length > 0) {
+          logger.warn("[outputLint] reply flagged", {
+            conversationId,
+            agentMessageId,
+            rotLevel: levelOfRot,
+            emojisEnabled: respondWithEmojis,
+            replyChars: fullText.length,
+            findings: lintFindings,
+          });
+        }
+      } catch (err) {
+        logger.error("[outputLint] linter threw", { err });
+      }
 
       try {
         await finalizeAgentMessage(

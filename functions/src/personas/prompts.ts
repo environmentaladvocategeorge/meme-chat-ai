@@ -215,6 +215,12 @@ export async function buildSystemPromptForStream(
   }
 
   const { persona, personaPrompt } = await resolvePersonaForStream(inputPersonaId);
+  // NOTE: the per-turn word-bank sample is deliberately NOT part of the system
+  // prompt — it varies every turn and would cap the cacheable prefix here. It
+  // ships as a post-history note instead (personas/perTurnNote.ts). The result
+  // of this function is fully static per (rot level, emoji toggle) variant.
+  // (If a stale fragment set still contains a word_bank_sample fragment, it
+  // drops out cleanly because no sample is provided in the ctx.)
   const assembleCtx = {
     level: levelOfRot,
     emojisEnabled: respondWithEmojis,

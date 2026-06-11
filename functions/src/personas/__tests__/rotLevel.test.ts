@@ -5,7 +5,39 @@ describe("rotLevelBlock", () => {
   it("returns a distinct block per level", () => {
     expect(rotLevelBlock(1)).toContain("LIGHTLY COOKED");
     expect(rotLevelBlock(2)).toContain("ROTTED");
-    expect(rotLevelBlock(3)).toContain("GOBLIN MODE");
+    expect(rotLevelBlock(3)).toContain("ROT LEVEL: 3/3 — MAX");
+  });
+
+  it("never says 'goblin' in-prompt (the leak-priming dial name stays UI-only)", () => {
+    for (const level of [1, 2, 3]) {
+      for (const emojis of [true, false]) {
+        expect(rotLevelBlock(level, emojis).toLowerCase()).not.toContain("goblin");
+      }
+    }
+  });
+
+  it("ships level-matched few-shot examples", () => {
+    expect(rotLevelBlock(1)).toContain("Example exchange (shape, not script):");
+    expect(rotLevelBlock(3)).toContain("Example exchanges (shape, not script):");
+    // The ts-tuff opener is demonstrated once, at L3.
+    expect(rotLevelBlock(3)).toContain("first of all, ts tuff");
+    expect(rotLevelBlock(1)).not.toContain("first of all, ts tuff");
+  });
+
+  it("licenses the GIF riff at L3 only", () => {
+    expect(rotLevelBlock(3)).toContain("usually react to it");
+    expect(rotLevelBlock(1)).not.toContain("usually react to it");
+    expect(rotLevelBlock(2)).not.toContain("usually react to it");
+  });
+
+  it("strips example emoji in the emoji-off variant", () => {
+    for (const level of [1, 2, 3]) {
+      const off = rotLevelBlock(level, false);
+      expect(off).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u);
+      // No double spaces or space-before-quote artifacts left by stripping.
+      expect(off).not.toMatch(/[^\S\n][^\S\n]/);
+      expect(off).not.toMatch(/[^\S\n]"$/m);
+    }
   });
 
   it("clamps out-of-range levels into 1..3", () => {

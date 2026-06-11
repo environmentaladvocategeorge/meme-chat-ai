@@ -13,6 +13,17 @@ import { countMessagesTokens } from "./tokens";
 const DEFAULT_SYSTEM_PROMPT =
   "You are Brainrot Bot, a friendly and concise chat assistant. Reply in the user's language. Keep answers focused; offer detail only when the user asks for it.";
 
+// Truncation hysteresis: when the assembled input overflows maxInputTokens,
+// drop oldest history down to this fraction of the cap (not just barely under
+// it). One over-drop buys several turns where the window head — and therefore
+// the prompt-cache prefix — stays byte-identical. 0.8 ≈ a slide every 4-5
+// exchanges instead of every turn.
+const TRUNCATION_TARGET_RATIO = 0.8;
+// Floor for hysteresis: if the never-dropped parts (system prompt, notes,
+// current turn) leave less than this much room under the ideal target, revert
+// to minimal dropping against the hard cap rather than draining the window.
+const MIN_HISTORY_TOKENS = 512;
+
 // Chat Completions multimodal content parts. Assistant/system content stays a
 // plain string; only the current user turn may become an array of parts.
 export type OpenAITextPart = { type: "text"; text: string };
@@ -62,6 +73,11 @@ export type AssembleArgs = {
   // the reply model knows what's attached and can riff on it. The model does not
   // attach media itself — this is purely informational.
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Per-turn style note (word-bank rotation + safety recap, see
+  // personas/perTurnNote). Varies EVERY turn, so it must live here in the fresh
+  // tail — putting it any earlier would cap the cacheable prefix at the static
+  // system prompt.
+  perTurnNote?: string;
   maxInputTokens: number;
 };
 
@@ -242,9 +258,13 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
             },
       );
     }
-    // Per-turn media note sits in the fresh tail (after the cacheable
-    // system+summary+recent prefix, right before the current turn) so it never
-    // disturbs the prompt cache.
+    // Fresh tail: per-turn notes sit after the cacheable
+    // system+summary+recent prefix, right before the current turn, so they
+    // never disturb the prompt cache. Style/safety note first, media note
+    // closest to the user message.
+    if (args.perTurnNote) {
+      out.push({ role: "system", content: args.perTurnNote });
+    }
     if (args.attachedMedia) {
       out.push({
         role: "system",
@@ -266,12 +286,32 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
   let messages = build(current);
   let inputTokens = countMessagesTokens(messages);
 
-  // Drop oldest recent messages until we fit. Keep system/summary/current
-  // intact — those are load-bearing.
-  while (inputTokens > args.maxInputTokens && current.length > 0) {
-    current = current.slice(1);
-    messages = build(current);
-    inputTokens = countMessagesTokens(messages);
+  // Truncation with hysteresis. Dropping the bare minimum each turn means
+  // that once a conversation sits at the cap, the window's HEAD shifts every
+  // single turn — which kills history prompt-caching from then on (measured
+  // live: shallow-cache turns cost ~2x a deep-hit turn). So when we overflow,
+  // we cut down to a lower target instead, buying several turns of byte-stable
+  // window head (deep cache hits) per slide. The over-dropped span is the
+  // oldest verbatim turns, which the rolling summary covers.
+  if (inputTokens > args.maxInputTokens && current.length > 0) {
+    // Fixed cost of everything that is never dropped (system, user context,
+    // memory, summary, notes, current turn).
+    const fixedTokens = countMessagesTokens(build([]));
+    const idealTarget = Math.floor(args.maxInputTokens * TRUNCATION_TARGET_RATIO);
+    // Don't let hysteresis starve the verbatim window: when the fixed parts
+    // leave less than MIN_HISTORY_TOKENS under the ideal target (e.g. a huge
+    // image turn), fall back to minimal dropping against the hard cap.
+    const target =
+      fixedTokens + MIN_HISTORY_TOKENS <= idealTarget
+        ? idealTarget
+        : args.maxInputTokens;
+    // Drop oldest recent messages until we hit the target. Keep
+    // system/summary/current intact — those are load-bearing.
+    while (inputTokens > target && current.length > 0) {
+      current = current.slice(1);
+      messages = build(current);
+      inputTokens = countMessagesTokens(messages);
+    }
   }
 
   return {
@@ -335,6 +375,9 @@ export type AssembleContextArgs = {
   // Reaction GIF/meme the media pipeline chose for this reply (informational
   // note for the model — see AssembleArgs.attachedMedia).
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Per-turn style note (word-bank rotation + safety recap) — see
+  // AssembleArgs.perTurnNote.
+  perTurnNote?: string;
   systemPrompt?: string;
   userAlias?: string | null;
   // Resolved app language (e.g. "en", "es") — never "system".
@@ -412,6 +455,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     currentImageUrls: args.currentImageUrls,
     currentGifFrames,
     attachedMedia: args.attachedMedia,
+    perTurnNote: args.perTurnNote,
     maxInputTokens: planCfg.maxInputTokens,
   });
 }

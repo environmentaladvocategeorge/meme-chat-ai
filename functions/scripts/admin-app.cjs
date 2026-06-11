@@ -57,12 +57,20 @@ function cleanup() {
 }
 process.on("exit", cleanup);
 
-function getDb() {
+// `extra` lets a caller add init options BEFORE the app is created — e.g.
+// `serviceAccountId` so createCustomToken can sign via IAM signBlob (the CLI
+// user OAuth credential has no private key of its own). Must be called before
+// the first getDb() to take effect.
+function initAdminApp(extra = {}) {
   if (!getApps().length) {
     ensureAdc();
-    initializeApp({ projectId: PROJECT_ID });
+    initializeApp({ projectId: PROJECT_ID, ...extra });
   }
+}
+
+function getDb() {
+  initAdminApp();
   return getFirestore();
 }
 
-module.exports = { getDb, PROJECT_ID, cleanup };
+module.exports = { getDb, initAdminApp, PROJECT_ID, cleanup };

@@ -31,7 +31,9 @@ export type PromptFragment = {
   requires?: "emojis";
   // Computed fragment: ignore `text` and resolve in code at assembly time.
   // "rot_level_block" → rotLevelBlock(level, emojisEnabled).
-  dynamic?: "rot_level_block";
+  // "word_bank_sample" → AssembleCtx.wordBankSample (the per-turn sampled
+  // bank, see ./wordBank); drops out when no sample was provided.
+  dynamic?: "rot_level_block" | "word_bank_sample";
 };
 
 export type FragmentedPrompt = {
@@ -52,6 +54,11 @@ export type AssembleCtx = {
   // emoji-off text variants. The media-decider path passes true (it's unaffected
   // by the user's emoji toggle).
   emojisEnabled: boolean;
+  // Pre-rendered per-turn word-bank sample (see ./wordBank). Consumed by the
+  // dynamic word_bank_sample fragment; absent/empty drops the fragment. The
+  // caller renders it (not this module) so assembly stays pure while sampling
+  // owns the rng and recent-term exclusion.
+  wordBankSample?: string;
 };
 
 // Resolves one fragment to its final text for this turn, or null when the
@@ -60,6 +67,9 @@ function resolveFragment(f: PromptFragment, ctx: AssembleCtx): string | null {
   if (f.requires === "emojis" && !ctx.emojisEnabled) return null;
   if (f.dynamic === "rot_level_block") {
     return rotLevelBlock(ctx.level, ctx.emojisEnabled);
+  }
+  if (f.dynamic === "word_bank_sample") {
+    return ctx.wordBankSample ? ctx.wordBankSample : null;
   }
   if (!ctx.emojisEnabled && typeof f.textWhenEmojisOff === "string") {
     return f.textWhenEmojisOff;
@@ -98,7 +108,13 @@ export function asFragmentedPrompt(value: unknown): FragmentedPrompt | null {
       return null;
     }
     if (f.requires != null && f.requires !== "emojis") return null;
-    if (f.dynamic != null && f.dynamic !== "rot_level_block") return null;
+    if (
+      f.dynamic != null &&
+      f.dynamic !== "rot_level_block" &&
+      f.dynamic !== "word_bank_sample"
+    ) {
+      return null;
+    }
   }
   return value as FragmentedPrompt;
 }

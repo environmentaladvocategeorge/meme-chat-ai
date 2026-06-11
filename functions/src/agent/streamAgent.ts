@@ -48,6 +48,15 @@ const MAX_TOOL_ROUNDS = 1;
 
 type AccumulatedToolCall = { id: string; name: string; arguments: string };
 
+// Persona chat needs zero reasoning: unset means "medium" on gpt-5.x, and
+// reasoning tokens bill at the full output rate ($4.50/M on mini) while also
+// delaying first visible token. "low" is the floor proven against gpt-5.4
+// models at this API surface (decideMedia/summarize/title all use it).
+// Candidate follow-up: "minimal" (added with gpt-5) cuts further — verify it
+// against gpt-5.4-mini with a live smoke call before flipping, because a
+// rejected value 400s every chat turn.
+const CHAT_REASONING_EFFORT = "low" as const;
+
 // Optional sampling knobs spread into the OpenAI completion call. Used by turn
 // replay to nudge the model toward a different answer than last time: a fresh
 // `seed` reshuffles the sampling RNG, and a varied `top_p` widens/narrows the
@@ -122,6 +131,7 @@ export async function* streamAgent({
           // gpt-5.x models reject the legacy `max_tokens` — they require
           // `max_completion_tokens`. Sending the old key 400s before any token.
           max_completion_tokens: maxOutputTokens,
+          reasoning_effort: CHAT_REASONING_EFFORT,
           stream: true,
           stream_options: { include_usage: true },
           messages: convo,
