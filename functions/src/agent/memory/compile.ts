@@ -8,7 +8,7 @@ import {
 // Header prefixed to the REPLY model's compiled block. Counts toward the budget
 // so the injected string as a whole can never exceed the cap.
 export const MEMORY_BLOCK_HEADER =
-  "WHAT YOU KNOW ABOUT THIS USER (from past chats — weave it in naturally when it fits; never recite it as a list or say you have notes on them):";
+  "WHAT YOU KNOW ABOUT THIS USER (from past chats — weave it in naturally when it fits; never recite it as a list or say you have notes on them; if what they say now contradicts a memory, the present wins):";
 
 // Preface for the MEDIA-DECIDER view. The decider emits JSON and picks ONE
 // reaction image — the reply framing ("weave it in naturally / never recite as a
