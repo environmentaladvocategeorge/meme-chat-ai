@@ -45,7 +45,9 @@ export function countEmoji(text: string): number {
   return (text.match(EMOJI_RE) ?? []).length;
 }
 
-// Markdown list markers at line start — the no-lists hotfix regression signal.
+// Markdown list markers at line start. Since the no-lists hotfix was reverted
+// (2026-06-11) lists are legitimate when the user asks for steps/options/etc,
+// so a low baseline warn rate is expected; watch for spikes, not zero.
 const MARKDOWN_LIST_RE = /^\s*(?:[-*]\s+|\d+[.)]\s+)/m;
 
 // The highest-frequency assistant-register tells from the prompt's banned
