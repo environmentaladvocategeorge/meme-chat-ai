@@ -14,7 +14,7 @@ gif,roast,légende,réponse,humour,blague,sticker,réaction,argot,chatbot,rééc
 
 ## What's New (Nouveautés)
 
-Cette mise à jour, c'est du peaufinage. On a corrigé un bug qui pouvait déformer l'affichage de certaines réponses et nettoyé plusieurs petits soucis d'interface dans le chat.
+Deux gros bugs en moins. On a corrigé celui qui déconnectait certains utilisateurs (parfois toutes les heures) et celui qui forçait à refaire l'onboarding à la reconnexion. Vous restez connecté, et l'onboarding ne se fait qu'une fois.
 
 ## Promotional Text (Texte promotionnel)
 

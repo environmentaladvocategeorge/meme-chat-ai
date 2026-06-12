@@ -14,7 +14,7 @@ gif,roast,leyenda,respuesta,humor,chiste,sticker,reaccion,jerga,chatbot,reescrib
 
 ## What's New (Novedades)
 
-Esta actualización es pura limpieza. Arreglamos un bug que hacía que algunas respuestas se mostraran mal y pulimos varios detalles pequeños de la interfaz del chat.
+Dos bugs grandes menos. Arreglamos uno que cerraba la sesión de algunos usuarios (a veces cada hora) y otro que te obligaba a repetir el onboarding al volver a entrar. Ahora tu sesión se mantiene y el onboarding se hace una sola vez.
 
 ## Promotional Text (Texto promocional)
 

@@ -181,6 +181,13 @@ export default function ChatScreen() {
   const { meta: memoryMeta } = useMemoryMeta();
   const router = useRouter();
 
+  // Bumped each time the app returns to the foreground (see the AppState
+  // effect below). The entitlement in the store may predate a daily/monthly
+  // reset boundary crossed while backgrounded — its object identity doesn't
+  // change, so without this the usage memo would keep serving a stale
+  // "at limit" and flash the upgrade block over a refilled allowance.
+  const [appActiveAt, setAppActiveAt] = useState(() => Date.now());
+
   // Collapse the monthly + daily windows into one picture so we can nudge at
   // 90% and hard-block the composer at 100% of whichever is binding.
   const usage = useMemo<UsageState | null>(() => {
@@ -193,8 +200,9 @@ export default function ChatScreen() {
       softDailyCredits: entitlement.softDailyCredits,
       creditsResetAt: entitlement.creditsResetAt,
       dailyResetAt: entitlement.dailyResetAt,
+      now: appActiveAt,
     });
-  }, [entitlement]);
+  }, [entitlement, appActiveAt]);
 
   const atLimit = usage?.atLimit ?? false;
   const nearLimit = (usage?.nearLimit ?? false) && !atLimit;
@@ -647,6 +655,9 @@ export default function ChatScreen() {
         }
         setMemesOpen(false);
         setGifsOpen(false);
+        // Re-evaluate usage against the current clock — a reset boundary may
+        // have passed while backgrounded (see the usage memo above).
+        setAppActiveAt(Date.now());
       }
     });
     return () => sub.remove();

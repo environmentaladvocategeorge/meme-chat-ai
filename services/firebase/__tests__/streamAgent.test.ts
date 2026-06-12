@@ -140,13 +140,13 @@ describe("streamAgentAnswer auth handling", () => {
     expect(mockGetIdToken.mock.calls[1][0]).toBe(true);
   });
 
-  it("surfaces SessionExpiredError after a 401 replay also 401s (no third attempt)", async () => {
+  it("surfaces SessionExpiredError after a marked-401 replay also 401s marked (no third attempt)", async () => {
     mockGetIdToken.mockImplementation((force?: boolean) =>
       Promise.resolve(force ? "tok-fresh" : "tok-cached"),
     );
     FakeXHR.script = [
-      { status: 401, body: "" },
-      { status: 401, body: "" },
+      { status: 401, body: '{"code":"auth/id-token-expired"}' },
+      { status: 401, body: '{"code":"auth/id-token-revoked"}' },
     ];
 
     await expect(collect(streamAgentAnswer({ message: "hi" }))).rejects.toBeInstanceOf(
@@ -156,16 +156,48 @@ describe("streamAgentAnswer auth handling", () => {
     expect(FakeXHR.instances).toHaveLength(2);
   });
 
-  it("surfaces SessionExpiredError when the forced refresh itself fails", async () => {
+  it("treats a bare (unmarked) double 401 as a retryable error, not session death", async () => {
+    // The GFE / dropped-invoker-binding case: infrastructure rejects the
+    // request before our function code runs, so the 401 has no JSON marker.
+    // The session is healthy — signing the user out here was the bug.
+    mockGetIdToken.mockImplementation((force?: boolean) =>
+      Promise.resolve(force ? "tok-fresh" : "tok-cached"),
+    );
+    FakeXHR.script = [
+      { status: 401, body: "<html>Unauthorized</html>" },
+      { status: 401, body: "<html>Unauthorized</html>" },
+    ];
+
+    const promise = collect(streamAgentAnswer({ message: "hi" }));
+    await expect(promise).rejects.not.toBeInstanceOf(SessionExpiredError);
+    await expect(promise).rejects.toThrow("stream-failed-401");
+    expect(FakeXHR.instances).toHaveLength(2);
+  });
+
+  it("propagates a transient forced-refresh failure as retryable, not session death", async () => {
     mockGetIdToken.mockImplementation((force?: boolean) =>
       force ? Promise.reject(new Error("refresh failed")) : Promise.resolve("tok-cached"),
     );
-    FakeXHR.script = [{ status: 401, body: "" }];
+    FakeXHR.script = [{ status: 401, body: '{"code":"auth/id-token-expired"}' }];
+
+    const promise = collect(streamAgentAnswer({ message: "hi" }));
+    await expect(promise).rejects.not.toBeInstanceOf(SessionExpiredError);
+    await expect(promise).rejects.toThrow("refresh failed");
+    // Only the first attempt ran; the refresh blew up before any replay.
+    expect(FakeXHR.instances).toHaveLength(1);
+  });
+
+  it("surfaces SessionExpiredError when the forced refresh fails with a terminal auth code", async () => {
+    mockGetIdToken.mockImplementation((force?: boolean) =>
+      force
+        ? Promise.reject({ code: "auth/user-token-expired" })
+        : Promise.resolve("tok-cached"),
+    );
+    FakeXHR.script = [{ status: 401, body: '{"code":"auth/id-token-expired"}' }];
 
     await expect(collect(streamAgentAnswer({ message: "hi" }))).rejects.toBeInstanceOf(
       SessionExpiredError,
     );
-    // Only the first attempt ran; the refresh blew up before any replay.
     expect(FakeXHR.instances).toHaveLength(1);
   });
 

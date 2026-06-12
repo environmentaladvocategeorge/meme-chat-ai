@@ -1,4 +1,3 @@
-import { getAuth } from "firebase-admin/auth";
 import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
@@ -44,6 +43,7 @@ import {
   buildSystemPromptForStream,
 } from "./personas/prompts";
 import { streamReplayRequestSchema } from "./streamReplayRequest";
+import { authenticateStreamRequest } from "./streamAuth";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
@@ -54,12 +54,6 @@ const memoryService = new MemoryService();
 type SseResponse = {
   write: (chunk: string) => unknown;
 };
-
-function getBearerToken(header: string | undefined): string | null {
-  if (!header?.startsWith("Bearer ")) return null;
-  const token = header.slice("Bearer ".length).trim();
-  return token.length > 0 ? token : null;
-}
 
 function writeSse(res: SseResponse, event: string, data: unknown) {
   res.write(`event: ${event}\n`);
@@ -118,21 +112,8 @@ export const streamReplayTurn = onRequest(
       return;
     }
 
-    const token = getBearerToken(req.header("authorization"));
-    if (!token) {
-      res.status(401).end();
-      return;
-    }
-
-    let uid: string;
-    try {
-      const decoded = await getAuth().verifyIdToken(token, true);
-      uid = decoded.uid;
-    } catch (err) {
-      logger.warn("[streamReplayTurn] invalid auth token", { err });
-      res.status(401).end();
-      return;
-    }
+    const uid = await authenticateStreamRequest(req, res, "streamReplayTurn");
+    if (!uid) return;
 
     const parsed = streamReplayRequestSchema.safeParse(req.body);
     if (!parsed.success) {

@@ -12,9 +12,14 @@ import { SessionExpiredError } from "./sessionErrors";
 export { SessionExpiredError } from "./sessionErrors";
 
 // A non-2xx HTTP response from the stream endpoint. The status is preserved so
-// the generator can tell an auth rejection (401) apart from everything else.
+// the generator can tell an auth rejection (401) apart from everything else,
+// and the body so a 401 minted by our function code (which always carries a
+// JSON `code`) can be told apart from an infrastructure 401.
 class StreamHttpError extends Error {
-  constructor(readonly status: number) {
+  constructor(
+    readonly status: number,
+    readonly body: string,
+  ) {
     super(`stream-failed-${status}`);
     this.name = "StreamHttpError";
   }
@@ -22,6 +27,21 @@ class StreamHttpError extends Error {
 
 function isUnauthorized(err: unknown): err is StreamHttpError {
   return err instanceof StreamHttpError && err.status === 401;
+}
+
+// A 401 our function code itself minted: it always carries a JSON body whose
+// `code` is a firebase auth error (e.g. "auth/id-token-revoked"). 401s from
+// in-front infrastructure — most notably Google Frontend when a redeploy drops
+// the Cloud Run invoker binding — carry HTML or empty bodies. Only a marked
+// 401 may end the local session; everything else is a retryable outage.
+function isMarkedAuthRejection(err: unknown): boolean {
+  if (!isUnauthorized(err)) return false;
+  try {
+    const data = JSON.parse(err.body) as { code?: unknown };
+    return typeof data.code === "string" && data.code.startsWith("auth/");
+  } catch {
+    return false;
+  }
 }
 
 // Firebase Auth error codes that mean the local session is dead and cannot be
@@ -393,7 +413,7 @@ function startStreamAttempt(
 
   xhr.onload = () => {
     if (xhr.status < 200 || xhr.status >= 300) {
-      fail(new StreamHttpError(xhr.status));
+      fail(new StreamHttpError(xhr.status, xhr.responseText));
       return;
     }
 
@@ -456,8 +476,8 @@ async function* runAuthedStream(
 
   // A 401 means the backend rejected the token — it can be locally valid yet
   // already revoked server-side (we verify with checkRevoked), so a cached
-  // token would loop forever. Force-refresh and replay exactly once; if that
-  // still fails the session is genuinely gone.
+  // token would loop forever. Force-refresh and replay exactly once; only a
+  // backend-marked 401 after that means the session is genuinely gone.
   let forcedRefresh = false;
   while (true) {
     const attempt = startStreamAttempt(url, idToken, body, signal);
@@ -478,12 +498,19 @@ async function* runAuthedStream(
         forcedRefresh = true;
         try {
           idToken = await user.getIdToken(true);
-        } catch {
-          throw new SessionExpiredError();
+        } catch (refreshErr) {
+          // Only a refresh failure that NAMES a dead session ends it. A
+          // transient failure (e.g. the network dropped mid-refresh) must
+          // surface as a retryable error, not a sign-out.
+          if (isTerminalAuthError(refreshErr)) throw new SessionExpiredError();
+          throw refreshErr;
         }
         continue;
       }
-      if (isUnauthorized(err)) throw new SessionExpiredError();
+      // Even after a forced refresh, only a 401 our backend explicitly marked
+      // as an auth rejection means the session is dead. A bare 401 (GFE /
+      // dropped invoker binding) is an outage — surface it as retryable.
+      if (isMarkedAuthRejection(err)) throw new SessionExpiredError();
       throw err;
     } finally {
       // Runs on normal completion, throw, early consumer return, AND before a
