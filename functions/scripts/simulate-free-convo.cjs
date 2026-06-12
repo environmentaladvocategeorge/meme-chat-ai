@@ -23,11 +23,11 @@ if (!uid) throw new Error("usage: node simulate-free-convo.cjs <uid> [turns]");
 // A realistic casual free-user session: greetings, reactions, factual asks,
 // roast requests, follow-ups. Mix of short and long turns.
 const TURNS = [
-  "yo",
+  "yo, send me a gif",
   "lol not much, just got home from work",
-  "my boss made us redo the whole deck for the third time bro",
+  "my boss made us redo the whole deck for the third time bro, send a gif of how done i am",
   "roast him for me",
-  "LMAOOO ok that's good",
+  "LMAOOO ok that's good, send me a victory gif",
   "real talk how do mortgages actually work, me and my gf were arguing about it",
   "wait so the bank owns the house??",
   "ok that makes sense. what's a good down payment percent",
