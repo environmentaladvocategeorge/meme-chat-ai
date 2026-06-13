@@ -216,8 +216,21 @@ const zh = {
     history: "聊天记录",
     settings: "设置",
   },
+  personas: {
+    currentLabel: "当前聊天角色",
+    yourBots: "你的 Brainrot Bot",
+    create: "创建新的 Brainrot Bot",
+    createA11y: "创建新的 Brainrot Bot",
+    defaultDescription: "最初的混乱小妖精。",
+    selectA11y: "选择 {{name}}",
+    maxReached: "你已达到最多 {{count}} 个机器人。",
+    upgradeTitle: "想要更多机器人？",
+    upgradeBody: "升级即可创建多达 {{count}} 个角色。",
+    upgradeCta: "升级",
+  },
   chat: {
     title: "聊天",
+    agentName: "Brainrot Bot",
     memory: {
       bannerOn: "记忆已开启",
       bannerA11y: "记忆已开启。点按管理。",

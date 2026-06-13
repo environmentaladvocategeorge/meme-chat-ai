@@ -215,8 +215,21 @@ const ru = {
     history: "История чатов",
     settings: "Настройки",
   },
+  personas: {
+    currentLabel: "Вы общаетесь как",
+    yourBots: "Ваши Brainrot Bot",
+    create: "Создать новый Brainrot Bot",
+    createA11y: "Создать новый Brainrot Bot",
+    defaultDescription: "Оригинальный хаос-гремлин.",
+    selectA11y: "Выбрать {{name}}",
+    maxReached: "Вы достигли максимума — {{count}} ботов.",
+    upgradeTitle: "Хотите больше ботов?",
+    upgradeBody: "Оформите подписку, чтобы создавать до {{count}} персонажей.",
+    upgradeCta: "Улучшить",
+  },
   chat: {
     title: "Чат",
+    agentName: "Brainrot Bot",
     memory: {
       bannerOn: "Память включена",
       bannerA11y: "Память включена. Нажми, чтобы управлять.",

@@ -215,8 +215,21 @@ const ja = {
     history: "チャット履歴",
     settings: "設定",
   },
+  personas: {
+    currentLabel: "現在のキャラクター",
+    yourBots: "あなたの Brainrot Bot",
+    create: "新しい Brainrot Bot を作成",
+    createA11y: "新しい Brainrot Bot を作成",
+    defaultDescription: "元祖カオスなグレムリン。",
+    selectA11y: "{{name}} を選択",
+    maxReached: "ボットは最大 {{count}} 体までです。",
+    upgradeTitle: "もっとボットが欲しい？",
+    upgradeBody: "アップグレードすると最大 {{count}} 体のキャラクターを作成できます。",
+    upgradeCta: "アップグレード",
+  },
   chat: {
     title: "チャット",
+    agentName: "Brainrot Bot",
     memory: {
       bannerOn: "メモリはオン",
       bannerA11y: "メモリはオン。タップして管理。",

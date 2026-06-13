@@ -215,8 +215,21 @@ const hi = {
     history: "Chat history",
     settings: "Settings",
   },
+  personas: {
+    currentLabel: "अभी इस रूप में चैट कर रहे हैं",
+    yourBots: "आपके Brainrot Bots",
+    create: "नया Brainrot Bot बनाएं",
+    createA11y: "नया Brainrot Bot बनाएं",
+    defaultDescription: "असली कैओस ग्रेमलिन।",
+    selectA11y: "{{name}} चुनें",
+    maxReached: "आप {{count}} बॉट्स की अधिकतम सीमा तक पहुँच गए हैं।",
+    upgradeTitle: "और बॉट्स चाहिए?",
+    upgradeBody: "{{count}} पर्सोना तक बनाने के लिए अपग्रेड करें।",
+    upgradeCta: "अपग्रेड करें",
+  },
   chat: {
     title: "Chat",
+    agentName: "Brainrot Bot",
     memory: {
       bannerOn: "Memory चालू है",
       bannerA11y: "Memory चालू है। Manage करने के लिए tap करो।",

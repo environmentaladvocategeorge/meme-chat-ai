@@ -216,8 +216,21 @@ const fr = {
     history: "Historique",
     settings: "Paramètres",
   },
+  personas: {
+    currentLabel: "Tu discutes en tant que",
+    yourBots: "Tes Brainrot Bots",
+    create: "Créer un nouveau Brainrot Bot",
+    createA11y: "Créer un nouveau Brainrot Bot",
+    defaultDescription: "Le gremlin du chaos original.",
+    selectA11y: "Sélectionner {{name}}",
+    maxReached: "Tu as atteint le maximum de {{count}} bots.",
+    upgradeTitle: "Envie de plus de bots ?",
+    upgradeBody: "Passe à un plan supérieur pour créer jusqu’à {{count}} personnages.",
+    upgradeCta: "Améliorer",
+  },
   chat: {
     title: "Chat",
+    agentName: "Brainrot Bot",
     memory: {
       bannerOn: "Mémoire activée",
       bannerA11y: "Mémoire activée. Touche pour gérer.",
