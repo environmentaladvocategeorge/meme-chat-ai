@@ -324,7 +324,7 @@ export const streamAgentAnswer = onRequest(
       // and the Agent reuses the same resolution for the system prompt.
       const [memViews, personaForStream] = await Promise.all([
         memoryService.getMemoryViews(uid, entitlement.plan),
-        resolvePersonaForStream(personaId),
+        resolvePersonaForStream(personaId, uid),
       ]);
 
       // Decider pre-step (mini — vision-first since 2026-06-10): decide whether

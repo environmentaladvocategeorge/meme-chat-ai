@@ -6,6 +6,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
+  resolvePersonaForStream,
   DEFAULT_PERSONA_ID,
   MEDIA_DECIDER_KEY,
   type ResolvedPersonaForStream,
@@ -391,6 +392,135 @@ describe("persona prompt resolution", () => {
     expect(personaJson).not.toContain("SECRET PERSONA");
     expect(result.systemPrompt).toContain("SECRET PLATFORM");
     expect(result.systemPrompt).toContain("SECRET PERSONA");
+  });
+});
+
+// A minimal valid user_personas doc — the stored shape savePersona writes.
+function userPersonaDoc(id: string, ownerUid: string, overrides: Partial<Doc> = {}): Doc {
+  return {
+    id,
+    ownerUid,
+    input: { displayName: "Capy" },
+    publicConfig: {
+      displayName: "Capy",
+      shortDescription: "Zen rodent",
+      avatarKey: "capybara",
+      toneTags: ["chill"],
+    },
+    fragments: fragmentsOf("USER-PERSONA-PROMPT"),
+    mediaNotes: "USER-MEDIA-NOTES",
+    isEnabled: true,
+    moderation: { certainty: 0.9, gates: ["openai_moderation"] },
+    ...overrides,
+  };
+}
+
+// Default-persona fixtures every fallback assertion needs in place.
+function defaultPersonaCollections(): Collections {
+  return {
+    platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+    personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+    persona_prompts: {
+      brainrot_bot_default_v1: personaPrompt(
+        "brainrot_bot_default_v1",
+        DEFAULT_PERSONA_ID,
+        "BRAINROT",
+      ),
+    },
+  };
+}
+
+describe("user persona resolution", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("resolves an owned, enabled user persona", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
+    });
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-1");
+
+    expect(resolved.persona.id).toBe("user_uid-1_a1");
+    expect(resolved.persona.publicConfig.displayName).toBe("Capy");
+    expect(resolved.personaPrompt.mediaNotes).toBe("USER-MEDIA-NOTES");
+    expect(resolved.personaPrompt.mediaDeciderKey).toBeUndefined();
+  });
+
+  it("falls back to the default persona for someone else's persona id", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
+    });
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-2");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("falls back when no requester uid is provided", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
+    });
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("falls back for a disabled user persona", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: {
+        "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1", { isEnabled: false }),
+      },
+    });
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("falls back for a missing or malformed user persona doc", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: {
+        "user_uid-1_bad": userPersonaDoc("user_uid-1_bad", "uid-1", {
+          fragments: { fragmentsVersion: 1 },
+        }),
+      },
+    });
+
+    const missing = await resolvePersonaForStream("user_uid-1_nope", "uid-1");
+    expect(missing.persona.id).toBe(DEFAULT_PERSONA_ID);
+
+    const malformed = await resolvePersonaForStream("user_uid-1_bad", "uid-1");
+    expect(malformed.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("a user_-prefixed id never resolves from the first-party collections", async () => {
+    // A malicious/buggy client sends a user_ id that happens to exist as a
+    // first-party persona doc. The resolver must treat the prefix as
+    // authoritative and fall back, not serve the first-party doc.
+    const collections = defaultPersonaCollections();
+    collections.personas["user_uid-1_a1"] = persona("user_uid-1_a1", { isDefault: false });
+    collections.persona_prompts.fake = personaPrompt("fake", "user_uid-1_a1", "FAKE");
+    setDb(collections);
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("first-party resolution is untouched when a requester uid is supplied", async () => {
+    setDb(defaultPersonaCollections());
+
+    const resolved = await resolvePersonaForStream(DEFAULT_PERSONA_ID, "uid-1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
   });
 });
 

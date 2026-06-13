@@ -270,7 +270,7 @@ export const streamReplayTurn = onRequest(
       });
       // Resolve the persona ONCE for the whole replay: the system prompt and
       // the media decider (mediaDeciderKey/mediaNotes) share the resolution.
-      const personaForStream = await resolvePersonaForStream(personaId);
+      const personaForStream = await resolvePersonaForStream(personaId, uid);
       const promptResult = await buildSystemPromptForStream(
         personaId,
         levelOfRot,

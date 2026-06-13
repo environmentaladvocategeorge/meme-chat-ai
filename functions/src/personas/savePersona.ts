@@ -1,0 +1,226 @@
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { logger } from "firebase-functions";
+import { defineSecret } from "firebase-functions/params";
+import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { z } from "zod";
+import type { PlanId } from "../billing/plans";
+import { loadEntitlement } from "../entitlement/loadEntitlement";
+import { logFlaggedContent } from "../moderation/logFlaggedContent";
+import {
+  PersonaModerationService,
+  type PersonaModerationInput,
+  type PersonaModerationResult,
+} from "../moderation/personaModeration";
+import { renderPersonaPromptDoc } from "./personaSpec";
+import type { PersonaPublicConfig } from "./types";
+import {
+  isUserPersonaId,
+  newUserPersonaId,
+  toPersonaSpec,
+  userPersonaCap,
+  userPersonaInputSchema,
+} from "./userPersonas";
+
+const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
+
+// ── savePersona / deletePersona ──────────────────────────────────────────────
+// The only write paths into user_personas (firestore.rules deny all client
+// writes; clients only read their own docs). A save is: validate → cap check →
+// moderate (three fail-closed gates, see ../moderation/personaModeration) →
+// render once → write. Saves are NOT rate-limited per day by design (Jorge's
+// call: the cap on stored personas is the limit; moderation cost is absorbed
+// as system margin) — the count cap still runs before moderation so a full
+// shelf never burns an API call.
+
+const requestSchema = z
+  .object({
+    persona: userPersonaInputSchema,
+    // Present = overwrite that persona in place (must be owned); absent =
+    // create a new one under the plan's cap.
+    personaId: z.string().trim().min(1).max(128).optional(),
+  })
+  .strict();
+
+export type SavePersonaResult = {
+  personaId: string;
+  publicConfig: PersonaPublicConfig;
+  // The moderation pipeline's confidence in admitting the persona (0–1).
+  certainty: number;
+};
+
+// Injectable seams: tests swap the db and the moderation call; production
+// passes Firestore + a PersonaModerationService bound to the OpenAI key.
+export type SavePersonaDeps = {
+  db: ReturnType<typeof getFirestore>;
+  moderate: (input: PersonaModerationInput) => Promise<PersonaModerationResult>;
+};
+
+export async function savePersonaForUser(
+  uid: string,
+  plan: PlanId,
+  rawData: unknown,
+  deps: SavePersonaDeps,
+): Promise<SavePersonaResult> {
+  const parsed = requestSchema.safeParse(rawData);
+  if (!parsed.success) {
+    throw new HttpsError("invalid-argument", "invalid_request");
+  }
+  const input = parsed.data.persona;
+  const personas = deps.db.collection("user_personas");
+
+  // Resolve the target doc id. Overwrites verify ownership BEFORE moderation
+  // (a foreign id must not burn an API call); the not-found never confirms
+  // whether a foreign doc exists. Creates check the plan cap, also pre-spend.
+  let personaId: string;
+  let existingCreatedAt: unknown;
+  const requestedId = parsed.data.personaId;
+  if (requestedId) {
+    const snap = isUserPersonaId(requestedId)
+      ? await personas.doc(requestedId).get()
+      : null;
+    const data = snap?.exists ? snap.data() : undefined;
+    if (!data || data.ownerUid !== uid) {
+      throw new HttpsError("not-found", "persona_not_found");
+    }
+    personaId = requestedId;
+    existingCreatedAt = data.createdAt;
+  } else {
+    const cap = userPersonaCap(plan);
+    const owned = await personas.where("ownerUid", "==", uid).get();
+    if (owned.size >= cap) {
+      throw new HttpsError("resource-exhausted", "persona_limit_reached", { cap });
+    }
+    personaId = newUserPersonaId(uid);
+  }
+
+  const publicConfig: PersonaPublicConfig = {
+    displayName: input.displayName,
+    shortDescription: input.publicConfig.shortDescription,
+    avatarKey: input.publicConfig.avatarKey,
+    toneTags: input.publicConfig.toneTags,
+  };
+
+  const spec = toPersonaSpec(personaId, input);
+  const verdict = await deps.moderate({ spec, publicConfig });
+  if (!verdict.pass) {
+    if (verdict.retryable) {
+      // Infra failure inside a gate, not a content verdict — the client should
+      // say "try again", never "rejected".
+      throw new HttpsError("unavailable", "moderation_unavailable");
+    }
+    const failedGate = verdict.gates[verdict.gates.length - 1];
+    void logFlaggedContent({
+      uid,
+      conversationId: null,
+      messageId: null,
+      reason: "persona_moderation",
+      context: "persona",
+      detail: `${failedGate.gate}:${failedGate.reason ?? "unknown"}`,
+    });
+    throw new HttpsError("invalid-argument", "persona_rejected", {
+      gate: failedGate.gate,
+      reason: failedGate.reason ?? "unknown",
+      certainty: verdict.certainty,
+    });
+  }
+
+  // Render ONCE at save time — serving reads the stored fragments and never
+  // re-renders. renderPersonaPromptDoc never emits mediaDeciderKey for a
+  // user-built spec (toPersonaSpec can't set media.deciderKey).
+  const rendered = renderPersonaPromptDoc(spec);
+  const doc = {
+    id: personaId,
+    ownerUid: uid,
+    input,
+    publicConfig,
+    fragments: rendered.fragments,
+    ...(rendered.mediaNotes ? { mediaNotes: rendered.mediaNotes } : {}),
+    isEnabled: true,
+    moderation: {
+      certainty: verdict.certainty,
+      gates: verdict.gates.map((g) => g.gate),
+    },
+    createdAt: existingCreatedAt ?? FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (requestedId) {
+    await personas.doc(personaId).set(doc);
+  } else {
+    // Transactional create: recheck the cap against a racing parallel save so
+    // two in-flight creates can't both land past the limit.
+    await deps.db.runTransaction(async (tx) => {
+      const owned = await tx.get(personas.where("ownerUid", "==", uid));
+      if (owned.size >= userPersonaCap(plan)) {
+        throw new HttpsError("resource-exhausted", "persona_limit_reached", {
+          cap: userPersonaCap(plan),
+        });
+      }
+      tx.set(personas.doc(personaId), doc);
+    });
+  }
+
+  return { personaId, publicConfig, certainty: verdict.certainty };
+}
+
+export async function deletePersonaForUser(
+  uid: string,
+  personaId: string,
+  db: ReturnType<typeof getFirestore>,
+): Promise<void> {
+  const ref = db.collection("user_personas").doc(personaId);
+  const snap = isUserPersonaId(personaId) ? await ref.get() : null;
+  const data = snap?.exists ? snap.data() : undefined;
+  if (!data || data.ownerUid !== uid) {
+    throw new HttpsError("not-found", "persona_not_found");
+  }
+  await ref.delete();
+}
+
+// `invoker: "public"` keeps Cloud Run's allUsers run.invoker binding asserted
+// across redeploys (auth still enforced inside via request.auth) — matching
+// updateProfile/deleteMyAccount and avoiding the post-deploy 401s.
+export const savePersona = onCall(
+  { region: "us-central1", invoker: "public", secrets: [OPENAI_API_KEY] },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign-in required");
+
+    const entitlement = await loadEntitlement(uid);
+    const service = new PersonaModerationService({ apiKey: OPENAI_API_KEY.value() });
+    const result = await savePersonaForUser(uid, entitlement.plan, request.data, {
+      db: getFirestore(),
+      moderate: (input) => service.moderate(input),
+    });
+
+    logger.info("[savePersona] saved", {
+      uid,
+      personaId: result.personaId,
+      certainty: result.certainty,
+    });
+
+    return { success: true as const, ...result };
+  },
+);
+
+export const deletePersona = onCall(
+  { region: "us-central1", invoker: "public" },
+  async (request) => {
+    const uid = request.auth?.uid;
+    if (!uid) throw new HttpsError("unauthenticated", "Sign-in required");
+
+    const parsed = z
+      .object({ personaId: z.string().trim().min(1).max(128) })
+      .safeParse(request.data ?? {});
+    if (!parsed.success) {
+      throw new HttpsError("invalid-argument", "invalid_request");
+    }
+    const personaId = parsed.data.personaId;
+
+    await deletePersonaForUser(uid, personaId, getFirestore());
+
+    logger.info("[deletePersona] deleted", { uid, personaId });
+
+    return { success: true as const };
+  },
+);

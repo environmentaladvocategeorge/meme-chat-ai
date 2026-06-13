@@ -1,6 +1,11 @@
 import { getFirestore, type DocumentData } from "firebase-admin/firestore";
 import { asFragmentedPrompt, assembleFragments } from "./fragments";
 import type { Persona, PersonaPrompt, PlatformPrompt } from "./types";
+import {
+  isUserPersonaDoc,
+  isUserPersonaId,
+  toResolvedPersonaForStream,
+} from "./userPersonas";
 
 // Backend identifiers used to look up the ACTIVE prompts in Firestore. The
 // prompt text itself lives in Firestore (collections `platform_prompts` /
@@ -126,15 +131,41 @@ export async function getActivePersonaPrompt(
   return isPersonaPrompt(data) ? data : null;
 }
 
+// Reads a user-built persona, honoring it only for its owner: anything else —
+// missing doc, malformed doc, disabled, foreign/absent requester — returns
+// null so the caller falls back. Never throws for a bad id: a stale client
+// pointing at a deleted persona must keep chatting as the default bot.
+async function getUserPersonaForStream(
+  personaId: string,
+  requesterUid?: string,
+): Promise<ResolvedPersonaForStream | null> {
+  if (!requesterUid) return null;
+  const snap = await getFirestore().collection("user_personas").doc(personaId).get();
+  const data = snap.data();
+  if (!isUserPersonaDoc(data)) return null;
+  if (data.ownerUid !== requesterUid || !data.isEnabled) return null;
+  return toResolvedPersonaForStream(data);
+}
+
 // Resolves the persona + its active prompt for a stream turn. An unknown or
 // disabled personaId falls back to the default persona; a missing persona or
 // prompt doc throws — Firestore is the single source of truth.
+//
+// A `user_`-prefixed id resolves from user_personas instead and is honored
+// only when requesterUid owns it (and it's enabled) — the prefix is
+// authoritative, so a user_ id never resolves from the first-party
+// collections. Every rejection silently falls back to the default persona,
+// matching the first-party fallback philosophy.
 export async function resolvePersonaForStream(
   inputPersonaId?: string,
+  requesterUid?: string,
 ): Promise<ResolvedPersonaForStream> {
   let persona: Persona | null = null;
 
-  if (inputPersonaId) {
+  if (inputPersonaId && isUserPersonaId(inputPersonaId)) {
+    const userPersona = await getUserPersonaForStream(inputPersonaId, requesterUid);
+    if (userPersona) return userPersona;
+  } else if (inputPersonaId) {
     const requestedPersona = await getPersonaById(inputPersonaId);
     if (requestedPersona?.isEnabled) {
       persona = requestedPersona;

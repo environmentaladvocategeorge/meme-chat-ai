@@ -60,6 +60,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // User-built personas. The owner reads their own docs (builder list/edit
+    // screens); every write goes through the savePersona/deletePersona
+    // callables (Admin SDK) so validation + moderation can never be skipped.
+    // List queries must filter ownerUid == request.auth.uid to satisfy the
+    // read rule.
+    match /user_personas/{personaId} {
+      allow get, list: if signedIn() && emailVerified()
+        && resource.data.ownerUid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
     // Written exclusively by Cloud Functions (Admin SDK) when a message or
     // name is flagged for hate speech. No client should ever read or write
     // this collection directly.
