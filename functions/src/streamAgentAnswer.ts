@@ -4,11 +4,7 @@ import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { rotLevelSampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
-import {
-  buildDeciderContext,
-  computeColdStartIndex,
-  decideMedia,
-} from "./agent/decideMedia";
+import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
@@ -44,7 +40,10 @@ import {
   resolveImageInputs,
 } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
-import { buildMediaDeciderPrompt } from "./personas/prompts";
+import {
+  buildMediaDeciderPrompt,
+  resolvePersonaForStream,
+} from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 import { authenticateStreamRequest } from "./streamAuth";
 import { checkHateSpeech } from "./moderation/checkHateSpeech";
@@ -320,7 +319,13 @@ export const streamAgentAnswer = onRequest(
       // the taste-only `media` view nudges the decider toward more personal
       // reactions; the full `reply` view is handed to the Agent below so it
       // isn't read twice. Paid-gated + never throws — free users get empties.
-      const memViews = await memoryService.getMemoryViews(uid, entitlement.plan);
+      // The persona resolves in parallel (also once for the whole turn): the
+      // media decider needs its mediaDeciderKey/mediaNotes BEFORE the reply,
+      // and the Agent reuses the same resolution for the system prompt.
+      const [memViews, personaForStream] = await Promise.all([
+        memoryService.getMemoryViews(uid, entitlement.plan),
+        resolvePersonaForStream(personaId),
+      ]);
 
       // Decider pre-step (mini — vision-first since 2026-06-10): decide whether
       // this turn warrants a reaction GIF/meme and pick the search term, then
@@ -345,24 +350,16 @@ export const streamAgentAnswer = onRequest(
             : gifs.length > 0
               ? "[user sent a GIF]"
               : "");
-        // On the very first turn of a conversation, when the user sends a bare
-        // greeting with no attachments, inject a random cold-start index so the
-        // decider picks a varied greeting reaction from its GREETING_ROW. Without
-        // this, the model defaults to the same query for every "hi" / "yo".
-        // The check is !== undefined — index 0 is a valid binding index.
-        const coldStartIndex = computeColdStartIndex({
-          isFirstTurn: priorMessages.length === 0,
-          hasImages: images.length > 0,
-          hasGifs: gifs.length > 0,
-          userText,
-        });
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
-        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(
+          levelOfRot,
+          personaForStream.personaPrompt,
+        );
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: deciderSystemPrompt,
@@ -374,7 +371,6 @@ export const streamAgentAnswer = onRequest(
           // Hand the decider the actual pixels of the current turn's attachments
           // so its reaction matches what the user sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
-          coldStartIndex,
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -421,7 +417,6 @@ export const streamAgentAnswer = onRequest(
             logger.info("[streamAgentAnswer] klipy empty result", {
               query: decision.query,
               decisionType: decision.type,
-              coldStartIndex: coldStartIndex ?? null,
               doNotRepeatCollision: recentReactions.includes(decision.query),
             });
           }
@@ -436,6 +431,9 @@ export const streamAgentAnswer = onRequest(
         uid,
         plan: entitlement.plan,
         personaId,
+        // Resolved once above (it fed the media decider) — the Agent reuses it
+        // instead of reading the persona docs again.
+        resolvedPersona: personaForStream,
         levelOfRot,
         respondWithEmojis,
         memory: memoryService,

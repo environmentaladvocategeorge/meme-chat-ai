@@ -55,7 +55,11 @@ function isPersonaPrompt(data: DocumentData | undefined): data is PersonaPrompt 
     asFragmentedPrompt(data?.fragments) !== null &&
     typeof data?.isActive === "boolean" &&
     isString(data?.addedBy) &&
-    isString(data?.notes)
+    isString(data?.notes) &&
+    // Optional media-decider config — absent is fine (default decider, no
+    // notes), but a malformed value rejects the doc like any other field.
+    (data?.mediaDeciderKey == null || isString(data.mediaDeciderKey)) &&
+    (data?.mediaNotes == null || isString(data.mediaNotes))
   );
 }
 
@@ -172,16 +176,29 @@ function deciderRotLine(level: number): string {
 
 // Assembles the nano media-decider system prompt: the media-specific guardrails
 // (the platform_guardrails record's `mediaContent` field — decider-tuned
-// language, NOT the persona guardrails) + the decider fragments + a rot-level
-// frequency nudge. The decider is unaffected by the emoji toggle, so
-// emojisEnabled is always true here.
+// language, NOT the persona guardrails) + the decider fragments + the dynamic
+// tail (persona media notes, then the rot-level frequency nudge). The decider
+// is unaffected by the emoji toggle, so emojisEnabled is always true here.
+//
+// Persona awareness rides the resolved persona prompt's optional fields:
+// - mediaDeciderKey picks WHICH decider prompt (a platform_prompts key); an
+//   unknown/inactive key silently falls back to the global default, mirroring
+//   resolvePersonaForStream's fallback philosophy.
+// - mediaNotes (pills/lean) appends as a dynamic suffix BEFORE the rot line —
+//   never into the decider body, so the shared prefix (guardrails + decider
+//   fragments) stays one globally cached block across all personas.
 export async function buildMediaDeciderPrompt(
   levelOfRot = 2,
+  personaPrompt?: Pick<PersonaPrompt, "mediaDeciderKey" | "mediaNotes">,
 ): Promise<string> {
-  const [platformPrompt, deciderPrompt] = await Promise.all([
+  const deciderKey = personaPrompt?.mediaDeciderKey;
+  const [platformPrompt, personaDecider] = await Promise.all([
     getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY),
-    getActivePlatformPrompt(MEDIA_DECIDER_KEY),
+    getActivePlatformPrompt(deciderKey ?? MEDIA_DECIDER_KEY),
   ]);
+  const deciderPrompt =
+    personaDecider ??
+    (deciderKey ? await getActivePlatformPrompt(MEDIA_DECIDER_KEY) : null);
   if (!platformPrompt || !isString(platformPrompt.mediaContent)) {
     throw new Error(
       "[personas] platform_guardrails mediaContent missing in Firestore",
@@ -194,7 +211,11 @@ export async function buildMediaDeciderPrompt(
     level: levelOfRot,
     emojisEnabled: true,
   });
-  return `${platformPrompt.mediaContent}\n\n${deciderContent}\n\n${deciderRotLine(levelOfRot)}`;
+  const mediaNotes = personaPrompt?.mediaNotes;
+  const dynamicTail = mediaNotes
+    ? `${mediaNotes}\n\n${deciderRotLine(levelOfRot)}`
+    : deciderRotLine(levelOfRot);
+  return `${platformPrompt.mediaContent}\n\n${deciderContent}\n\n${dynamicTail}`;
 }
 
 export async function buildSystemPromptForStream(
@@ -206,6 +227,11 @@ export async function buildSystemPromptForStream(
   // drop out and emoji-off text variants are used (see ./fragments). Defaults to
   // true so existing callers keep today's behavior.
   respondWithEmojis = true,
+  // Already-resolved persona + prompt, when the orchestrator resolved it once
+  // for the whole turn (it also feeds the media decider). Skips the internal
+  // resolution so the persona docs are never read twice; inputPersonaId is
+  // ignored when this is provided.
+  preResolved?: ResolvedPersonaForStream,
 ): Promise<BuiltSystemPromptForStream> {
   const platformPrompt = await getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY);
   if (!platformPrompt) {
@@ -214,7 +240,8 @@ export async function buildSystemPromptForStream(
     );
   }
 
-  const { persona, personaPrompt } = await resolvePersonaForStream(inputPersonaId);
+  const { persona, personaPrompt } =
+    preResolved ?? (await resolvePersonaForStream(inputPersonaId));
   // NOTE: the per-turn word-bank sample is deliberately NOT part of the system
   // prompt — it varies every turn and would cap the cacheable prefix here. It
   // ships as a post-history note instead (personas/perTurnNote.ts). The result

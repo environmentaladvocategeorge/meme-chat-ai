@@ -10,6 +10,7 @@ import { calculateCostUsd, calculateCredits } from "../../billing/credits";
 import { chargeCredits } from "../../billing/ledger";
 import { PLANS, type PlanId } from "../../billing/plans";
 import { MemoryService } from "./MemoryService";
+import { transcriptTailLimit } from "./extractionWindow";
 import { memoryEnabledForUser } from "./gating";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -23,10 +24,10 @@ const REFRESH_EVERY_MESSAGES = 6;
 // dead (crashed/timed-out) so a later write can retry. Mirrors the title job.
 const MEMORY_CLAIM_TTL_MS = 60_000;
 
-// Transcript handed to the extractor: the recent tail only (memory is about
-// durable facts, not the whole history) and char-capped so a long chat can't
-// blow up the nano input.
-const TRANSCRIPT_TURN_LIMIT = 40;
+// Transcript handed to the extractor: only the messages that are NEW since the
+// last extraction plus a few context turns — see extractionWindow.ts for the
+// window math and the one-off-inflation rationale. Char-capped so a long chat
+// can't blow up the nano input.
 const MAX_TRANSCRIPT_CHARS = 8000;
 
 const memoryService = new MemoryService();
@@ -99,11 +100,12 @@ export const generateUserMemory = onDocumentWritten(
     if (!claimed) return;
 
     try {
-      // Build the recent-tail transcript (oldest → newest), complete turns only.
+      // Build the NEW-tail transcript (oldest → newest), complete turns only:
+      // the messages since the last extraction plus a few context turns.
       const recentSnap = await conversationRef
         .collection("messages")
         .orderBy("createdAt", "desc")
-        .limit(TRANSCRIPT_TURN_LIMIT)
+        .limit(transcriptTailLimit(total, lastCount))
         .get();
 
       const lines: string[] = [];

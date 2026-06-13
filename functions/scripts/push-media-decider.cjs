@@ -1,14 +1,14 @@
-// Pushes the v4 "ladder" media-decider prompt to the LIVE
+// Pushes the media-decider prompt to the LIVE
 // platform_prompts/media_decider_v1 doc. The fragment content's source of
 // truth is src/personas/mediaDeciderPrompt.ts (read here from the compiled
 // lib), so run `npm run build` in functions/ first. Prompt edits are live
 // immediately — no functions deploy needed for the prompt itself.
 //
-// IMPORTANT ordering for the v4 rollout: deploy the functions code BEFORE
-// running this. The v4 greeting row has 7 terms while pre-v4 deployed code
-// injects cold-start indexes up to 13 (GREETING_BANK_SIZE=14) — pushing the
-// prompt first would make indexes 7-13 dangle. New code against the old
-// prompt is safe (0-6 is valid in the 14-term row).
+// IMPORTANT ordering for the v5 rollout: deploy the functions code BEFORE
+// running this. The v5 prompt tells the model to use randomness_factor up to
+// 10, while pre-v5 deployed code clamps anything above 6 back down to 1 —
+// pushing the prompt first would collapse every high-band pick to the top
+// hit. New code against the old prompt is safe (1-6 is inside 1-10).
 //
 // Rollback: take a snapshot first (node functions/scripts/pull-prompts.cjs)
 // and restore the doc's `fragments`/`version` from it if needed.

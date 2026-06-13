@@ -5,96 +5,6 @@ import type { ModelUsage } from "../billing/ledger";
 import { resolveModelId } from "../billing/models";
 import type { ChatMessage } from "./types";
 
-// Number of distinct greeting-reaction queries in the prompt's greeting row
-// (reaction_bank fragment, "- greeting:" line — see personas/mediaDeciderPrompt).
-// The sync test in mediaDeciderPrompt.test.ts asserts this equals the parsed
-// term count in the canonical fragments — change both in the same commit.
-// Value = 7 (the v4 trimmed greeting row).
-export const GREETING_BANK_SIZE = 7;
-
-// Returns true when the message is a bare opener with no other content: "hi",
-// "heyyy", "yo", "wsg", etc. Used by the orchestrator to inject a cold-start
-// index so the decider picks a varied greeting reaction instead of always
-// defaulting to the same query.
-//
-// Normalisation steps (in order):
-//   1. Trim whitespace from both ends
-//   2. Lowercase
-//   3. Strip leading AND trailing non-letter/non-digit/non-apostrophe chars
-//      (handles "👋 hi", "hi!", "👋 yo 👋", etc.)
-//   4. Trim again
-//   5. Collapse trailing repeated chars (heyyy→hey, yooo→yo)
-//   6. Collapse doubled bare greeting ("hi hi"→"hi", "yo yo"→"yo")
-//   7. Match against the canonical opener set
-//
-// Intentional exclusions: "hello there" is a named Obi-Wan reference and flows
-// to rule 1 of the decider, not the cold-start path. Multi-language openers like
-// "hola"/"bonjour" are excluded by design — let the decider handle them.
-// "gn" (goodnight) is not an opener. "high"/"supreme"/"history" must not match
-// their "hi"/"sup" substrings (whole-string match, not substring search).
-export function isBareGreeting(text: string): boolean {
-  const normalized = text
-    .trim()
-    .toLowerCase()
-    .replace(/^[^\p{L}\p{N}']+/gu, "") // strip leading punctuation/emoji
-    .replace(/[^\p{L}\p{N}']+$/gu, "") // strip trailing punctuation/emoji
-    .trim();
-  if (!normalized) return false;
-  // Collapse trailing repeated characters (heyyy→hey, yooo→yo)
-  const dedupedTrailing = normalized.replace(/(.)\1+$/, "$1");
-  // Collapse doubled bare greetings ("hi hi"→"hi", "yo yo"→"yo")
-  const dedupedDouble = dedupedTrailing.replace(/^(\S+)\s+\1$/, "$1");
-  const GREETINGS = new Set([
-    "hi",
-    "hey",
-    "hello",
-    "yo",
-    "wsg",
-    "gm",
-    "sup",
-    "wassup",
-    "what's good",
-    "what up",
-    "hiya",
-    "heyo",
-    "ello",
-    "ayo",
-    "ay",
-    "eyy",
-    "howdy",
-    "henlo",
-    "hai",
-    "wagwan",
-    "oi",
-  ]);
-  return (
-    GREETINGS.has(normalized) ||
-    GREETINGS.has(dedupedTrailing) ||
-    GREETINGS.has(dedupedDouble)
-  );
-}
-
-// Pure helper for the orchestrator: decides whether to inject a cold-start index
-// into the decider call. Extracted here so it can be unit-tested without mocking
-// the full Firebase Cloud Function. The check is `!== undefined` at the call
-// site — index 0 is valid.
-export function computeColdStartIndex(args: {
-  isFirstTurn: boolean;
-  hasImages: boolean;
-  hasGifs: boolean;
-  userText: string;
-}): number | undefined {
-  if (
-    args.isFirstTurn &&
-    !args.hasImages &&
-    !args.hasGifs &&
-    isBareGreeting(args.userText)
-  ) {
-    return Math.floor(Math.random() * GREETING_BANK_SIZE);
-  }
-  return undefined;
-}
-
 // Builds the decider's context from recent turns (oldest → newest): a compact
 // transcript that ALSO marks which reaction GIF/meme the bot already sent on
 // each turn, plus the flat list of those reaction titles. Feeding both to the
@@ -159,22 +69,6 @@ const RESPONSE_FORMAT = {
   },
 };
 
-// Parses greeting-row terms from an assembled prompt. Supports both
-// the explicit-line format ("GREETING_ROW: a | b | c") and the fragment bank
-// format ("- greeting: a, b, c"). Returns [] if no row is found.
-// Used by the GREETING_BANK_SIZE sync test in mediaDeciderPrompt.test.ts.
-export function parseGreetingRow(promptText: string): string[] {
-  const explicitMatch = promptText.match(/^GREETING_ROW:\s*(.+)$/m);
-  const bankMatch = promptText.match(/^- greeting:\s*(.+)$/m);
-  const match = explicitMatch ?? bankMatch;
-  if (!match) return [];
-  const sep = explicitMatch ? "|" : ",";
-  return match[1]
-    .split(sep)
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
-
 // Shared call config for production decideMedia, the smoke script, and tests.
 // Exported so they import it from one place and never drift from production on
 // model, effort, token budget, or response schema.
@@ -207,9 +101,13 @@ export function parseDecision(raw: string): MediaDecision {
       return {
         type: o.type,
         query: o.query.trim().slice(0, 100),
-        // 1-4 is the normal literal→loose scale; 5-6 is the chaos band the
-        // prompt reserves for pure brainrot requests ("send me some brainrot").
-        randomnessFactor: Number.isInteger(rf) && rf >= 1 && rf <= 6 ? rf : 1,
+        // 1-30: how deep to sample Klipy's fixed ranking for this query.
+        // Low = exact named reference; deep = generic/common query where the
+        // top hits never change (see the prompt's RANDOMNESS rule). The
+        // sampler's front-biased decay keeps the deep tail rare (~window 30:
+        // first third ~55%, middle ~33%, last ~12%). The gif/meme tools clamp
+        // to the same range and size the Klipy page to cover the window.
+        randomnessFactor: Number.isInteger(rf) && rf >= 1 && rf <= 30 ? rf : 1,
       };
     }
   } catch {
@@ -232,28 +130,16 @@ export function buildDeciderMessages(args: {
   currentMessage: string;
   recentReactions?: string[];
   imageUrls?: string[];
-  // When defined, appends a binding cold-start tag so the decider picks the Nth
-  // greeting-row query instead of choosing freely. MUST use !== undefined check
-  // at the call site — index 0 is a valid binding index.
-  coldStartIndex?: number;
 }): ChatCompletionMessageParam[] {
   const avoid =
     args.recentReactions && args.recentReactions.length > 0
       ? `\n\nReactions ALREADY sent recently — do NOT repeat these or pick anything near-identical, vary it up:\n${args.recentReactions.join(", ")}`
       : "";
   const imageUrls = args.imageUrls ?? [];
-  // When a cold-start index is injected, append the binding tag to the message
-  // so the decider knows which greeting-row term to pick (see VARIETY block in
-  // the live prompt). Index 0 is valid — check !== undefined, not truthiness.
-  const coldStartTag =
-    args.coldStartIndex !== undefined
-      ? `\n\n[cold-start: pick greeting option ${args.coldStartIndex} (0-indexed from greeting row, treat as binding)]`
-      : "";
   const baseText =
     (args.history ? `Conversation so far:\n${args.history}\n\n` : "") +
     `Latest user message:\n${args.currentMessage || "[no text — the user sent only an attachment]"}` +
-    avoid +
-    coldStartTag;
+    avoid;
 
   // When the user attached media, hand the decider the actual pixels (image
   // and/or GIF frames) as low-detail image parts so its reaction matches the
@@ -310,11 +196,6 @@ export async function decideMedia(args: {
   // instead of a blind "[user sent a GIF]" placeholder — which is what made it
   // pick out-of-context reactions on media turns.
   imageUrls?: string[];
-  // Cold-start greeting index: when defined, injects a binding tag so the
-  // decider picks the Nth term from the greeting row in the prompt instead of
-  // choosing freely. Injected only on first-turn bare greetings. Index 0 is
-  // valid — callers MUST check !== undefined, not truthiness.
-  coldStartIndex?: number;
   signal?: AbortSignal;
 }): Promise<{ decision: MediaDecision; usage: ModelUsage }> {
   try {
@@ -332,7 +213,6 @@ export async function decideMedia(args: {
           currentMessage: args.currentMessage,
           recentReactions: args.recentReactions,
           imageUrls: args.imageUrls,
-          coldStartIndex: args.coldStartIndex,
         }),
       },
       { signal: args.signal },
@@ -356,7 +236,6 @@ export async function decideMedia(args: {
     const decision = parseDecision(raw);
 
     logger.info("[decideMedia] telemetry", {
-      coldStartIndex: args.coldStartIndex ?? null,
       decisionType: decision.type,
       query: decision.type !== "none" ? (decision as { query: string }).query : null,
       parseFailed,

@@ -41,6 +41,7 @@ import { buildPerTurnNote } from "./personas/perTurnNote";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
+  resolvePersonaForStream,
 } from "./personas/prompts";
 import { streamReplayRequestSchema } from "./streamReplayRequest";
 import { authenticateStreamRequest } from "./streamAuth";
@@ -267,10 +268,14 @@ export const streamReplayTurn = onRequest(
         respondWithEmojis,
         recentAssistantTexts,
       });
+      // Resolve the persona ONCE for the whole replay: the system prompt and
+      // the media decider (mediaDeciderKey/mediaNotes) share the resolution.
+      const personaForStream = await resolvePersonaForStream(personaId);
       const promptResult = await buildSystemPromptForStream(
         personaId,
         levelOfRot,
         respondWithEmojis,
+        personaForStream,
       );
       resolvedPersona = promptResult.persona;
       const systemPrompt = promptResult.systemPrompt;
@@ -294,7 +299,10 @@ export const streamReplayTurn = onRequest(
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
-        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(
+          levelOfRot,
+          personaForStream.personaPrompt,
+        );
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: deciderSystemPrompt,

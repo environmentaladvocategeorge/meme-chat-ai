@@ -1,19 +1,17 @@
 /// <reference types="jest" />
 import {
   DECIDER_CALL_CONFIG,
-  GREETING_BANK_SIZE,
   buildDeciderMessages,
-  parseGreetingRow,
 } from "../../agent/decideMedia";
 import { resolveModelId } from "../../billing/models";
 import { asFragmentedPrompt, assembleFragments } from "../fragments";
 import { MEDIA_DECIDER_FRAGMENTS, MEDIA_DECIDER_VERSION } from "../mediaDeciderPrompt";
 
-// Layer-1 validation for the v4 "ladder" decider overhaul: assemble the
-// canonical fragments exactly the way buildMediaDeciderPrompt does and assert
-// on the composed string. Zero API and zero Firestore calls — this catches
-// fragment-wiring mistakes (the most likely failure) before a push. The live
-// Firestore doc is written from these same fragments by
+// Layer-1 validation for the v5 decider (randomness overhaul, no cold-start):
+// assemble the canonical fragments exactly the way buildMediaDeciderPrompt
+// does and assert on the composed string. Zero API and zero Firestore calls —
+// this catches fragment-wiring mistakes (the most likely failure) before a
+// push. The live Firestore doc is written from these same fragments by
 // scripts/push-media-decider.cjs, so green here means the pushed prompt is
 // well-formed too.
 
@@ -22,13 +20,13 @@ const assembled = assembleFragments(MEDIA_DECIDER_FRAGMENTS, {
   emojisEnabled: true,
 });
 
-describe("media decider prompt v4 (ladder)", () => {
+describe("media decider prompt v5.1", () => {
   it("is a valid FragmentedPrompt that Firestore readers will accept", () => {
     expect(asFragmentedPrompt(MEDIA_DECIDER_FRAGMENTS)).not.toBeNull();
-    expect(MEDIA_DECIDER_VERSION).toBe("v4");
+    expect(MEDIA_DECIDER_VERSION).toBe("v5.1");
   });
 
-  it("has the image-description rung (rung 2) — the point of the rewrite", () => {
+  it("has the image-description rung (rung 2)", () => {
     expect(assembled).toContain("DESCRIBE IT");
     expect(assembled).toContain("crying dog meme");
   });
@@ -37,9 +35,28 @@ describe("media decider prompt v4 (ladder)", () => {
     expect(assembled).toContain("first match wins");
   });
 
-  it("keeps the cold-start binding-tag rule", () => {
-    expect(assembled).toContain("[cold-start:");
-    expect(assembled).toContain("treat as binding");
+  it("randomness guidance lives in ONE section, on the 1-30 scale", () => {
+    expect(assembled).toContain("RANDOMNESS_FACTOR (1-30)");
+    // The frozen-search-engine rationale the whole overhaul hangs on.
+    expect(assembled).toContain("FROZEN");
+    expect(assembled).toContain("SAME ranked results");
+    // The ladder no longer carries its own factor values (single authority —
+    // a mini model averages two competing scales into mush).
+    const ladder = MEDIA_DECIDER_FRAGMENTS.fragments.find(
+      (f) => f.key === "query_ladder",
+    );
+    expect(ladder?.text).not.toContain("randomness_factor");
+  });
+
+  it("carries the repeat rule (same query + same randomness = same GIF)", () => {
+    expect(assembled).toContain("REPEAT RULE");
+    expect(assembled).toContain("Same query + same randomness");
+  });
+
+  it("cold-start machinery is fully gone — greetings are a free pick", () => {
+    expect(assembled).not.toContain("[cold-start:");
+    expect(assembled).not.toContain("treat as binding");
+    expect(assembled).toContain("pick freely across the greeting row");
   });
 
   it("keeps the crisis carve-out in the attach policy", () => {
@@ -51,10 +68,9 @@ describe("media decider prompt v4 (ladder)", () => {
     expect(assembled).toContain("[GIF frames: clearly the shocked Pikachu format]");
   });
 
-  it("greeting row stays in sync with GREETING_BANK_SIZE", () => {
-    const row = parseGreetingRow(assembled);
-    expect(row.length).toBeGreaterThan(0);
-    expect(row.length).toBe(GREETING_BANK_SIZE);
+  it("examples demonstrate the deep bands: chaos at 30, generic words mid-teens", () => {
+    expect(assembled).toContain('"random brainrot","randomness_factor":30');
+    expect(assembled).toContain('"handshake","randomness_factor":18');
   });
 
   it("does not carry its own rot line — that fragment is dynamic (deciderRotLine)", () => {

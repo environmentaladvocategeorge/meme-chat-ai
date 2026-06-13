@@ -31,9 +31,9 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
         randomness_factor: {
           type: "integer",
           minimum: 1,
-          maximum: 6,
+          maximum: 30,
           description:
-            "How literal/exact your query is. Use 1 for an exact, specific reference — it returns that precise top GIF. Use 2–3 for a looser query where any of the top few hits would land (e.g. a generic word like 'cooked'); we then randomly pick from roughly the first N results, favoring earlier ones, instead of you reading them. Use 6 ONLY for pure no-subject chaos requests ('send me some brainrot') where any wild hit is the right answer. Default 1.",
+            "How deep to sample the ranked results (the search is literal and frozen: the same query returns the same top hits every time, so generic queries NEED high randomness to vary; sampling is front-biased, so deep hits stay rare). 1-2 = exact named reference you're deliberately invoking. 3-6 = named-but-broad references and descriptive subject+action queries. 15-20 = generic/common words ('handshake', 'crying laughing') with huge pools whose top hits never change. 25-30 = grab-bag chaos requests ('send me some brainrot'). Default 1.",
         },
       },
       required: ["query"],
@@ -44,10 +44,11 @@ export const GET_GIF_TOOL: ChatCompletionTool = {
 
 const gifArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),
-  // How widely to sample the ranked results. 1 = always the top hit; 6 = the
-  // chaos band for pure brainrot requests. Invalid or missing values fall back
-  // to 1 (exact) rather than failing the tool.
-  randomness_factor: z.coerce.number().int().min(1).max(6).catch(1).default(1),
+  // How deep to sample the ranked results. 1 = always the top hit; 30 = the
+  // chaos band for grab-bag requests (front-biased decay keeps the deep tail
+  // rare). Invalid or missing values fall back to 1 (exact) rather than
+  // failing the tool.
+  randomness_factor: z.coerce.number().int().min(1).max(30).catch(1).default(1),
 });
 
 export type GetGifDeps = {
@@ -115,9 +116,10 @@ export async function runGetGif(
       apiKey: deps.apiKey,
       query,
       page: 1,
-      // Klipy's search endpoint requires per_page >= 8; the randomness factor
-      // may sample a few hits deep, so keep the full page available.
-      perPage: 8,
+      // Klipy's search endpoint requires per_page >= 8 and caps at 50. Size
+      // the page to the requested sampling window (+1 straggler) — a short
+      // page silently shrinks the high band's window to whatever was fetched.
+      perPage: Math.min(50, Math.max(16, randomnessFactor + 2)),
       customerId: deps.customerId,
       locale: deps.locale,
       contentFilter: deps.contentFilter ?? "medium",

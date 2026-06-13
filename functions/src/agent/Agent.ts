@@ -3,7 +3,10 @@ import type { AssembledContext } from "../context/assemble";
 import type { ExtractedGifFrames } from "../gifs/extractFrames";
 import type { MessageGif } from "../messages/messageGif";
 import { buildPerTurnNote } from "../personas/perTurnNote";
-import { buildSystemPromptForStream } from "../personas/prompts";
+import {
+  buildSystemPromptForStream,
+  type ResolvedPersonaForStream,
+} from "../personas/prompts";
 import { ConversationHistory } from "./ConversationHistory";
 import type { MemoryService } from "./memory";
 
@@ -20,6 +23,11 @@ export type AgentConfig = {
   uid: string;
   plan: PlanId;
   personaId?: string;
+  // Persona + prompt already resolved by the orchestrator (it resolves once
+  // per turn, before the media decider, and shares the result). When present,
+  // personaId is ignored and the persona docs are never read twice. Absent =
+  // the Agent resolves from personaId itself (back-compat).
+  resolvedPersona?: ResolvedPersonaForStream;
   levelOfRot: number;
   // The user's "Respond with emojis" toggle (local-only, sent per turn).
   // Defaults to true; when false the persona prompt's emoji guidance is swapped
@@ -65,6 +73,7 @@ export class Agent {
         this.cfg.personaId,
         this.cfg.levelOfRot,
         this.cfg.respondWithEmojis ?? true,
+        this.cfg.resolvedPersona,
       ),
       // Use the orchestrator-supplied reply block when present (it already read
       // the state to feed the decider); otherwise fetch it ourselves.

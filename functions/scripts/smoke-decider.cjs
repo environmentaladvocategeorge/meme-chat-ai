@@ -69,7 +69,7 @@ async function main() {
     {
       name: "pure brainrot",
       currentMessage: "send me some brainrot",
-      expect: "randomness_factor 6, query in the brainrot trio",
+      expect: "randomness_factor 25-30, query in the brainrot trio",
     },
   ].filter(Boolean);
 
