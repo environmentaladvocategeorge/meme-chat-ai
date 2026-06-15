@@ -23,8 +23,14 @@ export type PlatformPrompt = {
 export type PersonaPublicConfig = {
   displayName: string;
   shortDescription: string;
-  avatarKey: string;
+  // Preset-avatar key used by first-party personas. Optional because user
+  // personas instead carry an uploaded avatar (avatarUrl/avatarPath below).
+  avatarKey?: string;
   toneTags: string[];
+  // User-uploaded avatar (user personas only): the display URL and the Storage
+  // path kept for server-side deletion. Absent when the user uploaded none.
+  avatarUrl?: string;
+  avatarPath?: string;
 };
 
 export type Persona = {

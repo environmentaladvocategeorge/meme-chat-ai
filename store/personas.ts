@@ -31,6 +31,10 @@ type PersonaState = {
   // Fetches the signed-in user's saved personas for the picker list.
   hydrate: (uid: string) => Promise<void>;
   select: (personaId: string) => void;
+  // Drop personas from the local list after a successful server delete. If the
+  // currently-chatted persona was among them, fall back to the default (and
+  // re-persist) so the chat header never strands on a bot that's gone.
+  removeMany: (ids: string[]) => void;
   // Sign-out teardown: back to the default, drop the list, forget the persisted
   // pick so the next user on this device never inherits it.
   clear: () => void;
@@ -55,9 +59,15 @@ export const usePersonaStore = create<PersonaState>()((set, get) => ({
     try {
       const personas = await fetchUserPersonas(uid);
       set({ personas, status: "ready" });
-    } catch {
+    } catch (err) {
       // Leave the existing list intact-as-empty and surface the error state;
       // the picker still works (default + create), and the header falls back.
+      // Log it: a silent catch here once hid a permission-denied (the
+      // user_personas read rule wasn't deployed), which read as "my bots
+      // vanished" with no trace. A Firestore permission-denied here almost
+      // always means the rules aren't deployed or the ID token's
+      // email_verified claim is stale.
+      console.warn("[personas] hydrate failed:", err);
       set({ status: "error" });
     }
   },
@@ -66,6 +76,17 @@ export const usePersonaStore = create<PersonaState>()((set, get) => ({
     if (get().selectedPersonaId === personaId) return;
     set({ selectedPersonaId: personaId });
     AsyncStorage.setItem(SELECTED_KEY, personaId).catch(() => {});
+  },
+
+  removeMany: (ids) => {
+    if (ids.length === 0) return;
+    const drop = new Set(ids);
+    const wasSelected = drop.has(get().selectedPersonaId);
+    set((s) => ({
+      personas: s.personas.filter((p) => !drop.has(p.id)),
+      ...(wasSelected ? { selectedPersonaId: DEFAULT_PERSONA_ID } : {}),
+    }));
+    if (wasSelected) AsyncStorage.setItem(SELECTED_KEY, DEFAULT_PERSONA_ID).catch(() => {});
   },
 
   clear: () => {

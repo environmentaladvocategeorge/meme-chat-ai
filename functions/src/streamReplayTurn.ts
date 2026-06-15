@@ -41,6 +41,7 @@ import { buildPerTurnNote } from "./personas/perTurnNote";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
+  PersonaAccessError,
   resolvePersonaForStream,
 } from "./personas/prompts";
 import { streamReplayRequestSchema } from "./streamReplayRequest";
@@ -256,18 +257,9 @@ export const streamReplayTurn = onRequest(
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
-      // The word-bank sampler (per-turn note below) excludes bank terms seen
-      // in recent bot replies — which includes the original reply being
-      // replayed, nudging the regeneration toward different wording.
+      // Loaded for the media decider's context below.
       const priorMessages = await loadRecentMessages(conversationId, 12);
-      const recentAssistantTexts = priorMessages
-        .filter((m) => m.role === "agent" && m.text)
-        .map((m) => m.text);
-      const perTurnNote = buildPerTurnNote({
-        levelOfRot,
-        respondWithEmojis,
-        recentAssistantTexts,
-      });
+      const perTurnNote = buildPerTurnNote();
       // Resolve the persona ONCE for the whole replay: the system prompt and
       // the media decider (mediaDeciderKey/mediaNotes) share the resolution.
       const personaForStream = await resolvePersonaForStream(personaId, uid);
@@ -374,6 +366,17 @@ export const streamReplayTurn = onRequest(
         excludeMessageIds: [userTurn.id],
       });
     } catch (err) {
+      if (err instanceof PersonaAccessError) {
+        // The replayed turn's stored persona isn't the caller's to use. Generic
+        // by design; logged at warn since it's misuse, not a server fault.
+        logger.warn("[streamReplayTurn] persona access denied", {
+          conversationId,
+          uid,
+          personaId,
+        });
+        res.status(403).json({ code: "forbidden" });
+        return;
+      }
       logger.error("[streamReplayTurn] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });
       return;
@@ -478,7 +481,9 @@ export const streamReplayTurn = onRequest(
               name: resolvedPersona.name,
               slug: resolvedPersona.slug,
               displayName: resolvedPersona.publicConfig.displayName,
-              avatarKey: resolvedPersona.publicConfig.avatarKey,
+              // User personas have no preset avatarKey (uploaded avatarUrl
+              // instead); keep this stored field a plain string for history.
+              avatarKey: resolvedPersona.publicConfig.avatarKey ?? "",
             }
           : undefined,
       });

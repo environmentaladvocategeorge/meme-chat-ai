@@ -79,6 +79,38 @@ describe("usePersonaStore", () => {
     expect(usePersonaStore.getState().personas).toEqual([]);
   });
 
+  it("removeMany() drops the given personas and leaves an unrelated selection intact", () => {
+    usePersonaStore.getState().select("user_uid-1_a1");
+    usePersonaStore.setState({
+      personas: [summary("user_uid-1_a1"), summary("user_uid-1_b2"), summary("user_uid-1_c3")],
+      status: "ready",
+    });
+
+    usePersonaStore.getState().removeMany(["user_uid-1_b2", "user_uid-1_c3"]);
+
+    expect(usePersonaStore.getState().personas.map((p) => p.id)).toEqual([
+      "user_uid-1_a1",
+    ]);
+    // The active selection wasn't deleted, so it stays put.
+    expect(usePersonaStore.getState().selectedPersonaId).toBe("user_uid-1_a1");
+  });
+
+  it("removeMany() falls back to the default (and re-persists) when the active persona is deleted", () => {
+    usePersonaStore.getState().select("user_uid-1_a1");
+    usePersonaStore.setState({
+      personas: [summary("user_uid-1_a1"), summary("user_uid-1_b2")],
+      status: "ready",
+    });
+
+    usePersonaStore.getState().removeMany(["user_uid-1_a1"]);
+
+    expect(usePersonaStore.getState().personas.map((p) => p.id)).toEqual([
+      "user_uid-1_b2",
+    ]);
+    expect(usePersonaStore.getState().selectedPersonaId).toBe(DEFAULT_PERSONA_ID);
+    expect(mockAsyncStorageData.get("app.persona.selectedId")).toBe(DEFAULT_PERSONA_ID);
+  });
+
   it("clear() resets selection to default, empties the list, and forgets the persisted id", async () => {
     usePersonaStore.getState().select("user_uid-1_a1");
     usePersonaStore.setState({ personas: [summary("user_uid-1_a1")], status: "ready" });

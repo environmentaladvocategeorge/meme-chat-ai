@@ -69,6 +69,36 @@ describe("mapPersonaDoc", () => {
     });
   });
 
+  it("maps an uploaded-avatar doc (avatarUrl, no avatarKey)", () => {
+    const doc = {
+      publicConfig: {
+        displayName: "Gym Bro",
+        shortDescription: "never skips leg day",
+        avatarUrl: "https://example.com/a.jpg",
+        toneTags: ["hype"],
+      },
+    };
+    expect(mapPersonaDoc("user_uid-1_c3", doc)).toEqual({
+      id: "user_uid-1_c3",
+      displayName: "Gym Bro",
+      avatarUrl: "https://example.com/a.jpg",
+      shortDescription: "never skips leg day",
+      toneTags: ["hype"],
+    });
+  });
+
+  it("maps a doc with no avatar at all (monogram fallback)", () => {
+    const doc = {
+      publicConfig: { displayName: "Plain", shortDescription: "no pic", toneTags: [] },
+    };
+    expect(mapPersonaDoc("user_uid-1_d4", doc)).toEqual({
+      id: "user_uid-1_d4",
+      displayName: "Plain",
+      shortDescription: "no pic",
+      toneTags: [],
+    });
+  });
+
   it("drops a doc with a missing or malformed publicConfig", () => {
     expect(mapPersonaDoc("user_uid-1_a1", undefined)).toBeNull();
     expect(mapPersonaDoc("user_uid-1_a1", {})).toBeNull();

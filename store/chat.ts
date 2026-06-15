@@ -15,6 +15,8 @@ import { streamAgentAnswer, streamReplayTurn } from "@/services/firebase/streamA
 import { SessionExpiredError } from "@/services/firebase/sessionErrors";
 import { ChatSessionStorage, DEFAULT_ROT_LEVEL } from "@/store/storage";
 import { useSettingsStore } from "@/store/settings";
+import { usePersonaStore } from "@/store/personas";
+import { DEFAULT_PERSONA_ID } from "@/domain/personas";
 import { resolveLanguage } from "@/i18n";
 import { create } from "zustand";
 
@@ -416,12 +418,20 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       // backend tells the model to default to it unless the user writes in
       // another language.
       const language = resolveLanguage(useSettingsStore.getState().language);
+      // Forward the locally-selected persona so the backend serves it (and the
+      // turn gets stamped with its id). The default is sent as undefined so the
+      // backend falls back to the global Brainrot Bot — keeping the default
+      // payload byte-identical to before personas existed.
+      const selectedPersonaId = usePersonaStore.getState().selectedPersonaId;
+      const personaId =
+        selectedPersonaId === DEFAULT_PERSONA_ID ? undefined : selectedPersonaId;
       for await (const event of streamAgentAnswer({
         message: trimmed,
         images,
         gif,
         conversationId: get().conversationId,
         clientMessageId,
+        personaId,
         levelOfRot,
         language,
         // Sticky local-only prefs, read at send time. Omitted when on (the

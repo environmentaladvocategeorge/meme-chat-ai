@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
@@ -38,6 +39,15 @@ const requestSchema = z
     // Present = overwrite that persona in place (must be owned); absent =
     // create a new one under the plan's cap.
     personaId: z.string().trim().min(1).max(128).optional(),
+    // A just-uploaded avatar (client uploaded the object to its own
+    // personaAvatars/{uid}/… path and passes the download URL + path). The URL
+    // is moderated with the text; the path is verified to belong to the caller
+    // and stored for later deletion. Absent = no avatar (client renders a
+    // monogram).
+    avatar: z
+      .object({ url: z.string().url().max(2048), path: z.string().min(1).max(512) })
+      .strict()
+      .optional(),
   })
   .strict();
 
@@ -52,7 +62,10 @@ export type SavePersonaResult = {
 // passes Firestore + a PersonaModerationService bound to the OpenAI key.
 export type SavePersonaDeps = {
   db: ReturnType<typeof getFirestore>;
-  moderate: (input: PersonaModerationInput) => Promise<PersonaModerationResult>;
+  moderate: (
+    input: PersonaModerationInput,
+    imageUrl?: string,
+  ) => Promise<PersonaModerationResult>;
 };
 
 export async function savePersonaForUser(
@@ -66,6 +79,12 @@ export async function savePersonaForUser(
     throw new HttpsError("invalid-argument", "invalid_request");
   }
   const input = parsed.data.persona;
+  const avatar = parsed.data.avatar;
+  // A client can only ever upload under its own namespace; reject any path that
+  // doesn't sit there before it's stored or moderated.
+  if (avatar && !avatar.path.startsWith(`personaAvatars/${uid}/`)) {
+    throw new HttpsError("invalid-argument", "invalid_avatar");
+  }
   const personas = deps.db.collection("user_personas");
 
   // Resolve the target doc id. Overwrites verify ownership BEFORE moderation
@@ -73,6 +92,9 @@ export async function savePersonaForUser(
   // whether a foreign doc exists. Creates check the plan cap, also pre-spend.
   let personaId: string;
   let existingCreatedAt: unknown;
+  // On an edit with no NEW avatar, carry the already-moderated one forward.
+  let existingAvatarUrl: string | undefined;
+  let existingAvatarPath: string | undefined;
   const requestedId = parsed.data.personaId;
   if (requestedId) {
     const snap = isUserPersonaId(requestedId)
@@ -84,6 +106,9 @@ export async function savePersonaForUser(
     }
     personaId = requestedId;
     existingCreatedAt = data.createdAt;
+    const existingPublic = data.publicConfig as PersonaPublicConfig | undefined;
+    existingAvatarUrl = existingPublic?.avatarUrl;
+    existingAvatarPath = existingPublic?.avatarPath;
   } else {
     const cap = userPersonaCap(plan);
     const owned = await personas.where("ownerUid", "==", uid).get();
@@ -96,12 +121,23 @@ export async function savePersonaForUser(
   const publicConfig: PersonaPublicConfig = {
     displayName: input.displayName,
     shortDescription: input.publicConfig.shortDescription,
-    avatarKey: input.publicConfig.avatarKey,
     toneTags: input.publicConfig.toneTags,
   };
+  if (input.publicConfig.avatarKey) {
+    publicConfig.avatarKey = input.publicConfig.avatarKey;
+  }
+  // New avatar wins; otherwise carry forward the existing (already-moderated)
+  // one on an edit. Only a NEW avatar is moderated below.
+  if (avatar) {
+    publicConfig.avatarUrl = avatar.url;
+    publicConfig.avatarPath = avatar.path;
+  } else if (existingAvatarUrl) {
+    publicConfig.avatarUrl = existingAvatarUrl;
+    if (existingAvatarPath) publicConfig.avatarPath = existingAvatarPath;
+  }
 
   const spec = toPersonaSpec(personaId, input);
-  const verdict = await deps.moderate({ spec, publicConfig });
+  const verdict = await deps.moderate({ spec, publicConfig }, avatar?.url);
   if (!verdict.pass) {
     if (verdict.retryable) {
       // Infra failure inside a gate, not a content verdict — the client should
@@ -167,6 +203,10 @@ export async function deletePersonaForUser(
   uid: string,
   personaId: string,
   db: ReturnType<typeof getFirestore>,
+  // Best-effort Storage cleanup of the persona's uploaded avatar. Injected so
+  // the core stays testable without the Storage SDK; the callable provides the
+  // real deleter.
+  deleteObject?: (path: string) => Promise<void>,
 ): Promise<void> {
   const ref = db.collection("user_personas").doc(personaId);
   const snap = isUserPersonaId(personaId) ? await ref.get() : null;
@@ -174,7 +214,12 @@ export async function deletePersonaForUser(
   if (!data || data.ownerUid !== uid) {
     throw new HttpsError("not-found", "persona_not_found");
   }
+  const avatarPath = (data.publicConfig as PersonaPublicConfig | undefined)?.avatarPath;
   await ref.delete();
+  if (deleteObject && typeof avatarPath === "string" && avatarPath) {
+    // Never let a leftover Storage object block the delete the user asked for.
+    await deleteObject(avatarPath).catch(() => {});
+  }
 }
 
 // `invoker: "public"` keeps Cloud Run's allUsers run.invoker binding asserted
@@ -190,7 +235,7 @@ export const savePersona = onCall(
     const service = new PersonaModerationService({ apiKey: OPENAI_API_KEY.value() });
     const result = await savePersonaForUser(uid, entitlement.plan, request.data, {
       db: getFirestore(),
-      moderate: (input) => service.moderate(input),
+      moderate: (input, imageUrl) => service.moderate(input, imageUrl),
     });
 
     logger.info("[savePersona] saved", {
@@ -217,7 +262,9 @@ export const deletePersona = onCall(
     }
     const personaId = parsed.data.personaId;
 
-    await deletePersonaForUser(uid, personaId, getFirestore());
+    await deletePersonaForUser(uid, personaId, getFirestore(), async (path) => {
+      await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
+    });
 
     logger.info("[deletePersona] deleted", { uid, personaId });
 

@@ -26,7 +26,10 @@ export function personaCap(plan: PlanId): number {
 export type UserPersonaSummary = {
   id: string;
   displayName: string;
-  avatarKey: string;
+  // First-party/preset avatar key (legacy). User-built personas instead carry
+  // an uploaded image at avatarUrl; either may be absent (→ monogram).
+  avatarKey?: string;
+  avatarUrl?: string;
   shortDescription: string;
   toneTags: string[];
 };
@@ -68,15 +71,18 @@ export function mapPersonaDoc(id: string, data: unknown): UserPersonaSummary | n
   if (
     !isNonEmptyString(c.displayName) ||
     !isNonEmptyString(c.shortDescription) ||
-    !isNonEmptyString(c.avatarKey) ||
     !Array.isArray(c.toneTags)
   ) {
     return null;
   }
+  // The avatar is optional: a user persona carries an uploaded image (avatarUrl),
+  // a legacy preset key (avatarKey), or neither (the picker renders a monogram).
+  // Requiring one here is what silently dropped every uploaded-avatar persona.
   return {
     id,
     displayName: c.displayName,
-    avatarKey: c.avatarKey,
+    ...(isNonEmptyString(c.avatarKey) ? { avatarKey: c.avatarKey } : {}),
+    ...(isNonEmptyString(c.avatarUrl) ? { avatarUrl: c.avatarUrl } : {}),
     shortDescription: c.shortDescription,
     toneTags: c.toneTags.filter(isNonEmptyString),
   };

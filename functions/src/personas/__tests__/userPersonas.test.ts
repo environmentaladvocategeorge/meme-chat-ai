@@ -1,7 +1,9 @@
 import {
+  DEFAULT_VOICE_BAD,
   isUserPersonaId,
   isUserPersonaDoc,
   newUserPersonaId,
+  PLATFORM_SLANG_USAGE_NOTES,
   toPersonaSpec,
   toResolvedPersonaForStream,
   userPersonaCap,
@@ -20,7 +22,6 @@ function validInput(): UserPersonaInput {
     identity: "A laid-back capybara who vibes through every crisis.",
     voiceExample: {
       user: "my code broke again",
-      bad: "I'm sorry to hear that. Let's break it down step by step.",
       good: "bro the code said nah. show me the error, we fix it zen style",
     },
     signatureMove: "Ends a hype reply with one spa-day metaphor.",
@@ -29,7 +30,6 @@ function validInput(): UserPersonaInput {
     humorExampleShapes: ["that's rough buddy, anyway hydrate"],
     slang: {
       termGlosses: "vibe check = quick mood read. no cap = honestly.",
-      usageNotes: "Roast choices, never identities.",
     },
     emojiPalette: ["🦫", "🧘", "💀"],
     media: {
@@ -93,6 +93,42 @@ describe("userPersonaInputSchema", () => {
     const input = { ...validInput(), identity: "   " };
     expect(userPersonaInputSchema.safeParse(input).success).toBe(false);
   });
+
+  it("accepts input with no voiceExample and no slang (both optional, seeded server-side)", () => {
+    const input: Record<string, unknown> = validInput();
+    delete input.voiceExample;
+    delete input.slang;
+    delete input.publicConfig; // re-add a clean publicConfig below
+    (input as { publicConfig: unknown }).publicConfig = {
+      shortDescription: "Zen rodent energy",
+      toneTags: ["chill"],
+    };
+    expect(userPersonaInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("rejects the seeded-only fields voiceExample.bad and slang.usageNotes (never user-authored)", () => {
+    const base = validInput();
+    const withBad = {
+      ...base,
+      voiceExample: { user: "x", good: "y", bad: "z" },
+    };
+    expect(userPersonaInputSchema.safeParse(withBad).success).toBe(false);
+
+    const withUsageNotes = {
+      ...base,
+      slang: { termGlosses: "a = b", usageNotes: "anything goes" },
+    };
+    expect(userPersonaInputSchema.safeParse(withUsageNotes).success).toBe(false);
+  });
+
+  it("treats avatarKey as optional (user personas upload an avatar instead)", () => {
+    const input = validInput();
+    const publicConfig: Record<string, unknown> = { ...input.publicConfig };
+    delete publicConfig.avatarKey;
+    expect(
+      userPersonaInputSchema.safeParse({ ...input, publicConfig }).success,
+    ).toBe(true);
+  });
 });
 
 describe("userPersonaCap", () => {
@@ -140,6 +176,33 @@ describe("toPersonaSpec", () => {
     expect(rendered.mediaDeciderKey).toBeUndefined();
     expect(rendered.mediaNotes).toContain("capybara chilling");
   });
+
+  it("seeds the persona-dropped bad example and the platform usage boundary", () => {
+    const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(validInput()));
+    // The positive example is the user's; the bad example and slang usage
+    // boundary are server-seeded, never from input.
+    expect(spec.voiceExample.good).toContain("zen style");
+    expect(spec.voiceExample.bad).toBe(DEFAULT_VOICE_BAD);
+    expect(spec.slang.usageNotes).toBe(PLATFORM_SLANG_USAGE_NOTES);
+    expect(spec.slang.termGlosses).toContain("vibe check");
+  });
+
+  it("still produces a complete, renderable spec when voiceExample/slang are omitted", () => {
+    const input = validInput();
+    const bare: Record<string, unknown> = { ...input };
+    delete bare.voiceExample;
+    delete bare.slang;
+    const spec = toPersonaSpec(
+      "user_uid-1_a1",
+      userPersonaInputSchema.parse(bare),
+    );
+    expect(spec.voiceExample.user.length).toBeGreaterThan(0);
+    expect(spec.voiceExample.good.length).toBeGreaterThan(0);
+    expect(spec.voiceExample.bad).toBe(DEFAULT_VOICE_BAD);
+    expect(spec.slang.usageNotes).toBe(PLATFORM_SLANG_USAGE_NOTES);
+    // Renders without throwing on the sparse spec.
+    expect(() => renderPersonaPromptDoc(spec)).not.toThrow();
+  });
 });
 
 function validDoc(): UserPersonaDoc {
@@ -183,6 +246,21 @@ describe("isUserPersonaDoc", () => {
     const noNotes = validDoc() as Record<string, unknown>;
     delete noNotes.mediaNotes;
     expect(isUserPersonaDoc(noNotes)).toBe(true);
+  });
+
+  it("accepts a doc with an uploaded avatar and no avatarKey", () => {
+    const doc = validDoc();
+    const publicConfig = { ...doc.publicConfig } as Record<string, unknown>;
+    delete publicConfig.avatarKey;
+    publicConfig.avatarUrl = "https://example.com/a.jpg";
+    publicConfig.avatarPath = "personaAvatars/uid-1/a.jpg";
+    expect(isUserPersonaDoc({ ...doc, publicConfig })).toBe(true);
+  });
+
+  it("rejects a doc whose avatarUrl is malformed", () => {
+    const doc = validDoc();
+    const publicConfig = { ...doc.publicConfig, avatarUrl: 5 };
+    expect(isUserPersonaDoc({ ...doc, publicConfig })).toBe(false);
   });
 });
 

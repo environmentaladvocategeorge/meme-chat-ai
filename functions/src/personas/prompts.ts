@@ -5,6 +5,7 @@ import {
   isUserPersonaDoc,
   isUserPersonaId,
   toResolvedPersonaForStream,
+  USER_PERSONA_ID_PREFIX,
 } from "./userPersonas";
 
 // Backend identifiers used to look up the ACTIVE prompts in Firestore. The
@@ -131,31 +132,66 @@ export async function getActivePersonaPrompt(
   return isPersonaPrompt(data) ? data : null;
 }
 
-// Reads a user-built persona, honoring it only for its owner: anything else —
-// missing doc, malformed doc, disabled, foreign/absent requester — returns
-// null so the caller falls back. Never throws for a bad id: a stale client
-// pointing at a deleted persona must keep chatting as the default bot.
+// Thrown when a stream turn references a user persona the requester does NOT
+// own. The HTTP layer maps it to a deliberately GENERIC error: a foreign id is
+// indistinguishable from a nonexistent one to the caller, so we never reveal
+// whether the persona exists or who owns it. This is the anti-theft gate — a
+// tampered client can't borrow someone else's bot by guessing/lifting its id.
+//
+// Note the asymmetry with the fallback below: the requester's OWN persona being
+// gone or disabled does NOT throw — it silently falls back to the default so a
+// stale client (persona deleted on another device) keeps chatting.
+export class PersonaAccessError extends Error {
+  constructor() {
+    super("persona-access-denied");
+    this.name = "PersonaAccessError";
+  }
+}
+
+// Reads a user-built persona, honoring it only for its owner. Ownership is
+// authoritative from the id alone: ids are minted as `user_<ownerUid>_<rand>`
+// (newUserPersonaId) and savePersona always sets ownerUid to match, so a
+// requester owns a persona iff its id carries their uid. That lets us reject a
+// foreign id WITHOUT reading another user's document.
+//
+// Outcomes:
+//   - foreign id (or no authenticated requester) → throw PersonaAccessError.
+//   - the requester's own id, present + enabled   → serve it.
+//   - the requester's own id, missing/malformed/disabled → return null so the
+//     caller falls back to the default (a stale client keeps chatting).
 async function getUserPersonaForStream(
   personaId: string,
   requesterUid?: string,
 ): Promise<ResolvedPersonaForStream | null> {
-  if (!requesterUid) return null;
+  if (
+    !requesterUid ||
+    !personaId.startsWith(`${USER_PERSONA_ID_PREFIX}${requesterUid}_`)
+  ) {
+    throw new PersonaAccessError();
+  }
   const snap = await getFirestore().collection("user_personas").doc(personaId).get();
   const data = snap.data();
+  // The requester's own persona is gone or malformed (deleted elsewhere,
+  // mid-migration): fall back rather than error.
   if (!isUserPersonaDoc(data)) return null;
-  if (data.ownerUid !== requesterUid || !data.isEnabled) return null;
+  // Defense in depth: the stored ownerUid must still match (it always should,
+  // given the id check above) — a mismatch means a tampered doc, so reject.
+  if (data.ownerUid !== requesterUid) throw new PersonaAccessError();
+  // Own but disabled → fall back to the default; it's theirs, not a violation.
+  if (!data.isEnabled) return null;
   return toResolvedPersonaForStream(data);
 }
 
 // Resolves the persona + its active prompt for a stream turn. An unknown or
-// disabled personaId falls back to the default persona; a missing persona or
-// prompt doc throws — Firestore is the single source of truth.
+// disabled first-party personaId falls back to the default persona; a missing
+// persona or prompt doc throws — Firestore is the single source of truth.
 //
 // A `user_`-prefixed id resolves from user_personas instead and is honored
-// only when requesterUid owns it (and it's enabled) — the prefix is
-// authoritative, so a user_ id never resolves from the first-party
-// collections. Every rejection silently falls back to the default persona,
-// matching the first-party fallback philosophy.
+// ONLY when requesterUid owns it (and it's enabled) — the prefix is
+// authoritative, so a user_ id never resolves from the first-party collections.
+// Ownership is enforced hard: a foreign user_ id throws PersonaAccessError
+// (anti-theft) rather than silently downgrading. The owner's own
+// missing/disabled persona still falls back to the default (stale-client grace).
 export async function resolvePersonaForStream(
   inputPersonaId?: string,
   requesterUid?: string,
@@ -273,12 +309,10 @@ export async function buildSystemPromptForStream(
 
   const { persona, personaPrompt } =
     preResolved ?? (await resolvePersonaForStream(inputPersonaId));
-  // NOTE: the per-turn word-bank sample is deliberately NOT part of the system
-  // prompt — it varies every turn and would cap the cacheable prefix here. It
-  // ships as a post-history note instead (personas/perTurnNote.ts). The result
-  // of this function is fully static per (rot level, emoji toggle) variant.
-  // (If a stale fragment set still contains a word_bank_sample fragment, it
-  // drops out cleanly because no sample is provided in the ctx.)
+  // The result is fully static per (rot level, emoji toggle) variant — no
+  // per-turn-varying text. Each persona's word bank is a static `word_bank`
+  // fragment in its own prompt (personaSpec.ts), so it's part of this cacheable
+  // prefix; only the safety recap rides the post-history note now (perTurnNote.ts).
   const assembleCtx = {
     level: levelOfRot,
     emojisEnabled: respondWithEmojis,

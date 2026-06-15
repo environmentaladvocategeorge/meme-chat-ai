@@ -90,6 +90,65 @@ export async function updateProfileCallable(args: {
   return result.data;
 }
 
+import type { PersonaSavePayload } from "@/domain/personaForm";
+
+export type SavePersonaPublicConfig = {
+  displayName: string;
+  shortDescription: string;
+  toneTags: string[];
+  avatarKey?: string;
+  avatarUrl?: string;
+  avatarPath?: string;
+};
+
+export type SavePersonaResponse = {
+  success: true;
+  personaId: string;
+  publicConfig: SavePersonaPublicConfig;
+  certainty: number;
+};
+
+// Creates or overwrites a user persona (Admin SDK; client writes to
+// user_personas are blocked by firestore.rules). The backend validates +
+// moderates (text + avatar image) and renders the prompt. `avatar` carries a
+// just-uploaded image's download URL + Storage path. On rejection it throws an
+// HttpsError whose message is one of: persona_rejected, moderation_unavailable,
+// persona_limit_reached, invalid_avatar.
+export async function savePersonaCallable(args: {
+  persona: PersonaSavePayload;
+  personaId?: string;
+  avatar?: { url: string; path: string };
+}): Promise<SavePersonaResponse> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<typeof args, SavePersonaResponse>(
+    firebase.services.functions,
+    "savePersona",
+  );
+  const result = await callable(args);
+  return result.data;
+}
+
+// Deletes a user persona (and its uploaded avatar object) server-side.
+export async function deletePersonaCallable(
+  personaId: string,
+): Promise<{ success: true }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<{ personaId: string }, { success: true }>(
+    firebase.services.functions,
+    "deletePersona",
+  );
+  const result = await callable({ personaId });
+  return result.data;
+}
+
 export type MessageReaction = "up" | "down";
 
 // Records (or clears, when reaction is null) the caller's thumbs rating on a

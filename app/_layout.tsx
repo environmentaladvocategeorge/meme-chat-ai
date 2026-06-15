@@ -4,6 +4,8 @@ import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
 import { PlanSheet } from "@/components/PlanSheet";
 import { LanguageSheet } from "@/components/LanguageSheet";
 import { MemorySheet } from "@/components/MemorySheet";
+import { NameSheet } from "@/components/NameSheet";
+import { PersonaSheet } from "@/components/PersonaSheet";
 import { RotLevelSheet } from "@/components/RotLevelSheet";
 import { Typography } from "@/components/Typography";
 import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
@@ -15,6 +17,8 @@ import { useAppUpdateStore } from "@/store/appUpdate";
 import { useAuthStore } from "@/store/auth";
 import { useNotificationsStore } from "@/store/notifications";
 import { useOnboardingStore } from "@/store/onboarding";
+import { usePersonaDraftStore } from "@/store/personaDraft";
+import { usePersonaStore } from "@/store/personas";
 import { useSettingsStore } from "@/store/settings";
 import { useSubscriptionStore } from "@/store/subscription";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -86,6 +90,7 @@ export default function RootLayout() {
   const ageGateHydrated = useAgeGateStore((s) => s.hydrated);
   const ageGatePassed = useAgeGateStore((s) => s.status === "passed");
   const initializeAuthSession = useAuthStore((s) => s.initializeAuthSession);
+  const authUid = useAuthStore((s) => s.uid);
   const authStatus = useAuthStore((s) => s.status);
   const authEmailVerified = useAuthStore((s) => s.emailVerified);
   const authProviders = useAuthStore((s) => s.providers);
@@ -104,6 +109,12 @@ export default function RootLayout() {
       hydrateSettings(),
       hydrateOnboarding(),
       hydrateAgeGate(),
+      // Restore the locally-persisted persona selection so the chat header
+      // shows the right bot before the (validating) list loads. Non-critical:
+      // not part of the gate — it resolves to the default on a read error.
+      usePersonaStore.getState().hydrateSelection(),
+      // Local persona-creator drafts (device-only, not uid-keyed).
+      usePersonaDraftStore.getState().hydrate(),
     ]).finally(() => setHydrated(true));
   }, [hydrateAgeGate, hydrateOnboarding, hydrateSettings]);
 
@@ -125,6 +136,17 @@ export default function RootLayout() {
       void useNotificationsStore.getState().refresh();
     }
   }, [hydrated, initializeAuthSession, initializeSubscription]);
+
+  // Hydrate the signed-in user's saved personas for the picker (and clear them
+  // on sign-out so the next user on this device never sees the previous one's
+  // bots). Keyed on uid so it re-runs across every auth transition.
+  useEffect(() => {
+    if (authUid) {
+      void usePersonaStore.getState().hydrate(authUid);
+    } else {
+      usePersonaStore.getState().clear();
+    }
+  }, [authUid]);
 
   useLayoutEffect(() => {
     Appearance.setColorScheme(appearance === "system" ? null : appearance);
@@ -248,6 +270,8 @@ export default function RootLayout() {
             <RotLevelSheet />
             <LanguageSheet />
             <MemorySheet />
+            <NameSheet />
+            <PersonaSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

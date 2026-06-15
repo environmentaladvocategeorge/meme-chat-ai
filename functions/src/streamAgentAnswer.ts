@@ -42,6 +42,7 @@ import {
 import { summarizeGifsForLog } from "./messages/messageGif";
 import {
   buildMediaDeciderPrompt,
+  PersonaAccessError,
   resolvePersonaForStream,
 } from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
@@ -334,13 +335,8 @@ export const streamAgentAnswer = onRequest(
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
-      // Loaded for every turn (not just media turns): the decider context needs
-      // it when media is on, and the word-bank sampler excludes bank terms seen
-      // in these recent bot replies either way.
+      // Loaded for the media decider's context (used when media is on).
       const priorMessages = await loadRecentMessages(conversationId, 12);
-      const recentAssistantTexts = priorMessages
-        .filter((m) => m.role === "agent" && m.text)
-        .map((m) => m.text);
       if (mediaEnabled) {
         const { history, recentReactions } = buildDeciderContext(priorMessages);
         const currentForDecider =
@@ -450,11 +446,22 @@ export const streamAgentAnswer = onRequest(
         // Already read above for the decider — hand the reply view to the Agent
         // so it doesn't read the memory state a second time.
         memoryBlock: memViews.reply,
-        recentAssistantTexts,
       });
       resolvedPersona = replyContext.persona;
       assembleResult = replyContext.assembled;
     } catch (err) {
+      if (err instanceof PersonaAccessError) {
+        // The turn referenced a persona the caller doesn't own. Generic by
+        // design — no signal about whether it exists or who owns it. Logged at
+        // warn (not error) since it's client misuse, not a server fault.
+        logger.warn("[streamAgentAnswer] persona access denied", {
+          conversationId,
+          uid,
+          personaId,
+        });
+        res.status(403).json({ code: "forbidden" });
+        return;
+      }
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });
       return;
@@ -588,7 +595,9 @@ export const streamAgentAnswer = onRequest(
               name: resolvedPersona.name,
               slug: resolvedPersona.slug,
               displayName: resolvedPersona.publicConfig.displayName,
-              avatarKey: resolvedPersona.publicConfig.avatarKey,
+              // User personas have no preset avatarKey (they use an uploaded
+              // avatarUrl); keep this stored field a plain string for history.
+              avatarKey: resolvedPersona.publicConfig.avatarKey ?? "",
             }
           : undefined,
       });

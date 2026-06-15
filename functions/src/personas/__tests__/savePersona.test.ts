@@ -91,7 +91,6 @@ function validInput(): UserPersonaInput {
     identity: "A laid-back capybara who vibes through every crisis.",
     voiceExample: {
       user: "my code broke again",
-      bad: "I'm sorry to hear that. Let's break it down step by step.",
       good: "bro the code said nah. show me the error, we fix it zen style",
     },
     greetingShapes: ["yo what's good"],
@@ -99,13 +98,11 @@ function validInput(): UserPersonaInput {
     humorExampleShapes: ["that's rough buddy, anyway hydrate"],
     slang: {
       termGlosses: "vibe check = quick mood read.",
-      usageNotes: "Roast choices, never identities.",
     },
     emojiPalette: ["🦫"],
     media: { pills: ["capybara chilling"], lean: "wholesome reactions" },
     publicConfig: {
       shortDescription: "Zen rodent energy",
-      avatarKey: "capybara",
       toneTags: ["chill"],
     },
   };
@@ -222,6 +219,48 @@ describe("savePersonaForUser", () => {
       "invalid_request",
     );
     expect(moderate).not.toHaveBeenCalled();
+  });
+
+  it("stores an uploaded avatar and moderates its url alongside the text", async () => {
+    const { deps, moderate, setCalls } = makeDeps({});
+    const avatar = {
+      url: "https://example.com/personaAvatars/uid-1/a.jpg",
+      path: "personaAvatars/uid-1/a.jpg",
+    };
+
+    const result = await savePersonaForUser(
+      "uid-1",
+      "free",
+      { persona: validInput(), avatar },
+      deps,
+    );
+
+    // The image url is threaded to the moderation call as the 2nd arg.
+    expect(moderate.mock.calls[0][1]).toBe(avatar.url);
+    const written = setCalls[0].data as { publicConfig: Record<string, unknown> };
+    expect(written.publicConfig.avatarUrl).toBe(avatar.url);
+    expect(written.publicConfig.avatarPath).toBe(avatar.path);
+    expect(result.publicConfig.avatarUrl).toBe(avatar.url);
+  });
+
+  it("rejects an avatar path outside the caller's namespace before moderating", async () => {
+    const { deps, moderate, setCalls } = makeDeps({});
+
+    await expectHttpsError(
+      savePersonaForUser(
+        "uid-1",
+        "free",
+        {
+          persona: validInput(),
+          avatar: { url: "https://example.com/x.jpg", path: "personaAvatars/uid-2/x.jpg" },
+        },
+        deps,
+      ),
+      "invalid-argument",
+      "invalid_avatar",
+    );
+    expect(moderate).not.toHaveBeenCalled();
+    expect(setCalls).toHaveLength(0);
   });
 
   it("enforces the free-tier cap of 1 without burning a moderation call", async () => {
@@ -388,6 +427,20 @@ describe("deletePersonaForUser", () => {
     await deletePersonaForUser("uid-1", "user_uid-1_a1", deps.db);
 
     expect(deleteCalls).toEqual(["user_uid-1_a1"]);
+  });
+
+  it("also deletes the uploaded avatar object when the persona has one", async () => {
+    const { deps } = makeDeps({
+      "user_uid-1_a1": {
+        ...storedPersona("user_uid-1_a1", "uid-1"),
+        publicConfig: { avatarPath: "personaAvatars/uid-1/a.jpg" },
+      },
+    });
+    const deleteObject = jest.fn().mockResolvedValue(undefined);
+
+    await deletePersonaForUser("uid-1", "user_uid-1_a1", deps.db, deleteObject);
+
+    expect(deleteObject).toHaveBeenCalledWith("personaAvatars/uid-1/a.jpg");
   });
 
   it("rejects deleting someone else's or a missing persona", async () => {

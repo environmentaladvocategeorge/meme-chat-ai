@@ -9,6 +9,7 @@ import {
   isBubbleStyleId,
   normalizeHex,
 } from "@/domain/customization";
+import { normalizeDrafts, type PersonaDraft } from "@/domain/personaDrafts";
 
 export type Appearance = "system" | "light" | "dark";
 export type Language = "system" | "en" | "es" | "fr" | "pt" | "de" | "zh" | "ja" | "hi" | "ru";
@@ -380,6 +381,49 @@ export const ChatSessionStorage = {
   },
 };
 
+// Work-in-progress persona drafts (persona creator). Stored LOCALLY only —
+// never synced to the cloud — as a whole list (not a merged patch like the
+// other stores), capped + normalized by the domain layer. The avatar inside a
+// draft is a device-local image URI until publish, so nothing here is uploaded.
+const PERSONA_DRAFTS_KEY = "app.personaDrafts";
+
+let pendingPersonaDraftsWrite = Promise.resolve();
+
+export const PersonaDraftsStorage = {
+  async read(): Promise<PersonaDraft[]> {
+    try {
+      const raw = await AsyncStorage.getItem(PERSONA_DRAFTS_KEY);
+      if (!raw) return [];
+      return normalizeDrafts(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  },
+
+  // Whole-list replace (the caller owns ordering/cap via the domain helpers);
+  // re-normalized on the way out so a bad write can't corrupt the store.
+  async write(drafts: PersonaDraft[]): Promise<void> {
+    pendingPersonaDraftsWrite = pendingPersonaDraftsWrite
+      .then(() =>
+        AsyncStorage.setItem(
+          PERSONA_DRAFTS_KEY,
+          JSON.stringify(normalizeDrafts(drafts)),
+        ),
+      )
+      .catch(() => {});
+
+    await pendingPersonaDraftsWrite;
+  },
+
+  async reset(): Promise<void> {
+    pendingPersonaDraftsWrite = pendingPersonaDraftsWrite
+      .then(() => AsyncStorage.removeItem(PERSONA_DRAFTS_KEY))
+      .catch(() => {});
+
+    await pendingPersonaDraftsWrite;
+  },
+};
+
 // One call clears every AsyncStorage key the template controls. Wired into
 // the Settings "Delete data" action AFTER the account deletion callable
 // succeeds, so a partial failure on the backend doesn't strand the user
@@ -394,5 +438,6 @@ export async function wipeLocalAppData(): Promise<void> {
     SettingsStorage.reset(),
     OnboardingStorage.reset(),
     ChatSessionStorage.reset(),
+    PersonaDraftsStorage.reset(),
   ]);
 }
