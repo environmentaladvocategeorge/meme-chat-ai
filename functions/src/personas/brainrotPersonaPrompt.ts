@@ -15,6 +15,13 @@ import {
 // instead of a console edit. Editing the live doc without updating the source
 // modules reintroduces seed drift — change here, then push.
 //
+// v6 (2026-06-15): trimmed the default bank — dropped stale trend tokens (low
+// taper fade, okay boomer/zoomer), spelling/ladder dupes (slayyy*, yassss queen,
+// Bombardino Crocodilo), and the Italian-brainrot long tail; added delulu, aura
+// farming, du bist gut genug, let's get married; de-comma'd "first of all ts
+// tuff 🔥"; and removed the now-orphaned "ninja got a low taper fade" line from
+// the slang gloss. Content-only — no deploy, just a re-push.
+//
 // v5 (2026-06-14): word banks became per-persona. The global rotating word-bank
 // sampler (the old per-turn note) is gone; each persona now owns a static
 // `word_bank` fragment in its prompt, so this default carries the full house
@@ -35,7 +42,7 @@ import {
 // rot_level_block last for recency. Never add per-turn-varying text; it
 // belongs in perTurnNote.ts.
 
-export const BRAINROT_PERSONA_PROMPT_VERSION = "v5-word-bank-inline";
+export const BRAINROT_PERSONA_PROMPT_VERSION = "v6-word-bank-trim";
 
 // The live Firestore doc the push script targets.
 export const BRAINROT_PERSONA_PROMPT_DOC_PATH =
