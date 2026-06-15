@@ -41,6 +41,10 @@ import {
 } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
 import {
+  buildDeciderAttachmentHint,
+  collectCurrentAttachmentTitles,
+} from "./messages/attachmentMeta";
+import {
   buildMediaDeciderPrompt,
   PersonaAccessError,
   resolvePersonaForStream,
@@ -131,6 +135,10 @@ export const streamAgentAnswer = onRequest(
     const images = parsed.data.images;
     const gifs = parsed.data.gifs;
     const currentGif = gifs[0];
+    // Klipy "meme name" metadata for the current turn's attachments. Empty for
+    // uploads and for older clients that don't send `title`, in which case every
+    // downstream use is a no-op (back-compat).
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
@@ -339,13 +347,16 @@ export const streamAgentAnswer = onRequest(
       const priorMessages = await loadRecentMessages(conversationId, 12);
       if (mediaEnabled) {
         const { history, recentReactions } = buildDeciderContext(priorMessages);
+        // Append the Klipy "meme name" hint (when present) so the decider can
+        // recognize a named reference the user sent, not just react to pixels.
+        const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
         const currentForDecider =
-          userText ||
-          (images.length > 0
-            ? "[user sent an image]"
-            : gifs.length > 0
-              ? "[user sent a GIF]"
-              : "");
+          (userText ||
+            (images.length > 0
+              ? "[user sent an image]"
+              : gifs.length > 0
+                ? "[user sent a GIF]"
+                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
@@ -440,6 +451,7 @@ export const streamAgentAnswer = onRequest(
         currentImageUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
+        currentAttachmentTitles: attachmentTitles,
         attachedMedia,
         userAlias: entitlement.alias,
         userLanguage: language,

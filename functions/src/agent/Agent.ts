@@ -1,6 +1,7 @@
 import type { PlanId } from "../billing/plans";
 import type { AssembledContext } from "../context/assemble";
 import type { ExtractedGifFrames } from "../gifs/extractFrames";
+import type { CurrentAttachmentTitles } from "../messages/attachmentMeta";
 import type { MessageGif } from "../messages/messageGif";
 import { buildPerTurnNote } from "../personas/perTurnNote";
 import {
@@ -42,6 +43,8 @@ export type BuildReplyContextArgs = {
   currentImageUrls?: string[];
   currentGif?: MessageGif;
   currentGifFrames?: ExtractedGifFrames;
+  // Klipy titles of the current turn's attachments (newer clients only).
+  currentAttachmentTitles?: CurrentAttachmentTitles;
   attachedMedia?: { kind: "gif" | "meme"; description: string };
   userAlias?: string | null;
   userLanguage?: string | null;
@@ -92,6 +95,7 @@ export class Agent {
       currentImageUrls: args.currentImageUrls,
       currentGif: args.currentGif,
       currentGifFrames: args.currentGifFrames,
+      currentAttachmentTitles: args.currentAttachmentTitles,
       attachedMedia: args.attachedMedia,
       userAlias: args.userAlias,
       userLanguage: args.userLanguage,

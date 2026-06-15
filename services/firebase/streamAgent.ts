@@ -136,6 +136,7 @@ function parseMessageImage(value: unknown): MessageImage | null {
   if (typeof data.height === "number") image.height = data.height;
   if (typeof data.attribution === "string") image.attribution = data.attribution;
   if (typeof data.memeId === "string") image.memeId = data.memeId;
+  if (typeof data.title === "string") image.title = data.title;
   return image;
 }
 
@@ -163,6 +164,7 @@ function parseMessageGif(value: unknown): MessageGif | null {
   if (typeof data.height === "number") gif.height = data.height;
   if (typeof data.attribution === "string") gif.attribution = data.attribution;
   if (typeof data.gifId === "string") gif.gifId = data.gifId;
+  if (typeof data.title === "string") gif.title = data.title;
   return gif;
 }
 

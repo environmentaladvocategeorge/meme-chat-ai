@@ -45,6 +45,12 @@ export type KlipyMessageImage = {
   mimeType?: "image/png" | "image/jpeg" | "image/webp";
   attribution?: string;
   memeId?: string;
+  // Klipy's short human title of the meme (e.g. "Distracted Boyfriend"). Sent to
+  // the backend so the model/media decider knows which named meme the user sent
+  // instead of guessing from pixels. Optional + additive: older clients omit it
+  // and the backend gates every use on its presence, so nothing breaks. Only on
+  // Klipy memes — uploads never carry one. Never rendered to the user.
+  title?: string;
 };
 
 export type UploadedMessageImage = {
@@ -82,5 +88,8 @@ export function trendingMemeToMessageImage(meme: TrendingMeme): KlipyMessageImag
     height: meme.height,
     attribution: "Powered by Klipy",
     memeId: meme.id,
+    // Carry Klipy's title through so the backend can tell the model/decider the
+    // meme's name. Omitted when Klipy returned no title (keeps old behavior).
+    ...(meme.title ? { title: meme.title } : {}),
   };
 }

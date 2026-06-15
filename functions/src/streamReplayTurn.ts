@@ -37,6 +37,10 @@ import {
 } from "./messages/messageImage";
 import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
+import {
+  buildDeciderAttachmentHint,
+  collectCurrentAttachmentTitles,
+} from "./messages/attachmentMeta";
 import { buildPerTurnNote } from "./personas/perTurnNote";
 import {
   buildMediaDeciderPrompt,
@@ -157,6 +161,9 @@ export const streamReplayTurn = onRequest(
     const images = userTurn.images ?? [];
     const gifs = userTurn.gifs ?? [];
     const currentGif = gifs[0];
+    // Klipy "meme name" metadata persisted on the replayed turn's attachments
+    // (empty for uploads/older turns → no-op downstream).
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
     // Reconstruct the original turn's dials: reuse the persona the deleted reply
     // was generated with so the same character answers; default rot to 2 to
     // match the request schema's default for turns stored before the dial.
@@ -279,13 +286,16 @@ export const streamReplayTurn = onRequest(
         | undefined;
       if (mediaEnabled) {
         const { history, recentReactions } = buildDeciderContext(priorMessages);
+        // Append the Klipy "meme name" hint (when present) so the regenerated
+        // reaction can recognize the named reference the user originally sent.
+        const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
         const currentForDecider =
-          userText ||
-          (images.length > 0
-            ? "[user sent an image]"
-            : gifs.length > 0
-              ? "[user sent a GIF]"
-              : "");
+          (userText ||
+            (images.length > 0
+              ? "[user sent an image]"
+              : gifs.length > 0
+                ? "[user sent a GIF]"
+                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the replayed turn's GIF once, reused by the decider and
         // assembleContext below.
         const currentGifFrames = currentGif
@@ -355,6 +365,7 @@ export const streamReplayTurn = onRequest(
         currentImageUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
+        currentAttachmentTitles: attachmentTitles,
         attachedMedia,
         perTurnNote,
         systemPrompt,

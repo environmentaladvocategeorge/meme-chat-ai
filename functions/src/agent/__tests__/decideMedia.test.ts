@@ -53,6 +53,48 @@ describe("buildDeciderContext", () => {
     expect(recentReactions).toEqual(["gigachad"]);
   });
 
+  it("annotates a user turn that sent a titled klipy meme, without adding it to do-not-repeat", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        text: "react to this",
+        images: [
+          {
+            id: "m1",
+            source: "klipy",
+            url: "https://static.klipy.com/m.webp",
+            previewUrl: "https://static.klipy.com/m.jpg",
+            title: "gigachad",
+          },
+        ],
+      },
+    ];
+    const { history, recentReactions } = buildDeciderContext(messages);
+    expect(history).toContain("User: react to this [sent meme: gigachad]");
+    // The user's own meme is context, not a bot reaction — it must NOT suppress
+    // the decider from later picking that meme.
+    expect(recentReactions).toEqual([]);
+  });
+
+  it("leaves user turns with untitled/uploaded attachments unannotated (back-compat)", () => {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        text: "look",
+        images: [
+          {
+            id: "m1",
+            source: "klipy",
+            url: "https://static.klipy.com/m.webp",
+            previewUrl: "https://static.klipy.com/m.jpg",
+          },
+        ],
+      },
+    ];
+    const { history } = buildDeciderContext(messages);
+    expect(history).toBe("User: look");
+  });
+
   it("handles empty history", () => {
     expect(buildDeciderContext([])).toEqual({ history: "", recentReactions: [] });
   });

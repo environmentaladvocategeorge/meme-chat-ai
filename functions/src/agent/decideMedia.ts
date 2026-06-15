@@ -28,6 +28,12 @@ export function buildDeciderContext(messages: ChatMessage[]): {
     if (m.role === "agent" && titles.length > 0) {
       line += ` [reaction sent: ${titles.join(", ")}]`;
       recentReactions.push(...titles);
+    } else if (m.role === "user" && titles.length > 0) {
+      // The user sent a named Klipy meme/GIF (newer clients persist its title).
+      // Surface it so the decider sees what the user has been sharing — but it's
+      // NOT a bot reaction, so it never feeds the do-not-repeat list. Untitled/
+      // older attachments add nothing here, keeping history identical.
+      line += ` [sent meme: ${titles.join(", ")}]`;
     }
     lines.push(line);
   }
