@@ -7,7 +7,7 @@
 const { getDb } = require("./admin-app.cjs");
 
 // Inlined from billing/plans.ts to avoid depending on the compiled lib/ output.
-const FREE_MONTHLY_CREDITS = 260; // mirror of PLANS.free.monthlyCredits — keep in sync
+const FREE_MONTHLY_CREDITS = 370; // mirror of PLANS.free.monthlyCredits — keep in sync
 const DAILY_BURST_FACTOR = 3;
 function daysInMonth(date) {
   return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();

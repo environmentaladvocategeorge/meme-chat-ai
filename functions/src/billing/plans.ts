@@ -69,17 +69,19 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 //   Basic monthly_1  $3.99  → ~$2.79 net, 30% margin → 1953 cr ($1.95 max cost)
 //   Plus  monthly_2  $9.99  → ~$6.99 net, 27% margin → 5103 cr ($5.10 max cost)
 //   Power monthly_3  $19.99 → ~$13.99 net, 21% margin → 11052 cr ($11.05 max cost)
-// Free is the conversion funnel and partly ad-offset: 260 cr ≈ $0.26 max
-// cost/user/month ≈ ~97 turns/month, daily cap 26 (30-day month) ≈ ~10
-// turns/day. Coverage at 2.69 cr/turn: free ~97, basic ~726, plus ~1,897,
+// Free is the conversion funnel and partly ad-offset: 370 cr ≈ $0.37 max
+// cost/user/month ≈ ~138 turns/month, daily cap 37 (30-day month) ≈ ~14
+// turns/day. Coverage at 2.69 cr/turn: free ~138, basic ~726, plus ~1,897,
 // power ~4,109 messages/month.
 // (Plan IDs free/basic/plus/power map to RC products free/monthly_1/monthly_2/
 // monthly_3 — see billing/revenuecat.ts.)
 //
 // History: original 325 / 1950 / 5250 / 11200, trimmed 15% when real usage ran
 // under the 2.52-credit estimate; free re-tuned during launch week and raised
-// to 205 on 2026-06-10; all tiers raised to the table above on 2026-06-11 for
-// the mini-decider cost. Re-check against real v4 usage after a few days
+// to 205 on 2026-06-10; all tiers re-sized on 2026-06-11 for the mini-decider
+// cost (paid tiers to 1953 / 5103 / 11052, their current values); free later
+// raised to 370 on 2026-06-14 ($0.37 max cost, ~138 turns/mo) to widen the
+// funnel. Re-check against real v4 usage after a few days
 // (scripts/analyze-usage.cjs — decider tokens now land in the mini* split
 // fields, so the nano* columns are memory-extraction only).
 //
@@ -91,7 +93,7 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
     model: "mini",
-    monthlyCredits: 260,
+    monthlyCredits: 370,
     // The static persona/platform prompt is ~4k tokens on its own, so a 4k input
     // budget left free with literally zero room for conversational memory — every
     // turn was persona + current message only. 6k gives ~2k of working headroom
