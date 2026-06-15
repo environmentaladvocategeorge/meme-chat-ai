@@ -7,7 +7,7 @@ import { AgentAvatar } from "@/components/AgentAvatar";
 import { Typography } from "@/components/Typography";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { LinearGradient } from "expo-linear-gradient";
-import { List, PaperPlaneTilt } from "phosphor-react-native";
+import { CaretRight, List, NotePencil, PaperPlaneTilt } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 
@@ -49,63 +49,89 @@ export function ChatAppearancePreview() {
         />
       )}
 
-      {/* Header preview. */}
+      {/* Header preview — mirrors the floating chat header: a brand-tinted
+          menu button, a center persona pill (avatar + name + caret), and the
+          new-chat action on the right. */}
       <View
         style={{
           marginHorizontal: 14,
           marginTop: 14,
-          borderRadius: 18,
-          paddingHorizontal: 10,
-          paddingVertical: 8,
           flexDirection: "row",
           alignItems: "center",
-          backgroundColor: chatTheme["--color-card"],
-          borderWidth: 1,
-          borderColor: chatTheme["--color-border"],
+          gap: 8,
         }}
       >
+        {/* Menu button. */}
         <View
           style={{
             width: 30,
             height: 30,
             borderRadius: 15,
-            overflow: "hidden",
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: chatTheme["--color-primary"],
+            backgroundColor: chatTheme["--color-primary-subtle"],
           }}
         >
-          <LinearGradient
-            colors={[
-              chatTheme["--color-primary"],
-              chatTheme["--color-primary"],
-            ]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={{ ...StyleFill }}
-          />
-          <List
-            size={15}
-            weight="bold"
-            color={chatTheme["--color-primary-foreground"]}
-          />
+          <List size={15} weight="bold" color={chatTheme["--color-primary"]} />
         </View>
-        <View style={{ flex: 1, alignItems: "center", paddingHorizontal: 8 }}>
-          <Typography
-            variant="body"
-            weight="bold"
-            numberOfLines={1}
-            style={{ color: chatTheme["--color-foreground"], fontSize: 15 }}
+
+        {/* Center persona pill: avatar + name + caret. */}
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              maxWidth: "100%",
+              height: 30,
+              borderRadius: 15,
+              paddingLeft: 5,
+              paddingRight: 10,
+              backgroundColor: chatTheme["--color-card"],
+              borderWidth: 1,
+              borderColor: chatTheme["--color-border"],
+            }}
           >
-            {t("chat.title")}
-          </Typography>
+            <AgentAvatar size={20} />
+            <Typography
+              variant="body-sm"
+              weight="semibold"
+              numberOfLines={1}
+              style={{
+                color: chatTheme["--color-foreground"],
+                fontSize: 13,
+                flexShrink: 1,
+              }}
+            >
+              {t("chat.agentName")}
+            </Typography>
+            <CaretRight
+              size={11}
+              weight="bold"
+              color={chatTheme["--color-foreground-muted"]}
+            />
+          </View>
         </View>
+
+        {/* New-chat action. */}
         <View
           style={{
             width: 30,
             height: 30,
+            borderRadius: 15,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: chatTheme["--color-card-muted"],
+            borderWidth: 1,
+            borderColor: chatTheme["--color-border"],
           }}
-        />
+        >
+          <NotePencil
+            size={14}
+            weight="bold"
+            color={chatTheme["--color-foreground"]}
+          />
+        </View>
       </View>
 
       <View style={{ padding: 14, gap: 8 }}>

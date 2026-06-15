@@ -1,5 +1,6 @@
 import { AdBanner } from "@/components/ads/AdBanner";
-import { AppHeader } from "@/components/AppHeader";
+import { PersonaAvatar } from "@/components/PersonaAvatar";
+import { AppHeader, useAppHeaderHeight } from "@/components/AppHeader";
 import { AppKeyboardAvoidingView } from "@/components/AppKeyboardAvoidingView";
 import { AttachmentViewerProvider } from "@/components/AttachmentViewer";
 import { ChatInput, type ChatInputRef } from "@/components/ChatInput";
@@ -10,6 +11,11 @@ import {
   type BubbleGradientValue,
 } from "@/components/chat/BubbleGradientContext";
 import { ThinkingLabelContext } from "@/components/chat/ThinkingLabelContext";
+import {
+  TimeRevealContext,
+  TIME_REVEAL_WIDTH,
+  type TimeRevealValue,
+} from "@/components/chat/TimeRevealContext";
 import { ChatLoading } from "@/components/chat/ChatLoading";
 import { CollapsiblePicker } from "@/components/chat/CollapsiblePicker";
 import {
@@ -61,6 +67,8 @@ import { withAlpha } from "@/domain/customization";
 import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { useMemorySheetStore } from "@/store/memorySheet";
+import { usePersonaSheetStore } from "@/store/personaSheet";
+import { useSelectedPersona } from "@/store/personas";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -82,6 +90,7 @@ import {
   type PickSource,
 } from "@/services/firebase/uploadMessageImage";
 import Animated, {
+  Easing,
   FadeIn,
   runOnJS,
   useAnimatedReaction,
@@ -90,6 +99,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Height of the gradient ramp above the floating composer dock — the zone
@@ -98,9 +108,6 @@ const DOCK_FADE_HEIGHT = 21;
 // Ramp height while a reply streams: matches the in-flight bubble's 10px
 // action-row stand-in (see MessageBubble), so the resting bubble clears it.
 const DOCK_FADE_HEIGHT_STREAMING = 10;
-// Matching (smaller) ramp at the top of the thread, so messages dissolve just
-// before they touch the header instead of cutting at the viewport edge.
-const HEADER_FADE_HEIGHT = 20;
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -121,6 +128,13 @@ export default function ChatScreen() {
   // edge-to-edge behind the dock; this feeds the list's bottom inset so
   // resting content sits above it and only scrolls under it.
   const [dockHeight, setDockHeight] = useState(0);
+  // Floating header is absolute, so the list scrolls under it; this is the top
+  // inset resting content needs. "avatar" variant — chat shows the persona
+  // avatar above the title pill.
+  const headerHeight = useAppHeaderHeight("avatar");
+  // Measured height of the pinned ad band just below the header (0 for Pro,
+  // where AdBanner renders nothing). Feeds the list's visual-top inset.
+  const [adTopInset, setAdTopInset] = useState(0);
   const [memesOpen, setMemesOpen] = useState(false);
   const [gifsOpen, setGifsOpen] = useState(false);
   const chatInputRef = useRef<ChatInputRef>(null);
@@ -178,8 +192,17 @@ export default function ChatScreen() {
   const currentPlan = useDisplayPlan();
   const openPlan = useOpenPlan();
   const openMemorySheet = useMemorySheetStore((s) => s.open);
+  const openPersonaSheet = usePersonaSheetStore((s) => s.open);
+  const selectedPersona = useSelectedPersona();
   const { meta: memoryMeta } = useMemoryMeta();
   const router = useRouter();
+
+  // The header pill reflects the locally-selected persona. Selection is
+  // cosmetic for now — the chat send path does not yet forward personaId.
+  const personaTitle =
+    selectedPersona.kind === "default"
+      ? t("chat.agentName")
+      : selectedPersona.persona.displayName;
 
   // Bumped each time the app returns to the foreground (see the AppState
   // effect below). The entitlement in the store may predate a daily/monthly
@@ -621,6 +644,39 @@ export default function ChatScreen() {
     [pageScrollY, measureTick],
   );
 
+  // iMessage-style swipe-to-reveal timestamps. A horizontal drag-left slides
+  // every bubble left in unison (see MessageBubble's row transform) to expose
+  // each message's time at the right margin; releasing springs it back. The pan
+  // only claims horizontal movement (activeOffsetX) and yields to the list's
+  // vertical scroll (failOffsetY), and — being a drag, not a press — it never
+  // competes with the long-press that drives native text selection inside a
+  // bubble. progress runs 0 (rest) → 1 (full reveal).
+  const timeReveal = useSharedValue(0);
+  const timeRevealGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-12, 12])
+        .failOffsetY([-12, 12])
+        .onUpdate((e) => {
+          "worklet";
+          // Only a leftward drag reveals; clamp to [0, 1].
+          const raw = -e.translationX / TIME_REVEAL_WIDTH;
+          timeReveal.value = Math.min(1, Math.max(0, raw));
+        })
+        .onFinalize(() => {
+          "worklet";
+          timeReveal.value = withTiming(0, {
+            duration: 240,
+            easing: Easing.out(Easing.cubic),
+          });
+        }),
+    [timeReveal],
+  );
+  const timeRevealValue = useMemo<TimeRevealValue>(
+    () => ({ progress: timeReveal }),
+    [timeReveal],
+  );
+
   const handleNewConversation = () => {
     const reset = () => {
       startNewConversation();
@@ -634,6 +690,10 @@ export default function ChatScreen() {
     };
 
     if (newConvoTimer.current) clearTimeout(newConvoTimer.current);
+    // True 0 is fine here: the glass empty-state prompts receive this same
+    // SharedValue as fadeProgress, so they flip glassEffectStyle to 'none' near
+    // 0 (the Expo-sanctioned fade) instead of being blanked by the opacity-0
+    // ancestor. See GlassSurface's opacity-0 note + fadeProgress.
     contentOpacity.value = withTiming(0, { duration: 160 });
     // Swap content at the trough of the fade, then fade the empty state in.
     newConvoTimer.current = setTimeout(() => {
@@ -710,29 +770,11 @@ export default function ChatScreen() {
             />
           ) : null}
 
-          <AppHeader
-            title={t("chat.title")}
-            right={
-              // Always mounted so the button can fade in/out (it self-gates
-              // taps via `visible`). Avoids the hard pop of conditional
-              // mounting — and avoids Reanimated `entering` layout animations,
-              // which leave the native hit-test frame unsynced on Fabric/release
-              // and drop the first tap(s).
-              <NewConversationButton
-                label={t("chat.newConversation")}
-                onPress={handleNewConversation}
-                visible={canStartNew}
-              />
-            }
-          />
-
-          {/* Free-tier ad banner — sits under the header so it stays put while the
-          composer + keyboard move. Hidden for Pro (any paid plan). */}
-          <AdBanner style={{ marginHorizontal: 16, marginTop: 8 }} />
-
           <BubbleGradientContext.Provider value={bubbleGradient}>
+            <TimeRevealContext.Provider value={timeRevealValue}>
             <ThinkingLabelContext.Provider value={thinkingLabel}>
             <View style={{ flex: 1 }}>
+              <GestureDetector gesture={timeRevealGesture}>
               <Animated.FlatList
                 ref={listRef}
                 style={[contentFadeStyle, { flex: 1 }]}
@@ -781,7 +823,12 @@ export default function ChatScreen() {
                   // the scrim. Falls back to 16 for the first frame, before
                   // the dock reports a height.
                   paddingTop: dockHeight > 0 ? dockHeight + 10 : 16,
-                  paddingBottom: 18,
+                  // Inverted list: paddingBottom is the VISUAL TOP. The
+                  // floating header + pinned ad band overlay the thread here,
+                  // so resting (oldest visible) content needs their combined
+                  // height to clear them; scrolled content runs under and
+                  // dissolves in the header's darken fade.
+                  paddingBottom: 18 + headerHeight + adTopInset,
                   gap: 10,
                 }}
                 ListEmptyComponent={
@@ -795,6 +842,11 @@ export default function ChatScreen() {
                     <EmptyChatState
                       onStarterPress={handleStarterPress}
                       atLimit={atLimit}
+                      // Same value that drives the list's contentFadeStyle, so
+                      // the glass starter prompts switch to 'none' as the list
+                      // fades to 0 during a new-chat swap (Expo glass-fade) —
+                      // not blanked by the opacity-0 ancestor.
+                      fadeProgress={contentOpacity}
                       // Lives inside the scrollable empty state (it only shows
                       // on a fresh chat) so the content never shears against a
                       // pinned banner when the keyboard shrinks the viewport.
@@ -827,6 +879,7 @@ export default function ChatScreen() {
                   />
                 )}
               />
+              </GestureDetector>
               {/* While a picker is open, a transparent layer over the thread turns a
             tap on the conversation into "dismiss the picker" — the same
             tap-away gesture that closes a keyboard. Only mounted when open, so
@@ -839,24 +892,11 @@ export default function ChatScreen() {
                   style={StyleSheet.absoluteFill}
                 />
               ) : null}
-              {/* Header-side counterpart to the dock's fade ramp: a short
-                  backdrop-colored gradient pinned to the thread's top edge,
-                  dissolving messages just before they reach the header. */}
-              <LinearGradient
-                pointerEvents="none"
-                colors={[headerFadeColor, withAlpha(headerFadeColor, 0)]}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: HEADER_FADE_HEIGHT,
-                }}
-              />
+              {/* The thread's top dissolve is handled by the floating header's
+                  own darken fade (AppHeader, rendered below as an overlay). */}
             </View>
             </ThinkingLabelContext.Provider>
+            </TimeRevealContext.Provider>
           </BubbleGradientContext.Provider>
 
           {/* Floating composer dock. Absolutely positioned so the thread
@@ -878,7 +918,7 @@ export default function ChatScreen() {
               ]}
             >
               <LinearGradient
-                colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.94)]}
+                colors={[withAlpha(scrimColor, 0), withAlpha(scrimColor, 0.59)]}
                 start={{ x: 0.5, y: 0 }}
                 end={{ x: 0.5, y: 1 }}
                 style={StyleSheet.absoluteFill}
@@ -888,7 +928,7 @@ export default function ChatScreen() {
               pointerEvents="none"
               style={{
                 ...StyleSheet.absoluteFillObject,
-                backgroundColor: withAlpha(scrimColor, 0.94),
+                backgroundColor: withAlpha(scrimColor, 0.59),
               }}
             />
             <View
@@ -1008,7 +1048,7 @@ export default function ChatScreen() {
                   onFocus={() => applyPickers(dismissPickers())}
                   streaming={status === "streaming"}
                   hasAttachments={stagedImages.length > 0 || stagedGif !== null}
-                  placeholder={t("chat.input.placeholder")}
+                  placeholder={t("chat.input.placeholder", { name: personaTitle })}
                   sendAccessibilityLabel={t("chat.send")}
                   cancelAccessibilityLabel={t("chat.cancel")}
                   expandAccessibilityLabel={t("chat.expand")}
@@ -1082,6 +1122,45 @@ export default function ChatScreen() {
               onPress={handleJumpToLatest}
             />
           </View>
+
+          {/* Free-tier ad banner — pinned just below the floating header so it
+              stays put while the composer + keyboard move. Measured height
+              feeds the list's visual-top inset (0 for Pro, where AdBanner
+              renders nothing). Hidden for Pro (any paid plan). */}
+          <View
+            pointerEvents="box-none"
+            onLayout={(e) => setAdTopInset(e.nativeEvent.layout.height)}
+            style={{
+              position: "absolute",
+              top: headerHeight,
+              left: 0,
+              right: 0,
+            }}
+          >
+            <AdBanner style={{ marginHorizontal: 16 }} />
+          </View>
+
+          {/* Floating header overlay: persona avatar above a glass pill with
+              the persona name. fadeColor is the background-aware top-edge
+              color so a custom chat background doesn't show a wrong band. */}
+          <AppHeader
+            title={personaTitle}
+            avatar={<PersonaAvatar persona={selectedPersona} size={26} />}
+            onTitlePress={openPersonaSheet}
+            fadeColor={headerFadeColor}
+            right={
+              // Always mounted so the button can fade in/out (it self-gates
+              // taps via `visible`). Avoids the hard pop of conditional
+              // mounting — and avoids Reanimated `entering` layout animations,
+              // which leave the native hit-test frame unsynced on Fabric/release
+              // and drop the first tap(s).
+              <NewConversationButton
+                label={t("chat.newConversation")}
+                onPress={handleNewConversation}
+                visible={canStartNew}
+              />
+            }
+          />
 
           <QuotaModal
             quota={quota}

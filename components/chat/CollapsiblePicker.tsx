@@ -1,5 +1,9 @@
 import { type ReactNode } from "react";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated, {
+  type EntryAnimationsValues,
+  FadeOut,
+  withTiming,
+} from "react-native-reanimated";
 
 // Shared open/close timing for the bottom-composer surfaces (meme strip, GIF
 // drawer, staged tray). Opening is a touch slower than closing so the surface
@@ -21,9 +25,25 @@ export const COMPOSER_CLOSE_MS = 200;
 // reports height 0, so the measured value stuck at 0 and the surface never
 // opened. Mounting + fade sidesteps that entirely.
 //
-// Only the surface itself fades — no layout transition is attached to the
+// Only the surface itself animates — no layout transition is attached to the
 // message list or the composer, so the keyboard show/hide stays glued to the
 // input (a list/composer layout transition would visibly lag the keyboard).
+//
+// ENTER is a transform-only rise, NOT a fade: these surfaces hold glass (the
+// meme/GIF search field), and opacity 0 on a glass view blanks the native
+// material permanently for that mount (expo-glass-effect bug — see
+// GlassSurface's opacity-0 note). EXIT keeps the opacity fade: the view is
+// unmounting, so the momentary glass blank is never seen.
+const enteringRise = (_values: EntryAnimationsValues) => {
+  "worklet";
+  return {
+    initialValues: { transform: [{ translateY: 12 }] },
+    animations: {
+      transform: [{ translateY: withTiming(0, { duration: COMPOSER_OPEN_MS }) }],
+    },
+  };
+};
+
 export function CollapsiblePicker({
   open,
   children,
@@ -35,7 +55,7 @@ export function CollapsiblePicker({
 
   return (
     <Animated.View
-      entering={FadeIn.duration(COMPOSER_OPEN_MS)}
+      entering={enteringRise}
       exiting={FadeOut.duration(COMPOSER_CLOSE_MS)}
     >
       {children}

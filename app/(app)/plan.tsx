@@ -1,4 +1,4 @@
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "@/components/AppHeader";
 import { PlanAndUsage } from "@/components/PlanAndUsage";
 import { useTheme } from "@/hooks/useTheme";
 import { useRouter } from "expo-router";
@@ -17,22 +17,25 @@ export default function PlanScreen() {
     else router.replace("/settings");
   };
 
+  const headerHeight = useAppHeaderHeight();
+
   return (
     <View style={{ flex: 1, backgroundColor: theme["--color-background"] }}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingHorizontal: 24,
+          paddingTop: headerHeight + 8,
+          paddingBottom: 48,
+        }}
+        scrollIndicatorInsets={{ top: headerHeight }}
+      >
+        <PlanAndUsage />
+      </ScrollView>
       <AppHeader
         title={t("settings.plan.heading")}
         onBack={handleBack}
         backAccessibilityLabel={t("common.back")}
       />
-      <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: 24,
-          paddingTop: 24,
-          paddingBottom: 48,
-        }}
-      >
-        <PlanAndUsage />
-      </ScrollView>
     </View>
   );
 }

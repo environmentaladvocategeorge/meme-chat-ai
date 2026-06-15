@@ -11,6 +11,7 @@
 // exported here so form controls read cleanly over the gradient.
 
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { gradients } from "@/nativewind-theme";
@@ -91,7 +92,9 @@ export function AuthScaffold({
                 accessibilityLabel="Back"
                 hitSlop={12}
                 size={40}
-                surfaceStyle={styles.back}
+                glass
+                glassTint="rgba(255,255,255,0.16)"
+                fallbackStyle={styles.back}
               >
                 <CaretLeft size={22} color="#FFFFFF" weight="bold" />
               </IconButton>
@@ -115,12 +118,11 @@ export function AuthScaffold({
               ) : null}
             </Animated.View>
 
-            <Animated.View
-              entering={FadeIn.duration(450).delay(220)}
-              style={{ flex: 1 }}
-            >
-              {children}
-            </Animated.View>
+            {/* No opacity entrance here: this wraps the glass-toned inputs/
+                buttons, and opacity 0 on a glass ancestor permanently kills the
+                native material (see GlassSurface's opacity-0 note). The title
+                above keeps its fade; the form simply appears. */}
+            <View style={{ flex: 1 }}>{children}</View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -167,11 +169,7 @@ export function GradientButton({
               shadowOffset: { width: 0, height: 8 },
               elevation: 10,
             }
-          : {
-              backgroundColor: "rgba(255,255,255,0.12)",
-              borderWidth: 1.5,
-              borderColor: "rgba(255,255,255,0.4)",
-            },
+          : null,
         { opacity: isDisabled ? 0.45 : 1 },
       ]}
     >
@@ -182,7 +180,21 @@ export function GradientButton({
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFillObject}
         />
-      ) : null}
+      ) : (
+        // Secondary / Apple CTA: native Liquid Glass over the brand gradient,
+        // tinted so it reads; the old translucent-white fill is the fallback.
+        <GlassSurface
+          pointerEvents="none"
+          glassEffectStyle="regular"
+          tintColor="rgba(255,255,255,0.16)"
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 18 }]}
+          fallbackStyle={{
+            backgroundColor: "rgba(255,255,255,0.12)",
+            borderWidth: 1.5,
+            borderColor: "rgba(255,255,255,0.4)",
+          }}
+        />
+      )}
       <View style={styles.buttonInner}>
         {loading ? (
           <ActivityIndicator color={fg} />
@@ -207,12 +219,8 @@ export function GradientButton({
 }
 
 const styles = StyleSheet.create({
+  // Non-glass fallback look for the back button (glass owns it on iOS 26).
   back: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.22)",

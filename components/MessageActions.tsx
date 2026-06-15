@@ -6,7 +6,6 @@
 // Copy gives a gentler pulse and briefly swaps to a check to confirm.
 
 import { AppPressable } from "@/components/AppPressable";
-import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import * as Clipboard from "expo-clipboard";
 import {
@@ -36,8 +35,6 @@ import {
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   Easing,
-  FadeIn,
-  FadeOut,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -468,8 +465,6 @@ export function MessageActions({
   onEmoji,
   onReplay,
   labels,
-  timestamp,
-  showTimestamp = false,
 }: {
   text: string;
   reaction?: MessageReaction;
@@ -490,9 +485,6 @@ export function MessageActions({
     replay: string;
     react: string;
   };
-  // When the bubble is tapped, its timestamp rides the right edge of this row.
-  timestamp?: string | null;
-  showTimestamp?: boolean;
 }) {
   const theme = useTheme();
   const [copied, setCopied] = useState(false);
@@ -553,8 +545,7 @@ export function MessageActions({
           gap: 2,
           marginTop: 2,
           marginLeft: -6, // pull the row's optical edge back under the bubble
-          // Span the bubble width so the timestamp can sit on its right edge.
-          alignSelf: "stretch",
+          alignSelf: "flex-start",
         },
         enterStyle,
       ]}
@@ -617,20 +608,6 @@ export function MessageActions({
           activeBg: theme["--color-primary-subtle"],
         }}
       />
-
-      {showTimestamp && timestamp ? (
-        // Fades in on tap and floats to the bubble's right edge, sharing the
-        // baseline with the action icons.
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(160)}
-          style={{ marginLeft: "auto", paddingLeft: 8 }}
-        >
-          <Typography variant="micro" style={{ color: idle }}>
-            {timestamp}
-          </Typography>
-        </Animated.View>
-      ) : null}
     </Animated.View>
   );
 }

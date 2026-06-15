@@ -12,6 +12,7 @@
 // placeholder + per-meme watermark already satisfy the guidelines.
 
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { Typography } from "@/components/Typography";
 import { stripCardWidth } from "@/domain/mediaLayout";
 import { useTheme } from "@/hooks/useTheme";
@@ -300,7 +301,7 @@ function SearchBox({
 }) {
   const theme = useTheme();
   return (
-    <View
+    <GlassSurface
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -308,10 +309,12 @@ function SearchBox({
         height: 40,
         paddingHorizontal: 12,
         borderRadius: 999,
+        marginBottom: 10,
+      }}
+      fallbackStyle={{
         backgroundColor: theme["--color-card"],
         borderWidth: 1,
         borderColor: theme["--color-border"],
-        marginBottom: 10,
       }}
     >
       <MagnifyingGlass size={18} color={theme["--color-foreground-muted"]} />
@@ -345,7 +348,7 @@ function SearchBox({
           <X size={16} color={theme["--color-foreground-muted"]} weight="bold" />
         </AppPressable>
       ) : null}
-    </View>
+    </GlassSurface>
   );
 }
 

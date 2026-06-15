@@ -1,20 +1,21 @@
-import { AgentAvatar } from "@/components/AgentAvatar";
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
+import { PersonaAvatar } from "@/components/PersonaAvatar";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import { useOnboardingStore } from "@/store/onboarding";
+import { useSelectedPersona } from "@/store/personas";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
 import Animated, {
-  Easing,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from "react-native-reanimated";
 
 const STARTER_COUNT = 3;
@@ -34,6 +35,7 @@ export function EmptyChatState({
   onStarterPress,
   atLimit,
   header,
+  fadeProgress,
 }: {
   onStarterPress: (text: string) => void;
   atLimit: boolean;
@@ -42,11 +44,19 @@ export function EmptyChatState({
   // content instead of pinning above the list and shearing against it when
   // the keyboard shrinks the viewport.
   header?: ReactNode;
+  // The chat list's content-fade SharedValue. The starter prompts are glass and
+  // the list fades to opacity 0 during a new-chat swap, which would blank the
+  // glass — so it's forwarded to their GlassSurface to flip glassEffectStyle to
+  // 'none' near 0 instead (Expo glass-fade). See GlassSurface's fadeProgress.
+  fadeProgress?: SharedValue<number>;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
   const { colorScheme } = useColorScheme();
   const accentGradient = gradients[colorScheme ?? "light"].accent;
+  // The hero avatar tracks the active chat persona, so an empty chat with a
+  // user-built bot selected shows that bot (not always Brainrot Bot).
+  const selectedPersona = useSelectedPersona();
 
   // One-shot seeded first chat: the moment onboarding finishes, open with
   // Brainrot Bot's fixed welcome + the spec's prompt chips instead of a random intro,
@@ -105,24 +115,29 @@ export function EmptyChatState({
   }, [t, atLimit]);
 
   // Entrance for the whole empty state. Plays once when this mounts — i.e. the
-  // moment the loader clears and Brainrot Bot "wakes up". A soft opacity fade paired
-  // with a gentle spring scale so it eases in instead of hard-blinking. The
-  // animated transform lives on an inner view so it doesn't disturb the
-  // outer scaleY:-1 counter-flip the inverted FlatList requires.
-  const opacity = useSharedValue(0);
+  // moment the loader clears and Brainrot Bot "wakes up". A gentle spring scale +
+  // rise so it eases in instead of hard-blinking. The animated transform lives
+  // on an inner view so it doesn't disturb the outer scaleY:-1 counter-flip the
+  // inverted FlatList requires.
+  //
+  // NOTE: deliberately NO opacity fade. This view wraps the glass starter
+  // prompts, and opacity 0 on a glass ancestor permanently kills the native
+  // material (see GlassSurface's opacity-0 note) — which is why the prompts
+  // were "sometimes glass, sometimes not". Motion-only entrance sidesteps it.
   const scale = useSharedValue(0.92);
+  const translateY = useSharedValue(14);
 
   useEffect(() => {
-    opacity.value = withTiming(1, {
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
-    });
     scale.value = withSpring(1, { damping: 13, stiffness: 170, mass: 0.85 });
-  }, [opacity, scale]);
+    translateY.value = withSpring(0, {
+      damping: 15,
+      stiffness: 170,
+      mass: 0.85,
+    });
+  }, [scale, translateY]);
 
   const entranceStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.value }, { translateY: translateY.value }],
   }));
 
   return (
@@ -149,9 +164,9 @@ export function EmptyChatState({
           entranceStyle,
         ]}
       >
-        {/* No tinted circle behind the bot: it floats, so a fixed teal ring
-            read as a detached outline as the avatar bobbed against it. The
-            charcoal bot coin stands on its own. */}
+        {/* No tinted circle behind the avatar: it floats, so a fixed teal ring
+            read as a detached outline as it bobbed against it. The persona coin
+            stands on its own — the active bot (default or user-built). */}
         <View
           style={{
             width: 104,
@@ -160,7 +175,7 @@ export function EmptyChatState({
             justifyContent: "center",
           }}
         >
-          <AgentAvatar size={84} float />
+          <PersonaAvatar persona={selectedPersona} size={84} float />
         </View>
 
         <View style={{ alignItems: "center", gap: 6 }}>
@@ -196,6 +211,7 @@ export function EmptyChatState({
                 text={starter}
                 index={index}
                 onPress={onStarterPress}
+                fadeProgress={fadeProgress}
               />
             ))}
           </View>
@@ -228,10 +244,12 @@ function StarterPrompt({
   text,
   index,
   onPress,
+  fadeProgress,
 }: {
   text: string;
   index: number;
   onPress: (text: string) => void;
+  fadeProgress?: SharedValue<number>;
 }) {
   const theme = useTheme();
 
@@ -251,19 +269,29 @@ function StarterPrompt({
         paddingHorizontal: 16,
         paddingVertical: 14,
         justifyContent: "center",
-        backgroundColor: theme["--color-card"],
-        borderWidth: 1,
-        borderColor:
-          index % 2 === 0
-            ? theme["--color-border"]
-            : theme["--color-primary-muted"],
-        shadowColor: "#000000",
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 5 },
-        elevation: 2,
       }}
     >
+      {/* Liquid Glass where supported — these float over the (often custom)
+          chat background, so they refract. The previous solid card + tinted
+          border is the non-glass fallback. */}
+      <GlassSurface
+        pointerEvents="none"
+        fadeProgress={fadeProgress}
+        style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
+        fallbackStyle={{
+          backgroundColor: theme["--color-card"],
+          borderWidth: 1,
+          borderColor:
+            index % 2 === 0
+              ? theme["--color-border"]
+              : theme["--color-primary-muted"],
+          shadowColor: "#000000",
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 5 },
+          elevation: 2,
+        }}
+      />
       <Typography
         variant="body-sm"
         weight="semibold"

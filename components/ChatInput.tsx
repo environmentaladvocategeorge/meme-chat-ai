@@ -12,9 +12,12 @@
 //     subtle "expand" icon fades in to the left of the send button.
 //     Tapping it opens a `BottomSheetModal` with the same draft displayed
 //     in a much larger composer surface for longer messages.
-//   - Focus state fades in a soft brand-gradient glow ring around the pill.
+//   - The pill renders as native Liquid Glass where available (GlassSurface),
+//     falling back to the solid input surface elsewhere. No focus treatment:
+//     the keyboard being up already says the composer is focused.
 
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { useChatAccentGradient, useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
@@ -57,6 +60,8 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
+  withSequence,
+  withSpring,
   withTiming,
 } from "react-native-reanimated";
 
@@ -65,7 +70,6 @@ import Animated, {
 export const PILL_RADIUS = 26;
 const SEND_BUTTON_SIZE = 36;
 const EXPAND_HIT_SIZE = 32;
-const RING_INSET = 2;
 const LINE_HEIGHT = 20;
 const TEXT_PADDING_Y = 10;
 const MAX_LINES = 4;
@@ -137,7 +141,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   const gradientStart = chatAccentGradient ? { x: 0, y: 0 } : stockGradient.start;
   const gradientEnd = chatAccentGradient ? { x: 1, y: 1 } : stockGradient.end;
   const activeIconColor = theme["--color-primary-foreground"];
-  const [focused, setFocused] = useState(false);
   // Overflow detection uses an offscreen "shadow" <Text> with the same
   // font + width as the visible TextInput. `shadowHeight` is that Text's
   // natural rendered height, and `contentWidth` lets us pin the shadow to
@@ -145,15 +148,20 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   // would do.
   const [shadowHeight, setShadowHeight] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
-  const focusProgress = useSharedValue(0);
   const overflowProgress = useSharedValue(0);
   // Drives the disabled ↔ active cross-fade on the send button — gradient
   // and white icon fade in, muted icon fades out (and vice versa) as the
   // user types or clears the draft, instead of snapping between states.
   const sendActiveProgress = useSharedValue(0);
-  // Continuous breathing loop. Multiplied into the focus glow's opacity so
-  // the ring gently hovers between ~75% and 100% intensity while focused.
+  // Continuous breathing loop driving the stop button's "working" ring
+  // while a reply streams.
   const pulse = useSharedValue(0);
+  // Tap feedback: a quick dip-and-settle scale plus a faint brighten flash
+  // when the user taps the text area — the small "alive" cue ChatGPT's
+  // composer has. Lives only on the text region so the send/expand buttons
+  // keep their own press animations.
+  const pressScale = useSharedValue(1);
+  const pressGlow = useSharedValue(0);
   const sheetRef = useRef<BottomSheetModal>(null);
   const inputRef = useRef<TextInput>(null);
   const snapPoints = useMemo(() => ["80%"], []);
@@ -171,13 +179,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   // +1 tolerance for subpixel jitter so a perfectly-4-line draft doesn't
   // false-positive.
   const isOverflowing = shadowHeight > MAX_INPUT_HEIGHT + 1;
-
-  useEffect(() => {
-    focusProgress.value = withTiming(focused ? 1 : 0, {
-      duration: 240,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [focused, focusProgress]);
 
   useEffect(() => {
     overflowProgress.value = withTiming(isOverflowing ? 1 : 0, {
@@ -211,12 +212,26 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     opacity: 0.35 + pulse.value * 0.65,
   }));
 
-  const ringStyle = useAnimatedStyle(() => {
-    // Breathe between 75% and 100% of the focus opacity so the glow has a
-    // gentle life of its own instead of sitting completely static.
-    const breath = 0.75 + pulse.value * 0.25;
-    return { opacity: focusProgress.value * breath };
-  });
+  const triggerPressFeedback = useCallback(() => {
+    pressScale.value = withSequence(
+      withTiming(0.98, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withSpring(1, { damping: 15, stiffness: 320, mass: 0.5 }),
+    );
+    pressGlow.value = withSequence(
+      withTiming(1, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: 280, easing: Easing.out(Easing.quad) }),
+    );
+  }, [pressScale, pressGlow]);
+
+  const pressScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+  // Peak ~10% white — a faint highlight, not a flash. pointerEvents none so it
+  // never eats the tap that triggered it.
+  const pressGlowStyle = useAnimatedStyle(() => ({
+    opacity: pressGlow.value * 0.1,
+  }));
+
   const sendActiveStyle = useAnimatedStyle(() => ({
     opacity: sendActiveProgress.value,
   }));
@@ -268,51 +283,30 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
 
   return (
     <>
-      <View style={{ position: "relative" }}>
-        {/* Focus glow ring — gradient with a soft drop-shadow halo. */}
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            {
-              position: "absolute",
-              top: -RING_INSET,
-              left: -RING_INSET,
-              right: -RING_INSET,
-              bottom: -RING_INSET,
-              borderRadius: PILL_RADIUS + RING_INSET,
-              shadowColor: theme["--color-primary"],
-              shadowOpacity: 0.35,
-              shadowRadius: 14,
-              shadowOffset: { width: 0, height: 0 },
-              elevation: 6,
-            },
-            ringStyle,
-          ]}
-        >
-          <LinearGradient
-            colors={gradientColors}
-            start={gradientStart}
-            end={gradientEnd}
-            style={{
-              ...StyleSheet.absoluteFillObject,
-              borderRadius: PILL_RADIUS + RING_INSET,
-            }}
-          />
-        </Animated.View>
-
+      <Animated.View style={[{ position: "relative" }, pressScaleStyle]}>
         {/* Pill. alignItems: flex-end keeps the send button glued to the
-            bottom while the text input grows upward. */}
-        <View
+            bottom while the text input grows upward. Liquid Glass where
+            supported; the old solid input surface otherwise. */}
+        <GlassSurface
           style={{
             borderRadius: PILL_RADIUS,
-            backgroundColor: theme["--color-input"],
             flexDirection: "row",
             alignItems: "flex-end",
             paddingLeft: 16,
             paddingRight: (PILL_RADIUS * 2 - SEND_BUTTON_SIZE) / 2,
             paddingVertical: PILL_PADDING_Y,
           }}
+          fallbackStyle={{ backgroundColor: theme["--color-input"] }}
         >
+          {/* Tap brighten flash — sits over the surface, under the content. */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFillObject,
+              { backgroundColor: "#FFFFFF", borderRadius: PILL_RADIUS },
+              pressGlowStyle,
+            ]}
+          />
           {/* TextInput sized via min/maxHeight so RN auto-grows it
               natively on every keystroke (an explicit JS-controlled
               `height` batches contentSize updates until layout events on
@@ -323,6 +317,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               separated; the wrapper's onLayout feeds the shadow's width. */}
           <View
             onLayout={handleWrapperLayout}
+            onTouchStart={triggerPressFeedback}
             style={{ flex: 1, position: "relative" }}
           >
             {contentWidth > 0 ? (
@@ -352,11 +347,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               ref={inputRef}
               value={value}
               onChangeText={onChangeText}
-              onFocus={() => {
-                setFocused(true);
-                onFocus?.();
-              }}
-              onBlur={() => setFocused(false)}
+              onFocus={() => onFocus?.()}
               placeholder={placeholder}
               placeholderTextColor={theme["--color-foreground-muted"]}
               // Deliberately editable while streaming: the user can draft
@@ -540,8 +531,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
             )}
           </AppPressable>
           </View>
-        </View>
-      </View>
+        </GlassSurface>
+      </Animated.View>
 
       <BottomSheetModal
         ref={sheetRef}
