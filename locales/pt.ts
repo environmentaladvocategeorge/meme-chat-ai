@@ -217,6 +217,7 @@ const pt = {
     settings: "Configurações",
   },
   personas: {
+    editA11y: "Editar {{name}}",
     currentLabel: "Conversando com",
     yourBots: "Seus Brainrot Bots",
     create: "Criar um novo Brainrot Bot",
@@ -237,6 +238,10 @@ const pt = {
     },
   },
   personasCreator: {
+    saveChanges: "Salvar alterações",
+    editExitTitle: "Descartar alterações?",
+    discardChanges: "Descartar alterações",
+    loadError: "Não foi possível carregar este bot. Tente novamente.",
     pickStart: "Escolha um ponto de partida",
     fromScratch: "Começar do zero",
     fromScratchHint: "Monte você mesmo, campo por campo.",

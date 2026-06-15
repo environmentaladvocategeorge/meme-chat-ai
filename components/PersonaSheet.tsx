@@ -44,7 +44,7 @@ import {
 } from "@gorhom/bottom-sheet";
 import { Portal } from "@gorhom/portal";
 import { deletePersonaCallable } from "@/services/firebase/callables";
-import { Check, CheckCircle, Plus, Trash, X } from "phosphor-react-native";
+import { Check, CheckCircle, PencilSimple, Plus, Trash, X } from "phosphor-react-native";
 import { useRouter } from "expo-router";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -136,13 +136,24 @@ export function PersonaSheet() {
 
   const clearMarks = useCallback(() => setMarkedIds(new Set()), []);
 
+  // Selecting no longer auto-closes: the picker doubles as a manage surface
+  // (the hero's Edit acts on the selected persona), so tapping a row updates the
+  // hero + active check and leaves the sheet open. Dismiss is via backdrop/pan.
   const handleSelect = useCallback(
     (personaId: string) => {
       select(personaId);
-      close();
     },
-    [select, close],
+    [select],
   );
+
+  // Edit the currently-selected persona (user bots only — the default isn't
+  // editable). Closes the picker first so the two surfaces don't stack.
+  const handleEditSelected = useCallback(() => {
+    if (selected.kind !== "user") return;
+    const id = selected.persona.id;
+    close();
+    router.push(`/persona-creator?personaId=${id}`);
+  }, [selected, close, router]);
 
   // A user bot's tap: toggles its mark in selection mode, otherwise selects it
   // as the active chat persona. (The default bot bypasses this — it's never
@@ -285,6 +296,27 @@ export function PersonaSheet() {
                 {personaDescription(selected, t("personas.defaultDescription"))}
               </Typography>
             </View>
+
+            {/* Edit the selected persona — user bots only (the default has no
+                editable spec). Sits on the hero (its least-crowded surface) and
+                acts on whatever's currently selected. */}
+            {selected.kind === "user" ? (
+              <IconButton
+                onPress={handleEditSelected}
+                size={38}
+                glass
+                fallbackStyle={{
+                  backgroundColor: theme["--color-card"],
+                  borderWidth: 1,
+                  borderColor: theme["--color-border"],
+                }}
+                accessibilityLabel={t("personas.editA11y", {
+                  name: personaName(selected, t("chat.agentName")),
+                })}
+              >
+                <PencilSimple size={18} weight="bold" color={theme["--color-foreground"]} />
+              </IconButton>
+            ) : null}
           </View>
 
           {/* Section header: "Your Brainrot Bots" + (Drafts pill) + a glass + to

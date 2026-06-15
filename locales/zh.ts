@@ -217,6 +217,7 @@ const zh = {
     settings: "设置",
   },
   personas: {
+    editA11y: "编辑{{name}}",
     currentLabel: "当前聊天对象",
     yourBots: "你的 Brainrot Bot",
     create: "创建新的 Brainrot Bot",
@@ -237,6 +238,10 @@ const zh = {
     },
   },
   personasCreator: {
+    saveChanges: "保存更改",
+    editExitTitle: "放弃更改？",
+    discardChanges: "放弃更改",
+    loadError: "无法加载此机器人。请重试。",
     pickStart: "选一个起点",
     fromScratch: "从零开始",
     fromScratchHint: "自己一项一项来搭。",

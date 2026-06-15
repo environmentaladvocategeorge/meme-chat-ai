@@ -118,6 +118,8 @@ export async function savePersonaCallable(args: {
   persona: PersonaSavePayload;
   personaId?: string;
   avatar?: { url: string; path: string };
+  // Edit-only: clear the stored avatar. Ignored on create / when `avatar` is set.
+  removeAvatar?: boolean;
 }): Promise<SavePersonaResponse> {
   const firebase = getFirebaseServices();
   if (!firebase.available) {

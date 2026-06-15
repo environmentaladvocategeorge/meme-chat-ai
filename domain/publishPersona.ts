@@ -26,12 +26,20 @@ export type PublishDeps = {
   }) => Promise<{ personaId: string }>;
 };
 
-function classify(err: unknown): PublishResult {
+// Maps a savePersona HttpsError message to the UI-facing reason. Shared with the
+// edit flow (domain/savePersonaEdit.ts) so create + edit classify identically.
+export function classifyPersonaSaveError(
+  err: unknown,
+): "rejected" | "unavailable" | "limit" | "error" {
   const message = err instanceof Error ? err.message : "";
-  if (message.includes("moderation_unavailable")) return { ok: false, reason: "unavailable" };
-  if (message.includes("persona_rejected")) return { ok: false, reason: "rejected" };
-  if (message.includes("persona_limit_reached")) return { ok: false, reason: "limit" };
-  return { ok: false, reason: "error" };
+  if (message.includes("moderation_unavailable")) return "unavailable";
+  if (message.includes("persona_rejected")) return "rejected";
+  if (message.includes("persona_limit_reached")) return "limit";
+  return "error";
+}
+
+function classify(err: unknown): PublishResult {
+  return { ok: false, reason: classifyPersonaSaveError(err) };
 }
 
 export async function publishPersonaDraft(

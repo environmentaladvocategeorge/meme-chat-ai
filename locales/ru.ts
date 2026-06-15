@@ -216,6 +216,7 @@ const ru = {
     settings: "Настройки",
   },
   personas: {
+    editA11y: "Изменить {{name}}",
     currentLabel: "Текущий собеседник",
     yourBots: "Ваши Brainrot Bot",
     create: "Создать новый Brainrot Bot",
@@ -236,6 +237,10 @@ const ru = {
     },
   },
   personasCreator: {
+    saveChanges: "Сохранить изменения",
+    editExitTitle: "Отменить изменения?",
+    discardChanges: "Отменить изменения",
+    loadError: "Не удалось загрузить этого бота. Попробуйте ещё раз.",
     pickStart: "Выбери, с чего начать",
     fromScratch: "Начать с нуля",
     fromScratchHint: "Собери сам, поле за полем.",

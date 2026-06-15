@@ -11,6 +11,7 @@ import {
   TypeToPill,
 } from "@/components/personaCreator/inputs";
 import { ReactionPicker } from "@/components/personaCreator/ReactionPicker";
+import { useCreatorSession } from "@/components/personaCreator/CreatorSession";
 import { Typography } from "@/components/Typography";
 import { LIMITS, type PersonaFormValues, type PersonaStep } from "@/domain/personaForm";
 import { useTheme } from "@/hooks/useTheme";
@@ -18,7 +19,6 @@ import {
   pickPersonaAvatar,
   PersonaAvatarError,
 } from "@/services/firebase/uploadPersonaAvatar";
-import { useActiveDraft, usePersonaDraftStore } from "@/store/personaDraft";
 import { CaretDown, CaretRight } from "phosphor-react-native";
 import { useState } from "react";
 import { useController, useFormContext, useWatch } from "react-hook-form";
@@ -132,18 +132,18 @@ function ControlledTags({
 // ── Avatar (lives on the draft, not the form) ─────────────────────────────────
 
 function AvatarField() {
-  const draft = useActiveDraft();
+  const { avatar, setLocalAvatar, removeAvatar } = useCreatorSession();
   const [busy, setBusy] = useState(false);
-  const displayName = useWatch<PersonaFormValues, "displayName">({ name: "displayName" }) ?? "";
-  const monogram = displayName.trim().charAt(0).toUpperCase() || "?";
 
   const pick = async () => {
     setBusy(true);
     try {
       const picked = await pickPersonaAvatar("library");
       if (picked) {
-        usePersonaDraftStore.getState().updateActive({
-          avatar: { localUri: picked.localUri, width: picked.width, height: picked.height },
+        setLocalAvatar({
+          localUri: picked.localUri,
+          width: picked.width,
+          height: picked.height,
         });
       }
     } catch (err) {
@@ -154,14 +154,12 @@ function AvatarField() {
     }
   };
 
-  const remove = () => usePersonaDraftStore.getState().updateActive({ avatar: null });
-
   return (
     <AvatarUploadTile
-      localUri={draft?.avatar?.localUri ?? null}
-      monogram={monogram}
+      localUri={avatar.kind === "local" ? avatar.localUri : null}
+      imageUrl={avatar.kind === "remote" ? avatar.url : null}
       onPick={pick}
-      onRemove={remove}
+      onRemove={removeAvatar}
       busy={busy}
     />
   );
@@ -418,7 +416,8 @@ function ReviewStep() {
   const { t } = useTranslation();
   const theme = useTheme();
   const values = useWatch<PersonaFormValues>() as PersonaFormValues;
-  const draft = useActiveDraft();
+  const { avatar } = useCreatorSession();
+  const hasAvatar = avatar.kind !== "none";
   const name = values.displayName?.trim() || t("personasCreator.field.namePlaceholder");
 
   return (
@@ -446,7 +445,7 @@ function ReviewStep() {
           }}
         >
           <Typography variant="title-lg" style={{ color: theme["--color-foreground"] }}>
-            {(draft?.avatar ? "" : name.charAt(0).toUpperCase()) || "?"}
+            {(hasAvatar ? "" : name.charAt(0).toUpperCase()) || "?"}
           </Typography>
         </View>
         <Typography variant="title-md" style={{ color: theme["--color-foreground"], textAlign: "center" }}>

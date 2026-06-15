@@ -216,6 +216,7 @@ const hi = {
     settings: "Settings",
   },
   personas: {
+    editA11y: "{{name}} संपादित करें",
     currentLabel: "अभी इनके साथ चैट कर रहे हैं",
     yourBots: "आपके Brainrot Bots",
     create: "नया Brainrot Bot बनाएं",
@@ -236,6 +237,10 @@ const hi = {
     },
   },
   personasCreator: {
+    saveChanges: "बदलाव सहेजें",
+    editExitTitle: "बदलाव छोड़ें?",
+    discardChanges: "बदलाव छोड़ें",
+    loadError: "यह बॉट लोड नहीं हो सका। फिर से कोशिश करें।",
     pickStart: "एक शुरुआत चुनो",
     fromScratch: "शुरू से बनाओ",
     fromScratchHint: "खुद बनाओ, एक-एक फ़ील्ड करके।",

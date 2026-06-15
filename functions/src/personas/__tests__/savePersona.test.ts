@@ -156,8 +156,24 @@ function makeDeps(
 ) {
   const { db, docs, setCalls, deleteCalls } = makeDb(initial);
   const moderate = jest.fn().mockResolvedValue(moderationResult);
-  const deps: SavePersonaDeps = { db: db as never, moderate };
-  return { deps, moderate, docs, setCalls, deleteCalls };
+  const deleteObject = jest.fn().mockResolvedValue(undefined);
+  const deps: SavePersonaDeps = { db: db as never, moderate, deleteObject };
+  return { deps, moderate, deleteObject, docs, setCalls, deleteCalls };
+}
+
+// A stored persona that already carries an uploaded avatar (edit fixtures).
+function storedPersonaWithAvatar(id: string, ownerUid: string): Doc {
+  return {
+    ...storedPersona(id, ownerUid),
+    createdAt: "ORIGINAL_TS",
+    publicConfig: {
+      displayName: "Old",
+      shortDescription: "old",
+      toneTags: [],
+      avatarUrl: "https://example.com/personaAvatars/uid-1/old.jpg",
+      avatarPath: "personaAvatars/uid-1/old.jpg",
+    },
+  };
 }
 
 async function expectHttpsError(
@@ -367,6 +383,85 @@ describe("savePersonaForUser", () => {
     expect(setCalls[0].id).toBe("user_uid-1_a1");
     expect(setCalls[0].data.createdAt).toBe("ORIGINAL_TS");
     expect(setCalls[0].data.updatedAt).toBe("SERVER_TS");
+  });
+
+  it("removes the stored avatar on edit when removeAvatar is set, deleting the object", async () => {
+    const { deps, deleteObject, setCalls } = makeDeps({
+      "user_uid-1_a1": storedPersonaWithAvatar("user_uid-1_a1", "uid-1"),
+    });
+
+    await savePersonaForUser(
+      "uid-1",
+      "free",
+      { persona: validInput(), personaId: "user_uid-1_a1", removeAvatar: true },
+      deps,
+    );
+
+    const written = setCalls[0].data as { publicConfig: Record<string, unknown> };
+    expect(written.publicConfig).not.toHaveProperty("avatarUrl");
+    expect(written.publicConfig).not.toHaveProperty("avatarPath");
+    expect(deleteObject).toHaveBeenCalledWith("personaAvatars/uid-1/old.jpg");
+  });
+
+  it("ignores removeAvatar when a new avatar is uploaded (upload wins)", async () => {
+    const { deps, deleteObject, setCalls } = makeDeps({
+      "user_uid-1_a1": storedPersonaWithAvatar("user_uid-1_a1", "uid-1"),
+    });
+    const avatar = {
+      url: "https://example.com/personaAvatars/uid-1/new.jpg",
+      path: "personaAvatars/uid-1/new.jpg",
+    };
+
+    await savePersonaForUser(
+      "uid-1",
+      "free",
+      { persona: validInput(), personaId: "user_uid-1_a1", avatar, removeAvatar: true },
+      deps,
+    );
+
+    const written = setCalls[0].data as { publicConfig: Record<string, unknown> };
+    expect(written.publicConfig.avatarUrl).toBe(avatar.url);
+    // The replaced old object is still cleaned up.
+    expect(deleteObject).toHaveBeenCalledWith("personaAvatars/uid-1/old.jpg");
+  });
+
+  it("deletes the old avatar object when a new avatar replaces it", async () => {
+    const { deps, deleteObject, setCalls } = makeDeps({
+      "user_uid-1_a1": storedPersonaWithAvatar("user_uid-1_a1", "uid-1"),
+    });
+    const avatar = {
+      url: "https://example.com/personaAvatars/uid-1/new.jpg",
+      path: "personaAvatars/uid-1/new.jpg",
+    };
+
+    await savePersonaForUser(
+      "uid-1",
+      "free",
+      { persona: validInput(), personaId: "user_uid-1_a1", avatar },
+      deps,
+    );
+
+    const written = setCalls[0].data as { publicConfig: Record<string, unknown> };
+    expect(written.publicConfig.avatarPath).toBe(avatar.path);
+    expect(deleteObject).toHaveBeenCalledWith("personaAvatars/uid-1/old.jpg");
+  });
+
+  it("carries the stored avatar forward (and deletes nothing) on a plain edit", async () => {
+    const { deps, deleteObject, setCalls } = makeDeps({
+      "user_uid-1_a1": storedPersonaWithAvatar("user_uid-1_a1", "uid-1"),
+    });
+
+    await savePersonaForUser(
+      "uid-1",
+      "free",
+      { persona: validInput(), personaId: "user_uid-1_a1" },
+      deps,
+    );
+
+    const written = setCalls[0].data as { publicConfig: Record<string, unknown> };
+    expect(written.publicConfig.avatarUrl).toBe("https://example.com/personaAvatars/uid-1/old.jpg");
+    expect(written.publicConfig.avatarPath).toBe("personaAvatars/uid-1/old.jpg");
+    expect(deleteObject).not.toHaveBeenCalled();
   });
 
   it("refuses to overwrite someone else's persona without moderating", async () => {

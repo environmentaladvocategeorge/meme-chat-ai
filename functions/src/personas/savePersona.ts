@@ -48,6 +48,9 @@ const requestSchema = z
       .object({ url: z.string().url().max(2048), path: z.string().min(1).max(512) })
       .strict()
       .optional(),
+    // Edit-only: clear the persona's stored avatar (back to a client monogram).
+    // Ignored on create and when a new `avatar` is supplied (the upload wins).
+    removeAvatar: z.boolean().optional(),
   })
   .strict();
 
@@ -66,6 +69,10 @@ export type SavePersonaDeps = {
     input: PersonaModerationInput,
     imageUrl?: string,
   ) => Promise<PersonaModerationResult>;
+  // Best-effort Storage cleanup of an orphaned avatar object (the old one when
+  // an edit replaces or removes it). Injected so the core stays testable; the
+  // callable provides the real deleter. Absent → orphan cleanup is skipped.
+  deleteObject?: (path: string) => Promise<void>;
 };
 
 export async function savePersonaForUser(
@@ -80,6 +87,9 @@ export async function savePersonaForUser(
   }
   const input = parsed.data.persona;
   const avatar = parsed.data.avatar;
+  // Removal only matters on an edit with no replacement upload; a new avatar
+  // always wins over the flag.
+  const removeAvatar = parsed.data.removeAvatar === true && !avatar;
   // A client can only ever upload under its own namespace; reject any path that
   // doesn't sit there before it's stored or moderated.
   if (avatar && !avatar.path.startsWith(`personaAvatars/${uid}/`)) {
@@ -127,11 +137,12 @@ export async function savePersonaForUser(
     publicConfig.avatarKey = input.publicConfig.avatarKey;
   }
   // New avatar wins; otherwise carry forward the existing (already-moderated)
-  // one on an edit. Only a NEW avatar is moderated below.
+  // one on an edit — unless the edit explicitly removed it. Only a NEW avatar is
+  // moderated below.
   if (avatar) {
     publicConfig.avatarUrl = avatar.url;
     publicConfig.avatarPath = avatar.path;
-  } else if (existingAvatarUrl) {
+  } else if (existingAvatarUrl && !removeAvatar) {
     publicConfig.avatarUrl = existingAvatarUrl;
     if (existingAvatarPath) publicConfig.avatarPath = existingAvatarPath;
   }
@@ -196,6 +207,16 @@ export async function savePersonaForUser(
     });
   }
 
+  // Edit cleanup: once the doc is written, drop the now-orphaned old avatar
+  // object — either it was explicitly removed, or a new upload replaced it
+  // (different path). Best-effort: a leftover object must never fail the save.
+  if (deps.deleteObject && existingAvatarPath) {
+    const replaced = !!avatar && existingAvatarPath !== avatar.path;
+    if (removeAvatar || replaced) {
+      await deps.deleteObject(existingAvatarPath).catch(() => {});
+    }
+  }
+
   return { personaId, publicConfig, certainty: verdict.certainty };
 }
 
@@ -236,6 +257,9 @@ export const savePersona = onCall(
     const result = await savePersonaForUser(uid, entitlement.plan, request.data, {
       db: getFirestore(),
       moderate: (input, imageUrl) => service.moderate(input, imageUrl),
+      deleteObject: async (path) => {
+        await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
+      },
     });
 
     logger.info("[savePersona] saved", {

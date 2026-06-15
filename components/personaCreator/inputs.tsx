@@ -4,15 +4,16 @@
 // tag helpers (domain/tagInput) for add/dedupe/cap rules.
 
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { Input } from "@/components/Input";
 import { Typography } from "@/components/Typography";
 import { addTag, removeTag, toggleTag } from "@/domain/tagInput";
 import { useTheme } from "@/hooks/useTheme";
 import { Image } from "expo-image";
-import { Plus, X } from "phosphor-react-native";
-import { useState } from "react";
+import { Camera, Trash, X, type IconProps } from "phosphor-react-native";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 
 function Chip({
   label,
@@ -185,67 +186,177 @@ export function MultiSelectPills({
 }
 
 
-// Avatar upload tile: shows the picked local image (or a monogram fallback) and
-// a button to pick/replace. The picked image stays local until publish.
+const AVATAR_TILE_SIZE = 116;
+const AVATAR_BADGE_SIZE = 38;
+
+// A glass action pill (icon + label) for the avatar tile's controls.
+function AvatarActionPill({
+  label,
+  icon,
+  onPress,
+  muted = false,
+}: {
+  label: string;
+  icon: ReactNode;
+  onPress: () => void;
+  muted?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <AppPressable onPress={onPress} accessibilityLabel={label} pressScale={0.05} hitSlop={6}>
+      <GlassSurface
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 7,
+          height: 40,
+          paddingHorizontal: 16,
+          borderRadius: 20,
+        }}
+        fallbackStyle={{
+          backgroundColor: theme["--color-card"],
+          borderWidth: 1,
+          borderColor: theme["--color-border"],
+        }}
+      >
+        {icon}
+        <Typography
+          variant="caption"
+          weight="semibold"
+          style={{ color: muted ? theme["--color-foreground-muted"] : theme["--color-foreground"] }}
+        >
+          {label}
+        </Typography>
+      </GlassSurface>
+    </AppPressable>
+  );
+}
+
+// Avatar upload tile. A large tappable circle: the picked/stored image when one
+// exists, otherwise a clean glass well with a camera glyph (no monogram/plus —
+// those read as a broken placeholder). A glass camera badge in the corner always
+// signals "tap to change", and glass action pills below carry add/replace/remove.
+// The image stays local until publish; `imageUrl` is the persona's existing
+// uploaded avatar shown when editing.
 export function AvatarUploadTile({
   localUri,
-  monogram,
+  imageUrl = null,
   onPick,
   onRemove,
   busy = false,
 }: {
   localUri: string | null;
-  monogram: string;
+  imageUrl?: string | null;
   onPick: () => void;
   onRemove: () => void;
   busy?: boolean;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const uri = localUri ?? imageUrl;
+  const hasImage = !!uri;
+  const iconProps: IconProps = { size: 15, weight: "bold" };
+
   return (
-    <View style={{ alignItems: "center", gap: 10 }}>
+    <View style={{ alignItems: "center", gap: 18, paddingVertical: 8 }}>
       <AppPressable
         onPress={onPick}
-        accessibilityLabel={t("personasCreator.avatarPick")}
-        pressScale={0.04}
         disabled={busy}
-        style={{
-          width: 96,
-          height: 96,
-          borderRadius: 48,
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          backgroundColor: theme["--color-card-muted"],
-          borderWidth: 1,
-          borderColor: theme["--color-border"],
-        }}
+        accessibilityLabel={
+          hasImage ? t("personasCreator.avatarReplace") : t("personasCreator.avatarAdd")
+        }
+        pressScale={0.05}
+        hitSlop={6}
       >
-        {localUri ? (
-          <Image source={{ uri: localUri }} style={{ width: 96, height: 96 }} contentFit="cover" />
-        ) : (
-          <View style={{ alignItems: "center", gap: 4 }}>
-            <Typography variant="title-lg" style={{ color: theme["--color-foreground"] }}>
-              {monogram}
-            </Typography>
-            <Plus size={16} weight="bold" color={theme["--color-foreground-muted"]} />
+        <View style={{ width: AVATAR_TILE_SIZE, height: AVATAR_TILE_SIZE }}>
+          {hasImage ? (
+            <Image
+              source={{ uri: uri! }}
+              style={{
+                width: AVATAR_TILE_SIZE,
+                height: AVATAR_TILE_SIZE,
+                borderRadius: AVATAR_TILE_SIZE / 2,
+              }}
+              contentFit="cover"
+            />
+          ) : (
+            <GlassSurface
+              tintColor={theme["--color-primary"]}
+              style={{
+                width: AVATAR_TILE_SIZE,
+                height: AVATAR_TILE_SIZE,
+                borderRadius: AVATAR_TILE_SIZE / 2,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              fallbackStyle={{
+                backgroundColor: theme["--color-primary-subtle"],
+                borderWidth: 1,
+                borderColor: theme["--color-border"],
+              }}
+            >
+              <Camera size={36} weight="regular" color={theme["--color-primary"]} />
+            </GlassSurface>
+          )}
+
+          {/* Corner camera badge — always present so the tile reads as editable. */}
+          <View style={{ position: "absolute", right: 0, bottom: 0 }}>
+            <GlassSurface
+              tintColor={theme["--color-primary"]}
+              style={{
+                width: AVATAR_BADGE_SIZE,
+                height: AVATAR_BADGE_SIZE,
+                borderRadius: AVATAR_BADGE_SIZE / 2,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              fallbackStyle={{ backgroundColor: theme["--color-primary"] }}
+            >
+              <Camera size={17} weight="fill" color={theme["--color-primary-foreground"]} />
+            </GlassSurface>
           </View>
-        )}
+
+          {busy ? (
+            <View
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderRadius: AVATAR_TILE_SIZE / 2,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: theme["--color-overlay"],
+              }}
+            >
+              <ActivityIndicator color="#FFFFFF" />
+            </View>
+          ) : null}
+        </View>
       </AppPressable>
-      <View style={{ flexDirection: "row", gap: 16 }}>
-        <AppPressable onPress={onPick} accessibilityLabel={t("personasCreator.avatarPick")} pressScale={0.04}>
-          <Typography variant="caption" weight="semibold" style={{ color: theme["--color-primary"] }}>
-            {localUri ? t("personasCreator.avatarReplace") : t("personasCreator.avatarAdd")}
-          </Typography>
-        </AppPressable>
-        {localUri ? (
-          <AppPressable onPress={onRemove} accessibilityLabel={t("personasCreator.avatarRemove")} pressScale={0.04}>
-            <Typography variant="caption" weight="semibold" style={{ color: theme["--color-foreground-muted"] }}>
-              {t("personasCreator.avatarRemove")}
-            </Typography>
-          </AppPressable>
-        ) : null}
-      </View>
+
+      {hasImage ? (
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <AvatarActionPill
+            label={t("personasCreator.avatarReplace")}
+            icon={<Camera {...iconProps} color={theme["--color-foreground"]} />}
+            onPress={onPick}
+          />
+          <AvatarActionPill
+            label={t("personasCreator.avatarRemove")}
+            icon={<Trash {...iconProps} color={theme["--color-foreground-muted"]} />}
+            onPress={onRemove}
+            muted
+          />
+        </View>
+      ) : (
+        <AvatarActionPill
+          label={t("personasCreator.avatarAdd")}
+          icon={<Camera {...iconProps} color={theme["--color-foreground"]} />}
+          onPress={onPick}
+        />
+      )}
     </View>
   );
 }

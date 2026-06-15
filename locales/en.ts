@@ -252,6 +252,7 @@ const en = {
     settings: "Settings",
   },
   personas: {
+    editA11y: "Edit {{name}}",
     currentLabel: "Currently chatting with",
     yourBots: "Your Brainrot Bots",
     create: "Create a new Brainrot Bot",
@@ -272,6 +273,10 @@ const en = {
     },
   },
   personasCreator: {
+    saveChanges: "Save changes",
+    editExitTitle: "Discard changes?",
+    discardChanges: "Discard changes",
+    loadError: "Couldn't load this bot. Try again.",
     pickStart: "Pick a starting point",
     fromScratch: "Start from scratch",
     fromScratchHint: "Build it yourself, one field at a time.",

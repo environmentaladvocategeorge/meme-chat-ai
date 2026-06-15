@@ -216,6 +216,7 @@ const ja = {
     settings: "設定",
   },
   personas: {
+    editA11y: "{{name}}を編集",
     currentLabel: "現在のチャット相手",
     yourBots: "あなたの Brainrot Bot",
     create: "新しい Brainrot Bot を作成",
@@ -236,6 +237,10 @@ const ja = {
     },
   },
   personasCreator: {
+    saveChanges: "変更を保存",
+    editExitTitle: "変更を破棄しますか？",
+    discardChanges: "変更を破棄",
+    loadError: "このボットを読み込めませんでした。もう一度お試しください。",
     pickStart: "スタート地点を選ぼう",
     fromScratch: "ゼロから作る",
     fromScratchHint: "自分で一項目ずつ作る。",

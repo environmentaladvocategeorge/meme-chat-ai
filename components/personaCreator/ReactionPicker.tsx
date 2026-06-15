@@ -19,10 +19,10 @@ import type { TrendingGif } from "@/domain/gifs";
 import type { TrendingMeme } from "@/domain/memes";
 import type { MediaPick } from "@/domain/personaDrafts";
 import { LIMITS, type PersonaFormValues } from "@/domain/personaForm";
+import { useCreatorSession } from "@/components/personaCreator/CreatorSession";
 import { useKlipy } from "@/hooks/useKlipy";
 import { useKlipyGifs } from "@/hooks/useKlipyGifs";
 import { useTheme } from "@/hooks/useTheme";
-import { useActiveDraft, usePersonaDraftStore } from "@/store/personaDraft";
 import { Image as ExpoImage } from "expo-image";
 import { X } from "phosphor-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,11 +37,11 @@ export function ReactionPicker() {
   const theme = useTheme();
   const [tab, setTab] = useState<Tab>("gifs");
 
-  // The form owns the names (→ media.pills); the draft owns name + thumbnail so
+  // The form owns the names (→ media.pills); the session owns name + thumbnail so
   // the tray can render. We write both on every change so they stay in lockstep.
-  const { setValue } = useFormContext<PersonaFormValues>();
-  const draft = useActiveDraft();
-  const picks = draft?.mediaPicks ?? [];
+  const { setValue, getValues } = useFormContext<PersonaFormValues>();
+  const { mediaPicks, setMediaPicks } = useCreatorSession();
+  const picks = mediaPicks;
 
   // Only the visible tab fetches.
   const gifs = useKlipyGifs({ perPage: 24, enabled: tab === "gifs" });
@@ -51,32 +51,32 @@ export function ReactionPicker() {
 
   const commit = useCallback(
     (next: MediaPick[]) => {
-      usePersonaDraftStore.getState().updateActive({ mediaPicks: next });
+      setMediaPicks(next);
       setValue(
         "mediaPills",
         next.map((p) => p.name),
         { shouldDirty: true, shouldValidate: true },
       );
     },
-    [setValue],
+    [setMediaPicks, setValue],
   );
 
-  // Legacy/safety: a draft made before this step (or via a template) may carry
-  // mediaPills names with no cached thumbnails. Seed the tray from them once so
-  // they show as text chips and aren't silently dropped on the next pick.
+  // Legacy/safety: a session seeded from a template (create) or a stored persona
+  // (edit) may carry mediaPills names with no cached thumbnails. Seed the tray
+  // from them once so they show as text chips and aren't silently dropped on the
+  // next pick.
   const seeded = useRef(false);
   useEffect(() => {
     if (seeded.current) return;
     seeded.current = true;
-    const active = usePersonaDraftStore.getState();
-    const current = active.drafts.find((d) => d.id === active.activeId);
-    if (!current) return;
-    const names = current.values.mediaPills ?? [];
-    if (current.mediaPicks.length === 0 && names.length > 0) {
-      active.updateActive({
-        mediaPicks: names.map((name) => ({ name, previewUrl: "" })),
-      });
+    if (mediaPicks.length === 0) {
+      const names = getValues("mediaPills") ?? [];
+      if (names.length > 0) {
+        setMediaPicks(names.map((name) => ({ name, previewUrl: "" })));
+      }
     }
+    // Run once on mount; intentionally not re-syncing on later changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSelect = useCallback(
@@ -86,14 +86,11 @@ export function ReactionPicker() {
         LIMITS.mediaPill,
       );
       if (!name) return;
-      const current = usePersonaDraftStore.getState();
-      const list =
-        current.drafts.find((d) => d.id === current.activeId)?.mediaPicks ?? [];
-      if (list.length >= LIMITS.mediaPillsMax) return;
-      if (list.some((p) => p.name.toLowerCase() === name.toLowerCase())) return;
-      commit([...list, { name, previewUrl: item.previewUrl }]);
+      if (picks.length >= LIMITS.mediaPillsMax) return;
+      if (picks.some((p) => p.name.toLowerCase() === name.toLowerCase())) return;
+      commit([...picks, { name, previewUrl: item.previewUrl }]);
     },
-    [commit],
+    [commit, picks],
   );
 
   const handleRemove = useCallback(

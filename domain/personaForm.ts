@@ -300,6 +300,42 @@ export function normalizePersonaForm(value: unknown): PersonaFormValues {
   };
 }
 
+// Inverse of toPersonaSavePayload: rebuilds the editable form values from a
+// stored persona `input` blob (the builder edit source persisted in
+// user_personas/{id}). Read defensively — the blob comes straight off Firestore
+// — so a missing/older-shape field falls back to empty rather than crashing the
+// editor. EVERY field in PersonaFormValues must be produced here; a round-trip
+// test guards against a future field being forgotten (which would silently wipe
+// it on edit-save).
+export function personaInputToFormValues(input: unknown): PersonaFormValues {
+  const v = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const asObject = (x: unknown): Record<string, unknown> =>
+    x && typeof x === "object" ? (x as Record<string, unknown>) : {};
+  const publicConfig = asObject(v.publicConfig);
+  const voice = asObject(v.voiceExample);
+  const slang = asObject(v.slang);
+  const media = asObject(v.media);
+  return {
+    displayName: asString(v.displayName),
+    shortDescription: asString(publicConfig.shortDescription),
+    identity: asString(v.identity),
+    toneTags: asStringArray(publicConfig.toneTags),
+    humorTypes: asStringArray(v.humorTypes),
+    greetingShapes: asStringArray(v.greetingShapes),
+    // Stored as the backend's string[]; the field edits a space-separated string
+    // (splitEmojis re-splits on whitespace, so this round-trips cleanly).
+    emojiPalette: asStringArray(v.emojiPalette).join(" "),
+    signatureMove: asString(v.signatureMove),
+    wordBank: asStringArray(v.wordBank),
+    humorExampleShapes: asStringArray(v.humorExampleShapes),
+    voiceUser: asString(voice.user),
+    voiceGood: asString(voice.good),
+    slangGlosses: asString(slang.termGlosses),
+    mediaPills: asStringArray(media.pills),
+    mediaLean: asString(media.lean),
+  };
+}
+
 // The persona payload sent as savePersona's `persona` arg. Drops empty
 // optionals so the strict backend schema accepts it (no empty strings/arrays
 // where it expects an absent field). The avatar is sent separately.

@@ -3,6 +3,7 @@ import {
   isPersonaFormValid,
   LIMITS,
   normalizePersonaForm,
+  personaInputToFormValues,
   PERSONA_STEPS,
   splitEmojis,
   toPersonaSavePayload,
@@ -37,10 +38,70 @@ describe("LIMITS parity with the backend", () => {
       emojiMax: 20,
       toneTag: 24,
       toneTagsMax: 5,
+      wordBankTerm: 60,
+      wordBankMax: 40,
       mediaPill: 60,
       mediaPillsMax: 8,
       mediaLean: 200,
     });
+  });
+});
+
+describe("personaInputToFormValues", () => {
+  it("round-trips a fully-populated form through the save payload and back", () => {
+    // toPersonaSavePayload is the forward map (form → stored input); this is its
+    // inverse. A round-trip must preserve every meaningful field — including
+    // wordBank, the field most recently added.
+    const original = filled({
+      voiceUser: "i bombed it",
+      voiceGood: "we run it back",
+      slangGlosses: "cooked = done for",
+      signatureMove: "ends on a gym metaphor",
+      wordBank: ["lowkey", "cooked", "locked in"],
+      mediaPills: ["gym fail"],
+      mediaLean: "loves a reaction",
+      emojiPalette: "😂 💀 🔥",
+    });
+    const payload = toPersonaSavePayload(original);
+    const rebuilt = personaInputToFormValues(payload);
+    // Forward again from the rebuilt values: the payload must be identical.
+    expect(toPersonaSavePayload(rebuilt)).toEqual(payload);
+    expect(rebuilt.wordBank).toEqual(["lowkey", "cooked", "locked in"]);
+    expect(splitEmojis(rebuilt.emojiPalette)).toEqual(["😂", "💀", "🔥"]);
+  });
+
+  it("defaults every absent optional to empty (no crash on a bare doc)", () => {
+    const bare = personaInputToFormValues({
+      displayName: "Solo",
+      identity: "minimal",
+      greetingShapes: ["hi"],
+      humorTypes: ["dry"],
+      humorExampleShapes: ["short"],
+      emojiPalette: ["🦫"],
+      publicConfig: { shortDescription: "lean", toneTags: ["chill"] },
+    });
+    expect(bare.voiceUser).toBe("");
+    expect(bare.voiceGood).toBe("");
+    expect(bare.slangGlosses).toBe("");
+    expect(bare.signatureMove).toBe("");
+    expect(bare.wordBank).toEqual([]);
+    expect(bare.mediaPills).toEqual([]);
+    expect(bare.mediaLean).toBe("");
+  });
+
+  it("never crashes on a malformed/empty blob", () => {
+    expect(personaInputToFormValues(undefined)).toEqual(EMPTY_PERSONA_FORM);
+    expect(personaInputToFormValues(null)).toEqual(EMPTY_PERSONA_FORM);
+    expect(personaInputToFormValues("garbage")).toEqual(EMPTY_PERSONA_FORM);
+  });
+
+  it("produces a value for EVERY form field (guards against a dropped field)", () => {
+    // If a new field is added to PersonaFormValues but not to the mapper, this
+    // fails — preventing the silent wipe-on-edit it would otherwise cause.
+    const result = personaInputToFormValues(toPersonaSavePayload(filled()));
+    for (const key of Object.keys(EMPTY_PERSONA_FORM)) {
+      expect(result).toHaveProperty(key);
+    }
   });
 });
 
