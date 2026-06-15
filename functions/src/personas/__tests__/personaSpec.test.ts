@@ -244,18 +244,10 @@ describe("assembly contract", () => {
     }
   });
 
-  it("is fully static per variant: per-turn ctx never changes the output", () => {
+  it("is deterministic per variant: same (level, emoji) ctx renders identically", () => {
     const rendered = renderPersonaPrompt(makeSpec());
-    const a = assembleFragments(rendered, {
-      level: 2,
-      emojisEnabled: true,
-      wordBankSample: "TURN A",
-    });
-    const b = assembleFragments(rendered, {
-      level: 2,
-      emojisEnabled: true,
-      wordBankSample: "TURN B",
-    });
+    const a = assembleFragments(rendered, { level: 2, emojisEnabled: true });
+    const b = assembleFragments(rendered, { level: 2, emojisEnabled: true });
     expect(a).toBe(b);
   });
 });

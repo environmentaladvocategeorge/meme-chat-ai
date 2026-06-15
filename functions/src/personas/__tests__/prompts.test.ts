@@ -6,6 +6,7 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
+  PersonaAccessError,
   resolvePersonaForStream,
   DEFAULT_PERSONA_ID,
   MEDIA_DECIDER_KEY,
@@ -449,26 +450,29 @@ describe("user persona resolution", () => {
     expect(resolved.personaPrompt.mediaDeciderKey).toBeUndefined();
   });
 
-  it("falls back to the default persona for someone else's persona id", async () => {
+  it("rejects (throws) someone else's persona id rather than serving or downgrading", async () => {
     setDb({
       ...defaultPersonaCollections(),
       user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
     });
 
-    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-2");
-
-    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+    // uid-2 must never receive uid-1's persona — and must NOT silently get the
+    // default either; it's a hard reject so the HTTP layer can send a generic
+    // error (anti-theft).
+    await expect(
+      resolvePersonaForStream("user_uid-1_a1", "uid-2"),
+    ).rejects.toBeInstanceOf(PersonaAccessError);
   });
 
-  it("falls back when no requester uid is provided", async () => {
+  it("rejects a user_ id when no requester uid is provided", async () => {
     setDb({
       ...defaultPersonaCollections(),
       user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
     });
 
-    const resolved = await resolvePersonaForStream("user_uid-1_a1");
-
-    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+    await expect(
+      resolvePersonaForStream("user_uid-1_a1"),
+    ).rejects.toBeInstanceOf(PersonaAccessError);
   });
 
   it("falls back for a disabled user persona", async () => {

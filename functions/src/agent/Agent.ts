@@ -50,10 +50,6 @@ export type BuildReplyContextArgs = {
   // here so the Agent doesn't read it again. Omitted = the Agent fetches it
   // itself (back-compat). Empty string is a valid value (no memory).
   memoryBlock?: string;
-  // Recent BOT reply texts; bank terms detected in them are excluded from this
-  // turn's word-bank sample (deterministic anti-repetition — see wordBank.ts).
-  // Omitted = no exclusion, the sample still rotates randomly.
-  recentAssistantTexts?: readonly string[];
   excludeMessageIds?: string[];
 };
 
@@ -82,14 +78,10 @@ export class Agent {
         : this.cfg.memory.getMemoryBlock(this.cfg.uid, this.cfg.plan),
     ]);
 
-    // The per-turn word-bank rotation + safety recap rides AFTER the history
-    // (fresh tail) so the system prompt + history stay prefix-cacheable; see
-    // personas/perTurnNote.ts.
-    const perTurnNote = buildPerTurnNote({
-      levelOfRot: this.cfg.levelOfRot,
-      respondWithEmojis: this.cfg.respondWithEmojis ?? true,
-      recentAssistantTexts: args.recentAssistantTexts,
-    });
+    // The per-turn safety recap rides AFTER the history (fresh tail) so the
+    // system prompt + history stay prefix-cacheable; see personas/perTurnNote.ts.
+    // (The word bank now lives in each persona's prompt, not here.)
+    const perTurnNote = buildPerTurnNote();
 
     const history = new ConversationHistory(args.conversationId, this.cfg.plan);
     const assembled = await history.assemble({

@@ -15,24 +15,27 @@ import {
 // instead of a console edit. Editing the live doc without updating the source
 // modules reintroduces seed drift — change here, then push.
 //
+// v5 (2026-06-14): word banks became per-persona. The global rotating word-bank
+// sampler (the old per-turn note) is gone; each persona now owns a static
+// `word_bank` fragment in its prompt, so this default carries the full house
+// bank inline (BRAINROT_PERSONA_SPEC.wordBank). This is the first render that
+// genuinely changes what the model sees vs v3/v4, so the golden snapshots +
+// brainrotSpecRender baseline were intentionally regenerated.
+//
 // v4 (2026-06-12): the hand-written fragment literal became a rendered
 // PersonaSpec — content lives in ./brainrotSpec, structure in ./personaSpec
 // (the template every future persona, including user-built ones, renders
-// through). The rendered fragments are BYTE-IDENTICAL to v3 — pinned by
-// brainrotSpecRender.test.ts against a frozen v3 literal and by the
-// promptInvariants golden snapshots — so pushing v4 changes nothing the model
-// sees, and 1.0.7 clients are unaffected. v3 (2026-06-11) moved the per-turn
-// word-bank rotation + safety recap into a post-history note
-// (personas/perTurnNote.ts) for prefix caching; v2 was the mini-optimized
-// rewrite. The pre-rewrite baseline lives in
-// prompt-snapshots/BASELINE-pre-prompt-optimization.json.
+// through). The v4 fragments were BYTE-IDENTICAL to v3. v3 (2026-06-11) moved
+// the per-turn word-bank rotation + safety recap into a post-history note for
+// prefix caching; v2 was the mini-optimized rewrite. The pre-rewrite baseline
+// lives in prompt-snapshots/BASELINE-pre-prompt-optimization.json.
 //
 // LAYOUT CONTRACT (enforced by promptInvariants.test.ts): this prompt is FULLY
 // static per (rot level, emoji toggle) variant — six cacheable prefixes, with
 // rot_level_block last for recency. Never add per-turn-varying text; it
 // belongs in perTurnNote.ts.
 
-export const BRAINROT_PERSONA_PROMPT_VERSION = "v4-spec-rendered";
+export const BRAINROT_PERSONA_PROMPT_VERSION = "v5-word-bank-inline";
 
 // The live Firestore doc the push script targets.
 export const BRAINROT_PERSONA_PROMPT_DOC_PATH =

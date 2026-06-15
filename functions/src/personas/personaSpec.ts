@@ -20,8 +20,9 @@ import type { FragmentedPrompt, PromptFragment } from "./fragments";
 // LAYOUT CONTRACT (inherited from the v3 prompt, enforced by
 // promptInvariants.test.ts): rendered prompts are FULLY static per
 // (rot level, emoji toggle) variant — six cacheable prefixes, rot_level_block
-// last for recency. Per-turn content (word-bank rotation, safety recap) stays
-// in perTurnNote.ts; never render per-turn-varying text here.
+// last for recency. The only per-turn content (the safety recap) stays in
+// perTurnNote.ts; never render per-turn-varying text here. (The word bank is a
+// static per-persona section now — the `word_bank` fragment — not per-turn.)
 
 // The good/bad few-shot pair in the voice contract — on a mini model the
 // examples are the real dial, so every persona ships one. `bad` shows the
@@ -88,6 +89,11 @@ export type PersonaSpec = {
   };
   // Emoji palette, rendered space-joined into the emoji-gated EMOJI section.
   emojiPalette: string[];
+  // The persona's vocabulary — words/phrases it reaches for, rendered comma-
+  // joined into the WORD BANK section. Replaces the old global rotating sampler:
+  // each persona now owns (and is bounded by) its own bank. Absent/empty = no
+  // WORD BANK section (the fragment drops out cleanly).
+  wordBank?: string[];
   // Media-decider configuration. Absent (or empty) = the persona has no media
   // opinions: default decider, no notes — byte-identical decider prompt.
   media?: PersonaMediaConfig;
@@ -99,8 +105,7 @@ export type PersonaSpec = {
   houseExtras?: PromptFragment[];
 };
 
-// Same pictographic class the rot blocks, word-bank sampler, and output
-// linters use.
+// Same pictographic class the rot blocks and output linters use.
 const EMOJI_RE = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu;
 
 // Derives the emoji-off text variant: removes emoji and collapses ONLY the
@@ -207,6 +212,20 @@ ${spec.slang.termGlosses}
 ${spec.slang.usageNotes}`;
 }
 
+// The persona's vocabulary, rendered as a static section. Replaces the old
+// per-turn rotating sampler: the bank is now part of the (per-variant cacheable)
+// persona prompt, bounded by the builder's count/length caps rather than by
+// sampling. Returns null when the persona has no bank so the fragment drops.
+function wordBank(spec: PersonaSpec): string | null {
+  const terms = (spec.wordBank ?? []).map((t) => t.trim()).filter((t) => t.length > 0);
+  if (terms.length === 0) return null;
+  return `WORD BANK
+
+Words and phrases you actually reach for. Use what fits the moment; never force or spam them, and plain words are always fine.
+
+${terms.join(", ")}`;
+}
+
 const ANTI_REPETITION = `ANTI-REPETITION
 
 Persona comes from rhythm, confidence, and judgment, not stuffed slang; running bits and callbacks are great, copy-paste templates are not. Don't reuse the same greeting shape, joke frame, or humor framing back to back, and often use no address term at all.`;
@@ -226,6 +245,7 @@ Popular ones, use these or others that fit: ${spec.emojiPalette.join(" ")}. Atta
 // prompt: per-variant (not per-turn), placed last because a mini model weights
 // the prompt tail most — houseExtras insert BEFORE it so that never changes.
 export function renderPersonaPrompt(spec: PersonaSpec): FragmentedPrompt {
+  const wordBankText = wordBank(spec);
   return {
     fragmentsVersion: 1,
     joinWith: "\n\n",
@@ -238,6 +258,9 @@ export function renderPersonaPrompt(spec: PersonaSpec): FragmentedPrompt {
       renderStaticFragment("greetings", greetings(spec)),
       renderStaticFragment("voice_humor", voiceHumor(spec)),
       renderStaticFragment("slang", slang(spec)),
+      // The persona's own vocabulary sits with the slang section; dropped when
+      // the persona has no bank (e.g. a user persona that skipped the step).
+      ...(wordBankText ? [renderStaticFragment("word_bank", wordBankText)] : []),
       renderStaticFragment("anti_repetition", ANTI_REPETITION),
       renderStaticFragment("media", MEDIA),
       renderStaticFragment("emoji", emoji(spec), "emojis"),
