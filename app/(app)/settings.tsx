@@ -1,7 +1,7 @@
 import Constants from "expo-constants";
 import { AdBanner } from "@/components/ads/AdBanner";
 import { AppCustomizationSection } from "@/components/AppCustomizationSection";
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "@/components/AppHeader";
 import { AppPressable } from "@/components/AppPressable";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { SettingsRow } from "@/components/SettingsRow";
@@ -17,6 +17,7 @@ import { useAccountSheetStore } from "@/store/accountSheet";
 import { useDisplayPlan } from "@/store/entitlement";
 import { useLanguageSheetStore } from "@/store/languageSheet";
 import { useMemorySheetStore } from "@/store/memorySheet";
+import { useNameSheetStore } from "@/store/nameSheet";
 import { useNotificationsStore } from "@/store/notifications";
 import {
   type Appearance,
@@ -32,6 +33,7 @@ import {
   Flame,
   Lifebuoy,
   ShieldCheck,
+  Smiley,
   Star,
   UserCircle,
 } from "phosphor-react-native";
@@ -115,6 +117,8 @@ export default function SettingsScreen() {
   const openAccount = useAccountSheetStore((s) => s.open);
   const openLanguageSheet = useLanguageSheetStore((s) => s.open);
   const openMemory = useMemorySheetStore((s) => s.open);
+  const openName = useNameSheetStore((s) => s.open);
+  const alias = useSettingsStore((s) => s.alias);
   const openPlan = useOpenPlan();
 
   // Rot Level lives on the chat store; the row just opens the same global
@@ -222,16 +226,18 @@ export default function SettingsScreen() {
     gap: 12,
   } as const;
 
+  const headerHeight = useAppHeaderHeight();
+
   return (
     <View style={{ flex: 1, backgroundColor: theme["--color-background"] }}>
-      <AppHeader title={t("settings.title")} />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: 24,
-          paddingTop: 24,
+          paddingTop: headerHeight + 8,
           paddingBottom: 40,
           gap: 20,
         }}
+        scrollIndicatorInsets={{ top: headerHeight }}
         keyboardShouldPersistTaps="handled"
       >
         {/* 1. Plan & usage */}
@@ -323,6 +329,42 @@ export default function SettingsScreen() {
                 weight="bold"
                 color={theme["--color-foreground-muted"]}
               />
+          </AppPressable>
+
+          {/* Nickname — what the bot calls you. A personalization preference, so
+              it lives here rather than inside the Account sheet. */}
+          <AppPressable
+            onPress={() => openName()}
+            feedback="opacity"
+            accessibilityRole="button"
+            accessibilityLabel={t("account.changeName.title")}
+            style={rowStyle}
+          >
+            <Smiley size={22} weight="bold" color={theme["--color-foreground"]} />
+            <Typography
+              variant="title-sm"
+              style={{ flex: 1, color: theme["--color-foreground"] }}
+            >
+              {t("account.changeName.title")}
+            </Typography>
+            {alias.trim().length > 0 ? (
+              <Typography
+                variant="caption"
+                weight="semibold"
+                numberOfLines={1}
+                style={{
+                  maxWidth: 140,
+                  color: theme["--color-foreground-muted"],
+                }}
+              >
+                {alias.trim()}
+              </Typography>
+            ) : null}
+            <CaretRight
+              size={18}
+              weight="bold"
+              color={theme["--color-foreground-muted"]}
+            />
           </AppPressable>
 
           <SettingsRow label={t("settings.appearance.label")}>
@@ -460,6 +502,7 @@ export default function SettingsScreen() {
           {`v${Constants.expoConfig?.version ?? ""}`}
         </Typography>
       </ScrollView>
+      <AppHeader title={t("settings.title")} />
     </View>
   );
 }
