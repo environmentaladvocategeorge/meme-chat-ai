@@ -2,7 +2,6 @@ import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
-import { rotLevelSampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
 import type { AgentUsage } from "./agent/types";
@@ -647,8 +646,10 @@ export const streamAgentAnswer = onRequest(
         maxOutputTokens: entitlement.maxOutputTokens,
         // No tools: the reaction GIF/meme was already decided + fetched by the
         // decider pre-step, so the reply model just writes text in a single call.
-        // Dial-mapped sampling garnish: L1 narrows top_p, L2/L3 send nothing.
-        sampling: rotLevelSampling(levelOfRot),
+        // No sampling overrides: gpt-5.x reasoning models reject a non-default
+        // top_p, and the rot intensity already lives in the persona few-shots —
+        // not in a sampling knob. Keeping the request param-free also keeps it
+        // fully cacheable.
         signal: abortController.signal,
       })) {
         if (clientClosed) {
