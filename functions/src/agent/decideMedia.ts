@@ -1,6 +1,7 @@
 import { logger } from "firebase-functions";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ReasoningEffort } from "openai/resources/shared";
 import type { ModelUsage } from "../billing/ledger";
 import { resolveModelId } from "../billing/models";
 import type { ChatMessage } from "./types";
@@ -84,9 +85,21 @@ const RESPONSE_FORMAT = {
 // which is exactly the nano/mini capability gap — nano's vague image readings
 // ("dog, sad") collapsed into reaction-bank terms. Billing follows: every usage
 // this module emits is model "mini" so the ledger prices it at mini rates.
+// reasoning_effort "none": gpt-5.4-mini does NOT accept "minimal" (400s the
+// turn — verified live), so "none" is this model's floor and the latency win.
+// The decider is a single classify-then-emit-JSON step, not a multi-hop reason:
+// "low" was spending 19–281 reasoning tokens/turn (the 281-token turns ran 5–8s
+// in prod) for no decision-quality gain. "none" zeroes that out — warm calls
+// land sub-second. Revert to "low" if vision turns (meme-format recognition from
+// GIF frames) regress; the reasoning budget mattered there more than on text.
+// The pinned OpenAI SDK types reasoning_effort as 'low'|'medium'|'high'|null,
+// but gpt-5.4-mini accepts 'none' at the API (verified live). Cast through the
+// SDK type so the spread typechecks; drop the cast when the SDK is bumped.
+const DECIDER_REASONING_EFFORT = "none" as unknown as ReasoningEffort;
+
 export const DECIDER_CALL_CONFIG = {
   model: resolveModelId("mini"),
-  reasoning_effort: "low" as const,
+  reasoning_effort: DECIDER_REASONING_EFFORT,
   max_completion_tokens: 1000,
   response_format: RESPONSE_FORMAT,
 } as const;
@@ -209,9 +222,9 @@ export async function decideMedia(args: {
     const completion = await client.chat.completions.create(
       {
         ...DECIDER_CALL_CONFIG,
-        // Reasoning model: max_completion_tokens covers reasoning + the tiny JSON
-        // verdict. Low effort + real headroom (matching the title model) so the
-        // reasoning pass can't starve the decision into an empty/length finish.
+        // Reasoning model: max_completion_tokens covers (now-zero) reasoning + the
+        // tiny JSON verdict. effort "none" means the budget is essentially all
+        // output headroom, so the verdict can't hit a length finish.
         messages: buildDeciderMessages({
           systemPrompt: args.systemPrompt,
           memoryBlock: args.memoryBlock,
