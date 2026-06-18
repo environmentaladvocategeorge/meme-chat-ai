@@ -1,14 +1,73 @@
 import { AppPressable } from "@/components/AppPressable";
-import { MemeAvatar } from "@/components/MemeAvatar";
+import { MemeAvatar, type MemeAvatarVariant } from "@/components/MemeAvatar";
 import { Typography } from "@/components/Typography";
+import { MAX_PERSONAS_PER_CONVERSATION } from "@/domain/personas";
 import { type UsageState } from "@/domain/usage";
 import { useResetCountdown } from "@/hooks/useResetCountdown";
 import { useTheme } from "@/hooks/useTheme";
+import { gradients } from "@/nativewind-theme";
+import { LinearGradient } from "expo-linear-gradient";
+import { useColorScheme } from "nativewind";
 import { X } from "phosphor-react-native";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { UpgradeButton } from "./UpgradeButton";
+
+// Shared "block that replaces the composer" shell: avatar + title + body, with
+// an action area (one or more buttons) below. Both the usage limit and the
+// per-conversation bot limit render through this so the two gates look like one
+// consistent treatment in the composer dock.
+function ComposerBlock({
+  avatarVariant,
+  title,
+  body,
+  children,
+}: {
+  avatarVariant: MemeAvatarVariant;
+  title: string;
+  body: string;
+  children: ReactNode;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 14,
+        padding: 14,
+        borderRadius: 20,
+        backgroundColor: theme["--color-card"],
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+      }}
+    >
+      <MemeAvatar variant={avatarVariant} size={48} pulse />
+      <View style={{ flex: 1, gap: 8 }}>
+        <View>
+          <Typography
+            variant="body"
+            weight="semibold"
+            style={{ color: theme["--color-foreground"] }}
+          >
+            {title}
+          </Typography>
+          <Typography
+            variant="caption"
+            style={{
+              color: theme["--color-foreground-secondary"],
+              marginTop: 1,
+            }}
+          >
+            {body}
+          </Typography>
+        </View>
+        {children}
+      </View>
+    </View>
+  );
+}
 
 // Inline 90% nudge above the composer. Cute, compact, dismissible — a single
 // tap takes the user to Plan & Usage.
@@ -111,45 +170,96 @@ export function UsageLimitBlock({
   onUpgrade: () => void;
 }) {
   const { t } = useTranslation();
-  const theme = useTheme();
   const when = useResetCountdown(usage.bindingResetAt);
 
   return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 14,
-        padding: 14,
-        borderRadius: 20,
-        backgroundColor: theme["--color-card"],
-        borderWidth: 1,
-        borderColor: theme["--color-border"],
-      }}
+    <ComposerBlock
+      avatarVariant="worried"
+      title={t("chat.usage.atTitle")}
+      // Top tier has nothing to upgrade to, so its body never mentions it.
+      body={t(isTopTier ? "chat.usage.atBodyTopTier" : "chat.usage.atBody", { when })}
     >
-      <MemeAvatar variant="worried" size={48} pulse />
-      <View style={{ flex: 1, gap: 8 }}>
-        <View>
-          <Typography
-            variant="body"
-            weight="semibold"
-            style={{ color: theme["--color-foreground"] }}
+      <UpgradeButton isTopTier={isTopTier} onPress={onUpgrade} height={44} />
+    </ComposerBlock>
+  );
+}
+
+// Block that replaces the composer when the user switches to a brand-new bot in
+// a conversation that already holds the max distinct bots (see
+// MAX_PERSONAS_PER_CONVERSATION). Five bots in one thread is plenty; rather than
+// silently dropping the send we offer the two ways forward: start a fresh chat,
+// or pick a bot already in this thread.
+export function PersonaLimitBlock({
+  onNewChat,
+  onChooseAnother,
+}: {
+  onNewChat: () => void;
+  onChooseAnother: () => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const { colorScheme } = useColorScheme();
+  const gradient = gradients[colorScheme ?? "light"].primary;
+
+  return (
+    <ComposerBlock
+      avatarVariant="cool"
+      title={t("chat.personaLimit.title")}
+      body={t("chat.personaLimit.body", { max: MAX_PERSONAS_PER_CONVERSATION })}
+    >
+      <View style={{ flexDirection: "row", gap: 10 }}>
+        {/* Primary: start fresh — the gradient CTA, matching the usage block. */}
+        <AppPressable
+          accessibilityLabel={t("chat.personaLimit.newChat")}
+          onPress={onNewChat}
+          haptic
+          feedback="opacity"
+          containerStyle={{ flex: 1 }}
+          style={{ height: 44, borderRadius: 22, overflow: "hidden" }}
+        >
+          <LinearGradient
+            colors={gradient.colors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View
+            style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
           >
-            {t("chat.usage.atTitle")}
-          </Typography>
+            <Typography
+              variant="title-sm"
+              style={{ color: "#FFFFFF", fontWeight: "800" }}
+            >
+              {t("chat.personaLimit.newChat")}
+            </Typography>
+          </View>
+        </AppPressable>
+        {/* Secondary: stay in this thread but pick an existing bot — a quiet
+            bordered button so the primary action reads first. */}
+        <AppPressable
+          accessibilityLabel={t("chat.personaLimit.chooseAnother")}
+          onPress={onChooseAnother}
+          haptic
+          feedback="opacity"
+          containerStyle={{ flex: 1 }}
+          style={{
+            height: 44,
+            borderRadius: 22,
+            alignItems: "center",
+            justifyContent: "center",
+            borderWidth: 1,
+            borderColor: theme["--color-border"],
+            backgroundColor: theme["--color-background-muted"],
+          }}
+        >
           <Typography
-            variant="caption"
-            style={{
-              color: theme["--color-foreground-secondary"],
-              marginTop: 1,
-            }}
+            variant="title-sm"
+            style={{ color: theme["--color-foreground"], fontWeight: "800" }}
           >
-            {/* Top tier has nothing to upgrade to, so its body never mentions it. */}
-            {t(isTopTier ? "chat.usage.atBodyTopTier" : "chat.usage.atBody", { when })}
+            {t("chat.personaLimit.chooseAnother")}
           </Typography>
-        </View>
-        <UpgradeButton isTopTier={isTopTier} onPress={onUpgrade} height={44} />
+        </AppPressable>
       </View>
-    </View>
+    </ComposerBlock>
   );
 }

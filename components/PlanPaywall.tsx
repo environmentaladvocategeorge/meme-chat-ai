@@ -49,7 +49,7 @@ const FEATURE_KEYS: readonly ["chats", "bots", "memory", "customization", "adFre
 const MATRIX_PLANS: readonly PlanId[] = ["free", "basic", "plus", "power"] as const;
 
 const PLAN_EMOJI: Record<PlanId, string> = {
-  free: "🌱",
+  free: "😊",
   basic: "🚀",
   plus: "🔥",
   power: "⚡",

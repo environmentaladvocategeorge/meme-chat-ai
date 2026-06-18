@@ -39,7 +39,11 @@ import {
 import { QuotaModal } from "@/components/chat/QuotaModal";
 import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
-import { UsageLimitBlock, UsageNudge } from "@/components/chat/UsageNotices";
+import {
+  PersonaLimitBlock,
+  UsageLimitBlock,
+  UsageNudge,
+} from "@/components/chat/UsageNotices";
 import { ComposerSkeleton } from "@/components/chat/ComposerSkeleton";
 import { ScrollToBottomButton } from "@/components/chat/ScrollToBottomButton";
 import { TrendingMemeStrip } from "@/components/TrendingMemeStrip";
@@ -73,7 +77,12 @@ import {
   usePersonaSelectionReady,
   usePersonaStore,
 } from "@/store/personas";
-import { DEFAULT_PERSONA_ID, resolvePersonaSlot } from "@/domain/personas";
+import {
+  collectParticipantPersonaIds,
+  DEFAULT_PERSONA_ID,
+  isPersonaLimitReached,
+  resolvePersonaSlot,
+} from "@/domain/personas";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -329,20 +338,38 @@ export default function ChatScreen() {
   const currentPersonaId =
     selectedPersona.kind === "default" ? DEFAULT_PERSONA_ID : selectedPersona.persona.id;
 
-  // Show a per-message bot avatar once 2+ bots are in play. The conversation
-  // doc's participantPersonaIds is the authoritative set (it includes bots whose
-  // replies have scrolled out of the live window); we still union in the loaded
-  // replies' personas and the currently selected one so it flips on immediately
-  // when switching to a second bot, before the doc round-trips.
-  // Pre-tracking default replies have no personaId, so they count as the default.
+  // The distinct bots that have ALREADY taken part in this conversation — the
+  // conversation doc's authoritative set (it includes bots whose replies have
+  // scrolled out of the live window) unioned with the loaded replies' personas.
+  // Deliberately does NOT include the currently-selected bot: this is the
+  // "prior crew", which both the multi-bot avatar toggle and the per-thread bot
+  // cap derive from. Pre-tracking replies have no personaId → counted as default.
+  const priorPersonaIds = useMemo(
+    () =>
+      collectParticipantPersonaIds(
+        participantPersonaIds,
+        allMessages.filter((m) => m.role === "agent").map((m) => m.personaId),
+      ),
+    [allMessages, participantPersonaIds],
+  );
+
+  // Show a per-message bot avatar once 2+ bots are in play. We union the
+  // currently-selected bot into the prior crew so it flips on immediately when
+  // switching to a second bot, before the doc round-trips.
   const multiBot = useMemo(() => {
-    const ids = new Set<string>(participantPersonaIds);
-    for (const m of allMessages) {
-      if (m.role === "agent") ids.add(m.personaId ?? DEFAULT_PERSONA_ID);
-    }
-    ids.add(currentPersonaId);
-    return ids.size >= 2;
-  }, [allMessages, currentPersonaId, participantPersonaIds]);
+    const distinct = priorPersonaIds.has(currentPersonaId)
+      ? priorPersonaIds.size
+      : priorPersonaIds.size + 1;
+    return distinct >= 2;
+  }, [priorPersonaIds, currentPersonaId]);
+
+  // True when the user has switched to a brand-new bot in a thread that already
+  // holds the max distinct bots — sending would make it one too many. We block
+  // the send and swap the composer for a "pick another / start fresh" prompt.
+  const personaLimitReached = useMemo(
+    () => isPersonaLimitReached(priorPersonaIds, currentPersonaId),
+    [priorPersonaIds, currentPersonaId],
+  );
 
   // Resolve a message's sender bot once, in the parent, rather than each bubble
   // subscribing to the persona store. Stable across renders unless the saved
@@ -391,6 +418,10 @@ export default function ChatScreen() {
 
   const handleSubmit = () => {
     if (atLimit) return;
+    // A brand-new bot can't join a thread that's already at the cap — the
+    // composer is swapped for the PersonaLimitBlock, but guard the send path
+    // too in case a draft was in flight when the gate flipped.
+    if (personaLimitReached) return;
     // Typing is allowed during a reply, sending is not. Guarded here (before
     // the draft is optimistically cleared — otherwise a bypassed send would
     // eat the message) and again inside sendMessage itself.
@@ -423,7 +454,7 @@ export default function ChatScreen() {
   // rather than firing the message off. The user can tweak it (or just hit
   // send), so a starter is a head-start, not an irreversible send.
   const handleStarterPress = (text: string) => {
-    if (atLimit) return;
+    if (atLimit || personaLimitReached) return;
     setDraft(text);
     chatInputRef.current?.focus();
   };
@@ -823,6 +854,16 @@ export default function ChatScreen() {
                 data={visibleMessages}
                 keyExtractor={messageKey}
                 keyboardShouldPersistTaps="handled"
+                // Instagram-style swipe-to-dismiss: starting a drag on the
+                // thread dismisses the keyboard. "on-drag" (not "interactive")
+                // is deliberate — the composer dock tracks the keyboard via the
+                // JS keyboardWillHide event (AppKeyboardAvoidingView), which
+                // only fires on dismiss, not during an interactive finger-drag.
+                // So on-drag keeps the keyboard + composer descending together;
+                // interactive would leave the dock floating with a gap until
+                // release. (Faithful finger-tracking needs a native keyboard
+                // module, and those crash this Expo Go — see chat memory.)
+                keyboardDismissMode="on-drag"
                 onScroll={scrollHandler}
                 scrollEventThrottle={16}
                 onContentSizeChange={handleContentSizeChange}
@@ -1000,6 +1041,17 @@ export default function ChatScreen() {
                   usage={usage}
                   isTopTier={isTopTier}
                   onUpgrade={openPlan}
+                />
+              </View>
+            ) : personaLimitReached ? (
+              // This thread already holds the max distinct bots and the user has
+              // switched to a new one. Swap the composer for the two ways
+              // forward: start fresh, or pick a bot already in the thread. Plain
+              // View (no `entering`) to keep the buttons' hit-test frame synced.
+              <View>
+                <PersonaLimitBlock
+                  onNewChat={handleNewConversation}
+                  onChooseAnother={openPersonaSheet}
                 />
               </View>
             ) : (
