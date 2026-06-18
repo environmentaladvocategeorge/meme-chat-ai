@@ -1,4 +1,4 @@
-# MeMe Chat AI — App Store & Google Play Privacy Disclosure Sheet
+# Meme Chat AI — App Store & Google Play Privacy Disclosure Sheet
 
 Working draft to fill out Apple's **App Privacy** ("Privacy Nutrition Label") and Google Play's
 **Data safety** form. Designed to line up 1:1 with `website/public/privacy.html`. Items needing a
