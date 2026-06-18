@@ -1084,6 +1084,7 @@ export default function ChatScreen() {
                       onEndReached={klipy.loadMore}
                       onRetry={klipy.retry}
                       onSelectItem={handleSelectMeme}
+                      bleed={16}
                       labels={{
                         searchPlaceholder: t("chat.memes.searchPlaceholder"),
                         empty: t("chat.memes.empty"),
@@ -1111,6 +1112,7 @@ export default function ChatScreen() {
                       onRetry={klipyGifs.retry}
                       onSelectItem={handleSelectGif}
                       animated
+                      bleed={16}
                       labels={{
                         searchPlaceholder: t("chat.gifs.searchPlaceholder"),
                         empty: t("chat.gifs.empty"),

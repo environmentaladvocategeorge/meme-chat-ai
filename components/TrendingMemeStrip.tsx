@@ -83,6 +83,11 @@ type TrendingMemeStripProps<T extends StripMedia> = {
   // When true, cards render the animated asset (GIFs) via expo-image instead of
   // a static still.
   animated?: boolean;
+  // Horizontal padding of the parent container. The scrolling row breaks out of
+  // it with a negative margin and re-adds it as leading/trailing content padding
+  // — so the first card lines up with the search box at rest, but cards scroll
+  // edge-to-edge off the screen instead of being clipped at the parent's inset.
+  bleed?: number;
   labels: MemeStripLabels;
 };
 
@@ -367,6 +372,7 @@ export function TrendingMemeStrip<T extends StripMedia>({
   onRetry,
   onSelectItem,
   animated,
+  bleed = 0,
   labels,
 }: TrendingMemeStripProps<T>) {
   const theme = useTheme();
@@ -445,7 +451,14 @@ export function TrendingMemeStrip<T extends StripMedia>({
         keyboardShouldPersistTaps="handled"
         // Keep mounted cards alive so their entrance doesn't replay on scroll.
         removeClippedSubviews={false}
-        contentContainerStyle={{ gap: CARD_GAP, paddingHorizontal: 2 }}
+        // Full-bleed: cancel the parent's padding so the row reaches the screen
+        // edges, then re-add it inside so the first/last cards still sit at the
+        // resting inset (see `bleed`).
+        style={bleed > 0 ? { marginHorizontal: -bleed } : undefined}
+        contentContainerStyle={{
+          gap: CARD_GAP,
+          paddingHorizontal: bleed > 0 ? bleed : 2,
+        }}
         renderItem={({ item, index }) => (
           <MemeCard
             meme={item}

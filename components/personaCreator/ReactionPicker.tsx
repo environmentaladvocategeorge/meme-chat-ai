@@ -176,6 +176,7 @@ export function ReactionPicker() {
               onRetry={gifs.retry}
               onSelectItem={handleSelect}
               animated
+              bleed={20}
               labels={labels}
             />
           ) : (
@@ -193,6 +194,7 @@ export function ReactionPicker() {
               onEndReached={memes.loadMore}
               onRetry={memes.retry}
               onSelectItem={handleSelect}
+              bleed={20}
               labels={labels}
             />
           )}
