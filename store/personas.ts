@@ -24,6 +24,11 @@ type PersonaState = {
   selectedPersonaId: string;
   personas: UserPersonaSummary[];
   status: PersonaListStatus;
+  // True once hydrateSelection() has finished reading the persisted pick. Until
+  // then the chat header shows a loading pill instead of guessing the default —
+  // otherwise a returning user with a saved bot flashes Brainrot Bot before the
+  // restore + list resolve. See usePersonaSelectionReady.
+  selectionHydrated: boolean;
   // Reads the persisted selection. Called early at startup, alongside the other
   // store hydrate()s, so the header shows the right persona before the list
   // (which validates it) has loaded.
@@ -44,6 +49,7 @@ export const usePersonaStore = create<PersonaState>()((set, get) => ({
   selectedPersonaId: DEFAULT_PERSONA_ID,
   personas: [],
   status: "idle",
+  selectionHydrated: false,
 
   hydrateSelection: async () => {
     try {
@@ -51,6 +57,8 @@ export const usePersonaStore = create<PersonaState>()((set, get) => ({
       if (stored) set({ selectedPersonaId: stored });
     } catch {
       // Selection is non-critical — fall back to the default on a read error.
+    } finally {
+      set({ selectionHydrated: true });
     }
   },
 
@@ -94,6 +102,27 @@ export const usePersonaStore = create<PersonaState>()((set, get) => ({
     AsyncStorage.removeItem(SELECTED_KEY).catch(() => {});
   },
 }));
+
+// Whether the selected persona can be shown for real (vs. a loading placeholder).
+// True when the persisted pick has been read AND — if it points at a user bot —
+// the list it lives in has settled (ready/error). A pick of the default needs no
+// list, so it's ready the moment the persisted read finishes. This is what stops
+// the "Brainrot Bot → your bot" flash on cold start for a returning user.
+export function usePersonaSelectionReady(): boolean {
+  const selectionHydrated = usePersonaStore((s) => s.selectionHydrated);
+  const selectedPersonaId = usePersonaStore((s) => s.selectedPersonaId);
+  const personas = usePersonaStore((s) => s.personas);
+  const status = usePersonaStore((s) => s.status);
+  if (!selectionHydrated) return false;
+  if (selectedPersonaId === DEFAULT_PERSONA_ID) return true;
+  // The selected bot is already loaded — resolvable now, even if a background
+  // re-hydrate is in flight (so creating/editing a bot or a foreground refresh
+  // never flashes the skeleton back over an already-known pick).
+  if (personas.some((p) => p.id === selectedPersonaId)) return true;
+  // Not in the list yet: still resolving until the list has actually settled
+  // (then resolveSelectedPersona applies the default fallback if it's missing).
+  return status === "ready" || status === "error";
+}
 
 // The resolved active persona (default or a hydrated user persona), with the
 // deleted-elsewhere fallback applied. Drives the chat header pill + the

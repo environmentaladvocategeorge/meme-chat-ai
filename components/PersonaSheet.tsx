@@ -16,14 +16,19 @@
 // Mounted once at the root layout (like the other global sheets) so it spans
 // the full width and survives navigation.
 
-import { AppPressable, SheetTouchableProvider } from "@/components/AppPressable";
+import {
+  AppPressable,
+  SheetTouchableProvider,
+} from "@/components/AppPressable";
 import { AdBanner } from "@/components/ads/AdBanner";
 import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { PersonaAvatar } from "@/components/PersonaAvatar";
 import { UpgradeButton } from "@/components/chat/UpgradeButton";
+import { DeleteConfirm } from "@/components/personaCreator/DeletePersonaConfirm";
 import { DraftsPopover } from "@/components/personaCreator/DraftsPopover";
+import { PersonaRow } from "@/components/personaCreator/PersonaRow";
 import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import {
@@ -34,7 +39,7 @@ import {
 import { useTheme } from "@/hooks/useTheme";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
 import { useDisplayPlan } from "@/store/entitlement";
-import { usePersonaDraftStore } from "@/store/personaDraft";
+import { usePersonaDraftStore, useSavedDrafts } from "@/store/personaDraft";
 import { usePersonaSheetStore } from "@/store/personaSheet";
 import { usePersonaStore, useSelectedPersona } from "@/store/personas";
 import {
@@ -42,18 +47,16 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
-import { Portal } from "@gorhom/portal";
 import { deletePersonaCallable } from "@/services/firebase/callables";
-import { Check, CheckCircle, PencilSimple, Plus, Trash, X } from "phosphor-react-native";
+import { PencilSimple, Plus, Trash, X } from "phosphor-react-native";
 import { useRouter } from "expo-router";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
+import { Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
   Easing,
   FadeIn,
-  FadeOut,
   LinearTransition,
 } from "react-native-reanimated";
 
@@ -77,7 +80,9 @@ export function PersonaSheet() {
   const selected = useSelectedPersona();
 
   const router = useRouter();
-  const drafts = usePersonaDraftStore((s) => s.drafts);
+  // Saved drafts only — a just-created, never-saved working draft must not bump
+  // the pill (the user sees "Drafts (1)" the moment they tap Create otherwise).
+  const drafts = useSavedDrafts();
   const openDraft = usePersonaDraftStore((s) => s.open);
   const discardDraft = usePersonaDraftStore((s) => s.discard);
 
@@ -94,9 +99,23 @@ export function PersonaSheet() {
     else sheetRef.current?.dismiss();
   }, [isOpen]);
 
-  // The glass drafts popover, anchored just under the header row.
+  // The glass drafts popover, anchored just under the header row. The popover
+  // renders in a full-window Modal (so its dim covers the whole page, not just
+  // the sheet), so the anchor is measured in WINDOW coordinates, not relative.
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [anchorBottom, setAnchorBottom] = useState(0);
+  const headerRowRef = useRef<View>(null);
+  const measureHeaderRow = useCallback(() => {
+    headerRowRef.current?.measureInWindow((_x, y, _w, h) =>
+      setAnchorBottom(y + h),
+    );
+  }, []);
+  const toggleDrafts = useCallback(() => {
+    setDraftsOpen((prev) => {
+      if (!prev) measureHeaderRow(); // re-measure on open (sheet is settled)
+      return !prev;
+    });
+  }, [measureHeaderRow]);
 
   // Close the popover when the sheet closes or the last draft is removed.
   useEffect(() => {
@@ -114,7 +133,17 @@ export function PersonaSheet() {
   const [markedIds, setMarkedIds] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Brief post-success "Deleted" confirmation shown before the modal closes.
+  const [deleted, setDeleted] = useState(false);
   const selectionMode = markedIds.size > 0;
+
+  // Display names of the marked bots — the confirm modal needs them for its
+  // "Delete {name}" title and type-to-confirm target. Snapshotted from the live
+  // list so the modal keeps the right names even as rows are about to leave.
+  const markedNames = useMemo(
+    () => personas.filter((p) => markedIds.has(p.id)).map((p) => p.displayName),
+    [personas, markedIds],
+  );
 
   // Leaving the sheet (or losing the underlying bots) drops any in-progress
   // selection so it never lingers into the next open.
@@ -122,6 +151,7 @@ export function PersonaSheet() {
     if (!isOpen) {
       setMarkedIds(new Set());
       setConfirmOpen(false);
+      setDeleted(false);
     }
   }, [isOpen]);
 
@@ -172,16 +202,21 @@ export function PersonaSheet() {
     setDeleting(true);
     try {
       await Promise.all(ids.map((id) => deletePersonaCallable(id)));
-      // Drop them locally so the rows animate out (exit + reflow) without a
-      // round-trip re-fetch; the selection reset to default is handled inside.
-      usePersonaStore.getState().removeMany(ids);
-      clearMarks();
-      setConfirmOpen(false);
+      // Success: flip to the "Deleted" confirmation, hold it briefly, THEN drop
+      // the rows locally (exit + reflow) and close. Dropping after the close
+      // keeps the modal's title/name intact while the success state shows.
+      setDeleting(false);
+      setDeleted(true);
+      setTimeout(() => {
+        usePersonaStore.getState().removeMany(ids);
+        clearMarks();
+        setConfirmOpen(false);
+        setDeleted(false);
+      }, 850);
     } catch (err) {
       console.warn("[personas] delete failed:", err);
-      Alert.alert(t("common.error"));
-    } finally {
       setDeleting(false);
+      Alert.alert(t("common.error"));
     }
   }, [markedIds, clearMarks, t]);
 
@@ -270,7 +305,9 @@ export function PersonaSheet() {
           >
             <PersonaAvatar persona={selected} size={56} />
             <View style={{ flex: 1, gap: 3 }}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
                 <Typography
                   variant="title-lg"
                   numberOfLines={1}
@@ -314,7 +351,11 @@ export function PersonaSheet() {
                   name: personaName(selected, t("chat.agentName")),
                 })}
               >
-                <PencilSimple size={18} weight="bold" color={theme["--color-foreground"]} />
+                <PencilSimple
+                  size={18}
+                  weight="bold"
+                  color={theme["--color-foreground"]}
+                />
               </IconButton>
             ) : null}
           </View>
@@ -322,9 +363,8 @@ export function PersonaSheet() {
           {/* Section header: "Your Brainrot Bots" + (Drafts pill) + a glass + to
               create. The row's measured bottom anchors the drafts popover. */}
           <View
-            onLayout={(e) =>
-              setAnchorBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)
-            }
+            ref={headerRowRef}
+            onLayout={measureHeaderRow}
             style={{
               flexDirection: "row",
               alignItems: "center",
@@ -359,24 +399,33 @@ export function PersonaSheet() {
                   }}
                   accessibilityLabel={t("personas.select.cancelA11y")}
                 >
-                  <X size={18} weight="bold" color={theme["--color-foreground"]} />
+                  <X
+                    size={18}
+                    weight="bold"
+                    color={theme["--color-foreground"]}
+                  />
                 </IconButton>
                 <IconButton
                   onPress={() => setConfirmOpen(true)}
                   size={34}
-                  surfaceStyle={{ backgroundColor: theme["--color-error-muted"] }}
+                  surfaceStyle={{
+                    backgroundColor: theme["--color-error-muted"],
+                  }}
                   accessibilityLabel={t("personas.select.deleteA11y")}
                 >
-                  <Trash size={18} weight="bold" color={theme["--color-error"]} />
+                  <Trash
+                    size={18}
+                    weight="bold"
+                    color={theme["--color-error"]}
+                  />
                 </IconButton>
               </Animated.View>
             ) : (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <View
+                style={{ flexDirection: "row", alignItems: "center", gap: 8 }}
+              >
                 {drafts.length > 0 ? (
-                  <DraftsPill
-                    count={drafts.length}
-                    onPress={() => setDraftsOpen((o) => !o)}
-                  />
+                  <DraftsPill count={drafts.length} onPress={toggleDrafts} />
                 ) : null}
                 {/* The + is purely "create a bot" — disabled (and dimmed) at the
                     cap, where you can't. The upgrade pill (free) / max-reached note
@@ -396,7 +445,11 @@ export function PersonaSheet() {
                     }}
                     accessibilityLabel={t("personas.createA11y")}
                   >
-                    <Plus size={18} weight="bold" color={theme["--color-foreground"]} />
+                    <Plus
+                      size={18}
+                      weight="bold"
+                      color={theme["--color-foreground"]}
+                    />
                   </IconButton>
                 </View>
               </View>
@@ -415,28 +468,40 @@ export function PersonaSheet() {
                 a user can switch back from a custom bot. It's never deletable,
                 so it doesn't participate in selection (dimmed + inert there).
                 layout transition lets it slide up as user rows above it leave. */}
-            <Animated.View layout={LinearTransition.duration(220).easing(Easing.out(Easing.cubic))}>
+            <Animated.View
+              layout={LinearTransition.duration(220).easing(
+                Easing.out(Easing.cubic),
+              )}
+            >
               <PersonaRow
                 name={t("chat.agentName")}
                 description={t("personas.defaultDescription")}
-                avatar={<PersonaAvatar persona={{ kind: "default" }} size={44} />}
+                avatar={
+                  <PersonaAvatar persona={{ kind: "default" }} size={44} />
+                }
                 active={selectedPersonaId === DEFAULT_PERSONA_ID}
                 selectionMode={selectionMode}
                 deletable={false}
                 onPress={() => {
                   if (!selectionMode) handleSelect(DEFAULT_PERSONA_ID);
                 }}
-                selectA11y={t("personas.selectA11y", { name: t("chat.agentName") })}
+                selectA11y={t("personas.selectA11y", {
+                  name: t("chat.agentName"),
+                })}
               />
             </Animated.View>
 
             {personas.map((persona) => (
-              // exiting fades the row out on delete; the siblings' layout
-              // transitions slide up to fill the gap — a clean animated reorder.
+              // On delete the row is removed and the siblings' layout transition
+              // slides up to fill the gap. NOTE: no opacity `exiting` fade — the
+              // row's background is a GlassSurface, and fading a glass subtree
+              // through opacity 0 permanently blanks the native material (the
+              // "row lost its background" bug). Motion-only reorder sidesteps it.
               <Animated.View
                 key={persona.id}
-                layout={LinearTransition.duration(220).easing(Easing.out(Easing.cubic))}
-                exiting={FadeOut.duration(180)}
+                layout={LinearTransition.duration(220).easing(
+                  Easing.out(Easing.cubic),
+                )}
               >
                 <PersonaRow
                   name={persona.displayName}
@@ -453,7 +518,9 @@ export function PersonaSheet() {
                   deletable
                   onPress={() => handleUserRowPress(persona.id)}
                   onLongPress={() => toggleMark(persona.id)}
-                  selectA11y={t("personas.selectA11y", { name: persona.displayName })}
+                  selectA11y={t("personas.selectA11y", {
+                    name: persona.displayName,
+                  })}
                 />
               </Animated.View>
             ))}
@@ -487,7 +554,6 @@ export function PersonaSheet() {
             ) : (
               <CreateRow label={t("personas.create")} onPress={handleCreate} />
             )}
-
           </BottomSheetScrollView>
 
           {/* Fixed ad band (free only — AdBanner renders null for paid). */}
@@ -512,16 +578,20 @@ export function PersonaSheet() {
             onDiscard={discardDraft}
             onClose={() => setDraftsOpen(false)}
           />
-
-          <DeleteConfirm
-            open={confirmOpen}
-            count={markedIds.size}
-            deleting={deleting}
-            onConfirm={() => void handleDeleteConfirmed()}
-            onCancel={() => setConfirmOpen(false)}
-          />
         </SheetTouchableProvider>
       </View>
+      {/* Rendered OUTSIDE the sheet (and its SheetTouchableProvider) as a native
+          RN <Modal>: it presents in its own full-window layer above the sheet —
+          so the dim covers the whole page, not just the sheet — and its RN
+          Pressables work without fighting the sheet's gesture-handler pan. */}
+      <DeleteConfirm
+        open={confirmOpen}
+        names={markedNames}
+        deleting={deleting}
+        deleted={deleted}
+        onConfirm={() => void handleDeleteConfirmed()}
+        onCancel={() => setConfirmOpen(false)}
+      />
     </BottomSheetModal>
   );
 }
@@ -541,273 +611,6 @@ function personaDescription(
   return persona.kind === "default"
     ? defaultDescription
     : persona.persona.shortDescription;
-}
-
-// One selectable persona row: avatar + name + short description. Glass surface
-// (iOS 26) with the solid card as the non-glass fallback — matching the chat
-// history rows. Two distinct states ride it: `active` is the current chat
-// persona (a primary edge + right-side check); `marked` is "selected for
-// deletion" (a left checkbox + primary tint), shown only in selection mode and
-// only for deletable (user) bots. A long-press on a deletable row seeds
-// selection mode.
-function PersonaRow({
-  name,
-  description,
-  avatar,
-  active,
-  selectionMode = false,
-  marked = false,
-  deletable = false,
-  onPress,
-  onLongPress,
-  selectA11y,
-}: {
-  name: string;
-  description?: string;
-  avatar: ReactNode;
-  active: boolean;
-  selectionMode?: boolean;
-  marked?: boolean;
-  deletable?: boolean;
-  onPress: () => void;
-  onLongPress?: () => void;
-  selectA11y: string;
-}) {
-  const theme = useTheme();
-  // The default bot can't be marked, so in selection mode it reads as inert —
-  // dimmed and unresponsive — rather than pretending to be selectable.
-  const inert = selectionMode && !deletable;
-  return (
-    <AppPressable
-      onPress={onPress}
-      onLongPress={deletable ? onLongPress : undefined}
-      delayLongPress={260}
-      disabled={inert}
-      accessibilityLabel={selectA11y}
-      accessibilityState={{ selected: selectionMode ? marked : active }}
-      pressScale={0.02}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        padding: 12,
-        borderRadius: 16,
-        overflow: "hidden",
-        opacity: inert ? 0.5 : 1,
-      }}
-    >
-      {/* Glass surface where supported; solid card + border is the fallback.
-          A primary tint marks the delete-selection (glass-safe — a border on a
-          GlassView kills the material, so the active edge lives on the fallback
-          and the glass relies on the tint + the trailing check). */}
-      <GlassSurface
-        pointerEvents="none"
-        tintColor={marked ? theme["--color-primary-subtle"] : undefined}
-        style={[StyleSheet.absoluteFillObject, { borderRadius: 16 }]}
-        fallbackStyle={{
-          backgroundColor: marked
-            ? theme["--color-primary-subtle"]
-            : theme["--color-card"],
-          borderWidth: 1,
-          borderColor: marked || active
-            ? theme["--color-primary"]
-            : theme["--color-border"],
-        }}
-      />
-
-      {/* Left selection indicator — fades in/out with selection mode, only for
-          deletable rows. */}
-      {selectionMode && deletable ? (
-        <Animated.View
-          entering={FadeIn.duration(180)}
-          exiting={FadeOut.duration(140)}
-        >
-          {marked ? (
-            <CheckCircle size={24} color={theme["--color-primary"]} weight="fill" />
-          ) : (
-            <View
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 11,
-                borderWidth: 2,
-                borderColor: theme["--color-foreground-muted"],
-              }}
-            />
-          )}
-        </Animated.View>
-      ) : null}
-
-      {avatar}
-
-      {/* Layout transition slides the title as the indicator's space appears or
-          disappears, instead of jumping. */}
-      <Animated.View layout={LinearTransition.duration(200)} style={{ flex: 1, gap: 2 }}>
-        <Typography
-          variant="body"
-          weight="semibold"
-          numberOfLines={1}
-          style={{ color: theme["--color-foreground"] }}
-        >
-          {name}
-        </Typography>
-        {description ? (
-          <Typography
-            variant="caption"
-            numberOfLines={1}
-            style={{ color: theme["--color-foreground-secondary"] }}
-          >
-            {description}
-          </Typography>
-        ) : null}
-      </Animated.View>
-
-      {/* Right "active chat persona" check — hidden in selection mode so the two
-          checkmark languages never collide. */}
-      <View style={{ width: 24, height: 24, alignItems: "center", justifyContent: "center" }}>
-        {!selectionMode && active ? (
-          <Check size={20} weight="bold" color={theme["--color-primary"]} />
-        ) : null}
-      </View>
-    </AppPressable>
-  );
-}
-
-// Delete confirmation. Deletion is irreversible (the server drops the doc + its
-// uploaded avatar), so we say so plainly and make "Delete" the loud,
-// error-tinted action. An overlay rather than an RN <Modal> because a native
-// modal can stack unpredictably over the @gorhom bottom sheet. It's teleported
-// to the root portal host (the same host the sheet itself renders into, and
-// pushed AFTER it, so it sits on top) — that lets the dim backdrop cover the
-// FULL window instead of just the sheet's 80% bounds, which it would if it
-// rendered inline in the sheet content.
-function DeleteConfirm({
-  open,
-  count,
-  deleting,
-  onConfirm,
-  onCancel,
-}: {
-  open: boolean;
-  count: number;
-  deleting: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const { t } = useTranslation();
-  const theme = useTheme();
-  if (!open) return null;
-
-  const title =
-    count === 1
-      ? t("personas.select.deleteOne")
-      : t("personas.select.deleteMany", { count });
-
-  return (
-    <Portal hostName="root">
-    <Animated.View
-      entering={FadeIn.duration(160)}
-      exiting={FadeOut.duration(140)}
-      style={StyleSheet.absoluteFillObject}
-    >
-      {/* Dim backdrop — tap to cancel (blocked while the delete is in flight). */}
-      <AppPressable
-        onPress={deleting ? undefined : onCancel}
-        feedback="none"
-        hitSlop={0}
-        accessibilityLabel={t("common.cancel")}
-        containerStyle={StyleSheet.absoluteFillObject}
-      >
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: theme["--color-overlay"] },
-          ]}
-        />
-      </AppPressable>
-
-      <View
-        pointerEvents="box-none"
-        style={{ flex: 1, justifyContent: "center", paddingHorizontal: 24 }}
-      >
-        <View
-          style={{
-            backgroundColor: theme["--color-card"],
-            borderRadius: 20,
-            padding: 22,
-            gap: 10,
-          }}
-        >
-          <Typography
-            variant="title-md"
-            style={{ color: theme["--color-foreground"], fontWeight: "800" }}
-          >
-            {title}
-          </Typography>
-          <Typography
-            variant="body"
-            style={{ color: theme["--color-foreground-secondary"] }}
-          >
-            {t("personas.select.warning")}
-          </Typography>
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "flex-end",
-              gap: 12,
-              marginTop: 8,
-            }}
-          >
-            <AppPressable
-              onPress={onCancel}
-              disabled={deleting}
-              feedback="opacity"
-              accessibilityLabel={t("common.cancel")}
-              style={{ paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 }}
-            >
-              <Typography
-                variant="body"
-                style={{ color: theme["--color-foreground-muted"], fontWeight: "600" }}
-              >
-                {t("common.cancel")}
-              </Typography>
-            </AppPressable>
-            <AppPressable
-              onPress={onConfirm}
-              disabled={deleting}
-              haptic
-              feedback="opacity"
-              accessibilityState={{ busy: deleting }}
-              accessibilityLabel={t("common.delete")}
-              style={{
-                minWidth: 96,
-                alignItems: "center",
-                justifyContent: "center",
-                paddingHorizontal: 16,
-                paddingVertical: 10,
-                borderRadius: 10,
-                backgroundColor: theme["--color-error"],
-                opacity: deleting ? 0.85 : 1,
-              }}
-            >
-              {deleting ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Typography
-                  variant="body"
-                  style={{ color: "#FFFFFF", fontWeight: "800" }}
-                >
-                  {t("common.delete")}
-                </Typography>
-              )}
-            </AppPressable>
-          </View>
-        </View>
-      </View>
-    </Animated.View>
-    </Portal>
-  );
 }
 
 // The "create a new bot" affordance: a dashed, plus-led row. Inert for now
@@ -855,7 +658,13 @@ function CreateRow({ label, onPress }: { label: string; onPress: () => void }) {
 
 // The "Drafts (N)" pill beside the + button — toggles the drafts popover. Only
 // rendered when at least one local draft exists.
-function DraftsPill({ count, onPress }: { count: number; onPress: () => void }) {
+function DraftsPill({
+  count,
+  onPress,
+}: {
+  count: number;
+  onPress: () => void;
+}) {
   const { t } = useTranslation();
   const theme = useTheme();
   return (
@@ -889,4 +698,3 @@ function DraftsPill({ count, onPress }: { count: number; onPress: () => void }) 
     </AppPressable>
   );
 }
-

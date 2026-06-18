@@ -1,6 +1,11 @@
 import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
 import { mapPersonaDoc, type UserPersonaSummary } from "@/domain/personas";
-import { personaInputToFormValues, type PersonaFormValues } from "@/domain/personaForm";
+import {
+  personaInputToFormValues,
+  personaInputToMediaPicks,
+  type MediaPickInput,
+  type PersonaFormValues,
+} from "@/domain/personaForm";
 import { getFirebaseServices } from "./app";
 
 // Reads the signed-in user's saved personas from user_personas. The
@@ -36,6 +41,9 @@ export async function fetchUserPersonas(
 export type PersonaEditData = {
   values: PersonaFormValues;
   avatarUrl: string | null;
+  // The picked reactions with preview URLs, so the editor's tray shows real
+  // thumbnails (falls back to names-only for personas saved before the fix).
+  mediaPicks: MediaPickInput[];
 };
 
 export async function fetchPersonaInput(
@@ -55,5 +63,9 @@ export async function fetchPersonaInput(
       ? publicConfig.avatarUrl
       : null;
 
-  return { values: personaInputToFormValues(data?.input), avatarUrl };
+  return {
+    values: personaInputToFormValues(data?.input),
+    avatarUrl,
+    mediaPicks: personaInputToMediaPicks(data?.input),
+  };
 }

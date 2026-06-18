@@ -23,9 +23,10 @@ describe("PERSONA_TEMPLATES", () => {
       expect(payload.displayName.length).toBeGreaterThan(0);
       expect(payload.identity.length).toBeGreaterThan(0);
       expect(payload.greetingShapes.length).toBeGreaterThan(0);
-      expect(payload.humorTypes.length).toBeGreaterThan(0);
-      expect(payload.humorExampleShapes.length).toBeGreaterThan(0);
-      expect(payload.emojiPalette.length).toBeGreaterThan(0);
+      expect(payload.humorTypes?.length ?? 0).toBeGreaterThan(0);
+      expect(payload.humorExampleShapes?.length ?? 0).toBeGreaterThan(0);
+      // Emojis are optional now, but every template ships with some.
+      expect(payload.emojiPalette?.length ?? 0).toBeGreaterThan(0);
       expect(payload.publicConfig.shortDescription.length).toBeGreaterThan(0);
     }
   });

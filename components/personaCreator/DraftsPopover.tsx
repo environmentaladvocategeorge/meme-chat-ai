@@ -13,8 +13,10 @@
 import { AppPressable } from "@/components/AppPressable";
 import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
+import { OverlayBackdrop, OverlayModal } from "@/components/OverlayModal";
 import { Typography } from "@/components/Typography";
 import type { PersonaDraft } from "@/domain/personaDrafts";
+import { Image } from "expo-image";
 import { useRelativeTime } from "@/hooks/useRelativeTime";
 import { useTheme } from "@/hooks/useTheme";
 import { X } from "phosphor-react-native";
@@ -83,74 +85,66 @@ export function DraftsPopover({
 
   if (!mounted) return null;
 
+  // A native Modal so the dim backdrop covers the WHOLE window, not just the
+  // sheet's 80% bounds (an in-sheet absoluteFill only fills the sheet). The
+  // anchor is passed in WINDOW coordinates. GestureHandlerRootView lets the
+  // AppPressables inside still register (they inherit the sheet's gesture-handler
+  // touch core, which needs a root view inside the Modal's separate window).
   return (
-    <View
-      pointerEvents={open ? "auto" : "none"}
-      style={StyleSheet.absoluteFillObject}
-    >
-      <AppPressable
-        onPress={onClose}
-        feedback="none"
-        hitSlop={0}
-        accessibilityLabel={t("common.close")}
-        containerStyle={StyleSheet.absoluteFillObject}
+    <OverlayModal visible onRequestClose={onClose} withGestureRoot>
+      <View
+        pointerEvents={open ? "auto" : "none"}
+        style={StyleSheet.absoluteFillObject}
       >
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: theme["--color-overlay"] },
-            backdropStyle,
-          ]}
-        />
-      </AppPressable>
+        <OverlayBackdrop onPress={onClose} animatedStyle={backdropStyle} />
 
-      <Animated.View
-        style={[
-          {
-            position: "absolute",
-            top: anchorTop + 8,
-            left: 16,
-            right: 16,
-            transformOrigin: "top right",
-          },
-          panelStyle,
-        ]}
-      >
-        <GlassSurface
-          style={{ borderRadius: 18, overflow: "hidden" }}
-          fallbackStyle={{
-            backgroundColor: theme["--color-card"],
-            borderWidth: 1,
-            borderColor: theme["--color-border"],
-          }}
+        <Animated.View
+          style={[
+            {
+              position: "absolute",
+              top: anchorTop + 8,
+              left: 16,
+              right: 16,
+              transformOrigin: "top right",
+            },
+            panelStyle,
+          ]}
         >
-          <Typography
-            variant="caption"
-            weight="semibold"
-            style={{
-              color: theme["--color-foreground-muted"],
-              paddingHorizontal: 16,
-              paddingTop: 14,
-              paddingBottom: 4,
+          <GlassSurface
+            style={{ borderRadius: 18, overflow: "hidden" }}
+            fallbackStyle={{
+              backgroundColor: theme["--color-card"],
+              borderWidth: 1,
+              borderColor: theme["--color-border"],
             }}
           >
-            {t("personasCreator.draftsTitle")}
-          </Typography>
-          <View style={{ paddingVertical: 4 }}>
-            {drafts.map((draft, i) => (
-              <DraftRow
-                key={draft.id}
-                draft={draft}
-                showDivider={i > 0}
-                onResume={() => onResume(draft.id)}
-                onDiscard={() => onDiscard(draft.id)}
-              />
-            ))}
-          </View>
-        </GlassSurface>
-      </Animated.View>
-    </View>
+            <Typography
+              variant="caption"
+              weight="semibold"
+              style={{
+                color: theme["--color-foreground-muted"],
+                paddingHorizontal: 16,
+                paddingTop: 14,
+                paddingBottom: 4,
+              }}
+            >
+              {t("personasCreator.draftsTitle")}
+            </Typography>
+            <View style={{ paddingVertical: 4 }}>
+              {drafts.map((draft, i) => (
+                <DraftRow
+                  key={draft.id}
+                  draft={draft}
+                  showDivider={i > 0}
+                  onResume={() => onResume(draft.id)}
+                  onDiscard={() => onDiscard(draft.id)}
+                />
+              ))}
+            </View>
+          </GlassSurface>
+        </Animated.View>
+      </View>
+    </OverlayModal>
   );
 }
 
@@ -168,8 +162,11 @@ function DraftRow({
   const { t } = useTranslation();
   const theme = useTheme();
   const relative = useRelativeTime(new Date(draft.updatedAt));
-  const name = draft.values.displayName.trim() || t("personasCreator.untitledDraft");
-  const monogram = (draft.values.displayName.trim().charAt(0) || "?").toUpperCase();
+  const name =
+    draft.values.displayName.trim() || t("personasCreator.untitledDraft");
+  const monogram = (
+    draft.values.displayName.trim().charAt(0) || "?"
+  ).toUpperCase();
 
   // Discarding a draft is destructive and can't be undone, so confirm first.
   const confirmDiscard = useCallback(() => {
@@ -221,24 +218,38 @@ function DraftRow({
             gap: 12,
           }}
         >
-          <View
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 19,
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: theme["--color-card-muted"],
-            }}
-          >
-            <Typography
-              variant="body"
-              weight="semibold"
-              style={{ color: theme["--color-foreground"] }}
+          {/* The draft's picked/generated avatar if it has one, else a monogram. */}
+          {draft.avatar?.localUri ? (
+            <Image
+              source={{ uri: draft.avatar.localUri }}
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                backgroundColor: theme["--color-card-muted"],
+              }}
+              contentFit="cover"
+            />
+          ) : (
+            <View
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 19,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: theme["--color-card-muted"],
+              }}
             >
-              {monogram}
-            </Typography>
-          </View>
+              <Typography
+                variant="body"
+                weight="semibold"
+                style={{ color: theme["--color-foreground"] }}
+              >
+                {monogram}
+              </Typography>
+            </View>
+          )}
           <View style={{ flex: 1, gap: 2 }}>
             <Typography
               variant="body"
@@ -263,7 +274,11 @@ function DraftRow({
           surfaceStyle={{ backgroundColor: theme["--color-card-muted"] }}
           accessibilityLabel={t("personasCreator.discardDraft")}
         >
-          <X size={15} weight="bold" color={theme["--color-foreground-muted"]} />
+          <X
+            size={15}
+            weight="bold"
+            color={theme["--color-foreground-muted"]}
+          />
         </IconButton>
       </View>
     </View>

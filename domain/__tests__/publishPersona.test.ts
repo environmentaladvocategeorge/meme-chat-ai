@@ -25,6 +25,27 @@ describe("publishPersonaDraft", () => {
     expect(result).toEqual({ ok: true, personaId: "user_uid_1" });
   });
 
+  it("persists the draft's picked-reaction preview URLs (media.picks) so edit shows thumbnails", async () => {
+    const d = deps();
+    const base = createDraft("deadpan_bestie");
+    const draft: PersonaDraft = {
+      ...base,
+      values: { ...base.values, mediaPills: ["gigachad"] },
+      mediaPicks: [{ name: "gigachad", previewUrl: "https://cdn.klipy.test/g.gif" }],
+    };
+    await publishPersonaDraft(draft, d);
+    expect(d.savePersona).toHaveBeenCalledWith(
+      expect.objectContaining({
+        persona: expect.objectContaining({
+          media: expect.objectContaining({
+            pills: ["gigachad"],
+            picks: [{ name: "gigachad", previewUrl: "https://cdn.klipy.test/g.gif" }],
+          }),
+        }),
+      }),
+    );
+  });
+
   it("skips the upload when the draft has no avatar", async () => {
     const d = deps();
     await publishPersonaDraft(createDraft("deadpan_bestie"), d);

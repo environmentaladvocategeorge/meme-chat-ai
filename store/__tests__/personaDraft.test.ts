@@ -20,6 +20,7 @@ const reset = () => {
   jest.clearAllMocks();
   usePersonaDraftStore.setState({
     drafts: [],
+    savedIds: [],
     activeId: null,
     hydrated: false,
   });
@@ -72,6 +73,15 @@ describe("usePersonaDraftStore", () => {
     await usePersonaDraftStore.getState().saveNow();
     expect(writeMock).toHaveBeenCalledTimes(1);
     expect((writeMock.mock.calls[0][0] as PersonaDraft[]).length).toBe(1);
+  });
+
+  it("a new working draft is NOT in savedIds until saved (the pill stays put)", async () => {
+    const id = usePersonaDraftStore.getState().newDraft(null)!;
+    // In `drafts` (so the creator renders it) but not yet "saved".
+    expect(usePersonaDraftStore.getState().drafts).toHaveLength(1);
+    expect(usePersonaDraftStore.getState().savedIds).not.toContain(id);
+    await usePersonaDraftStore.getState().saveNow();
+    expect(usePersonaDraftStore.getState().savedIds).toContain(id);
   });
 
   it("abandonActive reverts to disk and clears active (a never-saved draft vanishes)", async () => {

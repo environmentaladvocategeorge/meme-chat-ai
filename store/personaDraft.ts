@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { create } from "zustand";
 import {
   canCreateDraft,
@@ -9,6 +10,7 @@ import {
   type PersonaDraftAvatar,
 } from "@/domain/personaDrafts";
 import type { PersonaFormValues } from "@/domain/personaForm";
+import type { PickedAvatar } from "@/services/firebase/uploadPersonaAvatar";
 import { PersonaDraftsStorage } from "@/store/storage";
 
 // Local persona-draft state for the creator. Drafts live on-device only (see
@@ -20,6 +22,11 @@ import { PersonaDraftsStorage } from "@/store/storage";
 
 type PersonaDraftState = {
   drafts: PersonaDraft[];
+  // Ids of drafts that actually exist ON DISK. A freshly-created working draft
+  // is in `drafts` (so the creator can render it) but NOT here until the user
+  // explicitly saves — which is what the drafts pill/popover count, so opening
+  // the creator never pre-emptively bumps "Drafts (1)".
+  savedIds: string[];
   activeId: string | null;
   hydrated: boolean;
   // Load persisted drafts (called once at startup, like the other stores).
@@ -36,6 +43,7 @@ type PersonaDraftState = {
     step?: number;
     avatar?: PersonaDraftAvatar | null;
     mediaPicks?: MediaPick[];
+    generatedAvatars?: PickedAvatar[];
   }) => void;
   // Persist the current in-memory drafts to disk ("Save draft").
   saveNow: () => Promise<void>;
@@ -49,19 +57,21 @@ type PersonaDraftState = {
 
 export const usePersonaDraftStore = create<PersonaDraftState>()((set, get) => ({
   drafts: [],
+  savedIds: [],
   activeId: null,
   hydrated: false,
 
   hydrate: async () => {
     const drafts = await PersonaDraftsStorage.read();
-    set({ drafts, hydrated: true });
+    set({ drafts, savedIds: drafts.map((d) => d.id), hydrated: true });
   },
 
   newDraft: (templateId) => {
     const { drafts } = get();
     if (!canCreateDraft(drafts)) return null;
     const draft = createDraft(templateId ?? null);
-    // In memory only — not written until the user explicitly saves.
+    // In memory only — not written (and NOT added to savedIds) until the user
+    // explicitly saves, so the drafts pill stays put when opening the creator.
     set({ drafts: upsertDraft(drafts, draft), activeId: draft.id });
     return draft.id;
   },
@@ -70,7 +80,7 @@ export const usePersonaDraftStore = create<PersonaDraftState>()((set, get) => ({
 
   closeActive: () => set({ activeId: null }),
 
-  updateActive: ({ values, step, avatar, mediaPicks }) => {
+  updateActive: ({ values, step, avatar, mediaPicks, generatedAvatars }) => {
     const { activeId, drafts } = get();
     if (!activeId) return;
     const current = drafts.find((d) => d.id === activeId);
@@ -81,26 +91,34 @@ export const usePersonaDraftStore = create<PersonaDraftState>()((set, get) => ({
       step: step ?? current.step,
       avatar: avatar !== undefined ? avatar : current.avatar,
       mediaPicks: mediaPicks ?? current.mediaPicks,
+      generatedAvatars: generatedAvatars ?? current.generatedAvatars,
     };
     // Memory only; upsertDraft re-stamps updatedAt + keeps it at the front.
     set({ drafts: upsertDraft(drafts, updated) });
   },
 
   saveNow: async () => {
-    await PersonaDraftsStorage.write(get().drafts);
+    const { drafts } = get();
+    await PersonaDraftsStorage.write(drafts);
+    // Everything in memory is now on disk → all ids count as saved.
+    set({ savedIds: drafts.map((d) => d.id) });
   },
 
   abandonActive: async () => {
     // Re-read disk so unsaved changes (and never-saved drafts) drop, while any
     // previously-saved drafts are restored untouched.
     const drafts = await PersonaDraftsStorage.read();
-    set({ drafts, activeId: null });
+    set({ drafts, savedIds: drafts.map((d) => d.id), activeId: null });
   },
 
   discard: (id) => {
-    const { drafts, activeId } = get();
+    const { drafts, savedIds, activeId } = get();
     const next = removeDraft(drafts, id);
-    set({ drafts: next, activeId: activeId === id ? null : activeId });
+    set({
+      drafts: next,
+      savedIds: savedIds.filter((s) => s !== id),
+      activeId: activeId === id ? null : activeId,
+    });
     void PersonaDraftsStorage.write(next);
   },
 }));
@@ -110,4 +128,16 @@ export function useActiveDraft(): PersonaDraft | null {
   const activeId = usePersonaDraftStore((s) => s.activeId);
   const drafts = usePersonaDraftStore((s) => s.drafts);
   return drafts.find((d) => d.id === activeId) ?? null;
+}
+
+// Only the drafts the user has actually saved to disk — what the drafts pill +
+// popover show. Excludes a freshly-created working draft that's still in memory,
+// so opening the creator doesn't make "Drafts (1)" appear before any save.
+export function useSavedDrafts(): PersonaDraft[] {
+  const drafts = usePersonaDraftStore((s) => s.drafts);
+  const savedIds = usePersonaDraftStore((s) => s.savedIds);
+  return useMemo(() => {
+    const saved = new Set(savedIds);
+    return drafts.filter((d) => saved.has(d.id));
+  }, [drafts, savedIds]);
 }

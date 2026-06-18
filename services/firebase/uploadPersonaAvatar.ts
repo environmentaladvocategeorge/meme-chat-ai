@@ -1,4 +1,3 @@
-import * as FileSystem from "expo-file-system/legacy";
 import * as ImageManipulator from "expo-image-manipulator";
 import * as ImagePicker from "expo-image-picker";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -103,6 +102,12 @@ export async function pickPersonaAvatar(
 // Uploads the draft's local avatar to Cloud Storage at publish time and returns
 // the download URL + path. The backend re-validates ownership by path and
 // moderates the URL; this is convenience + UX, not a trust boundary.
+//
+// The local file is intentionally NOT deleted here. Publish can fail AFTER the
+// upload (e.g. savePersona rejects the persona), and the user retries — which
+// re-reads this same localUri. Deleting it on the first attempt stranded the
+// draft on a dead file so every retry then failed at `fetch(localUri)`. The
+// compressed copy is a small cache file; the OS evicts it.
 export async function uploadPendingAvatar(localUri: string): Promise<UploadedAvatar> {
   const firebase = getFirebaseServices();
   if (!firebase.available) throw new PersonaAvatarError("firebase-unavailable");
@@ -120,7 +125,5 @@ export async function uploadPendingAvatar(localUri: string): Promise<UploadedAva
   } catch (err) {
     if (err instanceof PersonaAvatarError) throw err;
     throw new PersonaAvatarError("upload-failed");
-  } finally {
-    await FileSystem.deleteAsync(localUri, { idempotent: true }).catch(() => {});
   }
 }

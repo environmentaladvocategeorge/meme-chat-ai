@@ -1,4 +1,9 @@
-import { toPersonaSavePayload, type PersonaFormValues, type PersonaSavePayload } from "./personaForm";
+import {
+  toPersonaSavePayload,
+  type MediaPickInput,
+  type PersonaFormValues,
+  type PersonaSavePayload,
+} from "./personaForm";
 import { classifyPersonaSaveError } from "./publishPersona";
 
 // Edit-save flow for an existing persona, with IO injected so the branch logic
@@ -34,6 +39,10 @@ export async function savePersonaEdit(
   values: PersonaFormValues,
   avatar: EditAvatarState,
   deps: SavePersonaEditDeps,
+  // The edit session's picked reactions (name + preview URL), so their
+  // thumbnails persist across edits. Optional: a caller with no picks (or an
+  // older one) omits it and the names alone are saved, as before.
+  mediaPicks?: MediaPickInput[],
 ): Promise<SavePersonaEditResult> {
   try {
     const uploaded =
@@ -41,7 +50,7 @@ export async function savePersonaEdit(
         ? await deps.uploadAvatar(avatar.localUri)
         : undefined;
     const res = await deps.savePersona({
-      persona: toPersonaSavePayload(values),
+      persona: toPersonaSavePayload(values, mediaPicks),
       personaId,
       ...(uploaded ? { avatar: uploaded } : {}),
       ...(avatar.kind === "remove" ? { removeAvatar: true } : {}),

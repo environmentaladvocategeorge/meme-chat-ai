@@ -52,7 +52,9 @@ export async function publishPersonaDraft(
       avatar = await deps.uploadAvatar(draft.avatar.localUri);
     }
     const res = await deps.savePersona({
-      persona: toPersonaSavePayload(draft.values),
+      // Pass the draft's picked reactions so their preview URLs persist (the
+      // editor re-renders real thumbnails on a later edit, not text chips).
+      persona: toPersonaSavePayload(draft.values, draft.mediaPicks),
       ...(avatar ? { avatar } : {}),
     });
     return { ok: true, personaId: res.personaId };

@@ -3,6 +3,7 @@ import {
   MAX_USER_PERSONAS,
   mapPersonaDoc,
   personaCap,
+  resolvePersonaSlot,
   resolveSelectedPersona,
   type UserPersonaSummary,
 } from "../personas";
@@ -46,6 +47,26 @@ describe("resolveSelectedPersona", () => {
 
   it("falls back to the default when no personas are hydrated yet", () => {
     expect(resolveSelectedPersona("user_uid-1_a1", [])).toEqual({ kind: "default" });
+  });
+});
+
+describe("resolvePersonaSlot", () => {
+  const list = [summary({ id: "user_uid-1_a1" }), summary({ id: "user_uid-1_b2" })];
+
+  it("treats a missing or default id as the default bot", () => {
+    expect(resolvePersonaSlot(undefined, list)).toEqual({ kind: "default" });
+    expect(resolvePersonaSlot(DEFAULT_PERSONA_ID, list)).toEqual({ kind: "default" });
+  });
+
+  it("returns the matching user persona when present", () => {
+    expect(resolvePersonaSlot("user_uid-1_b2", list)).toEqual({
+      kind: "user",
+      persona: list[1],
+    });
+  });
+
+  it("returns 'unknown' for a since-deleted bot (NOT the default)", () => {
+    expect(resolvePersonaSlot("user_uid-1_gone", list)).toBe("unknown");
   });
 });
 

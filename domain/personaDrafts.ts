@@ -1,6 +1,7 @@
+import type { PickedAvatar } from "@/services/firebase/uploadPersonaAvatar";
 import {
-  EMPTY_PERSONA_FORM,
   LIMITS,
+  NEW_PERSONA_FORM,
   normalizePersonaForm,
   type PersonaFormValues,
 } from "./personaForm";
@@ -43,6 +44,10 @@ export type PersonaDraft = {
   // Picked reaction GIFs/memes (names + local thumbnails). Mirrors the form's
   // `mediaPills` by name; the thumbnails let the picked tray render on reload.
   mediaPicks: MediaPick[];
+  // The last batch of AI-generated avatar candidates (local files), kept so the
+  // pair survives closing and reopening the creator — not just the one the user
+  // selected. Re-generating REPLACES this list (old candidates are never kept).
+  generatedAvatars: PickedAvatar[];
 };
 
 export function newDraftId(): string {
@@ -58,9 +63,13 @@ export function createDraft(templateId?: string | null): PersonaDraft {
     updatedAt: Date.now(),
     templateId: template ? template.id : null,
     step: 0,
-    values: template ? { ...template.values } : { ...EMPTY_PERSONA_FORM },
+    // A fresh-from-scratch persona starts from NEW_PERSONA_FORM, where every
+    // "let {bot} decide" toggle is OFF — the user opts into each one. A template
+    // seeds its authored values instead.
+    values: template ? { ...template.values } : { ...NEW_PERSONA_FORM },
     avatar: null,
     mediaPicks: [],
+    generatedAvatars: [],
   };
 }
 
@@ -96,6 +105,24 @@ function normalizeMediaPicks(value: unknown): MediaPick[] {
   return picks.slice(0, LIMITS.mediaPillsMax);
 }
 
+// Defensive parse of the persisted avatar-candidate pair. Drops entries without
+// a usable local URI and caps at two (the generator always makes two).
+function normalizeGeneratedAvatars(value: unknown): PickedAvatar[] {
+  if (!Array.isArray(value)) return [];
+  const out: PickedAvatar[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") continue;
+    const v = item as Record<string, unknown>;
+    if (typeof v.localUri !== "string" || v.localUri.length === 0) continue;
+    out.push({
+      localUri: v.localUri,
+      width: typeof v.width === "number" ? v.width : 0,
+      height: typeof v.height === "number" ? v.height : 0,
+    });
+  }
+  return out.slice(0, 2);
+}
+
 // Defensive parse of a single persisted draft, or null when unusable (no id).
 export function normalizeDraft(value: unknown): PersonaDraft | null {
   if (!value || typeof value !== "object") return null;
@@ -109,6 +136,7 @@ export function normalizeDraft(value: unknown): PersonaDraft | null {
     values: normalizePersonaForm(v.values),
     avatar: normalizeAvatar(v.avatar),
     mediaPicks: normalizeMediaPicks(v.mediaPicks),
+    generatedAvatars: normalizeGeneratedAvatars(v.generatedAvatars),
   };
 }
 

@@ -55,6 +55,19 @@ export function resolveSelectedPersona(
   return { kind: "default" };
 }
 
+// Like resolveSelectedPersona, but DISTINGUISHES a since-deleted bot ("unknown")
+// instead of folding it into the default — so the history's stacked avatars and
+// the per-message chat avatars can render a "?" for a bot that's gone. A missing
+// id counts as the default (pre-tracking messages were all the default bot).
+export function resolvePersonaSlot(
+  id: string | undefined,
+  personas: UserPersonaSummary[],
+): ResolvedPersona | "unknown" {
+  if (!id || id === DEFAULT_PERSONA_ID) return { kind: "default" };
+  const match = personas.find((p) => p.id === id);
+  return match ? { kind: "user", persona: match } : "unknown";
+}
+
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }

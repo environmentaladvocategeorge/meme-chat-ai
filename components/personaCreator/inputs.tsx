@@ -10,10 +10,26 @@ import { Typography } from "@/components/Typography";
 import { addTag, removeTag, toggleTag } from "@/domain/tagInput";
 import { useTheme } from "@/hooks/useTheme";
 import { Image } from "expo-image";
-import { Camera, Trash, X, type IconProps } from "phosphor-react-native";
+import { Camera, Plus, Trash, X, type IconProps } from "phosphor-react-native";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
+
+// A persistent hint under a free-type field so it's obvious that typed text
+// only commits on Return (the most common confusion: people type and tap Next,
+// losing what they typed). Shown beneath every add-your-own / chip input.
+function EnterHint() {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingLeft: 2 }}>
+      <Plus size={13} weight="bold" color={theme["--color-foreground-muted"]} />
+      <Typography variant="caption" style={{ color: theme["--color-foreground-muted"] }}>
+        {t("personasCreator.enterHint")}
+      </Typography>
+    </View>
+  );
+}
 
 function Chip({
   label,
@@ -93,21 +109,26 @@ export function TypeToPill({
         </ChipWrap>
       ) : null}
       {!atCap ? (
-        <Input
-          value={text}
-          onChangeText={setText}
-          placeholder={placeholder}
-          maxLength={maxLength}
-          returnKeyType="done"
-          blurOnSubmit={false}
-          onSubmitEditing={commit}
-        />
+        <View style={{ gap: 6 }}>
+          <Input
+            value={text}
+            onChangeText={setText}
+            placeholder={placeholder}
+            maxLength={maxLength}
+            returnKeyType="done"
+            blurOnSubmit={false}
+            onSubmitEditing={commit}
+          />
+          <EnterHint />
+        </View>
       ) : null}
     </View>
   );
 }
 
 // Curated chips you toggle on/off, plus an optional "add your own" field.
+// `horizontal` lays the preset chips out in a single left/right scrolling row
+// (used for the recommendation pills) instead of wrapping onto multiple lines.
 export function MultiSelectPills({
   value,
   onChange,
@@ -116,6 +137,7 @@ export function MultiSelectPills({
   maxLength,
   allowCustom = false,
   customPlaceholder,
+  horizontal = false,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
@@ -124,8 +146,8 @@ export function MultiSelectPills({
   maxLength: number;
   allowCustom?: boolean;
   customPlaceholder?: string;
+  horizontal?: boolean;
 }) {
-  const { t } = useTranslation();
   const theme = useTheme();
   const [text, setText] = useState("");
 
@@ -138,53 +160,221 @@ export function MultiSelectPills({
     setText("");
   };
 
+  const pills = all.map((option) => {
+    const selected = value.some((v) => v.toLowerCase() === option.toLowerCase());
+    return (
+      <AppPressable
+        key={option}
+        onPress={() => onChange(toggleTag(value, option, max))}
+        accessibilityLabel={option}
+        accessibilityState={{ selected }}
+        pressScale={0.04}
+        style={{
+          paddingHorizontal: 14,
+          paddingVertical: 9,
+          borderRadius: 999,
+          backgroundColor: selected ? theme["--color-primary-muted"] : theme["--color-card"],
+          borderWidth: 1,
+          borderColor: selected ? theme["--color-primary"] : theme["--color-border"],
+        }}
+      >
+        <Typography
+          variant="caption"
+          weight={selected ? "semibold" : "regular"}
+          style={{ color: theme["--color-foreground"] }}
+        >
+          {option}
+        </Typography>
+      </AppPressable>
+    );
+  });
+
   return (
     <View style={{ gap: 10 }}>
-      <ChipWrap>
-        {all.map((option) => {
-          const selected = value.some((v) => v.toLowerCase() === option.toLowerCase());
-          return (
-            <AppPressable
-              key={option}
-              onPress={() => onChange(toggleTag(value, option, max))}
-              accessibilityLabel={option}
-              accessibilityState={{ selected }}
-              pressScale={0.04}
-              style={{
-                paddingHorizontal: 14,
-                paddingVertical: 9,
-                borderRadius: 999,
-                backgroundColor: selected ? theme["--color-primary-muted"] : theme["--color-card"],
-                borderWidth: 1,
-                borderColor: selected ? theme["--color-primary"] : theme["--color-border"],
-              }}
-            >
-              <Typography
-                variant="caption"
-                weight={selected ? "semibold" : "regular"}
-                style={{ color: theme["--color-foreground"] }}
-              >
-                {option}
-              </Typography>
-            </AppPressable>
-          );
-        })}
-      </ChipWrap>
+      {horizontal ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ flexDirection: "row", gap: 8, paddingRight: 4 }}
+        >
+          {pills}
+        </ScrollView>
+      ) : (
+        <ChipWrap>{pills}</ChipWrap>
+      )}
       {allowCustom && value.length < max ? (
-        <Input
-          value={text}
-          onChangeText={setText}
-          placeholder={customPlaceholder}
-          maxLength={maxLength}
-          returnKeyType="done"
-          blurOnSubmit={false}
-          onSubmitEditing={commitCustom}
-        />
+        <View style={{ gap: 6 }}>
+          <Input
+            value={text}
+            onChangeText={setText}
+            placeholder={customPlaceholder}
+            maxLength={maxLength}
+            returnKeyType="done"
+            blurOnSubmit={false}
+            onSubmitEditing={commitCustom}
+          />
+          <EnterHint />
+        </View>
       ) : null}
     </View>
   );
 }
 
+
+// A dashed "add another" affordance shared by the list inputs below.
+function AddButton({ label, onPress }: { label: string; onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={onPress}
+      accessibilityLabel={label}
+      pressScale={0.03}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        paddingVertical: 11,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderStyle: "dashed",
+        borderColor: theme["--color-border-strong"],
+        backgroundColor: theme["--color-card"],
+      }}
+    >
+      <Plus size={15} weight="bold" color={theme["--color-foreground"]} />
+      <Typography variant="caption" weight="semibold" style={{ color: theme["--color-foreground"] }}>
+        {label}
+      </Typography>
+    </AppPressable>
+  );
+}
+
+// A small "remove this row" affordance used under list items.
+function RemoveRow({ onPress }: { onPress: () => void }) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={onPress}
+      accessibilityLabel={t("common.remove")}
+      pressScale={0.05}
+      hitSlop={6}
+      style={{ alignSelf: "flex-end", flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 2 }}
+    >
+      <X size={12} weight="bold" color={theme["--color-foreground-muted"]} />
+      <Typography variant="caption" style={{ color: theme["--color-foreground-muted"] }}>
+        {t("common.remove")}
+      </Typography>
+    </AppPressable>
+  );
+}
+
+// A vertical list of multiline text rows (used for greetings): always shows at
+// least one input, with "add another" to append and per-row remove once there's
+// more than one. Empty rows are harmless; they're filtered out at save time.
+export function MultilineListInput({
+  value,
+  onChange,
+  max,
+  maxLength,
+  placeholder,
+  rows = 3,
+  addLabel,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  max: number;
+  maxLength: number;
+  placeholder?: string;
+  rows?: number;
+  addLabel: string;
+}) {
+  const display = value.length > 0 ? value : [""];
+  return (
+    <View style={{ gap: 10 }}>
+      {display.map((item, i) => (
+        <View key={i} style={{ gap: 4 }}>
+          <Input
+            value={item}
+            onChangeText={(text) => onChange(display.map((v, idx) => (idx === i ? text : v)))}
+            placeholder={placeholder}
+            maxLength={maxLength}
+            multiline
+            rows={rows}
+          />
+          {display.length > 1 ? (
+            <RemoveRow onPress={() => onChange(display.filter((_, idx) => idx !== i))} />
+          ) : null}
+        </View>
+      ))}
+      {display.length < max ? (
+        <AddButton label={addLabel} onPress={() => onChange([...display, ""])} />
+      ) : null}
+    </View>
+  );
+}
+
+// Up to `max` voice-example pairs: a "someone says" input on the left and the
+// bot's reply on the right, with an Add button that appends a fresh pair. When
+// empty it shows just the Add button (the whole field is optional).
+export function VoiceExamplesField({
+  value,
+  onChange,
+  max,
+  userMax,
+  goodMax,
+  userPlaceholder,
+  goodPlaceholder,
+  addLabel,
+}: {
+  value: { user: string; good: string }[];
+  onChange: (next: { user: string; good: string }[]) => void;
+  max: number;
+  userMax: number;
+  goodMax: number;
+  userPlaceholder?: string;
+  goodPlaceholder?: string;
+  addLabel: string;
+}) {
+  const patchAt = (i: number, patch: Partial<{ user: string; good: string }>) =>
+    onChange(value.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  return (
+    <View style={{ gap: 12 }}>
+      {value.map((pair, i) => (
+        <View key={i} style={{ gap: 4 }}>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Input
+                value={pair.user}
+                onChangeText={(text) => patchAt(i, { user: text })}
+                placeholder={userPlaceholder}
+                maxLength={userMax}
+                multiline
+                rows={2}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Input
+                value={pair.good}
+                onChangeText={(text) => patchAt(i, { good: text })}
+                placeholder={goodPlaceholder}
+                maxLength={goodMax}
+                multiline
+                rows={2}
+              />
+            </View>
+          </View>
+          <RemoveRow onPress={() => onChange(value.filter((_, idx) => idx !== i))} />
+        </View>
+      ))}
+      {value.length < max ? (
+        <AddButton label={addLabel} onPress={() => onChange([...value, { user: "", good: "" }])} />
+      ) : null}
+    </View>
+  );
+}
 
 const AVATAR_TILE_SIZE = 116;
 const AVATAR_BADGE_SIZE = 38;
@@ -194,12 +384,14 @@ function AvatarActionPill({
   label,
   icon,
   onPress,
-  muted = false,
+  labelColor,
 }: {
   label: string;
   icon: ReactNode;
   onPress: () => void;
-  muted?: boolean;
+  // Override the label colour (e.g. destructive red for Remove). Defaults to
+  // the normal foreground — never muted, which reads as disabled.
+  labelColor?: string;
 }) {
   const theme = useTheme();
   return (
@@ -223,7 +415,7 @@ function AvatarActionPill({
         <Typography
           variant="caption"
           weight="semibold"
-          style={{ color: muted ? theme["--color-foreground-muted"] : theme["--color-foreground"] }}
+          style={{ color: labelColor ?? theme["--color-foreground"] }}
         >
           {label}
         </Typography>
@@ -280,41 +472,46 @@ export function AvatarUploadTile({
               contentFit="cover"
             />
           ) : (
-            <GlassSurface
-              tintColor={theme["--color-primary"]}
+            // Empty state is a neutral dashed "drop well", not a tinted glass
+            // circle — otherwise it reads as identical to the primary camera
+            // badge. A dashed muted well with a centered camera clearly says
+            // "add a photo here".
+            <View
               style={{
                 width: AVATAR_TILE_SIZE,
                 height: AVATAR_TILE_SIZE,
                 borderRadius: AVATAR_TILE_SIZE / 2,
                 alignItems: "center",
                 justifyContent: "center",
-              }}
-              fallbackStyle={{
-                backgroundColor: theme["--color-primary-subtle"],
-                borderWidth: 1,
-                borderColor: theme["--color-border"],
+                backgroundColor: theme["--color-card-muted"],
+                borderWidth: 2,
+                borderStyle: "dashed",
+                borderColor: theme["--color-primary-muted"],
               }}
             >
-              <Camera size={36} weight="regular" color={theme["--color-primary"]} />
-            </GlassSurface>
+              <Camera size={34} weight="regular" color={theme["--color-primary"]} />
+            </View>
           )}
 
-          {/* Corner camera badge — always present so the tile reads as editable. */}
-          <View style={{ position: "absolute", right: 0, bottom: 0 }}>
-            <GlassSurface
-              tintColor={theme["--color-primary"]}
-              style={{
-                width: AVATAR_BADGE_SIZE,
-                height: AVATAR_BADGE_SIZE,
-                borderRadius: AVATAR_BADGE_SIZE / 2,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-              fallbackStyle={{ backgroundColor: theme["--color-primary"] }}
-            >
-              <Camera size={17} weight="fill" color={theme["--color-primary-foreground"]} />
-            </GlassSurface>
-          </View>
+          {/* Corner camera badge — only once a photo is set and not loading, so
+              the empty well isn't duplicated and the loader never overlaps it. */}
+          {hasImage && !busy ? (
+            <View style={{ position: "absolute", right: 0, bottom: 0 }}>
+              <GlassSurface
+                tintColor={theme["--color-primary"]}
+                style={{
+                  width: AVATAR_BADGE_SIZE,
+                  height: AVATAR_BADGE_SIZE,
+                  borderRadius: AVATAR_BADGE_SIZE / 2,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                fallbackStyle={{ backgroundColor: theme["--color-primary"] }}
+              >
+                <Camera size={17} weight="fill" color={theme["--color-primary-foreground"]} />
+              </GlassSurface>
+            </View>
+          ) : null}
 
           {busy ? (
             <View
@@ -345,9 +542,9 @@ export function AvatarUploadTile({
           />
           <AvatarActionPill
             label={t("personasCreator.avatarRemove")}
-            icon={<Trash {...iconProps} color={theme["--color-foreground-muted"]} />}
+            icon={<Trash {...iconProps} color={theme["--color-error"]} />}
             onPress={onRemove}
-            muted
+            labelColor={theme["--color-error"]}
           />
         </View>
       ) : (

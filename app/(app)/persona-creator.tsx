@@ -10,26 +10,36 @@
 // live in the footer; Next becomes "Save bot" on the last step.
 
 import { AppPressable } from "@/components/AppPressable";
-import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
+import {
+  ExitMenu,
+  SaveMenu,
+} from "@/components/personaCreator/CreatorExitMenus";
 import {
   CreatorSessionProvider,
   DraftCreatorSession,
   type CreatorSession,
   type SessionAvatar,
 } from "@/components/personaCreator/CreatorSession";
+import { CreatorScratchProvider } from "@/components/personaCreator/CreatorScratch";
+import { PublishingOverlay } from "@/components/personaCreator/PublishingOverlay";
 import { StepBody } from "@/components/personaCreator/steps";
 import { Typography } from "@/components/Typography";
 import type { MediaPick } from "@/domain/personaDrafts";
+import type { PickedAvatar } from "@/services/firebase/uploadPersonaAvatar";
 import {
   EMPTY_PERSONA_FORM,
   PERSONA_STEP_FIELDS,
   PERSONA_STEPS,
   personaFormResolver,
   type PersonaFormValues,
+  type PersonaStep,
 } from "@/domain/personaForm";
 import { publishPersonaDraft } from "@/domain/publishPersona";
-import { savePersonaEdit, type EditAvatarState } from "@/domain/savePersonaEdit";
+import {
+  savePersonaEdit,
+  type EditAvatarState,
+} from "@/domain/savePersonaEdit";
 import { useTheme } from "@/hooks/useTheme";
 import { fetchPersonaInput } from "@/services/firebase/personas";
 import { savePersonaCallable } from "@/services/firebase/callables";
@@ -38,8 +48,16 @@ import { useAuthStore } from "@/store/auth";
 import { useActiveDraft, usePersonaDraftStore } from "@/store/personaDraft";
 import { usePersonaStore } from "@/store/personas";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CaretLeft, FloppyDisk, Trash, X } from "phosphor-react-native";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CaretLeft, FloppyDisk, X } from "phosphor-react-native";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { FormProvider, useForm, type Resolver } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import {
@@ -49,18 +67,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, {
-  Easing,
-  interpolate,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function PersonaCreatorScreen() {
   const theme = useTheme();
@@ -69,8 +78,9 @@ export default function PersonaCreatorScreen() {
   const draft = useActiveDraft();
 
   // EDIT mode is keyed by a ?personaId route param: there's no draft, the form
-  // is seeded from the stored persona, and the only exits are "save changes" or
-  // "quit and lose changes" (no draft autosave).
+  // is seeded from the stored persona, and the only exits are the header's
+  // "Save & exit" or "quit and lose changes" via the X (no draft autosave). The
+  // footer is pure step navigation in this mode — Next, never a save.
   const params = useLocalSearchParams<{ personaId?: string }>();
   const editPersonaId =
     typeof params.personaId === "string" && params.personaId.length > 0
@@ -81,16 +91,107 @@ export default function PersonaCreatorScreen() {
   const methods = useForm<PersonaFormValues>({
     // Edit seeds via reset() once the fetch lands (below); start empty so the
     // isDirty baseline is set by that reset, not a stale default.
-    defaultValues: isEdit ? EMPTY_PERSONA_FORM : draft?.values ?? EMPTY_PERSONA_FORM,
+    defaultValues: isEdit
+      ? EMPTY_PERSONA_FORM
+      : (draft?.values ?? EMPTY_PERSONA_FORM),
     resolver: personaFormResolver as unknown as Resolver<PersonaFormValues>,
     mode: "onTouched",
   });
 
-  const [stepIndex, setStepIndex] = useState(isEdit ? 0 : draft?.step ?? 0);
+  const [stepIndex, setStepIndex] = useState(isEdit ? 0 : (draft?.step ?? 0));
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  // CREATE-mode publish overlay: a dedicated "bringing it to life" screen that
+  // can't be quit mid-save, then a success view with "Start Chatting Now". Name
+  // + avatar are snapshotted at publish time so the overlay survives the draft
+  // being discarded on success.
+  const [publishPhase, setPublishPhase] = useState<
+    "idle" | "publishing" | "done"
+  >("idle");
+  const [publishedName, setPublishedName] = useState("");
+  const [publishedAvatarUri, setPublishedAvatarUri] = useState<string | null>(
+    null,
+  );
   const [exitMenuOpen, setExitMenuOpen] = useState(false);
+  // Edit-only "save" popover (the floppy icon in the header → Save changes /
+  // Save & exit), mirroring the X's exit popover.
+  const [saveMenuOpen, setSaveMenuOpen] = useState(false);
   const uid = useAuthStore((s) => s.uid);
+
+  // Screen-scoped scratch state for the wizard (survives moving between steps,
+  // dropped when the creator closes). The step ScrollView is keyed by step so it
+  // remounts per step; this ref points at whichever is current — enough for a
+  // focused input to scroll itself above the keyboard. generatedAvatars keeps
+  // the AI avatar candidates so tapping Next (which remounts the step) doesn't
+  // throw them away.
+  const scrollRef = useRef<ScrollView>(null);
+  // The AI avatar candidate pair. In CREATE mode it lives ON THE DRAFT, so the
+  // two candidates survive closing and reopening the creator (and "Save draft"),
+  // not just the one the user selected. In EDIT mode there's no draft, so it's
+  // screen-local. Re-generating replaces the list; the generator deletes the old
+  // candidate files, so stale generations are never kept.
+  const [editGenerated, setEditGenerated] = useState<PickedAvatar[]>([]);
+  const generatedAvatars = isEdit ? editGenerated : (draft?.generatedAvatars ?? []);
+  const setGeneratedAvatars = useCallback<Dispatch<SetStateAction<PickedAvatar[]>>>(
+    (next) => {
+      if (isEdit) {
+        setEditGenerated(next);
+        return;
+      }
+      // Read the latest off the store (not a stale closure) so functional
+      // updates from the in-flight generate promise compose correctly.
+      const store = usePersonaDraftStore.getState();
+      const active = store.drafts.find((d) => d.id === store.activeId);
+      const prev = active?.generatedAvatars ?? [];
+      const resolved =
+        typeof next === "function"
+          ? (next as (p: PickedAvatar[]) => PickedAvatar[])(prev)
+          : next;
+      store.updateActive({ generatedAvatars: resolved });
+    },
+    [isEdit],
+  );
+  // Client-side SOFT rate limit for avatar regeneration (a bypass isn't harmful
+  // — the credit charge is the real guard). Lives here so it survives steps.
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  // In-flight flags for the two billed creator jobs (avatar generation, AI
+  // description). They live on the screen, ABOVE the per-step remount, so a
+  // request the user kicked off keeps running behind the scenes when they tap
+  // Next/Back: the promise's closure still writes its result (avatars to scratch,
+  // the description to the form) and flips the flag off here when it lands. On
+  // return the step re-reads these, so it shows the spinner instead of an idle
+  // button the user might tap again and get double-charged for.
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [describeBusy, setDescribeBusy] = useState(false);
+  const [describeCooldownUntil, setDescribeCooldownUntil] = useState(0);
+  const scratch = useMemo(
+    () => ({
+      scrollToEnd: () => scrollRef.current?.scrollToEnd({ animated: true }),
+      // Review/overview → jump to a section's editor. Clamp to a real step.
+      goToStep: (target: PersonaStep) => {
+        const idx = PERSONA_STEPS.indexOf(target);
+        if (idx >= 0) setStepIndex(idx);
+      },
+      generatedAvatars,
+      setGeneratedAvatars,
+      cooldownUntil,
+      setCooldownUntil,
+      avatarBusy,
+      setAvatarBusy,
+      describeBusy,
+      setDescribeBusy,
+      describeCooldownUntil,
+      setDescribeCooldownUntil,
+    }),
+    [
+      generatedAvatars,
+      setGeneratedAvatars,
+      cooldownUntil,
+      avatarBusy,
+      describeBusy,
+      describeCooldownUntil,
+    ],
+  );
 
   // Edit-session state (avatar + reaction picks live outside react-hook-form).
   // Held on the screen so dirty-tracking and the save call can read them.
@@ -139,24 +240,35 @@ export default function PersonaCreatorScreen() {
     if (!isEdit && !draft && !leaving.current) router.back();
   }, [isEdit, draft, router]);
 
-  // Edit mode: load the stored persona once, seed the form (reset establishes
-  // the isDirty baseline), and hydrate the avatar + reaction picks.
+  // Fetch the stored persona and seed the editable state from it: the form
+  // (reset() establishes the isDirty baseline), the avatar, and the reaction
+  // picks. Reused on first load AND after a "Save changes" (save-and-stay) so
+  // the dirty baseline is re-pinned to the now-saved server copy — savePersona
+  // doesn't return the new avatar URL, so re-seeding is the reliable re-baseline.
+  const seedFromStored = useCallback(async () => {
+    if (!editPersonaId) return;
+    const data = await fetchPersonaInput(editPersonaId);
+    methods.reset(data.values);
+    setInitialAvatarUrl(data.avatarUrl);
+    setEditAvatar(
+      data.avatarUrl
+        ? { kind: "remote", url: data.avatarUrl }
+        : { kind: "none" },
+    );
+    // Seed from the persisted picks (name + preview URL) so the tray shows real
+    // thumbnails; personaInputToMediaPicks falls back to names-only for personas
+    // saved before preview URLs were stored.
+    setEditMediaPicks(data.mediaPicks);
+  }, [editPersonaId, methods]);
+
+  // Edit mode: load the stored persona once and flip to "ready" (or "error").
   useEffect(() => {
     if (!editPersonaId) return;
     let active = true;
     (async () => {
       try {
-        const data = await fetchPersonaInput(editPersonaId);
-        if (!active) return;
-        methods.reset(data.values);
-        setInitialAvatarUrl(data.avatarUrl);
-        setEditAvatar(
-          data.avatarUrl ? { kind: "remote", url: data.avatarUrl } : { kind: "none" },
-        );
-        setEditMediaPicks(
-          (data.values.mediaPills ?? []).map((name) => ({ name, previewUrl: "" })),
-        );
-        setEditLoad("ready");
+        await seedFromStored();
+        if (active) setEditLoad("ready");
       } catch {
         if (active) setEditLoad("error");
       }
@@ -164,7 +276,7 @@ export default function PersonaCreatorScreen() {
     return () => {
       active = false;
     };
-  }, [editPersonaId, methods]);
+  }, [editPersonaId, seedFromStored]);
 
   // A failed edit load can't recover in place — tell the user and bail back.
   useEffect(() => {
@@ -174,17 +286,29 @@ export default function PersonaCreatorScreen() {
     }
   }, [editLoad, leave, t]);
 
-  // The single close intent (X button + hardware back). Create always opens the
-  // Save-draft/Discard menu (unsaved work never silently pops). Edit leaves
-  // straight away when nothing changed, and only confirms when there are unsaved
-  // changes — there's no draft to save, so it's discard-or-keep.
+  // Leave the success view straight into the chat (the persona is already
+  // selected). The working draft was discarded on publish success.
+  const handleStartChatting = useCallback(() => {
+    leaving.current = true;
+    leave();
+  }, [leave]);
+
+  // The single close intent (X button + hardware back). While the publish
+  // overlay is up the user can't bail: mid-save it's a no-op, and on the success
+  // view it routes through "Start Chatting". Otherwise: create opens the
+  // Save-draft/Discard menu; edit leaves when clean, confirms when dirty.
   const onPressClose = useCallback(() => {
+    if (publishPhase === "publishing") return;
+    if (publishPhase === "done") {
+      handleStartChatting();
+      return;
+    }
     if (isEdit && !dirty) {
       leave();
       return;
     }
     setExitMenuOpen((open) => !open);
-  }, [isEdit, dirty, leave]);
+  }, [publishPhase, handleStartChatting, isEdit, dirty, leave]);
 
   // Hardware back (Android) routes through the same close intent.
   useEffect(() => {
@@ -258,7 +382,15 @@ export default function PersonaCreatorScreen() {
     const activeDraft = state.drafts.find((d) => d.id === state.activeId);
     if (!activeDraft) return;
 
+    // Snapshot what the overlay shows, so it stays correct after the draft is
+    // discarded on success.
+    setPublishedName(
+      methods.getValues().displayName?.trim() ||
+        t("personasCreator.field.botFallback"),
+    );
+    setPublishedAvatarUri(activeDraft.avatar?.localUri ?? null);
     setPublishing(true);
+    setPublishPhase("publishing");
     try {
       const result = await publishPersonaDraft(activeDraft, {
         uploadAvatar: uploadPendingAvatar,
@@ -268,62 +400,108 @@ export default function PersonaCreatorScreen() {
         },
       });
       if (result.ok) {
+        // Mark leaving so the "no active draft" guard doesn't pop the screen
+        // when we discard below — we stay to show the success view; the user
+        // leaves via "Start Chatting Now".
         leaving.current = true;
         usePersonaDraftStore.getState().discard(activeDraft.id);
         if (uid) await usePersonaStore.getState().hydrate(uid);
         usePersonaStore.getState().select(result.personaId);
-        leave();
+        setPublishPhase("done");
         return;
       }
       setPublishError(t(`personasCreator.publishError.${result.reason}`));
+      setPublishPhase("idle");
+    } catch {
+      setPublishError(t("personasCreator.publishError.error"));
+      setPublishPhase("idle");
     } finally {
       setPublishing(false);
     }
-  }, [publishing, methods, flush, uid, leave, t]);
+  }, [publishing, methods, flush, uid, t]);
 
-  // Save an edit: validate, resolve the avatar action (keep / replace upload /
-  // remove), overwrite via savePersona, then refresh the list and leave.
-  // Selection is by id, so the edited persona stays selected if it already was.
-  const handleSaveEdit = useCallback(async () => {
-    if (publishing || !editPersonaId) return;
-    setPublishError(null);
-    const ok = await methods.trigger();
-    if (!ok) {
-      setPublishError(t("personasCreator.error.incomplete"));
-      return;
-    }
-    const avatarState: EditAvatarState =
+  // The avatar's edit-session action, derived from the live session state:
+  // a freshly-picked local image (replace + upload), a cleared stored one
+  // (remove), or no change (keep).
+  const currentAvatarState = useCallback(
+    (): EditAvatarState =>
       editAvatar.kind === "local"
         ? { kind: "replace", localUri: editAvatar.localUri }
         : editAvatar.kind === "none" && initialAvatarUrl !== null
           ? { kind: "remove" }
-          : { kind: "keep" };
+          : { kind: "keep" },
+    [editAvatar, initialAvatarUrl],
+  );
 
-    setPublishing(true);
-    try {
-      const result = await savePersonaEdit(
-        editPersonaId,
-        methods.getValues(),
-        avatarState,
-        {
-          uploadAvatar: uploadPendingAvatar,
-          savePersona: async (args) => {
-            const res = await savePersonaCallable(args);
-            return { personaId: res.personaId };
-          },
-        },
-      );
-      if (result.ok) {
-        leaving.current = true;
-        if (uid) await usePersonaStore.getState().hydrate(uid);
-        leave();
-        return;
-      }
-      setPublishError(t(`personasCreator.publishError.${result.reason}`));
-    } finally {
-      setPublishing(false);
+  // Validate + persist the edit — shared by "Save changes" (stay) and "Save &
+  // exit". Overwrites via savePersona, refreshes the persona list on success,
+  // and returns whether it saved (setting the soft error itself on failure).
+  // On success it deliberately leaves `publishing` TRUE so the caller can finish
+  // its follow-up (re-seed or navigate) before the spinner clears.
+  const persistEdit = useCallback(async (): Promise<boolean> => {
+    if (publishing || !editPersonaId) return false;
+    setPublishError(null);
+    const ok = await methods.trigger();
+    if (!ok) {
+      setPublishError(t("personasCreator.error.incomplete"));
+      return false;
     }
-  }, [publishing, editPersonaId, methods, editAvatar, initialAvatarUrl, uid, leave, t]);
+    setPublishing(true);
+    const result = await savePersonaEdit(
+      editPersonaId,
+      methods.getValues(),
+      currentAvatarState(),
+      {
+        uploadAvatar: uploadPendingAvatar,
+        savePersona: async (args) => {
+          const res = await savePersonaCallable(args);
+          return { personaId: res.personaId };
+        },
+      },
+      // Persist the picked reactions' preview URLs so re-editing shows thumbnails.
+      editMediaPicks,
+    );
+    if (result.ok) {
+      if (uid) await usePersonaStore.getState().hydrate(uid);
+      return true;
+    }
+    setPublishError(t(`personasCreator.publishError.${result.reason}`));
+    setPublishing(false);
+    return false;
+  }, [publishing, editPersonaId, methods, currentAvatarState, editMediaPicks, uid, t]);
+
+  // "Save & exit": persist, then leave (selection is by id, so the edited
+  // persona stays selected if it already was).
+  const handleSaveEdit = useCallback(async () => {
+    setSaveMenuOpen(false);
+    if (await persistEdit()) {
+      leaving.current = true;
+      leave();
+    }
+  }, [persistEdit, leave]);
+
+  // "Save changes": persist, then re-seed from the saved copy so the dirty
+  // baseline resets and the user stays in the editor. A re-seed hiccup is
+  // non-fatal (the save already succeeded) — just clear the spinner.
+  const handleSaveStay = useCallback(async () => {
+    setSaveMenuOpen(false);
+    if (await persistEdit()) {
+      try {
+        await seedFromStored();
+      } finally {
+        setPublishing(false);
+      }
+    }
+  }, [persistEdit, seedFromStored]);
+
+  // Footer primary on the LAST step (review) in edit mode — mirrors create's
+  // "Save bot": a save that also finishes, instead of a dead "Next" that loops
+  // back to the overview. Dirty → persist + exit; clean → just exit (nothing to
+  // write). The header save popover stays for mid-flow saves.
+  const handleFinishEdit = useCallback(() => {
+    if (dirty) void handleSaveEdit();
+    else leave();
+  }, [dirty, handleSaveEdit, leave]);
 
   // Edit discard: no draft to throw away — just leave (changes are dropped).
   const handleEditDiscard = useCallback(() => {
@@ -343,27 +521,51 @@ export default function PersonaCreatorScreen() {
             backgroundColor: theme["--color-background"],
           }}
         >
-          <ActivityIndicator size="large" color={theme["--color-foreground-muted"]} />
+          <ActivityIndicator
+            size="large"
+            color={theme["--color-foreground-muted"]}
+          />
         </View>
       );
     }
     // "error" routes back via the effect above; render nothing meanwhile.
     if (editLoad !== "ready") return null;
-  } else if (!draft) {
+  } else if (!draft && publishPhase === "idle") {
+    // No draft is impossible from the picker; but DON'T bail while the publish
+    // overlay is up — success discards the draft yet we stay to show it.
     return null;
   }
 
   // The primary footer action and the X/back intent differ by mode; the rest of
   // the screen is identical, so it's rendered once and wrapped in the right
   // session provider (draft-backed for create, screen-owned for edit).
+  //
+  // Edit mode decouples navigation from saving: the footer is step navigation
+  // ("Next") UNTIL the last step (review), where it becomes the finishing save —
+  // "Save changes" when there are edits, "Done" when there aren't — so reaching
+  // the overview doesn't dead-end on a "Next" with nowhere to go. The header's
+  // "Save & exit" popover still offers a mid-flow save from any step. Create
+  // keeps Next → "Save bot" on the last step.
   const primaryLabel = isEdit
-    ? t("personasCreator.saveChanges")
+    ? isLast
+      ? dirty
+        ? t("personasCreator.saveChanges")
+        : t("common.done")
+      : t("personasCreator.next")
     : isLast
       ? t("personasCreator.publish")
       : t("personasCreator.next");
-  const onPrimary = isLast ? (isEdit ? handleSaveEdit : handlePublish) : goNext;
-  // Edit's final Save is gated on having actual changes; Next is always enabled.
-  const primaryDisabled = publishing || (isEdit && isLast && !dirty);
+  const onPrimary = isEdit
+    ? isLast
+      ? handleFinishEdit
+      : goNext
+    : isLast
+      ? handlePublish
+      : goNext;
+  const primaryDisabled = publishing;
+  // Header save icon (edit only): enabled once there are unsaved changes; opens
+  // the Save changes / Save & exit popover.
+  const canSave = isEdit && dirty && !publishing;
 
   const screen = (
     <FormProvider {...methods}>
@@ -373,8 +575,10 @@ export default function PersonaCreatorScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             style={{ flex: 1 }}
           >
-            {/* Header: step dots (center) · X exit (right). Back lives in the
-                footer; the left slot is a spacer to keep the dots centered. */}
+            {/* Header: save icon (edit only, left) · step dots (center) · X exit
+                (right). The save and X are matching glass icon buttons; the side
+                slots are flex:1 so the dots stay screen-centered. Back lives in
+                the footer. In create mode the left slot is an empty spacer. */}
             <View
               style={{
                 flexDirection: "row",
@@ -385,43 +589,86 @@ export default function PersonaCreatorScreen() {
                 gap: 8,
               }}
             >
-              <View style={{ width: 36, height: 36 }} />
-
-              <View
-                style={{ flex: 1, flexDirection: "row", justifyContent: "center", gap: 6 }}
-              >
-                {PERSONA_STEPS.map((s, i) => (
-                  <View
-                    key={s}
-                    style={{
-                      width: i === stepIndex ? 20 : 7,
-                      height: 7,
-                      borderRadius: 999,
-                      backgroundColor:
-                        i === stepIndex
-                          ? theme["--color-primary"]
-                          : theme["--color-border-strong"],
+              <View style={{ flex: 1, alignItems: "flex-start" }}>
+                {isEdit ? (
+                  <IconButton
+                    onPress={() => setSaveMenuOpen((open) => !open)}
+                    disabled={!canSave}
+                    busy={publishing}
+                    busyColor={theme["--color-foreground"]}
+                    hitSlop={8}
+                    size={36}
+                    glass
+                    fallbackStyle={{
+                      backgroundColor: theme["--color-card-muted"],
                     }}
-                  />
-                ))}
+                    accessibilityLabel={t("personasCreator.saveChanges")}
+                    surfaceStyle={{ opacity: canSave || publishing ? 1 : 0.4 }}
+                    accessibilityState={{ expanded: saveMenuOpen }}
+                  >
+                    <FloppyDisk
+                      size={18}
+                      weight="bold"
+                      color={theme["--color-foreground"]}
+                    />
+                  </IconButton>
+                ) : null}
               </View>
 
-              <IconButton
-                onPress={onPressClose}
-                hitSlop={8}
-                size={36}
-                glass
-                fallbackStyle={{ backgroundColor: theme["--color-card-muted"] }}
-                accessibilityLabel={t("common.close")}
+              {/* Progress bar — replaces the old dot row now that the wizard has
+                  many steps (one dot per step would read like a ruler). Fills as
+                  the user advances; the side slots are flex:1 so it stays
+                  screen-centered. */}
+              <View
+                accessibilityRole="progressbar"
+                accessibilityValue={{
+                  min: 1,
+                  max: PERSONA_STEPS.length,
+                  now: stepIndex + 1,
+                }}
+                style={{
+                  width: 180,
+                  height: 6,
+                  borderRadius: 999,
+                  overflow: "hidden",
+                  backgroundColor: theme["--color-border-strong"],
+                }}
               >
-                <X size={18} weight="bold" color={theme["--color-foreground"]} />
-              </IconButton>
+                <View
+                  style={{
+                    width: `${((stepIndex + 1) / PERSONA_STEPS.length) * 100}%`,
+                    height: "100%",
+                    borderRadius: 999,
+                    backgroundColor: theme["--color-primary"],
+                  }}
+                />
+              </View>
+
+              <View style={{ flex: 1, alignItems: "flex-end" }}>
+                <IconButton
+                  onPress={onPressClose}
+                  hitSlop={8}
+                  size={36}
+                  glass
+                  fallbackStyle={{
+                    backgroundColor: theme["--color-card-muted"],
+                  }}
+                  accessibilityLabel={t("common.close")}
+                >
+                  <X
+                    size={18}
+                    weight="bold"
+                    color={theme["--color-foreground"]}
+                  />
+                </IconButton>
+              </View>
             </View>
 
             {/* One step at a time (no measured pager → no first-paint flash). The
                 key resets scroll position between steps; inputs keep their values
                 from the form context. */}
             <ScrollView
+              ref={scrollRef}
               key={step}
               style={{ flex: 1 }}
               contentContainerStyle={{
@@ -434,7 +681,9 @@ export default function PersonaCreatorScreen() {
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="interactive"
             >
-              <StepBody step={step} />
+              <CreatorScratchProvider value={scratch}>
+                <StepBody step={step} />
+              </CreatorScratchProvider>
             </ScrollView>
 
             {/* Footer: Back (left) and Next / Save bot (right), split 50/50. Rides
@@ -475,7 +724,11 @@ export default function PersonaCreatorScreen() {
                     opacity: canGoBack ? 1 : 0.4,
                   }}
                 >
-                  <CaretLeft size={16} weight="bold" color={theme["--color-foreground"]} />
+                  <CaretLeft
+                    size={16}
+                    weight="bold"
+                    color={theme["--color-foreground"]}
+                  />
                   <Typography
                     variant="body"
                     weight="semibold"
@@ -501,7 +754,10 @@ export default function PersonaCreatorScreen() {
                   }}
                 >
                   {publishing ? (
-                    <ActivityIndicator size="small" color={theme["--color-primary-foreground"]} />
+                    <ActivityIndicator
+                      size="small"
+                      color={theme["--color-primary-foreground"]}
+                    />
                   ) : (
                     <Typography
                       variant="body"
@@ -524,175 +780,33 @@ export default function PersonaCreatorScreen() {
           onSaveDraft={handleSaveDraft}
           onDiscard={isEdit ? handleEditDiscard : handleDiscard}
         />
+
+        {isEdit ? (
+          <SaveMenu
+            open={saveMenuOpen}
+            onClose={() => setSaveMenuOpen(false)}
+            onSaveChanges={handleSaveStay}
+            onSaveAndExit={handleSaveEdit}
+          />
+        ) : null}
+
+        {!isEdit && publishPhase !== "idle" ? (
+          <PublishingOverlay
+            phase={publishPhase}
+            name={publishedName}
+            avatarUri={publishedAvatarUri}
+            onStart={handleStartChatting}
+          />
+        ) : null}
       </View>
     </FormProvider>
   );
 
   return isEdit ? (
-    <CreatorSessionProvider value={editSession}>{screen}</CreatorSessionProvider>
+    <CreatorSessionProvider value={editSession}>
+      {screen}
+    </CreatorSessionProvider>
   ) : (
     <DraftCreatorSession>{screen}</DraftCreatorSession>
-  );
-}
-
-// ── Exit menu (the X popover: Save draft / Discard) ───────────────────────────
-
-function ExitMenu({
-  open,
-  isEdit,
-  onClose,
-  onSaveDraft,
-  onDiscard,
-}: {
-  open: boolean;
-  // Edit mode has no draft: the menu drops "Save draft" and the discard row
-  // becomes "Discard changes" (the screen only opens it when there ARE changes).
-  isEdit: boolean;
-  onClose: () => void;
-  onSaveDraft: () => void;
-  onDiscard: () => void;
-}) {
-  const { t } = useTranslation();
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
-  const [mounted, setMounted] = useState(false);
-  const progress = useSharedValue(0);
-
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      progress.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) });
-    } else if (mounted) {
-      progress.value = withTiming(
-        0,
-        { duration: 140, easing: Easing.in(Easing.cubic) },
-        (finished) => {
-          if (finished) runOnJS(setMounted)(false);
-        },
-      );
-    }
-  }, [open, mounted, progress]);
-
-  const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.value * 0.4 }));
-  const panelStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(progress.value, [0, 1], [-8, 0]) },
-      { scale: interpolate(progress.value, [0, 1], [0.94, 1]) },
-    ],
-  }));
-
-  if (!mounted) return null;
-
-  return (
-    <View pointerEvents={open ? "auto" : "none"} style={StyleSheet.absoluteFillObject}>
-      <AppPressable
-        onPress={onClose}
-        feedback="none"
-        hitSlop={0}
-        accessibilityLabel={t("common.close")}
-        containerStyle={StyleSheet.absoluteFillObject}
-      >
-        <Animated.View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFillObject,
-            { backgroundColor: theme["--color-overlay"] },
-            backdropStyle,
-          ]}
-        />
-      </AppPressable>
-
-      {/* Anchored just under the header's X button (which sits at the top of the
-          safe-area inset + the header's 8px pad + 36px button). */}
-      <Animated.View
-        style={[
-          {
-            position: "absolute",
-            top: insets.top + 44,
-            right: 16,
-            minWidth: 220,
-            transformOrigin: "top right",
-          },
-          panelStyle,
-        ]}
-      >
-        <GlassSurface
-          style={{ borderRadius: 18, overflow: "hidden" }}
-          fallbackStyle={{
-            backgroundColor: theme["--color-card"],
-            borderWidth: 1,
-            borderColor: theme["--color-border"],
-          }}
-        >
-          <Typography
-            variant="caption"
-            weight="semibold"
-            style={{
-              color: theme["--color-foreground-muted"],
-              paddingHorizontal: 16,
-              paddingTop: 14,
-              paddingBottom: 6,
-            }}
-          >
-            {isEdit ? t("personasCreator.editExitTitle") : t("personasCreator.exitTitle")}
-          </Typography>
-          {isEdit ? null : (
-            <>
-              <ExitRow
-                icon={<FloppyDisk size={18} weight="bold" color={theme["--color-foreground"]} />}
-                label={t("personasCreator.saveDraft")}
-                color={theme["--color-foreground"]}
-                onPress={onSaveDraft}
-              />
-              <View
-                style={{
-                  height: StyleSheet.hairlineWidth,
-                  backgroundColor: theme["--color-border"],
-                  marginHorizontal: 16,
-                }}
-              />
-            </>
-          )}
-          <ExitRow
-            icon={<Trash size={18} weight="bold" color={theme["--color-error"]} />}
-            label={isEdit ? t("personasCreator.discardChanges") : t("personasCreator.discardDraft")}
-            color={theme["--color-error"]}
-            onPress={onDiscard}
-          />
-        </GlassSurface>
-      </Animated.View>
-    </View>
-  );
-}
-
-function ExitRow({
-  icon,
-  label,
-  color,
-  onPress,
-}: {
-  icon: ReactNode;
-  label: string;
-  color: string;
-  onPress: () => void;
-}) {
-  return (
-    <AppPressable
-      onPress={onPress}
-      accessibilityLabel={label}
-      pressScale={0.02}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 12,
-        paddingHorizontal: 16,
-        paddingVertical: 14,
-      }}
-    >
-      {icon}
-      <Typography variant="body" weight="semibold" style={{ color }}>
-        {label}
-      </Typography>
-    </AppPressable>
   );
 }
