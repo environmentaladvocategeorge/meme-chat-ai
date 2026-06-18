@@ -469,7 +469,7 @@
         topics you keep returning to, so it does not ask the same things twice.
       </p>
       <ul>
-        <li>Memory is <strong>only available on paid plans</strong> and is <strong>not available to free (Hatchling) users</strong>.</li>
+        <li>Memory is <strong>only available on paid plans</strong> and is <strong>not available to free (Newbie) users</strong>.</li>
         <li>For paid subscribers, Memory is <strong>on by default</strong>. You can turn it off (opt out) at any time from <strong>Settings &rarr; Memory</strong>, and the chat screen shows a small "Memory is on" indicator on a new chat so you always know its state.</li>
         <li>When Memory is on, the AI writes short notes about you during chats. You cannot edit these notes by hand, but you can <strong>delete individual entries or wipe all memory</strong> at any time from <strong>Settings &rarr; Memory</strong>.</li>
         <li>Memory notes are stored in your Firestore account, linked to your Firebase UID, and are kept deliberately short.</li>
@@ -909,7 +909,7 @@
         <li><strong>Content moderation records</strong> (see Section 18) are retained for safety and audit purposes and may be kept for a reasonable period after your account is deleted.</li>
         <li><strong>De-identified RevenueCat webhook / audit records</strong> may be retained for accounting, fraud-prevention, and legal purposes, including after account deletion.</li>
         <li><strong>Hashed IP rate-limit records</strong> are short-lived and swept automatically by a time-to-live policy. Raw IP that appears in our Cloud Functions diagnostic logs is retained for up to 30 days under Google Cloud Logging's default retention.</li>
-        <li><strong>Local device data</strong> (settings, onboarding flag, alias, customization, rot level, session) is removed on sign-out, account deletion, or App deletion — <strong>except the age-gate status and date of birth</strong>, which are intentionally retained on the device after account deletion and cleared only by deleting the App.</li>
+        <li><strong>Local device data</strong> (settings, onboarding flag, alias, customization, rot level, session, persona selection, persona drafts, review-prompt state, and scheduled daily notifications) is removed on sign-out, account deletion, or App deletion — <strong>except the age-gate status and date of birth</strong>, which are intentionally retained on the device after account deletion and cleared only by deleting the App.</li>
         <li><strong>Third parties</strong> (OpenAI, Klipy, RevenueCat, Apple, Google) retain data under their own policies.</li>
       </ul>
 
@@ -918,23 +918,29 @@
       <h3>Deleting your account</h3>
       <p>
         You can delete your account from within the App. For your security, this
-        requires recent re-authentication. When you delete your account, the App
+        requires recent re-authentication. Once you confirm, the App shows a
+        non-cancellable progress screen while the deletion runs, so it cannot be
+        interrupted partway through. When you delete your account, the App
         is designed to delete your Firebase Authentication user, your profile
         and its subcollections, the conversations and messages you own, your
         Memory notes, the custom personas you created and their avatars, the
         photos you uploaded as chat attachments (in Cloud
-        Storage), and the usage events linked to your UID, and then to sign you
-        out and wipe local app data (other than the retained age-gate/DOB record
-        described above).
+        Storage), and the usage events linked to your UID. After deleting these,
+        the server re-checks that no per-user records or uploaded objects remain
+        before reporting success. The App then signs you out and wipes local app
+        data — settings, onboarding flag, alias, chat customization, chat
+        session, persona selection, persona drafts, review-prompt state, and any
+        scheduled daily notifications — other than the retained age-gate/DOB
+        record described above.
       </p>
       <p>
         Account deletion is performed across separate systems, so it cannot be
         perfectly atomic. We delete your sign-in record first; if a later
-        cleanup step fails, some records may briefly remain. The App is designed
-        to report that failure instead of telling you deletion fully completed,
-        so the issue can be retried or remediated. We attempt to delete all of
-        the data described above, but cannot guarantee that every copy is
-        removed instantly.
+        cleanup step (or the post-deletion verification described above) fails,
+        some records may briefly remain. The App is designed to report that
+        failure instead of telling you deletion fully completed, so the issue can
+        be retried or remediated. We attempt to delete all of the data described
+        above, but cannot guarantee that every copy is removed instantly.
       </p>
       <p>The following are <strong>not</strong> deleted by account deletion:</p>
       <ul>

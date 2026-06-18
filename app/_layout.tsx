@@ -1,6 +1,7 @@
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { AccountSheet } from "@/components/AccountSheet";
 import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
+import { DeletingAccountScreen } from "@/components/DeletingAccountScreen";
 import { PlanSheet } from "@/components/PlanSheet";
 import { LanguageSheet } from "@/components/LanguageSheet";
 import { MemorySheet } from "@/components/MemorySheet";
@@ -230,6 +231,13 @@ export default function RootLayout() {
   // this screen except updating.
   if (updateRequired) {
     return <UpdateRequiredScreen storeUrl={updateStoreUrl} />;
+  }
+
+  // Account deletion in flight: a non-cancellable takeover (over the account
+  // sheet that started it) until the wipe completes and auth flips to
+  // signed-out, or the callable fails and flips back to authenticated.
+  if (authStatus === "deleting") {
+    return <DeletingAccountScreen />;
   }
 
   if (!appReady) {

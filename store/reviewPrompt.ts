@@ -21,6 +21,9 @@ type ReviewPromptState = Persisted & {
   markAccepted: () => Promise<void>;
   markLater: () => Promise<void>;
   markDeclined: () => Promise<void>;
+  // Sign-out / account-deletion teardown: back to defaults in memory and on
+  // disk, so the next user on this device starts the review cadence fresh.
+  reset: () => Promise<void>;
 };
 
 const DEFAULTS: Persisted = {
@@ -106,5 +109,15 @@ export const useReviewPromptStore = create<ReviewPromptState>()((set, get) => ({
     const next: Persisted = { messageCount: get().messageCount, done: false, nextEligibleAt };
     set({ ...next, pending: false });
     await write(next);
+  },
+
+  reset: async () => {
+    set({ ...DEFAULTS, pending: false });
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Best-effort — the backstop sweep in wipeLocalAppData also removes this
+      // key, so a failure here doesn't leave it behind.
+    }
   },
 }));

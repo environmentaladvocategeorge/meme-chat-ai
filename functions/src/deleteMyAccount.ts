@@ -11,6 +11,13 @@ function logUserKey(uid: string): string {
   return createHash("sha256").update(uid).digest("hex").slice(0, 16);
 }
 
+// Storage prefixes that hold the user's uploaded objects, both keyed by uid.
+// Catch-all by prefix so orphans (chat drafts, replaced/removed persona avatars)
+// are swept too, not just objects still referenced by a surviving doc.
+function userStoragePrefixes(uid: string): string[] {
+  return [`messageImages/${uid}/`, `personaAvatars/${uid}/`];
+}
+
 // Removes every Firestore record tied to a user. Kept separate from the
 // callable so it's unit-testable and reusable.
 //
@@ -18,21 +25,27 @@ function logUserKey(uid: string): string {
 //     recursiveDelete — deleting just the doc would orphan the subcollections.
 //   - memories/{uid} AND its facts subcollection (the user's long-term memory).
 //   - conversations/{cid} owned by the user + each one's messages subcollection.
+//   - user_personas/* owned by the user (their custom bots — flat docs).
 //   - top-level usageEvents docs where uid == the user.
+//   - Storage: messageImages/{uid}/* and personaAvatars/{uid}/* (uploaded
+//     chat images + persona avatars).
 //
 // Intentionally NOT deleted (not per-user identity, or retained on purpose):
+//   - flagged_messages/* — moderation/safety audit trail (userId + reason only,
+//     never user-authored text); retained for abuse review and legal obligation.
 //   - revenueCatEvents/* — billing/webhook audit trail, kept for accounting.
 //   - usageDaily/*        — anonymized daily aggregates, no per-user fields.
 //   - rateLimits/*        — keyed by IP + hour bucket, TTL-swept, no uid.
 export async function deleteUserData(uid: string, db: Firestore): Promise<void> {
-  const [conversations, usageEvents] = await Promise.all([
+  const [conversations, usageEvents, userPersonas] = await Promise.all([
     db.collection("conversations").where("uid", "==", uid).get(),
     db.collection("usageEvents").where("uid", "==", uid).get(),
+    db.collection("user_personas").where("ownerUid", "==", uid).get(),
   ]);
 
   // One shared BulkWriter drains every per-user document — the profile tree,
-  // each conversation tree, and the usage events — in a single batched sweep
-  // instead of a serial recursiveDelete round-trip per conversation.
+  // each conversation tree, the usage events, and the custom personas — in a
+  // single batched sweep instead of a serial recursiveDelete per conversation.
   const writer = db.bulkWriter();
   const pending: Promise<unknown>[] = [
     // Profile doc + every subcollection under it (reservations, …).
@@ -51,14 +64,71 @@ export async function deleteUserData(uid: string, db: Firestore): Promise<void> 
     void writer.delete(event.ref);
   }
 
+  // The user's custom personas (no subcollections — flat docs).
+  for (const persona of userPersonas.docs) {
+    void writer.delete(persona.ref);
+  }
+
   await Promise.all(pending);
   await writer.close();
 
-  // Remove all of the user's uploaded chat images (catch-all by prefix — covers
-  // every upload folder, including drafts not tied to a surviving conversation).
+  // Remove all of the user's uploaded objects (chat images + persona avatars).
   // Storage is part of the deletion guarantee, so failures propagate to the
   // callable instead of being hidden from the client.
-  await getStorage().bucket().deleteFiles({ prefix: `messageImages/${uid}/` });
+  await Promise.all(
+    userStoragePrefixes(uid).map((prefix) =>
+      getStorage().bucket().deleteFiles({ prefix }),
+    ),
+  );
+
+  // Validation: re-read every per-user surface and fail loudly if anything
+  // survived, so the callable reports failure (and logs for manual cleanup)
+  // instead of telling the user the deletion fully completed while orphaned
+  // records linger.
+  await verifyUserDataDeleted(uid, db);
+}
+
+// Post-delete check: confirms no per-user document or uploaded object remains.
+// Throws on any residue so deleteUserData's caller surfaces failure. Each query
+// is bounded (existence/limit(1)/maxResults:1) — this is a cheap confirmation,
+// not a second full scan.
+export async function verifyUserDataDeleted(
+  uid: string,
+  db: Firestore,
+): Promise<void> {
+  const bucket = getStorage().bucket();
+  const [
+    profile,
+    memory,
+    conversations,
+    usageEvents,
+    userPersonas,
+    ...storageLists
+  ] = await Promise.all([
+    db.doc(`profiles/${uid}`).get(),
+    db.doc(`memories/${uid}`).get(),
+    db.collection("conversations").where("uid", "==", uid).limit(1).get(),
+    db.collection("usageEvents").where("uid", "==", uid).limit(1).get(),
+    db.collection("user_personas").where("ownerUid", "==", uid).limit(1).get(),
+    ...userStoragePrefixes(uid).map((prefix) =>
+      bucket.getFiles({ prefix, maxResults: 1 }),
+    ),
+  ]);
+
+  const residual: string[] = [];
+  if (profile.exists) residual.push("profiles");
+  if (memory.exists) residual.push("memories");
+  if (!conversations.empty) residual.push("conversations");
+  if (!usageEvents.empty) residual.push("usageEvents");
+  if (!userPersonas.empty) residual.push("user_personas");
+  userStoragePrefixes(uid).forEach((prefix, i) => {
+    const [files] = storageLists[i] ?? [[]];
+    if (files.length > 0) residual.push(prefix);
+  });
+
+  if (residual.length > 0) {
+    throw new Error(`residual user data after delete: ${residual.join(", ")}`);
+  }
 }
 
 // Auth + Firestore live in different systems, so the deletion can't be

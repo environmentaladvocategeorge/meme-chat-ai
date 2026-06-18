@@ -23,11 +23,15 @@ import {
   type SignInEmailResult,
 } from "@/services/firebase/emailAuth";
 import { fetchOnboardingCompleted } from "@/services/firebase/profile";
+import { DEFAULT_PERSONA_ID } from "@/domain/personas";
 import { useChatStore } from "@/store/chat";
 import { useEntitlementStore } from "@/store/entitlement";
+import { teardownUserNotifications } from "@/store/notifications";
 import { useOnboardingStore } from "@/store/onboarding";
+import { usePersonaStore } from "@/store/personas";
+import { useReviewPromptStore } from "@/store/reviewPrompt";
 import { useSettingsStore } from "@/store/settings";
-import { wipeLocalAppData } from "@/store/storage";
+import { listResidualUserKeys, wipeLocalAppData } from "@/store/storage";
 import { useSubscriptionStore } from "@/store/subscription";
 import { FirebaseError } from "firebase/app";
 import {
@@ -461,6 +465,13 @@ async function finalizeAccountDeletion(
   // own once `uid` clears below.)
   useChatStore.getState().startNewConversation();
 
+  // Flip to the `deleting` takeover NOW, before any irreversible work. The root
+  // layout renders a full-screen, button-less "deleting your data" screen for
+  // this status (over the account sheet), so the user can't navigate away,
+  // cancel, or re-trigger the delete mid-wipe. Reauth already happened in the
+  // sheet; the only way back out of this state is the callable failing below.
+  set({ status: "deleting" });
+
   try {
     // Reauth bumps auth_time server-side but does NOT refresh the cached ID
     // token the callable attaches. If that cached token is already expired
@@ -471,10 +482,13 @@ async function finalizeAccountDeletion(
     await deleteMyAccountCallable();
   } catch (e) {
     console.warn("[deleteAccount] callable failed:", e);
+    // Nothing was deleted (the callable deletes the auth user first and only
+    // returns success once Firestore + Storage are verified clean). The user is
+    // still signed in, so drop the takeover and hand the error back to the sheet
+    // to retry.
+    set({ status: "authenticated" });
     return { success: false, error: "firestore-delete-failed" as const };
   }
-
-  set({ status: "deleting" });
 
   // The `deleting` guard in onAuthStateChanged below skips the usual cleanup,
   // so do it explicitly: tear down the entitlement (profiles/{uid}) listener
@@ -493,6 +507,12 @@ async function finalizeAccountDeletion(
 
   await clearSignedOutLocalData();
 
+  // Validation: confirm nothing of the user's survives locally before we report
+  // success (the cloud side is verified server-side by deleteUserData). The
+  // account is already gone, so residue here is logged loudly and re-wiped once
+  // rather than surfaced as a failure the user can't act on.
+  await assertLocalDataCleared();
+
   if (signOutError) {
     console.warn("[deleteAccount] firebase sign-out failed:", signOutError);
   }
@@ -502,14 +522,69 @@ async function finalizeAccountDeletion(
   return { success: true as const };
 }
 
+// Post-wipe validation for the delete flow. Re-reads AsyncStorage and the
+// in-memory stores that hold user-identifying state; if anything survived, logs
+// it and runs one more cleanup pass. Never throws — by the time this runs the
+// account is already deleted server-side, so the worst case is a logged warning,
+// not a blocked user.
+async function assertLocalDataCleared(): Promise<void> {
+  const issues = await collectResidualUserData();
+  if (issues.length === 0) return;
+
+  console.warn(
+    "[deleteAccount] residual user data after wipe, retrying:",
+    issues,
+  );
+  await clearSignedOutLocalData();
+
+  const stillResidual = await collectResidualUserData();
+  if (stillResidual.length > 0) {
+    console.warn(
+      "[deleteAccount] residual user data persists after retry:",
+      stillResidual,
+    );
+  }
+}
+
+// Everything user-scoped that should be gone post-wipe: leftover `app.` keys in
+// AsyncStorage, plus the in-memory store fields that carry the signed-out user's
+// identity/session.
+async function collectResidualUserData(): Promise<string[]> {
+  const issues: string[] = [];
+
+  const residualKeys = await listResidualUserKeys();
+  if (residualKeys.length > 0) {
+    issues.push(`asyncStorage[${residualKeys.join(",")}]`);
+  }
+
+  if (useChatStore.getState().conversationId) issues.push("chat.conversationId");
+  if (useEntitlementStore.getState().uid) issues.push("entitlement.uid");
+
+  const persona = usePersonaStore.getState();
+  if (persona.selectedPersonaId !== DEFAULT_PERSONA_ID) {
+    issues.push("persona.selectedId");
+  }
+  if (persona.personas.length > 0) issues.push("persona.list");
+
+  return issues;
+}
+
 async function clearSignedOutLocalData(): Promise<void> {
   useChatStore.getState().startNewConversation();
   useEntitlementStore.getState().bindUid(null);
+  // Persona selection + hydrated list back to the default (also removes the
+  // persisted app.persona.selectedId key), so the next user on this device
+  // never inherits the previous user's bot.
+  usePersonaStore.getState().clear();
 
   await Promise.all([
     useSubscriptionStore.getState().setRcUser(null).catch(() => {}),
     wipeLocalAppData().catch(() => {}),
     useOnboardingStore.getState().reset().catch(() => {}),
     useSettingsStore.getState().reset().catch(() => {}),
+    useReviewPromptStore.getState().reset().catch(() => {}),
+    // Cancel scheduled rot-check notifications carrying the user's bots and drop
+    // the in-memory opt-in. OS-level permission is left as-is (device state).
+    teardownUserNotifications().catch(() => {}),
   ]);
 }
