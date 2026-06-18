@@ -8,6 +8,7 @@ import {
   type UserPersonaSummary,
 } from "@/domain/personas";
 import { fetchUserPersonas } from "@/services/firebase/personas";
+import { EditAvatarCandidatesStorage } from "@/store/storage";
 
 // Local persona state: which persona the user chats as, plus their hydrated
 // list of saved personas for the picker. Selection is LOCAL and device-scoped
@@ -95,6 +96,9 @@ export const usePersonaStore = create<PersonaState>()((set, get) => ({
       ...(wasSelected ? { selectedPersonaId: DEFAULT_PERSONA_ID } : {}),
     }));
     if (wasSelected) AsyncStorage.setItem(SELECTED_KEY, DEFAULT_PERSONA_ID).catch(() => {});
+    // Drop any locally-stored AI avatar candidate pairs for the deleted personas
+    // so the map doesn't accumulate entries for bots that no longer exist.
+    void EditAvatarCandidatesStorage.removeFor(ids);
   },
 
   clear: () => {

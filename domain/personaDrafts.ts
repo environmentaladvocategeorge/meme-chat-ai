@@ -106,8 +106,10 @@ function normalizeMediaPicks(value: unknown): MediaPick[] {
 }
 
 // Defensive parse of the persisted avatar-candidate pair. Drops entries without
-// a usable local URI and caps at two (the generator always makes two).
-function normalizeGeneratedAvatars(value: unknown): PickedAvatar[] {
+// a usable local URI and caps at two (the generator always makes two). Exported
+// so the edit-mode candidate store (store/storage.ts) reuses the exact same
+// shape/validation as the draft path.
+export function normalizeGeneratedAvatars(value: unknown): PickedAvatar[] {
   if (!Array.isArray(value)) return [];
   const out: PickedAvatar[] = [];
   for (const item of value) {

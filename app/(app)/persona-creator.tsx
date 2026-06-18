@@ -47,6 +47,7 @@ import { uploadPendingAvatar } from "@/services/firebase/uploadPersonaAvatar";
 import { useAuthStore } from "@/store/auth";
 import { useActiveDraft, usePersonaDraftStore } from "@/store/personaDraft";
 import { usePersonaStore } from "@/store/personas";
+import { EditAvatarCandidatesStorage } from "@/store/storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { CaretLeft, FloppyDisk, X } from "phosphor-react-native";
 import {
@@ -127,15 +128,29 @@ export default function PersonaCreatorScreen() {
   const scrollRef = useRef<ScrollView>(null);
   // The AI avatar candidate pair. In CREATE mode it lives ON THE DRAFT, so the
   // two candidates survive closing and reopening the creator (and "Save draft"),
-  // not just the one the user selected. In EDIT mode there's no draft, so it's
-  // screen-local. Re-generating replaces the list; the generator deletes the old
-  // candidate files, so stale generations are never kept.
+  // not just the one the user selected. In EDIT mode there's no draft, so the
+  // in-session copy is screen-local AND mirrored to per-persona durable storage
+  // (EditAvatarCandidatesStorage) so the pair likewise survives the creator
+  // closing — hydrated back on reopen by the effect below. Re-generating replaces
+  // the list; the generator deletes the old candidate files, so stale generations
+  // are never kept.
   const [editGenerated, setEditGenerated] = useState<PickedAvatar[]>([]);
   const generatedAvatars = isEdit ? editGenerated : (draft?.generatedAvatars ?? []);
   const setGeneratedAvatars = useCallback<Dispatch<SetStateAction<PickedAvatar[]>>>(
     (next) => {
       if (isEdit) {
-        setEditGenerated(next);
+        // Resolve functional updates against the live state so the durable mirror
+        // gets the same value the in-flight generate composed into.
+        setEditGenerated((prev) => {
+          const resolved =
+            typeof next === "function"
+              ? (next as (p: PickedAvatar[]) => PickedAvatar[])(prev)
+              : next;
+          if (editPersonaId) {
+            void EditAvatarCandidatesStorage.setFor(editPersonaId, resolved);
+          }
+          return resolved;
+        });
         return;
       }
       // Read the latest off the store (not a stale closure) so functional
@@ -149,8 +164,23 @@ export default function PersonaCreatorScreen() {
           : next;
       store.updateActive({ generatedAvatars: resolved });
     },
-    [isEdit],
+    [isEdit, editPersonaId],
   );
+  // Edit mode: restore this persona's last generated pair so both options reappear
+  // when the user reopens the editor (create mode gets this free off the draft).
+  // Only a non-empty stored pair is applied, so it never clobbers an in-progress
+  // generation whose result landed before the read returned.
+  useEffect(() => {
+    if (!editPersonaId) return;
+    let active = true;
+    void (async () => {
+      const saved = await EditAvatarCandidatesStorage.getFor(editPersonaId);
+      if (active && saved.length > 0) setEditGenerated(saved);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [editPersonaId]);
   // Client-side SOFT rate limit for avatar regeneration (a bypass isn't harmful
   // — the credit charge is the real guard). Lives here so it survives steps.
   const [cooldownUntil, setCooldownUntil] = useState(0);
@@ -404,6 +434,15 @@ export default function PersonaCreatorScreen() {
         // when we discard below — we stay to show the success view; the user
         // leaves via "Start Chatting Now".
         leaving.current = true;
+        // Carry the draft's candidate pair onto the now-published persona so the
+        // two options are still there if the user immediately edits it — the draft
+        // that held them is discarded on the next line.
+        if (activeDraft.generatedAvatars.length > 0) {
+          void EditAvatarCandidatesStorage.setFor(
+            result.personaId,
+            activeDraft.generatedAvatars,
+          );
+        }
         usePersonaDraftStore.getState().discard(activeDraft.id);
         if (uid) await usePersonaStore.getState().hydrate(uid);
         usePersonaStore.getState().select(result.personaId);

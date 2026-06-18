@@ -122,7 +122,9 @@ describe("buildAvatarPrompt", () => {
     const b = buildAvatarPrompt("a grumpy cat", 1);
     expect(a).not.toBe(b);
     // Out-of-range variants wrap safely instead of producing undefined.
-    expect(buildAvatarPrompt("a grumpy cat", 999)).toContain("Composition:");
-    expect(buildAvatarPrompt("a grumpy cat", -1)).toContain("Composition:");
+    expect(buildAvatarPrompt("a grumpy cat", 999)).toContain("Composition (default");
+    expect(buildAvatarPrompt("a grumpy cat", 999)).not.toContain("undefined");
+    expect(buildAvatarPrompt("a grumpy cat", -1)).toContain("Composition (default");
+    expect(buildAvatarPrompt("a grumpy cat", -1)).not.toContain("undefined");
   });
 });

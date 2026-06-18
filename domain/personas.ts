@@ -21,6 +21,39 @@ export function personaCap(plan: PlanId): number {
   return plan === "free" ? 1 : MAX_USER_PERSONAS;
 }
 
+// The most distinct bots one conversation may hold. Past this, switching to a
+// brand-new bot and trying to send is blocked — the user is nudged to pick a
+// bot already in the thread or start a fresh conversation. Five bots in a
+// single thread is already a lot, and the cap keeps a conversation legible
+// (it's also a natural seam for smarter multi-bot routing later).
+export const MAX_PERSONAS_PER_CONVERSATION = 5;
+
+// The distinct bots that have actually taken part in a conversation: the
+// authoritative set from the conversation doc (participantPersonaIds) unioned
+// with the personas behind any loaded agent replies. A reply with no personaId
+// predates per-bot tracking, so it counts as the default bot.
+export function collectParticipantPersonaIds(
+  participantPersonaIds: readonly string[],
+  agentPersonaIds: readonly (string | undefined)[],
+): Set<string> {
+  const ids = new Set<string>(participantPersonaIds);
+  for (const id of agentPersonaIds) ids.add(id ?? DEFAULT_PERSONA_ID);
+  return ids;
+}
+
+// Whether sending as `currentPersonaId` would push the conversation past the
+// per-thread bot cap. A bot already in the thread is always allowed (sending as
+// it doesn't grow the set); a brand-new bot is blocked once the thread already
+// holds `max` distinct bots.
+export function isPersonaLimitReached(
+  participants: ReadonlySet<string>,
+  currentPersonaId: string,
+  max: number = MAX_PERSONAS_PER_CONVERSATION,
+): boolean {
+  if (participants.has(currentPersonaId)) return false;
+  return participants.size >= max;
+}
+
 // The lean read-model the picker renders: one user persona's public face. The
 // full spec/prompt never reaches the client — only this store-facing config.
 export type UserPersonaSummary = {

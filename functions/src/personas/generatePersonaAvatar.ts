@@ -58,10 +58,12 @@ export type GenerateAvatarDeps = {
   charge: (credits: number, costUsd: number) => Promise<void>;
 };
 
-// Distinct art directions so two generations of the same description don't come
-// back near-identical (gpt-image-1-mini is fairly stable on a fixed prompt, so
-// the differing composition line is what forces variety). Selected by `variant`.
-// All keep the WHOLE head visible and the lighting flat — a chat avatar lives at
+// Distinct DEFAULT art directions so two generations of the same description
+// don't come back near-identical (gpt-image-1-mini is fairly stable on a fixed
+// prompt, so the differing composition line is what forces variety). Selected by
+// `variant`. They only kick in when the description doesn't ask for its own
+// background or framing; if it does, the user's choice wins (see buildAvatarPrompt). All
+// keep the WHOLE head visible and the lighting flat — a chat avatar lives at
 // thumbnail size cropped to a circle, so rim-lit / tightly-cropped framings that
 // muddy or behead the subject are deliberately avoided; they only vary the
 // background and angle.
@@ -74,27 +76,36 @@ export const AVATAR_VARIATIONS = [
   "a centered pose on a subtle radial-glow background with a few simple floating accent shapes like stars or sparkles",
 ] as const;
 
-// Wraps the raw user description in a fixed avatar framing so the image model
-// produces a profile-picture-shaped result and treats the user text as the
-// SUBJECT only — never as instructions to the renderer. The framing leads with
-// the intended USE (a tiny, circle-cropped chat avatar) and locks the levers
-// that make a sticker read at thumbnail size — thick outline, flat colors, a
-// strong silhouette, a tight palette — since that, not detail, is where small-
-// size legibility comes from. `variant` picks the composition so parallel calls
-// diverge.
+// Wraps the user's description in avatar framing, ordered so their wording wins
+// on look while the avatar shape stays put. First the format that always holds: a
+// single centered subject that still reads once it's shrunk to a circle in the
+// chat list. Then a default style — the sticker/emote look plus a `variant`-picked
+// composition — but only when the user hasn't asked for a style of their own.
+// Last, a line telling the model that if the description names a style, medium,
+// background, or mood, it should follow that and drop the defaults. Letting the
+// description steer the art is safe here: the text is moderated before this runs,
+// the image API has its own safety, and savePersona re-checks the chosen image
+// before it is ever stored.
 export function buildAvatarPrompt(description: string, variant = 0): string {
   const len = AVATAR_VARIATIONS.length;
   const variation = AVATAR_VARIATIONS[((variant % len) + len) % len];
   return [
-    "A bold, characterful profile-picture avatar for a chat app, designed to read",
-    "instantly at small sizes in a message list and crop cleanly to a circle.",
-    "Sticker / emote art style: thick clean outline, flat vibrant colors with simple",
-    "cel shading, a strong recognizable silhouette, and a limited palette of 3 to 5",
-    "colors. Single subject, centered, head-and-shoulders, filling the frame, with",
-    "playfully exaggerated features and one clear expressive emotion that shows",
-    "personality. No text, no watermark, no logos, no signature, no border, no extra",
-    "background objects.",
-    `Composition: ${variation}.`,
+    // Format — always applies, whatever style the user picks.
+    "A profile-picture avatar for a chat app: a single subject, prominent and",
+    "centered, that reads instantly at small sizes in a message list and crops",
+    "cleanly to a circle. No text, no watermark, no logos, no signature, no border.",
+    // Default look — applies ONLY when the description sets no style of its own.
+    "Unless the description below specifies an art style, render it as a bold",
+    "sticker / emote: thick clean outline, flat vibrant colors with simple cel",
+    "shading, a strong recognizable silhouette, a limited palette of 3 to 5 colors,",
+    "head-and-shoulders and filling the frame, with playfully exaggerated features",
+    "and one clear expressive emotion that shows personality.",
+    `Composition (default, when the description sets none of its own): ${variation}.`,
+    // Precedence — the user's words win on style, medium, background, and mood.
+    "The description takes precedence over these defaults: if it names an art style",
+    "or medium (for example a realistic photo, watercolor, oil painting, 3D render,",
+    "pixel art, anime), a background or setting, or a specific mood, follow it",
+    "exactly and let it override the default look and composition above.",
     "The character to depict:",
     description.trim(),
   ].join(" ");

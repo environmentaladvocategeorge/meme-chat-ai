@@ -1,5 +1,8 @@
 import {
+  collectParticipantPersonaIds,
   DEFAULT_PERSONA_ID,
+  isPersonaLimitReached,
+  MAX_PERSONAS_PER_CONVERSATION,
   MAX_USER_PERSONAS,
   mapPersonaDoc,
   personaCap,
@@ -67,6 +70,52 @@ describe("resolvePersonaSlot", () => {
 
   it("returns 'unknown' for a since-deleted bot (NOT the default)", () => {
     expect(resolvePersonaSlot("user_uid-1_gone", list)).toBe("unknown");
+  });
+});
+
+describe("collectParticipantPersonaIds", () => {
+  it("unions the conversation-doc participants with loaded agent personas", () => {
+    const set = collectParticipantPersonaIds(
+      ["user_a", "user_b"],
+      ["user_b", "user_c"],
+    );
+    expect(set).toEqual(new Set(["user_a", "user_b", "user_c"]));
+  });
+
+  it("counts an agent reply with no personaId as the default bot", () => {
+    const set = collectParticipantPersonaIds([], [undefined, "user_a"]);
+    expect(set).toEqual(new Set([DEFAULT_PERSONA_ID, "user_a"]));
+  });
+
+  it("is empty for a brand-new conversation", () => {
+    expect(collectParticipantPersonaIds([], [])).toEqual(new Set());
+  });
+});
+
+describe("isPersonaLimitReached", () => {
+  it("defaults the cap to 5", () => {
+    expect(MAX_PERSONAS_PER_CONVERSATION).toBe(5);
+  });
+
+  it("never blocks a bot already in the thread, even at the cap", () => {
+    const participants = new Set(["a", "b", "c", "d", "e"]);
+    expect(isPersonaLimitReached(participants, "c")).toBe(false);
+  });
+
+  it("blocks a brand-new bot once the thread is already at the cap", () => {
+    const participants = new Set(["a", "b", "c", "d", "e"]);
+    expect(isPersonaLimitReached(participants, "f")).toBe(true);
+  });
+
+  it("allows a new bot while the thread is still under the cap", () => {
+    const participants = new Set(["a", "b", "c", "d"]);
+    expect(isPersonaLimitReached(participants, "e")).toBe(false);
+  });
+
+  it("respects a custom cap", () => {
+    const participants = new Set(["a", "b"]);
+    expect(isPersonaLimitReached(participants, "c", 2)).toBe(true);
+    expect(isPersonaLimitReached(participants, "c", 3)).toBe(false);
   });
 });
 
