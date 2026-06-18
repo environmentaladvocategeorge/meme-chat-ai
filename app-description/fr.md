@@ -10,15 +10,15 @@ Clashs, GIFs et punchlines
 
 ## Keywords (Mots-clés, 100 caractères max., séparés par des virgules)
 
-gif,roast,légende,réponse,humour,blague,sticker,réaction,argot,chatbot,réécrire,bio,genz
+légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,créer,réécrire,bio,genz
 
 ## What's New (Nouveautés)
 
-Deux gros bugs en moins. On a corrigé celui qui déconnectait certains utilisateurs (parfois toutes les heures) et celui qui forçait à refaire l'onboarding à la reconnexion. Vous restez connecté, et l'onboarding ne se fait qu'une fois.
+Crée tes propres bots. Tu peux maintenant créer des personas sur mesure : donne-lui un nom, une personnalité, une voix et un avatar (téléverse-le ou génère-le à partir d'une brève description), puis discute avec lui comme avec n'importe quel autre. Le gratuit en inclut un ; les payants en gardent de 10 à 100. On a aussi entièrement relooké l'app.
 
 ## Promotional Text (Texte promotionnel)
 
-Toutes les IA se ressemblent. Brainrot Bot, non. Il riposte, répond en mèmes et GIFs, et transforme tes pensées à moitié tapées en légendes et répliques qui font mouche.
+Toutes les IA se ressemblent. Brainrot Bot non. Crée le tien. Il riposte, répond en mèmes et GIFs, et transforme tes idées en légendes qui font mouche.
 
 ## Description
 
@@ -30,6 +30,9 @@ CE QUE TU PEUX FAIRE
 
 • Chatter avec une IA fluente en mèmes
 Brainrot Bot aide avec les réponses, les légendes, les répliques, les idées, les explications et les plans, avec une voix qui sonne comme internet plutôt que comme un service client.
+
+• Crée tes propres bots
+Crée des personas sur mesure depuis zéro : donne-lui un nom, une personnalité, une voix, ses emojis et un avatar à téléverser ou à générer à partir d'une brève description, puis discute avec lui. Le gratuit en inclut un ; les payants en gardent de 10 à 100.
 
 • Régler le Rot Level
 Un seul réglage contrôle le chaos. Fais-le glisser d'assistant normal à complètement déjanté et Brainrot Bot suit cette énergie.

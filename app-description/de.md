@@ -10,15 +10,15 @@ Witzige Roasts, GIFs & Konter
 
 ## Keywords (Schlüsselwörter, max. 100 Zeichen, kommagetrennt)
 
-gif,roast,spruch,antwort,humor,witz,sticker,reaktion,slang,chatbot,umschreiben,bio,genz
+spruch,antwort,humor,witz,slang,chatbot,charakter,persona,begleiter,erstellen,umschreiben,bio,genz
 
 ## What's New (Neuigkeiten)
 
-Zwei große Bugs weniger. Wir haben den Fehler behoben, der manche Nutzer immer wieder abgemeldet hat (teils stündlich), und den, der nach erneuter Anmeldung das Onboarding wiederholen ließ. Ihr bleibt jetzt angemeldet — und das Onboarding gibt's nur einmal.
+Bau deine eigenen Bots. Du kannst jetzt eigene Personas erstellen: gib einem Namen, eine Persönlichkeit, eine Stimme und ein Avatar (lad eins hoch oder erstell es aus einer kurzen Beschreibung), und chatte dann mit ihm wie mit jedem anderen. Gratis enthält einen; Bezahlpläne speichern 10 bis 100. Außerdem hat die ganze App einen frischen neuen Look bekommen.
 
 ## Promotional Text (Werbetext)
 
-Jede KI klingt gleich. Brainrot Bot nicht. Er gibt zurück, antwortet mit Memes und GIFs, und verwandelt deine halbgetippten Gedanken in Captions und Comebacks, die sitzen.
+Jede KI klingt gleich. Brainrot Bot nicht. Jetzt bau deinen eigenen. Er kontert, antwortet mit Memes und GIFs, und macht halbe Gedanken zu Captions, die sitzen.
 
 ## Description (Beschreibung)
 
@@ -30,6 +30,9 @@ WAS DU TUN KANNST
 
 • Mit einer meme-fließenden KI chatten
 Brainrot Bot hilft mit Antworten, Captions, Comebacks, Ideen, Erklärungen und Plänen, in einer Sprache, die nach Internet klingt statt nach Firmen-Hotline.
+
+• Bau deine eigenen Bots
+Erstell eigene Personas von Grund auf: gib einem Namen, eine Persönlichkeit, eine Stimme, Emojis und ein Avatar zum Hochladen oder Erstellen aus einer kurzen Beschreibung, und chatte dann mit ihm. Gratis enthält einen; Bezahlpläne speichern 10 bis 100.
 
 • Den Rot Level einstellen
 Ein einziger Regler kontrolliert das Chaos. Schieb ihn von normalem Assistenten zu völlig durchgeknallt, und Brainrot Bot macht mit.

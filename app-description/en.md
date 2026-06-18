@@ -10,15 +10,15 @@ Funny Roasts, GIFs & Comebacks
 
 ## Keywords (100 char max, comma-separated)
 
-gif,roast,caption,reply,texting,humor,joke,sticker,reaction,slang,chatbot,rewrite,comeback,genz,gpt
+caption,reply,texting,humor,joke,slang,chatbot,character,persona,companion,create,genz,gpt,rewrite
 
 ## What's New
 
-Two big ones squashed. We fixed a bug that kept signing some users out (sometimes every hour) and another that made you repeat onboarding after signing back in. You stay signed in now — and onboarding is one-and-done.
+Build your own bots. You can now create custom personas: give one a name, a personality, a voice, and an avatar (upload one or generate it from a quick description), then chat with it like any other. Free includes one; paid plans hold from 10 up to 100. We also gave the whole app a fresh new look.
 
 ## Promotional Text
 
-Every AI sounds the same. Brainrot Bot doesn't. It roasts back, replies in memes and GIFs, and turns your half-typed thoughts into captions and comebacks that land.
+Every AI sounds the same. Brainrot Bot doesn't. Now build your own. It roasts back, replies in memes and GIFs, and turns half-typed thoughts into captions that land.
 
 ## Description
 
@@ -30,6 +30,9 @@ WHAT YOU CAN DO
 
 • Chat with a meme-fluent AI
 Brainrot Bot helps with replies, captions, comebacks, ideas, explanations, and plans, in a voice that sounds like the internet instead of a help desk.
+
+• Build your own bots
+Create custom personas from scratch: name one, give it a personality, a voice, an emoji set, and an avatar you can upload or generate from a short description, then chat with it. Free includes one; paid plans hold from 10 up to 100.
 
 • Set the Rot Level
 One dial controls the chaos. Slide it from normal assistant to completely unhinged and Brainrot Bot matches that energy.

@@ -1,6 +1,6 @@
 # Meme Chat AI
 
-An AI chat app powered by Claude. Send a message, get back a reply — sometimes with a meme attached. Features a Brainrot Bot persona with a configurable Rot Level dial, multimodal input (photos + GIFs), conversation history, and a 4-tier subscription model.
+An AI chat app. Send a message, get a reply back — often with a meme or GIF attached. It ships with a built-in Brainrot Bot (its tone set by a Rot Level slider) and a persona creator where users build, name, and save their own bots. Also in the box: photo and GIF input, long-term memory on paid plans, conversation history, and a 4-tier subscription model. Every tier runs the same model, OpenAI's GPT-5.4-mini.
 
 **App identity (do not change unless you mean it):**
 
@@ -18,23 +18,26 @@ An AI chat app powered by Claude. Send a message, get back a reply — sometimes
 
 **Screens**
 
-- Landing → Age gate (16+) → Sign up / Sign in → Email verification → Onboarding
-- **Chat** — text + photo + GIF input, AI replies with optional meme/GIF attachments, usage bar, AdMob banner for Free users
+- Landing → Age gate (16+) → Sign up / Sign in → Email verification → Onboarding (value walkthrough, alias, Rot Level demo, notifications, trial paywall)
+- **Chat** — text + photo + GIF input, AI replies with optional meme/GIF attachments, a Rot Level dial and persona switcher in the header, usage bar, AdMob banner for Free users
+- **Persona creator** — a multi-step wizard for building a custom bot (identity, voice, humor, slang, emoji, reaction media, avatar — uploaded or generated from a short text description via gpt-image-1-mini). Saved personas are moderated server-side before they go live
 - **History** — conversation list with search
-- **Settings** — theme, language (9 supported), account management
+- **Settings** — Rot Level, long-term memory toggle, nickname, theme, language (9 supported), account management
 - **Plan** — subscription tiers, RevenueCat paywall
 
-**Cloud Functions** (16 total)
+**Cloud Functions** (24 total)
 
 | Group | Functions |
 |---|---|
 | Account | `onUserCreated`, `deleteMyAccount`, `updateProfile` |
 | Chat | `streamAgentAnswer`, `streamReplayTurn`, `rateMessage`, `setMessageEmoji` |
 | Conversations | `deleteConversations`, `summarizeConversation`, `generateConversationTitle` |
+| Personas | `savePersona`, `deletePersona` |
+| Memory | `generateUserMemory`, `clearMemory`, `setMemoryEnabled` |
 | Media | `getTrendingMemes`, `searchMemes`, `getTrendingGifs`, `searchGifs`, `watermarkAttachment` |
 | Billing | `devSetPlan`, `syncRevenueCatPlan`, `revenueCatWebhook`, `aggregateDailyUsage` |
 
-**Subscription tiers** — same Claude model on all plans; tiers differ by monthly credit budget (1 credit ≈ $0.001 of API cost):
+**Subscription tiers** — every plan runs the same model (OpenAI GPT-5.4-mini); tiers differ by monthly credit budget (1 credit ≈ $0.001 of API cost):
 
 | Plan | Monthly credits | Approx. messages/month |
 |---|---|---|
@@ -43,6 +46,8 @@ An AI chat app powered by Claude. Send a message, get back a reply — sometimes
 | Plus | 5,103 | ~1,897 |
 | Power | 11,052 | ~4,109 |
 
+Two more things gate on plan: long-term memory is paid-only, and the saved-persona cap is 1 on Free, 10 on every paid tier.
+
 ---
 
 ## External services
@@ -50,7 +55,7 @@ An AI chat app powered by Claude. Send a message, get back a reply — sometimes
 | Service | Purpose | Keys |
 |---|---|---|
 | **Firebase** | Auth, Firestore, Storage, Functions, Hosting | `EXPO_PUBLIC_FIREBASE_*` (6) |
-| **Claude API** | AI replies (via OpenAI-compatible SDK) | `OPENAI_API_KEY` — Firebase secret |
+| **OpenAI API** | Chat replies, media decider, content moderation, memory extraction | `OPENAI_API_KEY` — Firebase secret |
 | **Klipy** | Meme + GIF search for agent tool use | `KLIPY_APP_KEY` — Firebase secret (optional; graceful no-op if absent) |
 | **RevenueCat** | Subscription management + webhooks | `EXPO_PUBLIC_REVENUECAT_*` (7, all optional) |
 | **AdMob** | Banner ads on Free tier | `EXPO_PUBLIC_ADMOB_*` (optional) |
@@ -262,19 +267,22 @@ app/
   index.tsx               Landing
   age-gate.tsx            16+ gate
   auth/                   Sign-in, sign-up, verify-email
-  onboarding/             Welcome step
-  (app)/                  Main tabs — chat, history, settings, plan
-components/               UI components (chat, account, ads, onboarding)
-domain/                   Pure business logic (billing, memes, GIFs, usage)
+  onboarding/             Multi-step onboarding flow
+  (app)/                  Main tabs — chat, history, settings, plan + persona-creator
+components/               UI components (chat, account, ads, onboarding, personaCreator)
+domain/                   Pure business logic (billing, memes, GIFs, usage, persona forms)
 services/firebase/        Firebase init, auth, callables, streaming agent client
-store/                    Zustand stores (auth, chat, entitlement, settings…)
+store/                    Zustand stores (auth, chat, entitlement, settings, personas, memory…)
 functions/src/            Cloud Functions (TypeScript)
+  personas/               PersonaSpec → prompt rendering, user-persona save/serve
+  moderation/             Persona + hate-speech gates (fail-closed)
+  agent/memory/           Long-term memory extraction + callables
   scripts/                Admin/seed scripts (seed-emulator.cjs)
-docs/                     local-dev.md — emulator workflow
+docs/                     local-dev.md (emulator workflow) + cleanup audit/checklist
 website/                  Marketing site (Firebase Hosting)
 nativewind-theme.ts       Color tokens — edit to rebrand
 firestore.rules           Uid-gated reads; server-side writes only
-storage.rules             User message images only (JPEG/PNG ≤ 8 MB)
+storage.rules             User chat photos + persona avatars (JPEG/PNG ≤ 8 MB)
 firebase.json             Emulator ports + deploy config
 .env.example              All EXPO_PUBLIC_* keys documented
 ```
