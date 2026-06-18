@@ -322,8 +322,8 @@ const zh = {
       slotFailed: "这张没出来。点「重试」。",
       or: "或",
       title: "用 AI 生成",
-      hint: "描述你的机器人，我们会画出两个选项。",
-      placeholder: "例如：穿着小连帽衫的暴躁猫",
+      hint: "说说它长什么样，我们画两个。可以加个艺术风格或背景，或者交给我们来选。",
+      placeholder: "例如：穿连帽衫的暴躁猫，动漫风格",
       generate: "生成",
       regenerate: "再试一次",
       cooldown: "{{seconds}} 秒后可重新生成",
@@ -628,6 +628,12 @@ const zh = {
       seeLimits: "查看限制",
       dismiss: "忽略",
     },
+    personaLimit: {
+      title: "阵容已满",
+      body: "这个聊天已经有 {{max}} 个 bot 了。换一个，或者开始新的对话吧。",
+      newChat: "新聊天",
+      chooseAnother: "换一个",
+    },
     memes: {
       button: "表情包",
       keyboard: "键盘",
@@ -888,7 +894,7 @@ const zh = {
       dailyReset: "{{when}}重置",
       usageShared: "你的每月额度和每日上限，由聊天和创建 Brainrot Bot 共用。",
       planNames: {
-        free: "雏形",
+        free: "Newbie",
         basic: "搭档",
         plus: "翅膀",
         power: "MVP",
@@ -1158,6 +1164,8 @@ const zh = {
       confirmButton: "删除",
       submit: "删除我的账号",
       submitting: "删除中…",
+      deletingTitle: "正在删除你的账号",
+      deletingBody: "我们正在删除你的所有数据。这可能需要几秒钟，请保持应用打开。",
       errors: {
         invalidCredential: "该密码不正确。",
         tooManyRequests: "尝试次数过多。稍等片刻后再试。",
@@ -1177,8 +1185,16 @@ const zh = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbot 来了。今天一起摆烂吗？",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "{{botName}} 来了。今天一起摆烂吗？🧠",
+        "你的屏幕时间想你了。{{botName}} 无聊到爆。",
+        "{{botName}} 带着新梗来了。一起吗？",
+        "脑子空空，只剩 vibe。{{botName}} 想聊聊。",
+        "{{botName}} 上线了，还有点疯。打个招呼吧 👀",
+        "说实话，你今天还没笑过。{{botName}} 能治。",
+        "群里已经死了。{{botName}} 还活着。来嘛。",
+      ],
     },
   },
   reviewPrompt: {

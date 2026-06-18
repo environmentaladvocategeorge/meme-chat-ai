@@ -321,8 +321,8 @@ const ru = {
       slotFailed: "Эта не вышла. Нажми «Ещё раз».",
       or: "или",
       title: "Создать с ИИ",
-      hint: "Опиши бота — мы нарисуем два варианта.",
-      placeholder: "напр. ворчливый кот в маленьком худи",
+      hint: "Опиши, как он выглядит, и нарисуем два. Добавь художественный стиль или фон, или мы выберем сами.",
+      placeholder: "напр. ворчливый кот в худи, аниме-стиль",
       generate: "Создать",
       regenerate: "Ещё раз",
       cooldown: "Можно сгенерировать снова через {{seconds}} с",
@@ -628,6 +628,12 @@ const ru = {
       seeLimits: "Посмотреть лимиты",
       dismiss: "Закрыть",
     },
+    personaLimit: {
+      title: "Команда в сборе",
+      body: "В этом чате уже {{max}} ботов. Выбери другого или начни новый разговор.",
+      newChat: "Новый чат",
+      chooseAnother: "Выбрать другого",
+    },
     memes: {
       button: "Мемы",
       keyboard: "Клавиатура",
@@ -890,7 +896,7 @@ const ru = {
       dailyReset: "Сбрасывается {{when}}",
       usageShared: "Твой месячный лимит и дневной лимит общие для чата и создания Brainrot Bots.",
       planNames: {
-        free: "Hatchling",
+        free: "Newbie",
         basic: "Sidekick",
         plus: "Wingman",
         power: "MVP",
@@ -1160,6 +1166,9 @@ const ru = {
       confirmButton: "Удалить",
       submit: "Удалить мой аккаунт",
       submitting: "Удаляю…",
+      deletingTitle: "Удаляем ваш аккаунт",
+      deletingBody:
+        "Мы стираем все ваши данные. Это может занять несколько секунд — пожалуйста, не закрывайте приложение.",
       errors: {
         invalidCredential: "Этот пароль неверен.",
         tooManyRequests: "Слишком много попыток. Подожди немного и попробуй снова.",
@@ -1179,8 +1188,16 @@ const ru = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "это brainbot. сегодня гнием?",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "это {{botName}}. сегодня гнием? 🧠",
+        "твоё экранное время скучает. {{botName}} заскучал.",
+        "{{botName}} принёс свежий мем. идёшь?",
+        "ноль мыслей, только вайб. {{botName}} хочет поболтать.",
+        "{{botName}} в сети и слегка поехавший. скажи привет 👀",
+        "признайся, ты сегодня не смеялся. {{botName}} это исправит.",
+        "групповой чат мёртв. {{botName}} нет. залетай.",
+      ],
     },
   },
   reviewPrompt: {

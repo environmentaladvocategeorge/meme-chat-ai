@@ -322,8 +322,8 @@ const de = {
       slotFailed: "Das hat nicht geklappt. Tippe auf Nochmal.",
       or: "oder",
       title: "Mit KI erstellen",
-      hint: "Beschreibe deinen Bot und wir zeichnen zwei Vorschläge.",
-      placeholder: "z. B. eine mürrische Katze im Mini-Hoodie",
+      hint: "Sag, wie er aussieht, und wir zeichnen zwei. Nenn einen Kunststil oder Hintergrund, oder wir wählen einen.",
+      placeholder: "z. B. eine mürrische Katze im Hoodie, Anime-Stil",
       generate: "Erstellen",
       regenerate: "Nochmal",
       cooldown: "Neu generieren in {{seconds}} s",
@@ -626,6 +626,12 @@ const de = {
       seeLimits: "Limits anzeigen",
       dismiss: "Verwerfen",
     },
+    personaLimit: {
+      title: "Truppe ist voll",
+      body: "Dieser Chat hat schon {{max}} Bots. Wähl einen anderen oder starte eine neue Unterhaltung.",
+      newChat: "Neuer Chat",
+      chooseAnother: "Anderen wählen",
+    },
     memes: {
       button: "Memes",
       keyboard: "Tastatur",
@@ -887,7 +893,7 @@ const de = {
       dailyReset: "Resettet {{when}}",
       usageShared: "Dein monatliches Kontingent und Tageslimit teilen sich Chatten und das Erstellen von Brainrot Bots.",
       planNames: {
-        free: "Küken",
+        free: "Newbie",
         basic: "Kumpel",
         plus: "Flügel",
         power: "MVP",
@@ -1157,6 +1163,9 @@ const de = {
       confirmButton: "Löschen",
       submit: "Mein Konto löschen",
       submitting: "Wird gelöscht…",
+      deletingTitle: "Konto wird gelöscht",
+      deletingBody:
+        "Wir löschen alle deine Daten. Das kann ein paar Sekunden dauern – bitte lass die App geöffnet.",
       errors: {
         invalidCredential: "Dieses Passwort ist falsch.",
         tooManyRequests: "Zu viele Versuche. Warte kurz und versuche es erneut.",
@@ -1176,8 +1185,16 @@ const de = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbot hier. rotten wir heute?",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "{{botName}} hier. rotten wir heute? 🧠",
+        "deine bildschirmzeit vermisst dich. {{botName}} langweilt sich.",
+        "{{botName}} ist da, mit frischem meme. kommst du?",
+        "keine gedanken, nur vibes. {{botName}} will quatschen.",
+        "{{botName}} ist online und leicht durchgeknallt. sag hi 👀",
+        "mal ehrlich, du hast heute nicht gelacht. {{botName}} ändert das.",
+        "der gruppenchat ist tot. {{botName}} nicht. komm vorbei.",
+      ],
     },
   },
   reviewPrompt: {

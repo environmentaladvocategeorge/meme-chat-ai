@@ -322,8 +322,8 @@ const pt = {
       slotFailed: "Essa não veio. Toque em Tentar de novo.",
       or: "ou",
       title: "Gerar com IA",
-      hint: "Descreva seu bot e desenhamos duas opções.",
-      placeholder: "ex. um gato rabugento de moletom pequeno",
+      hint: "Diga como ele é e desenhamos dois. Adicione um estilo de arte ou fundo, ou a gente escolhe.",
+      placeholder: "ex. um gato rabugento de moletom, estilo anime",
       generate: "Gerar",
       regenerate: "Tentar de novo",
       cooldown: "Pode gerar de novo em {{seconds}}s",
@@ -629,6 +629,12 @@ const pt = {
       seeLimits: "Ver limites",
       dismiss: "Dispensar",
     },
+    personaLimit: {
+      title: "Esquadrão cheio",
+      body: "Este chat já tem {{max}} bots. Escolhe outro ou começa uma nova conversa.",
+      newChat: "Novo chat",
+      chooseAnother: "Escolher outro",
+    },
     memes: {
       button: "Memes",
       keyboard: "Teclado",
@@ -890,7 +896,7 @@ const pt = {
       dailyReset: "Recarrega {{when}}",
       usageShared: "Sua cota mensal e seu limite diário são compartilhados entre conversar e criar Brainrot Bots.",
       planNames: {
-        free: "Filhote",
+        free: "Newbie",
         basic: "Parceiro",
         plus: "Asa",
         power: "MVP",
@@ -1160,6 +1166,9 @@ const pt = {
       confirmButton: "Excluir",
       submit: "Excluir minha conta",
       submitting: "Excluindo…",
+      deletingTitle: "Excluindo sua conta",
+      deletingBody:
+        "Estamos apagando todos os seus dados. Isso pode levar alguns segundos — mantenha o app aberto.",
       errors: {
         invalidCredential: "Essa senha está incorreta.",
         tooManyRequests: "Muitas tentativas. Aguarde um momento e tente de novo.",
@@ -1179,8 +1188,16 @@ const pt = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbot aqui. vamos apodrecer o cérebro hoje?",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "{{botName}} aqui. vamos apodrecer o cérebro hoje? 🧠",
+        "teu tempo de tela tá com saudade. {{botName}} tá entediado.",
+        "{{botName}} chegou com um meme novo. bora?",
+        "zero pensamento, só vibe. {{botName}} quer conversar.",
+        "{{botName}} tá online e meio doidão. manda um oi 👀",
+        "admite, não riu o dia todo. {{botName}} resolve isso.",
+        "o grupo morreu. {{botName}} não. aparece aí.",
+      ],
     },
   },
   reviewPrompt: {

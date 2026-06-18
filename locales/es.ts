@@ -332,8 +332,8 @@ const es = {
       slotFailed: "Esta no salió. Toca Reintentar.",
       or: "o",
       title: "Generar con IA",
-      hint: "Describe tu bot y dibujaremos dos opciones.",
-      placeholder: "p. ej. un gato gruñón con sudadera diminuta",
+      hint: "Di cómo se ve y dibujamos dos. Añade un estilo de arte o fondo, o elegimos uno.",
+      placeholder: "p. ej. un gato gruñón con sudadera, estilo anime",
       generate: "Generar",
       regenerate: "Reintentar",
       cooldown: "Puedes regenerar en {{seconds}} s",
@@ -643,6 +643,12 @@ const es = {
       seeLimits: "Ver límites",
       dismiss: "Descartar",
     },
+    personaLimit: {
+      title: "Escuadrón completo",
+      body: "Este chat ya tiene {{max}} bots. Elige otro o empieza una nueva conversación.",
+      newChat: "Chat nuevo",
+      chooseAnother: "Elegir otro",
+    },
     memes: {
       button: "Memes",
       keyboard: "Teclado",
@@ -909,7 +915,7 @@ const es = {
       dailyReset: "Se renueva {{when}}",
       usageShared: "Tu cupo mensual y tu límite diario se reparten entre chatear y crear Brainrot Bots.",
       planNames: {
-        free: "Cría",
+        free: "Newbie",
         basic: "Compa",
         plus: "Alas",
         power: "MVP",
@@ -1181,6 +1187,9 @@ const es = {
       confirmButton: "Eliminar",
       submit: "Eliminar mi cuenta",
       submitting: "Eliminando…",
+      deletingTitle: "Eliminando tu cuenta",
+      deletingBody:
+        "Estamos borrando todos tus datos. Esto puede tardar unos segundos; mantén la app abierta, por favor.",
       errors: {
         invalidCredential: "Esa contraseña es incorrecta.",
         tooManyRequests: "Demasiados intentos. Espera un momento.",
@@ -1200,8 +1209,16 @@ const es = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "aquí brainbot. ¿hoy nos pudrimos el cerebro?",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "aquí {{botName}}. ¿hoy nos pudrimos el cerebro? 🧠",
+        "tu tiempo de pantalla te extraña. {{botName}} está aburrido.",
+        "{{botName}} llegó con un meme nuevo. ¿te apuntas?",
+        "sin pensamientos, puro vibe. {{botName}} quiere hablar.",
+        "{{botName}} está en línea y medio desquiciado. saluda 👀",
+        "admítelo, no te has reído en todo el día. {{botName}} lo arregla.",
+        "el grupo está muerto. {{botName}} no. pásate.",
+      ],
     },
   },
   reviewPrompt: {

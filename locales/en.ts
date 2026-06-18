@@ -30,8 +30,20 @@ const en = {
   // language; other locales fall back to English.
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbot here. are we rotting today?",
+      // Shown as the title when the default mascot is the chosen bot of the
+      // day. A user's custom bot uses its own display name instead.
+      defaultBotName: "Brainrot Bot",
+      // Rotating bodies for the daily 4pm nudge. One is picked per day and
+      // {{botName}} is filled in with the chosen bot's name at schedule time.
+      bodies: [
+        "{{botName}} here. are we rotting today? 🧠",
+        "your screen time misses you. {{botName}} is bored.",
+        "{{botName}} pulled up with a fresh meme. you coming?",
+        "no thoughts, just vibes. {{botName}} wants to chat.",
+        "{{botName}} is online and slightly unhinged. say hi 👀",
+        "be real, you haven't laughed all day. {{botName}} can fix that.",
+        "the group chat is dead. {{botName}} isn't. come thru.",
+      ],
     },
   },
   appUpdate: {
@@ -312,8 +324,8 @@ const en = {
     avatarGen: {
       or: "or",
       title: "Generate with AI",
-      hint: "Describe your bot and we'll draw two options.",
-      placeholder: "e.g. a grumpy cat in a tiny hoodie",
+      hint: "Say what it looks like and we'll draw two. Add an art style or backdrop, or let us pick one.",
+      placeholder: "e.g. a grumpy cat in a hoodie, anime style",
       generate: "Generate",
       regenerate: "Try again",
       cooldown: "Can regenerate in {{seconds}}s",
@@ -647,6 +659,12 @@ const en = {
       seeLimits: "See limits",
       dismiss: "Dismiss",
     },
+    personaLimit: {
+      title: "Squad's full",
+      body: "This chat already has {{max}} bots. Choose another one or start a new conversation.",
+      newChat: "New Chat",
+      chooseAnother: "Choose Another",
+    },
     memes: {
       button: "Memes",
       keyboard: "Keyboard",
@@ -917,7 +935,7 @@ const en = {
       usageShared:
         "Your monthly allowance and daily limit are shared between chatting and creating brainrot bots.",
       planNames: {
-        free: "Hatchling",
+        free: "Newbie",
         basic: "Sidekick",
         plus: "Wingman",
         power: "MVP",
@@ -1187,6 +1205,9 @@ const en = {
       confirmButton: "Delete",
       submit: "Delete my account",
       submitting: "Deleting…",
+      deletingTitle: "Deleting your account",
+      deletingBody:
+        "We're erasing all of your data. This can take a few seconds — please keep the app open.",
       errors: {
         invalidCredential: "That password is incorrect.",
         tooManyRequests: "Too many tries. Wait a moment, then retry.",

@@ -322,8 +322,8 @@ const fr = {
       slotFailed: "Celle-ci n'a pas abouti. Appuie sur Réessayer.",
       or: "ou",
       title: "Générer avec l'IA",
-      hint: "Décris ton bot et on dessine deux options.",
-      placeholder: "ex. un chat grincheux en mini sweat",
+      hint: "Dis à quoi il ressemble et on en dessine deux. Ajoute un style ou un décor, ou on choisit pour toi.",
+      placeholder: "ex. un chat grincheux en sweat, style anime",
       generate: "Générer",
       regenerate: "Réessayer",
       cooldown: "Régénérer dans {{seconds}} s",
@@ -626,6 +626,12 @@ const fr = {
       seeLimits: "Voir les limites",
       dismiss: "Ignorer",
     },
+    personaLimit: {
+      title: "Équipe au complet",
+      body: "Ce chat a déjà {{max}} bots. Choisis-en un autre ou démarre une nouvelle conversation.",
+      newChat: "Nouveau chat",
+      chooseAnother: "En choisir un autre",
+    },
     memes: {
       button: "Mèmes",
       keyboard: "Clavier",
@@ -887,7 +893,7 @@ const fr = {
       dailyReset: "Recharge {{when}}",
       usageShared: "Ton quota mensuel et ta limite quotidienne sont partagés entre le chat et la création de Brainrot Bots.",
       planNames: {
-        free: "Oeuf",
+        free: "Newbie",
         basic: "Comparse",
         plus: "Aile",
         power: "MVP",
@@ -1157,6 +1163,9 @@ const fr = {
       confirmButton: "Supprimer",
       submit: "Supprimer mon compte",
       submitting: "Suppression…",
+      deletingTitle: "Suppression de votre compte",
+      deletingBody:
+        "Nous effaçons toutes vos données. Cela peut prendre quelques secondes — gardez l'application ouverte.",
       errors: {
         invalidCredential: "Ce mot de passe est incorrect.",
         tooManyRequests: "Trop de tentatives. Attends un moment puis réessaie.",
@@ -1176,8 +1185,16 @@ const fr = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbot ici. on se rote le cerveau aujourd'hui ?",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "{{botName}} ici. on se rote le cerveau aujourd'hui ? 🧠",
+        "ton temps d'écran te réclame. {{botName}} s'ennuie.",
+        "{{botName}} débarque avec un meme tout frais. tu viens ?",
+        "zéro neurone, que du vibe. {{botName}} veut papoter.",
+        "{{botName}} est en ligne et un peu cramé. dis coucou 👀",
+        "avoue, t'as pas ri de la journée. {{botName}} peut régler ça.",
+        "la conv de groupe est morte. {{botName}} non. ramène-toi.",
+      ],
     },
   },
   reviewPrompt: {

@@ -321,8 +321,8 @@ const ja = {
       slotFailed: "これは生成できませんでした。「もう一度」をタップ。",
       or: "または",
       title: "AIで生成",
-      hint: "ボットを説明すると、2つの候補を描きます。",
-      placeholder: "例：小さなパーカーを着た不機嫌な猫",
+      hint: "見た目を教えてくれたら2つ描きます。アートスタイルや背景を加えてもいいし、こちらで選んでもOK。",
+      placeholder: "例：パーカーを着た不機嫌な猫、アニメ風",
       generate: "作成",
       regenerate: "もう一度",
       cooldown: "{{seconds}}秒後に再生成できます",
@@ -627,6 +627,12 @@ const ja = {
       seeLimits: "制限を見る",
       dismiss: "閉じる",
     },
+    personaLimit: {
+      title: "メンバーが満員",
+      body: "このチャットにはすでに{{max}}体のボットがいます。別のボットを選ぶか、新しい会話を始めてね。",
+      newChat: "新しいチャット",
+      chooseAnother: "別のボットを選ぶ",
+    },
     memes: {
       button: "ミーム",
       keyboard: "キーボード",
@@ -887,7 +893,7 @@ const ja = {
       dailyReset: "{{when}}にリセット",
       usageShared: "月間の枠と1日の上限は、チャットと Brainrot Bot の作成で共有されます。",
       planNames: {
-        free: "Hatchling",
+        free: "Newbie",
         basic: "Sidekick",
         plus: "Wingman",
         power: "MVP",
@@ -1157,6 +1163,9 @@ const ja = {
       confirmButton: "削除",
       submit: "アカウントを削除",
       submitting: "削除中…",
+      deletingTitle: "アカウントを削除しています",
+      deletingBody:
+        "すべてのデータを削除しています。数秒かかることがあります。アプリは開いたままにしてください。",
       errors: {
         invalidCredential: "そのパスワードは正しくありません。",
         tooManyRequests: "試しすぎです。少し待ってから再試行してください。",
@@ -1176,8 +1185,16 @@ const ja = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbotだよ。今日も脳を溶かす？",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "{{botName}}だよ。今日も脳を溶かす？🧠",
+        "スクリーンタイムが寂しがってる。{{botName}}は暇してる。",
+        "{{botName}}が新しいミーム持ってきた。来る？",
+        "思考ゼロ、ただのvibe。{{botName}}が話したいって。",
+        "{{botName}}がオンライン、ちょっとイカれてる。挨拶して 👀",
+        "正直、今日まだ笑ってないでしょ。{{botName}}が何とかする。",
+        "グループチャットは死んでる。{{botName}}は生きてる。おいでよ。",
+      ],
     },
   },
   reviewPrompt: {

@@ -321,8 +321,8 @@ const hi = {
       slotFailed: "ये नहीं बन पाई। Try again दबाओ।",
       or: "या",
       title: "AI से बनाओ",
-      hint: "अपने बॉट का वर्णन करो, हम दो विकल्प बनाएँगे।",
-      placeholder: "जैसे छोटे हुडी में एक चिड़चिड़ी बिल्ली",
+      hint: "बताओ यह कैसा दिखता है, हम दो बनाएँगे। कोई आर्ट स्टाइल या बैकग्राउंड जोड़ो, या हम चुन लेंगे।",
+      placeholder: "जैसे हुडी में एक चिड़चिड़ी बिल्ली, ऐनिमे स्टाइल",
       generate: "बनाओ",
       regenerate: "फिर कोशिश करो",
       cooldown: "{{seconds}}s में फिर बना सकते हो",
@@ -628,6 +628,12 @@ const hi = {
       seeLimits: "Limits देखो",
       dismiss: "Dismiss",
     },
+    personaLimit: {
+      title: "Squad full है",
+      body: "इस chat में पहले से {{max}} bots हैं। कोई दूसरा चुनो या नई conversation शुरू करो।",
+      newChat: "New Chat",
+      chooseAnother: "दूसरा चुनो",
+    },
     memes: {
       button: "Memes",
       keyboard: "Keyboard",
@@ -890,7 +896,7 @@ const hi = {
       dailyReset: "{{when}} को reset होगी",
       usageShared: "तुम्हारा मंथली कोटा और डेली limit, चैट और Brainrot Bots बनाने में शेयर होते हैं।",
       planNames: {
-        free: "Hatchling",
+        free: "Newbie",
         basic: "Sidekick",
         plus: "Wingman",
         power: "MVP",
@@ -1160,6 +1166,9 @@ const hi = {
       confirmButton: "Delete",
       submit: "मेरा account delete करो",
       submitting: "Delete हो रहा है…",
+      deletingTitle: "आपका account delete हो रहा है",
+      deletingBody:
+        "हम आपका सारा data मिटा रहे हैं। इसमें कुछ सेकंड लग सकते हैं — कृपया app खुला रखें।",
       errors: {
         invalidCredential: "वो password गलत है।",
         tooManyRequests: "बहुत ज़्यादा कोशिशें। थोड़ा रुको, फिर कोशिश करो।",
@@ -1179,8 +1188,16 @@ const hi = {
   },
   systemNotifications: {
     dailyRotCheck: {
-      title: "Brainrot Bot",
-      body: "brainbot यहाँ। आज rot करें क्या?",
+      defaultBotName: "Brainrot Bot",
+      bodies: [
+        "{{botName}} यहाँ। आज rot करें क्या? 🧠",
+        "तेरा स्क्रीन टाइम तुझे miss कर रहा है। {{botName}} bore हो रहा है।",
+        "{{botName}} नया meme लेकर आया। आ रहा है क्या?",
+        "कोई सोच नहीं, बस vibe। {{botName}} बात करना चाहता है।",
+        "{{botName}} online है और थोड़ा सनकी। hi बोल 👀",
+        "सच बता, आज हँसा ही नहीं। {{botName}} ये fix कर देगा।",
+        "group chat dead है। {{botName}} नहीं। आ जा।",
+      ],
     },
   },
   reviewPrompt: {
