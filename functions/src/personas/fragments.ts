@@ -1,4 +1,4 @@
-import { rotLevelBlock } from "./rotLevel";
+import { rotLevelBlock, type PersonaRotLevels } from "./rotLevel";
 
 // ── Fragmented prompts ───────────────────────────────────────────────────────
 // A prompt (persona or media-decider) can be stored in Firestore either as one
@@ -32,6 +32,10 @@ export type PromptFragment = {
   // Computed fragment: ignore `text` and resolve in code at assembly time.
   // "rot_level_block" → rotLevelBlock(level, emojisEnabled).
   dynamic?: "rot_level_block";
+  // For dynamic === "rot_level_block" only: the persona's own per-level blocks.
+  // Absent → the built-in dial (the default Brainrot behavior), so a fragment
+  // without it resolves exactly as before.
+  rotLevels?: PersonaRotLevels;
 };
 
 export type FragmentedPrompt = {
@@ -59,7 +63,7 @@ export type AssembleCtx = {
 function resolveFragment(f: PromptFragment, ctx: AssembleCtx): string | null {
   if (f.requires === "emojis" && !ctx.emojisEnabled) return null;
   if (f.dynamic === "rot_level_block") {
-    return rotLevelBlock(ctx.level, ctx.emojisEnabled);
+    return rotLevelBlock(ctx.level, ctx.emojisEnabled, f.rotLevels);
   }
   if (!ctx.emojisEnabled && typeof f.textWhenEmojisOff === "string") {
     return f.textWhenEmojisOff;
@@ -101,6 +105,22 @@ export function asFragmentedPrompt(value: unknown): FragmentedPrompt | null {
     if (f.dynamic != null && f.dynamic !== "rot_level_block") {
       return null;
     }
+    if (f.rotLevels != null && !isPersonaRotLevels(f.rotLevels)) return null;
   }
   return value as FragmentedPrompt;
+}
+
+// True when `value` is a well-formed PersonaRotLevels (blocks + emojiLines, each
+// a record with string entries for levels 1, 2, and 3). Used so a malformed
+// rot-levels payload off a Firestore doc falls back to the built-in dial rather
+// than breaking assembly.
+function isPersonaRotLevels(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const stringMap = (m: unknown): boolean => {
+    if (!m || typeof m !== "object") return false;
+    const rec = m as Record<string, unknown>;
+    return ([1, 2, 3] as const).every((lvl) => typeof rec[lvl] === "string");
+  };
+  return stringMap(v.blocks) && stringMap(v.emojiLines);
 }

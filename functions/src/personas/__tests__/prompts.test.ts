@@ -447,7 +447,10 @@ describe("user persona resolution", () => {
     expect(resolved.persona.id).toBe("user_uid-1_a1");
     expect(resolved.persona.publicConfig.displayName).toBe("Capy");
     expect(resolved.personaPrompt.mediaNotes).toBe("USER-MEDIA-NOTES");
-    expect(resolved.personaPrompt.mediaDeciderKey).toBeUndefined();
+    // User personas run the persona-tuned decider (favorites-first, no brainrot
+    // bank), not the brainrot default. Set unconditionally in resolution — never
+    // from user input, so it's first-party by construction.
+    expect(resolved.personaPrompt.mediaDeciderKey).toBe("media_decider_persona");
   });
 
   it("rejects (throws) someone else's persona id rather than serving or downgrading", async () => {

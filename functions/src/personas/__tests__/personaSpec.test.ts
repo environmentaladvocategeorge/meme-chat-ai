@@ -43,6 +43,78 @@ const fragmentByKey = (spec: PersonaSpec, key: string) => {
   return fragment;
 };
 
+describe("chattiness dial", () => {
+  const lengthText = (spec: PersonaSpec) =>
+    `${fragmentByKey(spec, "persona_intro").text}\n${fragmentByKey(spec, "how_you_text").text}`;
+
+  it("absent renders identically to stage 3 (the default)", () => {
+    expect(lengthText(makeSpec())).toBe(lengthText(makeSpec({ chattiness: 3 })));
+  });
+
+  it("stage 3 keeps the original 1-4 wording", () => {
+    const text = lengthText(makeSpec({ chattiness: 3 }));
+    expect(text).toContain("1-4 short plain-text chat bubbles split by line breaks");
+    expect(text).toContain("1-4 short chunks split by line breaks, usually 1-2 sentences each");
+  });
+
+  it("stage 1 is curt and drops the bubble count", () => {
+    const text = lengthText(makeSpec({ chattiness: 1 }));
+    expect(text).toContain("one short plain-text chat bubble, two at most");
+    expect(text).toContain("never pad to fill space");
+    expect(text).not.toContain("1-4 short chunks");
+  });
+
+  it("stage 5 allows longer replies", () => {
+    const text = lengthText(makeSpec({ chattiness: 5 }));
+    expect(text).toContain("it can run longer when the moment fits");
+    expect(text).not.toContain("1-4 short chunks");
+  });
+
+  it("out-of-range values fall back to the default stage", () => {
+    const def = lengthText(makeSpec());
+    expect(lengthText(makeSpec({ chattiness: 0 }))).toBe(def);
+    expect(lengthText(makeSpec({ chattiness: 9 }))).toBe(def);
+  });
+
+  it("rounds a fractional dial to the nearest stage", () => {
+    // 1.4 rounds to stage 1 (curt), distinct from the default.
+    expect(lengthText(makeSpec({ chattiness: 1.4 }))).toBe(
+      lengthText(makeSpec({ chattiness: 1 })),
+    );
+  });
+});
+
+describe("persona rot levels", () => {
+  const customRot = {
+    blocks: {
+      1: "LVL ONE custom block {{EMOJI_LINE}}",
+      2: "LVL TWO custom block {{EMOJI_LINE}}",
+      3: "LVL THREE custom block {{EMOJI_LINE}}",
+    },
+    emojiLines: { 1: "one emoji max", 2: "a couple emoji", 3: "lots of emoji" },
+  };
+  const rotText = (spec: PersonaSpec, level: number, emojisEnabled: boolean) =>
+    assembleFragments(renderPersonaPrompt(spec), { level, emojisEnabled });
+
+  it("uses the persona's own blocks + emoji line when present", () => {
+    const out = rotText(makeSpec({ rotLevels: customRot }), 2, true);
+    expect(out).toContain("LVL TWO custom block a couple emoji");
+    expect(out).not.toContain("ROTTED DEFAULT");
+  });
+
+  it("falls back to the built-in dial when absent (default behavior)", () => {
+    const out = rotText(makeSpec(), 2, true);
+    expect(out).toContain("ROTTED");
+    expect(out).not.toContain("custom block");
+  });
+
+  it("swaps the mandatory no-emoji override into the placeholder when emojis are off", () => {
+    const out = rotText(makeSpec({ rotLevels: customRot }), 1, false);
+    expect(out).toContain("LVL ONE custom block");
+    expect(out).toContain("This is mandatory and overrides every other emoji instruction.");
+  });
+});
+
 describe("slot wiring", () => {
   it("renders the intro header from the uppercased display name", () => {
     expect(fragmentByKey(makeSpec(), "persona_intro").text).toContain(
@@ -177,7 +249,7 @@ describe("renderPersonaPromptDoc / media slot", () => {
     expect("mediaNotes" in doc).toBe(false);
   });
 
-  it("renders the decider key and quoted pills + lean into the notes", () => {
+  it("renders the decider key, identity, favorites + similar permission, and cadence", () => {
     const doc = renderPersonaPromptDoc(
       makeSpec({
         media: {
@@ -186,24 +258,41 @@ describe("renderPersonaPromptDoc / media slot", () => {
           lean: "mostly deadpan reactions, attach eagerly on hype turns",
         },
       }),
+      { shortDescription: "a deadpan office bot", toneTags: ["dry", "deadpan"] },
     );
     expect(doc.mediaDeciderKey).toBe("minimal_decider");
     expect(doc.mediaNotes).toContain(
-      "PERSONA MEDIA PREFERENCES (vibe only — every rule above still wins)",
+      "THIS PERSONA'S MEDIA — the creator's own preferences for this custom bot (the safety/none rules above still win)",
     );
+    // Identity grounding from spec + publicConfig.
+    expect(doc.mediaNotes).toContain(`This bot is "Test Bot" — a deadpan office bot.`);
+    expect(doc.mediaNotes).toContain("Vibe: dry, deadpan.");
+    // Favorites framed as lead-with + similar.
     expect(doc.mediaNotes).toContain(`"confused math lady", "office handshake"`);
+    expect(doc.mediaNotes).toContain("SIMILAR in theme/vibe");
     expect(doc.mediaNotes).toContain(
-      "Media vibe: mostly deadpan reactions, attach eagerly on hype turns.",
+      "Media cadence: mostly deadpan reactions, attach eagerly on hype turns.",
     );
+    // No bank (auto off).
+    expect(doc.mediaNotes).not.toContain("Elmo wave");
   });
 
-  it("pills alone render notes without a vibe line", () => {
-    const doc = renderPersonaPromptDoc(
-      makeSpec({ media: { pills: ["sad cat"] } }),
-    );
+  it("uses just the name when no publicConfig one-liner is provided", () => {
+    const doc = renderPersonaPromptDoc(makeSpec({ media: { pills: ["sad cat"] } }));
+    expect(doc.mediaNotes).toContain(`This bot is "Test Bot".`);
     expect(doc.mediaNotes).toContain(`"sad cat"`);
-    expect(doc.mediaNotes).not.toContain("Media vibe:");
+    expect(doc.mediaNotes).not.toContain("Media cadence:");
     expect("mediaDeciderKey" in doc).toBe(false);
+  });
+
+  it("emits the fallback bank ONLY when the creator delegated (auto)", () => {
+    const withAuto = renderPersonaPromptDoc(makeSpec({ media: { auto: true } }));
+    expect(withAuto.mediaNotes).toContain("lets it pick reactions freely");
+    expect(withAuto.mediaNotes).toContain("- greeting: Elmo wave");
+
+    const pillsOnly = renderPersonaPromptDoc(makeSpec({ media: { pills: ["sad cat"] } }));
+    expect(pillsOnly.mediaNotes).not.toContain("Elmo wave");
+    expect(pillsOnly.mediaNotes).not.toContain("lets it pick reactions freely");
   });
 
   it("blank pills and lean render no notes at all", () => {

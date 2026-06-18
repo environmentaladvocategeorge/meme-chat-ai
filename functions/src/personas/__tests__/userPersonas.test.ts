@@ -13,6 +13,11 @@ import {
   type UserPersonaInput,
 } from "../userPersonas";
 import { renderPersonaPromptDoc } from "../personaSpec";
+import {
+  DEFAULT_ROT_EMOJI_LINES,
+  DEFAULT_USER_ROT_LEVELS,
+} from "../rotLevel";
+import { assembleFragments } from "../fragments";
 
 // A complete, in-bounds builder payload — the baseline every schema test
 // mutates from.
@@ -78,6 +83,19 @@ describe("userPersonaInputSchema", () => {
     expect(userPersonaInputSchema.safeParse(input).success).toBe(false);
   });
 
+  it("accepts up to 10 media pills but rejects 11", () => {
+    const ten = Array.from({ length: 10 }, (_, i) => `gym gif ${i}`);
+    expect(
+      userPersonaInputSchema.safeParse({ ...validInput(), media: { pills: ten } }).success,
+    ).toBe(true);
+    expect(
+      userPersonaInputSchema.safeParse({
+        ...validInput(),
+        media: { pills: [...ten, "one too many"] },
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects empty greetingShapes", () => {
     const input = { ...validInput(), greetingShapes: [] };
     expect(userPersonaInputSchema.safeParse(input).success).toBe(false);
@@ -121,6 +139,31 @@ describe("userPersonaInputSchema", () => {
     expect(userPersonaInputSchema.safeParse(withUsageNotes).success).toBe(false);
   });
 
+  it("accepts the plural voiceExamples array (up to 5) and an empty emoji palette", () => {
+    const input: Record<string, unknown> = { ...validInput() };
+    delete input.voiceExample;
+    input.voiceExamples = [
+      { user: "a", good: "b" },
+      { user: "c", good: "d" },
+    ];
+    input.emojiPalette = [];
+    expect(userPersonaInputSchema.safeParse(input).success).toBe(true);
+  });
+
+  it("rejects more than 5 voiceExamples", () => {
+    const input: Record<string, unknown> = { ...validInput() };
+    delete input.voiceExample;
+    input.voiceExamples = Array.from({ length: 6 }, (_, i) => ({ user: `u${i}`, good: `g${i}` }));
+    expect(userPersonaInputSchema.safeParse(input).success).toBe(false);
+  });
+
+  it("allows empty greetingShapes only when autoGreet is on", () => {
+    const off = { ...validInput(), greetingShapes: [] };
+    expect(userPersonaInputSchema.safeParse(off).success).toBe(false);
+    const on = { ...validInput(), greetingShapes: [], autoGreet: true };
+    expect(userPersonaInputSchema.safeParse(on).success).toBe(true);
+  });
+
   it("treats avatarKey as optional (user personas upload an avatar instead)", () => {
     const input = validInput();
     const publicConfig: Record<string, unknown> = { ...input.publicConfig };
@@ -132,12 +175,12 @@ describe("userPersonaInputSchema", () => {
 });
 
 describe("userPersonaCap", () => {
-  it("caps free at 1 and every paid tier at MAX_USER_PERSONAS", () => {
+  it("scales the cap per tier: free 1, basic 10, plus 30, power 100", () => {
     expect(userPersonaCap("free")).toBe(1);
-    expect(userPersonaCap("basic")).toBe(MAX_USER_PERSONAS);
-    expect(userPersonaCap("plus")).toBe(MAX_USER_PERSONAS);
-    expect(userPersonaCap("power")).toBe(MAX_USER_PERSONAS);
-    expect(MAX_USER_PERSONAS).toBe(10);
+    expect(userPersonaCap("basic")).toBe(10);
+    expect(userPersonaCap("plus")).toBe(30);
+    expect(userPersonaCap("power")).toBe(100);
+    expect(MAX_USER_PERSONAS).toBe(100);
   });
 });
 
@@ -177,6 +220,29 @@ describe("toPersonaSpec", () => {
     expect(rendered.mediaNotes).toContain("capybara chilling");
   });
 
+  it("accepts media.picks (preview URLs for edit) but never leaks them into the prompt", () => {
+    const input = {
+      ...validInput(),
+      media: {
+        pills: ["capybara chilling", "spa day"],
+        picks: [
+          { name: "capybara chilling", previewUrl: "https://cdn.klipy.test/a.gif" },
+          { name: "spa day", previewUrl: "https://cdn.klipy.test/b.gif" },
+        ],
+      },
+    };
+    const parsed = userPersonaInputSchema.safeParse(input);
+    expect(parsed.success).toBe(true);
+
+    // picks is an edit-UI sidecar only — the spec (and therefore the rendered
+    // prompt notes) carry the pill NAMES, never the URLs.
+    const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(input));
+    expect(spec.media?.pills).toEqual(["capybara chilling", "spa day"]);
+    expect((spec.media as Record<string, unknown>)?.picks).toBeUndefined();
+    const rendered = renderPersonaPromptDoc(spec);
+    expect(rendered.mediaNotes).not.toContain("cdn.klipy.test");
+  });
+
   it("seeds the persona-dropped bad example and the platform usage boundary", () => {
     const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(validInput()));
     // The positive example is the user's; the bad example and slang usage
@@ -202,6 +268,100 @@ describe("toPersonaSpec", () => {
     expect(spec.slang.usageNotes).toBe(PLATFORM_SLANG_USAGE_NOTES);
     // Renders without throwing on the sparse spec.
     expect(() => renderPersonaPromptDoc(spec)).not.toThrow();
+  });
+
+  it("renders extra voice examples, an auto-greet line, and drops the emoji section when empty", () => {
+    const input: Record<string, unknown> = { ...validInput() };
+    delete input.voiceExample;
+    input.voiceExamples = [
+      { user: "first q", good: "first reply" },
+      { user: "second q", good: "second reply" },
+    ];
+    input.emojiPalette = [];
+    input.greetingShapes = [];
+    input.autoGreet = true;
+    const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(input));
+    expect(spec.voiceExample.good).toBe("first reply");
+    expect(spec.voiceExtraExamples).toEqual([{ user: "second q", good: "second reply" }]);
+    expect(spec.autoGreet).toBe(true);
+    expect(spec.emojiPalette).toEqual([]);
+
+    const rendered = renderPersonaPromptDoc(spec);
+    const text = rendered.fragments.fragments.map((f) => ("text" in f ? f.text : "")).join("\n");
+    expect(text).toContain("second reply");
+    expect(text).toContain("write your own greetings");
+    // No EMOJI section header when the palette is empty.
+    expect(text).not.toContain("\nEMOJI\n");
+  });
+});
+
+describe("toPersonaSpec — chattiness, rot levels, slang, humor", () => {
+  it("carries the chattiness dial when set, leaves it absent otherwise", () => {
+    const withDial = toPersonaSpec(
+      "user_uid-1_a1",
+      userPersonaInputSchema.parse({ ...validInput(), chattiness: 1 }),
+    );
+    expect(withDial.chattiness).toBe(1);
+    const without = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(validInput()));
+    expect(without.chattiness).toBeUndefined();
+  });
+
+  it("gives a persona the generic default dial, never the built-in Brainrot dial", () => {
+    const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(validInput()));
+    expect(spec.rotLevels).toEqual(DEFAULT_USER_ROT_LEVELS);
+    // The default dial resolves to persona-neutral copy, not Brainrot's examples.
+    const rot = assembleFragments(renderPersonaPromptDoc(spec).fragments, {
+      level: 2,
+      emojisEnabled: true,
+    });
+    expect(rot).toContain("ROT LEVEL: 2/3 — DEFAULT");
+    expect(rot).not.toContain("first of all, ts tuff");
+  });
+
+  it("uses the persona's own authored rot blocks with the house emoji density", () => {
+    const input = {
+      ...validInput(),
+      rotLevels: ["calm capy energy", "vibing capy", "MAXIMUM CAPY CHAOS"],
+    };
+    const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(input));
+    expect(spec.rotLevels?.blocks[3]).toContain("MAXIMUM CAPY CHAOS");
+    // The emoji-density placeholder is appended so the on/off override slots in.
+    expect(spec.rotLevels?.blocks[1]).toContain("{{EMOJI_LINE}}");
+    expect(spec.rotLevels?.emojiLines).toEqual(DEFAULT_ROT_EMOJI_LINES);
+  });
+
+  it("formats the structured slang glossary into the gloss paragraph", () => {
+    const input = {
+      ...validInput(),
+      slang: {
+        terms: [
+          { term: "cooked", meaning: "done for" },
+          { term: "locked in", meaning: "focused" },
+        ],
+      },
+    };
+    const spec = toPersonaSpec("user_uid-1_a1", userPersonaInputSchema.parse(input));
+    expect(spec.slang.termGlosses).toBe('"cooked" = done for; "locked in" = focused');
+  });
+
+  it("skips humor when autoHumor is on, leaning on the persona's own judgment", () => {
+    const input: Record<string, unknown> = { ...validInput() };
+    delete input.humorTypes;
+    delete input.humorExampleShapes;
+    input.autoHumor = true;
+    const parsed = userPersonaInputSchema.parse(input);
+    const spec = toPersonaSpec("user_uid-1_a1", parsed);
+    expect(spec.humorTypes).toEqual([]);
+    const text = renderPersonaPromptDoc(spec)
+      .fragments.fragments.map((f) => ("text" in f ? f.text : ""))
+      .join("\n");
+    expect(text).toContain("Lean on your own sense of humor");
+    expect(text).not.toContain("Humor types:");
+  });
+
+  it("rejects empty humor when autoHumor is off", () => {
+    const input: Record<string, unknown> = { ...validInput(), humorTypes: [] };
+    expect(userPersonaInputSchema.safeParse(input).success).toBe(false);
   });
 });
 
@@ -278,7 +438,9 @@ describe("toResolvedPersonaForStream", () => {
     expect(resolved.personaPrompt.fragments).toBe(doc.fragments);
     expect(resolved.personaPrompt.isActive).toBe(true);
     expect(resolved.personaPrompt.mediaNotes).toBe(doc.mediaNotes);
-    // User personas never swap the decider machinery.
-    expect(resolved.personaPrompt.mediaDeciderKey).toBeUndefined();
+    // User personas run the persona-tuned decider (favorites-first, no brainrot
+    // bank). The key is set here in resolution, never stored on the doc / from
+    // user input, so the first-party-only contract holds.
+    expect(resolved.personaPrompt.mediaDeciderKey).toBe("media_decider_persona");
   });
 });

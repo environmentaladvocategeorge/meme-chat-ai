@@ -173,8 +173,9 @@ export async function savePersonaForUser(
 
   // Render ONCE at save time — serving reads the stored fragments and never
   // re-renders. renderPersonaPromptDoc never emits mediaDeciderKey for a
-  // user-built spec (toPersonaSpec can't set media.deciderKey).
-  const rendered = renderPersonaPromptDoc(spec);
+  // user-built spec (toPersonaSpec can't set media.deciderKey). publicConfig is
+  // passed for the media note's identity grounding (one-liner + tone tags).
+  const rendered = renderPersonaPromptDoc(spec, publicConfig);
   const doc = {
     id: personaId,
     ownerUid: uid,
