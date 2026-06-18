@@ -19,6 +19,8 @@ export { clearMemory } from "./agent/memory/clearMemory";
 export { setMemoryEnabled } from "./agent/memory/setMemoryEnabled";
 export { aggregateDailyUsage } from "./aggregations/dailyUsage";
 export { savePersona, deletePersona } from "./personas/savePersona";
+export { generatePersonaAvatar } from "./personas/generatePersonaAvatar";
+export { generatePersonaDescription } from "./personas/generatePersonaDescription";
 export { getTrendingMemes, searchMemes } from "./memes/getTrendingMemes";
 export { getTrendingGifs, searchGifs } from "./gifs/getGifs";
 export { watermarkAttachment } from "./watermark/watermarkAttachment";

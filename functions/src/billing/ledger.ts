@@ -25,9 +25,18 @@ export type ModelUsage = {
 
 // What kind of work the charge is for. "turn" is a user-facing chat turn;
 // "summary"/"title"/"memory" are background utility calls we also bill (they used
-// to be absorbed). "memory" is the offline fact-extraction nano call. Stored on
-// the usageEvent so cost dashboards can split them out.
-export type UsageKind = "turn" | "summary" | "title" | "memory";
+// to be absorbed). "memory" is the offline fact-extraction nano call. "avatar" is
+// one persona-avatar image generation (gpt-image-1-mini) — billed as a flat USD
+// cost, not token usage, so its usageEvent carries an empty `usages` list and the
+// cost/credits are passed in directly. Stored on the usageEvent so cost
+// dashboards can split them out.
+export type UsageKind =
+  | "turn"
+  | "summary"
+  | "title"
+  | "memory"
+  | "avatar"
+  | "persona_desc";
 
 // What actually happened on a billable unit of work — the per-model token usage
 // and the credits it cost, recomputed by the caller from each call's final usage
@@ -40,6 +49,27 @@ export type SettlementInput = {
   costUsd: number;
   credits: number;
 };
+
+// Builds a SettlementInput for a charge billed as a flat USD cost rather than
+// token usage (e.g. an "avatar" image generation). These have no per-model
+// token usage, so `usages` is empty and the cost/credits are passed in directly;
+// this keeps that convention in one place instead of an inline `usages: []` at
+// every flat-cost call site.
+export function flatCostSettlement(input: {
+  conversationId: string;
+  kind: UsageKind;
+  costUsd: number;
+  credits: number;
+}): SettlementInput {
+  return {
+    conversationId: input.conversationId,
+    messageId: null,
+    kind: input.kind,
+    usages: [],
+    costUsd: input.costUsd,
+    credits: input.credits,
+  };
+}
 
 // Flattens per-model usages into the usageEvents token fields: summed aggregates
 // (what aggregateDailyUsage reads) PLUS per-model split fields (nanoInputTokens,

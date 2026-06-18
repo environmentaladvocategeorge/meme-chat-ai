@@ -44,3 +44,20 @@ export const MODEL_PRICING: Record<ModelId, ModelPricing> = {
 export function resolveModelId(internalId: ModelId): string {
   return OPENAI_MODEL_BY_INTERNAL_ID[internalId];
 }
+
+// ── Image generation (persona avatars) ───────────────────────────────────────
+// Persona avatars are generated with gpt-image-1-mini at the cheapest tier that
+// still reads well in a circular avatar (rendered 96px max): a square 1024×1024
+// at `low` quality. The cost is billed against the user's normal credit ledger
+// (one usageEvent of kind "avatar" per generated image — see ledger.ts), so it
+// shares the same daily/monthly allowance as chat.
+export const AVATAR_IMAGE_MODEL = "gpt-image-1-mini";
+export const AVATAR_IMAGE_SIZE = "1024x1024" as const;
+export const AVATAR_IMAGE_QUALITY = "low" as const;
+
+// USD cost of ONE generated avatar image at the size/quality above. This must
+// track OpenAI's published per-image price for gpt-image-1-mini `low` 1024² —
+// like MODEL_PRICING, if it drifts the credit charge lies. The tiny text-prompt
+// input cost (~100 chars) is absorbed; the per-image output price dominates.
+// At USD_PER_CREDIT ($0.001) this is ~5 credits/image → ~10 per two-image batch.
+export const AVATAR_IMAGE_USD = 0.005;

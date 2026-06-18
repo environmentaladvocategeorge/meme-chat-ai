@@ -226,6 +226,14 @@ export async function appendMessage(
   if (message.persona) {
     conversationUpdate.lastPersonaId = message.persona.id;
     conversationUpdate.lastPersona = message.persona;
+    // Track every bot that has taken part in this conversation (the history
+    // list shows their stacked avatars; the chat shows per-message avatars once
+    // there are 2+). arrayUnion is idempotent, so re-using a bot is a no-op.
+    // New conversations get their first id here; existing ones are backfilled to
+    // [brainrot_bot_default] by scripts/backfill-conversation-participants.cjs.
+    conversationUpdate.participantPersonaIds = FieldValue.arrayUnion(
+      message.persona.id,
+    );
   }
 
   if (message.text.length > 0) {
