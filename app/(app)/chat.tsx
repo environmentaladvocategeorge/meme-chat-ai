@@ -119,8 +119,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // Height of the gradient ramp above the floating composer dock — the zone
 // where scrolling messages dissolve into the backdrop instead of hard-cutting.
 const DOCK_FADE_HEIGHT = 21;
-// Ramp height while a reply streams: matches the in-flight bubble's 10px
-// action-row stand-in (see MessageBubble), so the resting bubble clears it.
+// Ramp height while a reply streams. Kept equal to the list's bottom breathing
+// room (paddingTop = dockHeight + 10 below), so the resting streaming bubble's
+// last line sits exactly on the fade's leading edge — no gap, no wash. The
+// in-flight bubble carries no stand-in (see MessageBubble).
 const DOCK_FADE_HEIGHT_STREAMING = 10;
 
 export default function ChatScreen() {

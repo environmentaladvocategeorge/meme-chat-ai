@@ -970,13 +970,12 @@ export const MessageBubble = memo(function MessageBubble({
             </View>
           ) : null}
 
-          {isStreamingBubble ? (
-            // Small stand-in under the in-flight bubble. The dock's fade ramp
-            // ducks out during the stream (see chat.tsx dockFadeOpacity), so
-            // this no longer needs to clear it — it just softens the push when
-            // the full action row lands at finalize.
-            <View style={{ height: 10 }} />
-          ) : null}
+          {/* No stand-in under the in-flight bubble. The inverted list already
+              lifts the bubble's bottom by its 10px breathing room (chat.tsx
+              paddingTop = dockHeight + 10), which equals the streaming fade ramp
+              (DOCK_FADE_HEIGHT_STREAMING), so the last line rests exactly where
+              the fade begins. Any extra spacer here just floats it above that
+              line. The action row inserts on finalize. */}
 
           {showActions && message.serverId ? (
             <MessageActions
