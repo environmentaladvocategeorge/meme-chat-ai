@@ -12,6 +12,7 @@ import {
 } from "@/domain/personaForm";
 import { useTheme } from "@/hooks/useTheme";
 import Slider from "@react-native-community/slider";
+import { useEffect, useState } from "react";
 import { useController, useFormContext } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
@@ -22,6 +23,16 @@ export function ChattinessSlider() {
   const { control } = useFormContext<PersonaFormValues>();
   const { field } = useController({ control, name: "chattiness" });
   const value = typeof field.value === "number" ? field.value : CHATTINESS_DEFAULT;
+
+  // The native slider flashes its thumb at the minimum for a frame before it
+  // applies `value` on mount — very visible because the step ScrollView is keyed
+  // by step, so this remounts every time the Humor step is opened. Keep it hidden
+  // for the first frame and reveal it once the thumb is already positioned.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <View style={{ gap: 6 }}>
@@ -35,7 +46,7 @@ export function ChattinessSlider() {
       </View>
 
       <Slider
-        style={{ width: "100%", height: 40 }}
+        style={{ width: "100%", height: 40, opacity: ready ? 1 : 0 }}
         minimumValue={CHATTINESS_MIN}
         maximumValue={CHATTINESS_MAX}
         step={1}
