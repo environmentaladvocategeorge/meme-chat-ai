@@ -5,6 +5,7 @@
   },
   "nav": {
     "how": "玩法",
+    "personas": "做个 bot",
     "memory": "记忆",
     "plans": "套餐",
     "ios": "iOS",
@@ -15,8 +16,8 @@
   "index": {
     "meta": {
       "title": "Meme Chat AI | 让回复一击即中的搞笑 AI 聊天 App",
-      "description": "Meme Chat AI 是一款搞笑 AI 聊天 App，能救活干巴巴的消息、迅速讲清看不懂的东西、有用地吐槽半生不熟的点子，把一团浆糊的脑子变成回复、文案和计划。",
-      "keywords": "meme AI 聊天, 搞笑 AI 助手, AI 文案改写, AI 聊天 App, meme 聊天机器人, iPhone AI 聊天",
+      "description": "Meme Chat AI 是一款搞笑 AI 聊天 App，能救活干巴巴的消息、迅速讲清看不懂的东西、有用地吐槽半生不熟的点子，还能让你打造自己的 brainrot bot。",
+      "keywords": "meme AI 聊天, 搞笑 AI 助手, 自定义 AI 人设, 打造你自己的 AI bot, AI 聊天 App, meme 聊天机器人, iPhone AI 聊天",
       "ogTitle": "Meme Chat AI",
       "ogDescription": "一款搞笑 AI 聊天 App，能救活干巴巴的消息、讲清看不懂的东西、有用地吐槽点子，把一团浆糊的脑子变成回复、文案和计划。"
     },
@@ -80,6 +81,17 @@
       "card3Body": "brainrot 拉满。诅咒级比喻加上夸张的反应——还是有用，只是野了点。",
       "card3Tag": "诅咒 + 野性"
     },
+    "personas": {
+      "eyebrow": "打造你自己的",
+      "h2": "打造一个完全属于你的 brainrot bot。",
+      "p": "Brainrot Bot 只是开始。从零打造你自己的：起个名字、写段背景、定下说话的方式，然后像和别的 bot 一样跟它聊。免费套餐含一个自定义 bot；付费套餐可存 10 到 100 个，还能随时在它们之间切换。每个 bot 上线前都会通过一次安全检查。",
+      "card1Title": "给它一个性格",
+      "card1Body": "起名、写清它是谁、定下调调：温柔、面瘫，还是彻底放飞，随你。",
+      "card2Title": "教它说话",
+      "card2Body": "挑好它的幽默、俚语和常用表情，再放一条示例回复，让它从第一条消息就拿捏住语气。",
+      "card3Title": "选好它的样子",
+      "card3Body": "上传一张头像，或用一句简短描述生成一张，写一句话标语并保存。它就出现在你的 bot 选择器里，随时开聊。"
+    },
     "meme": {
       "eyebrow": "随手来梗图",
       "h2": "词穷的时候，就发梗图。",
@@ -102,19 +114,19 @@
     "plans": {
       "eyebrow": "Meme-power",
       "h2": "套餐配得上你聊天的猛劲。",
-      "p": "每个套餐都是同一个聪明的 Brainrot Bot。档位决定你的每月额度、Brainrot Bot 是否记得你，以及你能不能给聊天换风格。Wingman 最受欢迎，MVP 最强。",
+      "p": "每个套餐都是同一个聪明的 Brainrot Bot。档位决定你的每月额度、能存多少个自定义 bot、Brainrot Bot 是否记得你，以及你能不能给聊天换风格。Wingman 最受欢迎，MVP 最强。",
       "plan1Kicker": "免费",
       "plan1Desc": "完整机器人，入门级混乱。",
-      "plan1Meta": "1x 聊天",
+      "plan1Meta": "1x 聊天 &middot; 1 个自定义 bot",
       "plan2Kicker": "基础",
       "plan2Desc": "更多聊天，更少气场欠债。",
-      "plan2Meta": "9x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告",
+      "plan2Meta": "9x 聊天 &middot; 10 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告",
       "plan3Kicker": "热门",
       "plan3Desc": "海量聊天、记忆、势头。",
-      "plan3Meta": "25x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告",
+      "plan3Meta": "25x 聊天 &middot; 30 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告",
       "plan4Kicker": "最佳",
       "plan4Desc": "为高强度聊天日和专业级唠嗑而生。",
-      "plan4Meta": "50x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告"
+      "plan4Meta": "50x 聊天 &middot; 100 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告"
     },
     "iosCallout": {
       "eyebrow": "iOS — 现已上线",
@@ -129,7 +141,9 @@
       "q2": "今天就能下载吗?",
       "a2": "可以。Meme Chat AI 已上线 App Store。在 iPhone 上下载就能开聊。免费上手，想要更多聊天和记忆时再上 meme-power 套餐。",
       "q3": "网站用的是真实的 App 素材吗?",
-      "a3": "是的。首页用的是 App 图标、Brainrot Bot 头像图、Poppins、Fredoka，以及和 App 一样的品牌配色。"
+      "a3": "是的。首页用的是 App 图标、Brainrot Bot 头像图、Poppins、Fredoka，以及和 App 一样的品牌配色。",
+      "q4": "我能做自己的 bot 吗?",
+      "a4": "可以。除了 Brainrot Bot，你还能打造自己的：起名，赋予性格、语气和头像，然后跟它聊。免费套餐含一个自定义 bot，付费套餐最多存十个。每个 bot 上线前都会经过安全检查。"
     }
   },
   "ios": {

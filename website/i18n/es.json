@@ -5,6 +5,7 @@
   },
   "nav": {
     "how": "Cómo funciona",
+    "personas": "Crea un bot",
     "memory": "Memoria",
     "plans": "Planes",
     "ios": "iOS",
@@ -15,8 +16,8 @@
   "index": {
     "meta": {
       "title": "Meme Chat AI | App de chat con IA divertida para respuestas que pegan",
-      "description": "Meme Chat AI es una app de chat con IA divertida que arregla textos sosos, explica lo confuso rápido, critica ideas a medio cocer de forma útil y convierte la sopa mental en respuestas, captions y planes.",
-      "keywords": "chat IA memes, asistente IA divertido, reescritor de textos IA, app de chat IA, chatbot de memes, chat IA iPhone",
+      "description": "Meme Chat AI es una app de chat con IA divertida que arregla textos sosos, explica lo confuso rápido, critica ideas a medio cocer de forma útil y te deja crear tus propios brainrot bots.",
+      "keywords": "chat IA memes, asistente IA divertido, persona IA personalizada, crea tu propio bot IA, app de chat IA, chatbot de memes, chat IA iPhone",
       "ogTitle": "Meme Chat AI",
       "ogDescription": "Una app de chat con IA divertida que arregla textos sosos, explica lo confuso, critica ideas de forma útil y convierte la sopa mental en respuestas, captions y planes."
     },
@@ -80,6 +81,17 @@
       "card3Body": "Brainrot al máximo. Metáforas malditas y reacciones dramáticas exageradas, sigue siendo útil, solo que salvaje.",
       "card3Tag": "maldito + salvaje"
     },
+    "personas": {
+      "eyebrow": "Crea el tuyo",
+      "h2": "Crea un brainrot bot que sea solo tuyo.",
+      "p": "Brainrot Bot es solo el principio. Crea el tuyo desde cero: ponle nombre, una historia y su propia forma de hablar, y luego chatea con él como con cualquier otro. El plan gratis incluye un bot personalizado; los planes de pago guardan de 10 hasta 100 y te dejan cambiar entre ellos cuando quieras. Cada bot pasa un control de seguridad antes de salir en vivo.",
+      "card1Title": "Dale personalidad",
+      "card1Body": "Ponle nombre, escribe quién es y marca el vibe: dulce, seco o completamente desquiciado.",
+      "card2Title": "Enséñale a hablar",
+      "card2Body": "Elige su humor, su slang y sus emojis de cabecera, y suelta un ejemplo de respuesta para que clave la voz desde el primer mensaje.",
+      "card3Title": "Elige su pinta",
+      "card3Body": "Sube un avatar o genéralo a partir de una breve descripción, escribe su eslogan de una línea y guárdalo. Aparece en tu selector de bots, listo para usar."
+    },
     "meme": {
       "eyebrow": "Memes al instante",
       "h2": "Cuando las palabras fallan, manda el meme.",
@@ -102,19 +114,19 @@
     "plans": {
       "eyebrow": "Meme-power",
       "h2": "Planes que van con lo fuerte que chateas.",
-      "p": "El mismo Brainrot Bot listo en todos los planes. Los niveles definen tu cuota mensual, si Brainrot Bot te recuerda y si puedes cambiar el estilo del chat. Wingman es el popular; MVP es el más potente.",
+      "p": "El mismo Brainrot Bot listo en todos los planes. Los niveles definen tu cuota mensual, cuántos bots personalizados puedes guardar, si Brainrot Bot te recuerda y si puedes cambiar el estilo del chat. Wingman es el popular; MVP es el más potente.",
       "plan1Kicker": "Gratis",
       "plan1Desc": "Bot completo, caos inicial.",
-      "plan1Meta": "1x chats",
+      "plan1Meta": "1x chats &middot; 1 bot personalizado",
       "plan2Kicker": "Básico",
       "plan2Desc": "Más chats, menos deuda de aura.",
-      "plan2Meta": "9x chats &middot; Memoria &middot; Temas de app &middot; Sin anuncios",
+      "plan2Meta": "9x chats &middot; 10 bots personalizados &middot; Memoria &middot; Temas de app &middot; Sin anuncios",
       "plan3Kicker": "Popular",
       "plan3Desc": "Montones de chats, memoria, impulso.",
-      "plan3Meta": "25x chats &middot; Memoria &middot; Temas de app &middot; Sin anuncios",
+      "plan3Meta": "25x chats &middot; 30 bots personalizados &middot; Memoria &middot; Temas de app &middot; Sin anuncios",
       "plan4Kicker": "Mejor",
       "plan4Desc": "Para días de chat intensos y yapping profesional.",
-      "plan4Meta": "50x chats &middot; Memoria &middot; Temas de app &middot; Sin anuncios"
+      "plan4Meta": "50x chats &middot; 100 bots personalizados &middot; Memoria &middot; Temas de app &middot; Sin anuncios"
     },
     "iosCallout": {
       "eyebrow": "iOS — ya disponible",
@@ -129,7 +141,9 @@
       "q2": "¿Puedo descargarla hoy?",
       "a2": "Sí. Meme Chat AI ya está en el App Store. Descárgala en iPhone y empieza a chatear. Gratis para empezar, con planes meme-power cuando quieras más chats y memoria.",
       "q3": "¿La web usa recursos reales de la app?",
-      "a3": "Sí. La página usa el ícono de la app, las imágenes del avatar de Brainrot Bot, Poppins, Fredoka y los mismos colores de marca que la app."
+      "a3": "Sí. La página usa el ícono de la app, las imágenes del avatar de Brainrot Bot, Poppins, Fredoka y los mismos colores de marca que la app.",
+      "q4": "¿Puedo crear mi propio bot?",
+      "a4": "Sí. Además de Brainrot Bot puedes crear el tuyo: ponle nombre, dale personalidad, voz y avatar, y luego chatea con él. El plan gratis incluye un bot personalizado y los planes de pago guardan hasta diez. Cada bot pasa un control de seguridad antes de salir en vivo."
     }
   },
   "ios": {

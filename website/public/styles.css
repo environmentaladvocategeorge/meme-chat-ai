@@ -932,3 +932,336 @@ h3 {
     left: 0;
   }
 }
+
+/* ── Plans carousel ─────────────────────────────────────────────────────────
+   The plan cards picked up enough differentiators that a 4-up grid felt
+   cramped, so they live in a center-snapping carousel: the card nearest the
+   middle scales up with a faint teal glow while neighbors sit back. CSS
+   scroll-snap does the layout; a small script (index.html) flags the centered
+   card (.is-center) and drives the dots. No-JS degrades to a scrollable row. */
+.plan-carousel {
+  position: relative;
+}
+
+.plan-track {
+  --plan-card-w: clamp(244px, 74vw, 300px);
+  display: flex;
+  gap: 18px;
+  padding-block: 30px;
+  padding-inline: max(4px, calc((100% - var(--plan-card-w)) / 2));
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.plan-track::-webkit-scrollbar {
+  display: none;
+}
+
+.plan-carousel .plan-card {
+  flex: 0 0 var(--plan-card-w);
+  scroll-snap-align: center;
+  transform: scale(0.93);
+  opacity: 0.68;
+  transition:
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.5s ease,
+    box-shadow 0.5s ease;
+  will-change: transform;
+}
+
+/* The grid lifted the recommended card with translateY; in the carousel the
+   center-scale carries the emphasis, so keep only its gradient edge. */
+.plan-carousel .plan-card.recommended {
+  transform: scale(0.93);
+}
+
+.plan-carousel .plan-card.is-center {
+  transform: scale(1);
+  opacity: 1;
+  box-shadow:
+    var(--shadow-soft),
+    0 0 44px 1px rgba(56, 169, 174, 0.2);
+}
+
+/* Faint inner glow that fades up from behind the centered card. */
+.plan-carousel .plan-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: radial-gradient(
+    130% 130% at 50% 0%,
+    rgba(56, 169, 174, 0.16),
+    transparent 68%
+  );
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.plan-carousel .plan-card.is-center::before {
+  opacity: 1;
+}
+
+.plan-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plan-dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-border-strong);
+  cursor: pointer;
+  transition:
+    width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.4s ease;
+}
+
+.plan-dots button.is-active {
+  width: 22px;
+  background: var(--color-primary);
+}
+
+@media (min-width: 901px) {
+  .plan-track {
+    --plan-card-w: 320px;
+    gap: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-carousel .plan-card {
+    transition: none;
+  }
+  .plan-track {
+    scroll-behavior: auto;
+  }
+}
+
+/* Prev/next controls — the scrollbar is hidden and desktop has no swipe, so
+   these are the primary way to move the carousel on a computer. They fade out
+   at the ends (disabled by the script). */
+.plan-nav {
+  position: absolute;
+  top: calc(50% - 14px);
+  transform: translateY(-50%);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0 0 4px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-card) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--color-foreground);
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: opacity 0.3s ease, background 0.3s ease;
+}
+
+.plan-nav:hover {
+  background: var(--color-card);
+}
+
+.plan-nav-prev {
+  left: 4px;
+}
+
+.plan-nav-next {
+  right: 4px;
+}
+
+.plan-nav[disabled] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Memory chat thread ──────────────────────────────────────────────────────
+   The memory section reused the split-heading + feature-grid layout that the
+   "what it is" and personas sections already use, so it gets a different
+   treatment here: the four points become a chat thread from Brainrot Bot —
+   three incoming notes and one teal outgoing reply — that pops in message by
+   message as the section scrolls into view. */
+.memory-section {
+  display: grid;
+  grid-template-columns: 0.92fr 1fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.memory-copy {
+  max-width: 520px;
+}
+
+.memory-thread {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border-radius: calc(var(--radius-card) * 3);
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-primary-subtle) 55%, transparent), transparent 26%),
+    var(--color-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.memory-thread-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.memory-thread-head img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  box-shadow: var(--shadow-card);
+}
+
+.memory-thread-name {
+  font-family: "Fredoka", "Poppins", sans-serif;
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.memory-thread-pill {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-primary);
+  background: var(--color-primary-subtle);
+  padding: 5px 10px;
+  border-radius: 999px;
+}
+
+.memory-thread-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-primary);
+}
+
+.memory-msgs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.memory-bubble {
+  align-self: flex-start;
+  max-width: 88%;
+  padding: 12px 16px;
+  border-radius: 20px;
+  border-bottom-left-radius: 6px;
+  background: var(--color-card-muted);
+  border: 1px solid var(--color-border);
+}
+
+.memory-bubble-tag {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-foreground);
+}
+
+.memory-bubble p {
+  margin: 0;
+  color: var(--color-foreground-secondary);
+}
+
+/* The closing "paid plans only" note reads as an outgoing reply. */
+.memory-bubble:last-child {
+  align-self: flex-end;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 6px;
+  border-color: transparent;
+  background: var(--gradient-primary);
+}
+
+.memory-bubble:last-child .memory-bubble-tag {
+  color: #ffffff;
+}
+
+.memory-bubble:last-child p {
+  color: #ffffff;
+  opacity: 0.92;
+}
+
+@keyframes memBubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.js .memory-msgs .memory-bubble {
+  opacity: 0;
+}
+
+.js .memory-section.is-visible .memory-bubble {
+  animation: memBubbleIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.memory-section.is-visible .memory-bubble:nth-child(1) {
+  animation-delay: 0.08s;
+}
+.memory-section.is-visible .memory-bubble:nth-child(2) {
+  animation-delay: 0.22s;
+}
+.memory-section.is-visible .memory-bubble:nth-child(3) {
+  animation-delay: 0.36s;
+}
+.memory-section.is-visible .memory-bubble:nth-child(4) {
+  animation-delay: 0.5s;
+}
+
+@media (max-width: 900px) {
+  .memory-section {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+  .memory-copy {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .plan-nav {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js .memory-msgs .memory-bubble {
+    opacity: 1;
+    animation: none;
+  }
+}

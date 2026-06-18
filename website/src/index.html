@@ -22,7 +22,7 @@
     <meta property="og:image" content="{{__ORIGIN__}}/assets/images/app-icon.png?v=2" />
     <meta property="og:locale" content="{{__HTML_LANG__}}" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=3" />
     <style>
       /* "Send a meme" callout — white KLIPY mark sits on a teal panel. */
       .meme-card {
@@ -122,6 +122,14 @@
               "@type": "Answer",
               "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Hatchling (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
             }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I create my own AI bot in Meme Chat AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Alongside Brainrot Bot you can build your own personas: name a bot, give it a personality, voice, slang, emojis, and an avatar, then chat with it like any other. The free plan includes one custom bot and paid plans hold up to ten, and you switch between them inside the app. Every bot passes an automated safety check before it goes live."
+            }
           }
         ]
       }
@@ -135,6 +143,7 @@
       </a>
       <nav class="nav" aria-label="Main navigation">
         <a href="#how">{{nav.how}}</a>
+        <a href="#personas">{{nav.personas}}</a>
         <a href="#memory">{{nav.memory}}</a>
         <a href="#plans">{{nav.plans}}</a>
         <a href="{{__PREFIX__}}/ios">{{nav.ios}}</a>
@@ -267,6 +276,28 @@
         </div>
       </section>
 
+      <section class="section split-section reveal" id="personas">
+        <div>
+          <p class="eyebrow">{{index.personas.eyebrow}}</p>
+          <h2>{{index.personas.h2}}</h2>
+          <p>{{index.personas.p}}</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>{{index.personas.card1Title}}</h3>
+            <p>{{index.personas.card1Body}}</p>
+          </article>
+          <article class="feature-card">
+            <h3>{{index.personas.card2Title}}</h3>
+            <p>{{index.personas.card2Body}}</p>
+          </article>
+          <article class="feature-card">
+            <h3>{{index.personas.card3Title}}</h3>
+            <p>{{index.personas.card3Body}}</p>
+          </article>
+        </div>
+      </section>
+
       <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
@@ -287,30 +318,37 @@
         </div>
       </section>
 
-      <section class="section split-section reveal" id="memory">
-        <div>
+      <section class="section memory-section reveal" id="memory">
+        <div class="memory-copy">
           <p class="eyebrow">{{index.memory.eyebrow}}</p>
           <h2>{{index.memory.h2}}</h2>
           <p>{{index.memory.p1}}</p>
           <p>{{index.memory.p2}}</p>
         </div>
-        <div class="feature-grid">
-          <article class="feature-card">
-            <h3>{{index.memory.card1Title}}</h3>
-            <p>{{index.memory.card1Body}}</p>
-          </article>
-          <article class="feature-card">
-            <h3>{{index.memory.card2Title}}</h3>
-            <p>{{index.memory.card2Body}}</p>
-          </article>
-          <article class="feature-card">
-            <h3>{{index.memory.card3Title}}</h3>
-            <p>{{index.memory.card3Body}}</p>
-          </article>
-          <article class="feature-card">
-            <h3>{{index.memory.card4Title}}</h3>
-            <p>{{index.memory.card4Body}}</p>
-          </article>
+        <div class="memory-thread" aria-label="How Brainrot Bot remembers you">
+          <div class="memory-thread-head">
+            <img src="/assets/images/app-icon.png?v=2" alt="" />
+            <span class="memory-thread-name">Brainrot Bot</span>
+            <span class="memory-thread-pill">{{nav.memory}}</span>
+          </div>
+          <div class="memory-msgs">
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">{{index.memory.card1Title}}</span>
+              <p>{{index.memory.card1Body}}</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">{{index.memory.card2Title}}</span>
+              <p>{{index.memory.card2Body}}</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">{{index.memory.card3Title}}</span>
+              <p>{{index.memory.card3Body}}</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">{{index.memory.card4Title}}</span>
+              <p>{{index.memory.card4Body}}</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -320,31 +358,36 @@
           <h2>{{index.plans.h2}}</h2>
           <p>{{index.plans.p}}</p>
         </div>
-        <div class="plan-grid">
-          <article class="plan-card">
-            <span class="plan-kicker">{{index.plans.plan1Kicker}}</span>
-            <h3>Hatchling</h3>
-            <p>{{index.plans.plan1Desc}}</p>
-            <strong>{{index.plans.plan1Meta}}</strong>
-          </article>
-          <article class="plan-card">
-            <span class="plan-kicker">{{index.plans.plan2Kicker}}</span>
-            <h3>Sidekick</h3>
-            <p>{{index.plans.plan2Desc}}</p>
-            <strong>{{index.plans.plan2Meta}}</strong>
-          </article>
-          <article class="plan-card">
-            <span class="plan-kicker">{{index.plans.plan3Kicker}}</span>
-            <h3>Wingman</h3>
-            <p>{{index.plans.plan3Desc}}</p>
-            <strong>{{index.plans.plan3Meta}}</strong>
-          </article>
-          <article class="plan-card recommended">
-            <span class="plan-kicker">{{index.plans.plan4Kicker}}</span>
-            <h3>MVP</h3>
-            <p>{{index.plans.plan4Desc}}</p>
-            <strong>{{index.plans.plan4Meta}}</strong>
-          </article>
+        <div class="plan-carousel" data-plan-carousel>
+          <button class="plan-nav plan-nav-prev" type="button" aria-label="Previous plan" data-plan-prev>&#8249;</button>
+          <button class="plan-nav plan-nav-next" type="button" aria-label="Next plan" data-plan-next>&#8250;</button>
+          <div class="plan-track" role="list">
+            <article class="plan-card" role="listitem">
+              <span class="plan-kicker">{{index.plans.plan1Kicker}}</span>
+              <h3>Hatchling</h3>
+              <p>{{index.plans.plan1Desc}}</p>
+              <strong>{{index.plans.plan1Meta}}</strong>
+            </article>
+            <article class="plan-card" role="listitem">
+              <span class="plan-kicker">{{index.plans.plan2Kicker}}</span>
+              <h3>Sidekick</h3>
+              <p>{{index.plans.plan2Desc}}</p>
+              <strong>{{index.plans.plan2Meta}}</strong>
+            </article>
+            <article class="plan-card" role="listitem" data-plan-default>
+              <span class="plan-kicker">{{index.plans.plan3Kicker}}</span>
+              <h3>Wingman</h3>
+              <p>{{index.plans.plan3Desc}}</p>
+              <strong>{{index.plans.plan3Meta}}</strong>
+            </article>
+            <article class="plan-card recommended" role="listitem">
+              <span class="plan-kicker">{{index.plans.plan4Kicker}}</span>
+              <h3>MVP</h3>
+              <p>{{index.plans.plan4Desc}}</p>
+              <strong>{{index.plans.plan4Meta}}</strong>
+            </article>
+          </div>
+          <div class="plan-dots" aria-hidden="true"></div>
         </div>
       </section>
 
@@ -375,6 +418,10 @@
           <details>
             <summary>{{index.faq.q3}}</summary>
             <p>{{index.faq.a3}}</p>
+          </details>
+          <details>
+            <summary>{{index.faq.q4}}</summary>
+            <p>{{index.faq.a4}}</p>
           </details>
         </div>
       </section>
@@ -416,6 +463,91 @@
         els.forEach(function (el) {
           io.observe(el);
         });
+      })();
+    </script>
+
+    <!-- Plans carousel: flag the card nearest the middle (it scales up with a
+         faint glow) and build clickable position dots. Pure CSS scroll-snap
+         handles layout; without JS it stays a plain scrollable row. -->
+    <script>
+      (function () {
+        var carousel = document.querySelector("[data-plan-carousel]");
+        if (!carousel) return;
+        var track = carousel.querySelector(".plan-track");
+        var dotsWrap = carousel.querySelector(".plan-dots");
+        var prevBtn = carousel.querySelector("[data-plan-prev]");
+        var nextBtn = carousel.querySelector("[data-plan-next]");
+        var cards = Array.prototype.slice.call(track.querySelectorAll(".plan-card"));
+        if (!cards.length) return;
+
+        var current = 0;
+
+        function centerCard(card) {
+          track.scrollTo({
+            left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2,
+            behavior: "smooth",
+          });
+        }
+
+        function go(i) {
+          centerCard(cards[Math.max(0, Math.min(cards.length - 1, i))]);
+        }
+
+        var dots = cards.map(function (card, i) {
+          var dot = document.createElement("button");
+          dot.type = "button";
+          dot.setAttribute("aria-label", "Show plan " + (i + 1));
+          dot.addEventListener("click", function () {
+            go(i);
+          });
+          dotsWrap.appendChild(dot);
+          return dot;
+        });
+
+        if (prevBtn) prevBtn.addEventListener("click", function () { go(current - 1); });
+        if (nextBtn) nextBtn.addEventListener("click", function () { go(current + 1); });
+
+        var raf = 0;
+        function update() {
+          raf = 0;
+          var mid = track.scrollLeft + track.clientWidth / 2;
+          var best = 0;
+          var bestDist = Infinity;
+          for (var i = 0; i < cards.length; i++) {
+            var center = cards[i].offsetLeft + cards[i].offsetWidth / 2;
+            var dist = Math.abs(center - mid);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = i;
+            }
+          }
+          current = best;
+          for (var j = 0; j < cards.length; j++) {
+            cards[j].classList.toggle("is-center", j === best);
+            dots[j].classList.toggle("is-active", j === best);
+          }
+          if (prevBtn) prevBtn.disabled = best === 0;
+          if (nextBtn) nextBtn.disabled = best === cards.length - 1;
+        }
+
+        track.addEventListener(
+          "scroll",
+          function () {
+            if (!raf) raf = requestAnimationFrame(update);
+          },
+          { passive: true }
+        );
+        window.addEventListener("resize", update);
+        window.addEventListener("load", update);
+
+        // Start centered on the popular plan, without animating on first paint.
+        var initial = track.querySelector("[data-plan-default]") || cards[0];
+        var prev = track.style.scrollBehavior;
+        track.style.scrollBehavior = "auto";
+        track.scrollLeft =
+          initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
+        track.style.scrollBehavior = prev;
+        update();
       })();
     </script>
 {{__SCRIPTS__}}
