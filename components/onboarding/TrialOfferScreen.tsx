@@ -15,6 +15,7 @@
 
 import { AppPressable } from "@/components/AppPressable";
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { SocialProofBar } from "@/components/SocialProofBar";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
@@ -238,6 +239,16 @@ export function TrialOfferScreen({ onDecline }: TrialOfferScreenProps) {
                 </Typography>
               </View>
             ))}
+          </Animated.View>
+
+          {/* Social proof — real App Store review, placed right before the
+              charge disclosure so the reassurance lands just ahead of the
+              money details. */}
+          <Animated.View
+            entering={FadeInDown.duration(360).delay(220)}
+            style={{ width: "100%" }}
+          >
+            <SocialProofBar />
           </Animated.View>
 
           {/* Charge disclosure card */}

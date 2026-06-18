@@ -20,6 +20,7 @@
 
 import { AppPressable, SheetTouchableProvider } from "@/components/AppPressable";
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { SocialProofBar } from "@/components/SocialProofBar";
 import { Typography } from "@/components/Typography";
 import { PLAN_RANK, type PlanId } from "@/domain/billing";
 import { useTheme } from "@/hooks/useTheme";
@@ -267,6 +268,10 @@ export function PlanPaywall() {
           </Typography>
         </View>
       </View>
+
+      {/* Social proof — only worth showing to users we're still converting.
+          Existing subscribers already bought; selling them is just noise. */}
+      {!hasActiveSubscription && <SocialProofBar compact />}
 
       {/* Tier selector row */}
       <View style={{ flexDirection: "row", gap: 8 }}>
