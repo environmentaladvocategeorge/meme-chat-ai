@@ -243,7 +243,7 @@ const pt = {
     selectA11y: "Selecionar {{name}}",
     maxReached: "Você atingiu o máximo de {{count}} bots.",
     upgradeTitle: "Quer mais bots?",
-    upgradeBody: "Faça upgrade para criar até {{count}} personagens.",
+    upgradeBody: "Faça upgrade para criar até {{count}} bots.",
     upgradeCta: "Fazer upgrade",
     select: {
       count: "{{count}} selecionados",
@@ -923,6 +923,7 @@ const pt = {
       upgradeCta: "Escolher este plano",
       currentCta: "Você está aqui",
       paywallNote: "Cancele quando quiser na App Store.",
+      paywallNotePlay: "Cancele quando quiser no Google Play.",
       restorePrompt: "Já é assinante?",
 
       restorePurchases: "Restaurar compras",

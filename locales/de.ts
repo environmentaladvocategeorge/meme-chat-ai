@@ -243,7 +243,7 @@ const de = {
     selectA11y: "{{name}} auswählen",
     maxReached: "Du hast das Maximum von {{count}} Bots erreicht.",
     upgradeTitle: "Mehr Bots gefällig?",
-    upgradeBody: "Upgrade, um bis zu {{count}} Personas zu erstellen.",
+    upgradeBody: "Upgrade, um bis zu {{count}} Bots zu erstellen.",
     upgradeCta: "Upgraden",
     select: {
       count: "{{count}} ausgewählt",
@@ -920,6 +920,7 @@ const de = {
       upgradeCta: "Diesen Plan wählen",
       currentCta: "Du bist hier",
       paywallNote: "Jederzeit im App Store kündigen.",
+      paywallNotePlay: "Jederzeit in Google Play kündigen.",
       restorePrompt: "Schon abonniert?",
 
       restorePurchases: "Käufe wiederherstellen",

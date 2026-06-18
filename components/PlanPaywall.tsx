@@ -74,6 +74,11 @@ type PrimaryGradient = (typeof gradients)[keyof typeof gradients]["primary"];
 export function PlanPaywall() {
   const { t } = useTranslation();
   const theme = useTheme();
+  // The "cancel anytime" reassurance names the store the purchase routes to.
+  const paywallNote =
+    Platform.OS === "android"
+      ? t("settings.plan.paywallNotePlay")
+      : t("settings.plan.paywallNote");
   const { colorScheme } = useColorScheme();
   const gradient = gradients[colorScheme ?? "light"].primary;
   const subscriptionStatus = useSubscriptionStore((s) => s.status);
@@ -163,7 +168,7 @@ export function PlanPaywall() {
 
     const productId = planToProduct[selected];
     if (subscriptionStatus !== "ready") {
-      Alert.alert(t("settings.plan.heading"), t("settings.plan.paywallNote"));
+      Alert.alert(t("settings.plan.heading"), paywallNote);
       return;
     }
     setBusy(true);
@@ -173,7 +178,7 @@ export function PlanPaywall() {
         (p) => p.product.identifier === productId,
       );
       if (!pkg) {
-        Alert.alert(t("settings.plan.heading"), t("settings.plan.paywallNote"));
+        Alert.alert(t("settings.plan.heading"), paywallNote);
         return;
       }
       await Purchases.purchasePackage(pkg);
@@ -355,7 +360,7 @@ export function PlanPaywall() {
       >
         {hasActiveSubscription
           ? t("settings.plan.manageNote")
-          : t("settings.plan.paywallNote")}
+          : paywallNote}
       </Typography>
 
       {/* Selected tier details */}

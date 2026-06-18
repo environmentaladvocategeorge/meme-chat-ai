@@ -242,7 +242,7 @@ const hi = {
     selectA11y: "{{name}} चुनें",
     maxReached: "आप {{count}} बॉट्स की अधिकतम सीमा तक पहुँच गए हैं।",
     upgradeTitle: "और बॉट्स चाहिए?",
-    upgradeBody: "{{count}} पर्सोना तक बनाने के लिए अपग्रेड करें।",
+    upgradeBody: "{{count}} बॉट्स तक बनाने के लिए अपग्रेड करें।",
     upgradeCta: "अपग्रेड करें",
     select: {
       count: "{{count}} चुने गए",
@@ -923,6 +923,7 @@ const hi = {
       upgradeCta: "यह plan चुनो",
       currentCta: "तुम यहाँ हो",
       paywallNote: "App Store में कभी भी cancel करो।",
+      paywallNotePlay: "Google Play में कभी भी cancel करो।",
       restorePrompt: "पहले से subscribed हो?",
 
       restorePurchases: "Purchases Restore करो",

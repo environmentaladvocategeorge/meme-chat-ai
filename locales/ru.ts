@@ -242,7 +242,7 @@ const ru = {
     selectA11y: "Выбрать {{name}}",
     maxReached: "Вы достигли максимума — {{count}} ботов.",
     upgradeTitle: "Хотите больше ботов?",
-    upgradeBody: "Оформите подписку, чтобы создавать до {{count}} персонажей.",
+    upgradeBody: "Оформите подписку, чтобы создавать до {{count}} ботов.",
     upgradeCta: "Улучшить",
     select: {
       count: "Выбрано: {{count}}",
@@ -923,6 +923,7 @@ const ru = {
       upgradeCta: "Выбрать этот план",
       currentCta: "Ты здесь",
       paywallNote: "Отмени когда угодно в App Store.",
+      paywallNotePlay: "Отмени когда угодно в Google Play.",
       restorePrompt: "Уже подписан?",
 
       restorePurchases: "Восстановить покупки",

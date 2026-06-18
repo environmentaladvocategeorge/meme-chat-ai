@@ -242,7 +242,7 @@ const ja = {
     selectA11y: "{{name}} を選択",
     maxReached: "ボットは最大 {{count}} 体までです。",
     upgradeTitle: "もっとボットが欲しい？",
-    upgradeBody: "アップグレードすると最大 {{count}} 体のキャラクターを作成できます。",
+    upgradeBody: "アップグレードすると最大 {{count}} 体のボットを作成できます。",
     upgradeCta: "アップグレード",
     select: {
       count: "{{count}}件選択中",
@@ -920,6 +920,7 @@ const ja = {
       upgradeCta: "このプランを選ぶ",
       currentCta: "現在のプラン",
       paywallNote: "App Storeでいつでもキャンセル可能。",
+      paywallNotePlay: "Google Playでいつでもキャンセル可能。",
       restorePrompt: "すでに登録済み？",
 
       restorePurchases: "購入を復元",

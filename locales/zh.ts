@@ -243,7 +243,7 @@ const zh = {
     selectA11y: "选择 {{name}}",
     maxReached: "你已达到最多 {{count}} 个机器人。",
     upgradeTitle: "想要更多机器人？",
-    upgradeBody: "升级即可创建多达 {{count}} 个角色。",
+    upgradeBody: "升级即可创建多达 {{count}} 个机器人。",
     upgradeCta: "升级",
     select: {
       count: "已选择 {{count}} 个",
@@ -921,6 +921,7 @@ const zh = {
       upgradeCta: "选择此计划",
       currentCta: "你在这里",
       paywallNote: "随时在App Store取消。",
+      paywallNotePlay: "随时在Google Play取消。",
       restorePrompt: "已经订阅了？",
 
       restorePurchases: "恢复购买",

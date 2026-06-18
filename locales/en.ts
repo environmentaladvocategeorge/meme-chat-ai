@@ -274,7 +274,7 @@ const en = {
     selectA11y: "Select {{name}}",
     maxReached: "You’ve reached the maximum of {{count}} bots.",
     upgradeTitle: "Want more bots?",
-    upgradeBody: "Upgrade to create up to {{count}} personas.",
+    upgradeBody: "Upgrade to create up to {{count}} bots.",
     upgradeCta: "Upgrade",
     select: {
       count: "{{count}} selected",
@@ -962,6 +962,7 @@ const en = {
       upgradeCta: "Pick this plan",
       currentCta: "You're here",
       paywallNote: "Cancel anytime in the App Store.",
+      paywallNotePlay: "Cancel anytime in Google Play.",
       renewsTomorrow: "Renews tomorrow",
       renewsInDays: "Renews in {{days}} days",
       renewsOn: "Renews on {{date}}",
