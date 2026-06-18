@@ -443,6 +443,7 @@ function HumorStep() {
                 maxLength={LIMITS.humorType}
                 allowCustom
                 horizontal
+                bleed={20}
                 customPlaceholder={t("personasCreator.field.humorCustom")}
               />
             )}
@@ -479,6 +480,7 @@ function VibeStep() {
               maxLength={LIMITS.toneTag}
               allowCustom
               horizontal
+              bleed={20}
               customPlaceholder={t("personasCreator.field.toneCustom")}
             />
           )}

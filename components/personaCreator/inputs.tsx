@@ -7,13 +7,18 @@ import { AppPressable } from "@/components/AppPressable";
 import { GlassSurface } from "@/components/GlassSurface";
 import { Input } from "@/components/Input";
 import { Typography } from "@/components/Typography";
-import { addTag, removeTag, toggleTag } from "@/domain/tagInput";
+import { addTag, removeTag } from "@/domain/tagInput";
 import { useTheme } from "@/hooks/useTheme";
 import { Image } from "expo-image";
 import { Camera, Plus, Trash, X, type IconProps } from "phosphor-react-native";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ActivityIndicator, ScrollView, View } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 
 // A persistent hint under a free-type field so it's obvious that typed text
 // only commits on Return (the most common confusion: people type and tap Next,
@@ -126,9 +131,84 @@ export function TypeToPill({
   );
 }
 
-// Curated chips you toggle on/off, plus an optional "add your own" field.
-// `horizontal` lays the preset chips out in a single left/right scrolling row
-// (used for the recommendation pills) instead of wrapping onto multiple lines.
+// A suggestion pill — an unpicked curated option. Tapping it adds it to the
+// selection (a leading + makes "tap to add" obvious). It animates out of the
+// suggestions row as it moves down into the selected list.
+function SuggestionPill({ label, onPress }: { label: string; onPress: () => void }) {
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={onPress}
+      accessibilityLabel={label}
+      pressScale={0.04}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+        paddingHorizontal: 14,
+        paddingVertical: 9,
+        borderRadius: 999,
+        backgroundColor: theme["--color-card"],
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+      }}
+    >
+      <Plus size={12} weight="bold" color={theme["--color-foreground-muted"]} />
+      <Typography variant="caption" style={{ color: theme["--color-foreground"] }}>
+        {label}
+      </Typography>
+    </AppPressable>
+  );
+}
+
+// A selected pill — a picked option (curated or custom). The whole pill is the
+// remove control (the trailing × signals it); removing a curated one sends it
+// back up to the suggestions row, a custom one just disappears.
+function SelectedPill({
+  label,
+  onRemove,
+  removeA11y,
+}: {
+  label: string;
+  onRemove: () => void;
+  removeA11y: string;
+}) {
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={onRemove}
+      accessibilityLabel={removeA11y}
+      accessibilityState={{ selected: true }}
+      pressScale={0.04}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 6,
+        paddingLeft: 14,
+        paddingRight: 10,
+        paddingVertical: 9,
+        borderRadius: 999,
+        backgroundColor: theme["--color-primary-muted"],
+        borderWidth: 1,
+        borderColor: theme["--color-primary"],
+      }}
+    >
+      <Typography variant="caption" weight="semibold" style={{ color: theme["--color-foreground"] }}>
+        {label}
+      </Typography>
+      <X size={13} weight="bold" color={theme["--color-foreground-muted"]} />
+    </AppPressable>
+  );
+}
+
+// Curated suggestions over a live list of picks, plus an optional "add your
+// own" field. Two animated sections that re-sort as the user chooses: the
+// SUGGESTIONS row holds only the options not yet picked (tap to add); the
+// SELECTED list below holds the picks (tap to remove). Picking a suggestion
+// animates it out of the row and into the list; removing a curated pick sends
+// it back; custom entries land straight in the selected list. `horizontal`
+// lays the suggestions out in a single left/right scrolling row instead of
+// wrapping onto multiple lines.
 export function MultiSelectPills({
   value,
   onChange,
@@ -138,6 +218,7 @@ export function MultiSelectPills({
   allowCustom = false,
   customPlaceholder,
   horizontal = false,
+  bleed = 0,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
@@ -147,63 +228,80 @@ export function MultiSelectPills({
   allowCustom?: boolean;
   customPlaceholder?: string;
   horizontal?: boolean;
+  // Horizontal padding of the parent container. In `horizontal` mode the row
+  // breaks out of it with a negative margin and re-adds it as content padding,
+  // so the first pill rests at the inset but pills scroll off the screen edge
+  // instead of being clipped at the parent's padding.
+  bleed?: number;
 }) {
-  const theme = useTheme();
+  const { t } = useTranslation();
   const [text, setText] = useState("");
 
-  // Show curated options plus any custom values the user already added.
-  const extras = value.filter((v) => !options.some((o) => o.toLowerCase() === v.toLowerCase()));
-  const all = [...options, ...extras];
+  const atCap = value.length >= max;
+
+  // Suggestions = curated options the user hasn't picked yet.
+  const suggestions = options.filter(
+    (o) => !value.some((v) => v.toLowerCase() === o.toLowerCase()),
+  );
 
   const commitCustom = () => {
     onChange(addTag(value, text, max));
     setText("");
   };
 
-  const pills = all.map((option) => {
-    const selected = value.some((v) => v.toLowerCase() === option.toLowerCase());
-    return (
-      <AppPressable
-        key={option}
-        onPress={() => onChange(toggleTag(value, option, max))}
-        accessibilityLabel={option}
-        accessibilityState={{ selected }}
-        pressScale={0.04}
-        style={{
-          paddingHorizontal: 14,
-          paddingVertical: 9,
-          borderRadius: 999,
-          backgroundColor: selected ? theme["--color-primary-muted"] : theme["--color-card"],
-          borderWidth: 1,
-          borderColor: selected ? theme["--color-primary"] : theme["--color-border"],
-        }}
-      >
-        <Typography
-          variant="caption"
-          weight={selected ? "semibold" : "regular"}
-          style={{ color: theme["--color-foreground"] }}
-        >
-          {option}
-        </Typography>
-      </AppPressable>
-    );
-  });
+  // Shared per-pill animation: fade in/out as a pill enters/leaves a section,
+  // and slide the survivors into their new spots so the lists re-sort visibly.
+  const enter = FadeIn.duration(180);
+  const exit = FadeOut.duration(140);
+  const reflow = LinearTransition.duration(220);
+
+  const suggestionPills = suggestions.map((option) => (
+    <Animated.View key={option} entering={enter} exiting={exit} layout={reflow}>
+      <SuggestionPill label={option} onPress={() => onChange(addTag(value, option, max))} />
+    </Animated.View>
+  ));
 
   return (
-    <View style={{ gap: 10 }}>
-      {horizontal ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ flexDirection: "row", gap: 8, paddingRight: 4 }}
-        >
-          {pills}
-        </ScrollView>
-      ) : (
-        <ChipWrap>{pills}</ChipWrap>
-      )}
-      {allowCustom && value.length < max ? (
+    <View style={{ gap: 12 }}>
+      {/* Suggestions — tap to add. Hidden once the cap is reached. */}
+      {suggestions.length > 0 && !atCap ? (
+        horizontal ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={bleed > 0 ? { marginHorizontal: -bleed } : undefined}
+            contentContainerStyle={{
+              flexDirection: "row",
+              gap: 8,
+              paddingLeft: bleed,
+              paddingRight: bleed > 0 ? bleed : 4,
+            }}
+          >
+            {suggestionPills}
+          </ScrollView>
+        ) : (
+          <ChipWrap>{suggestionPills}</ChipWrap>
+        )
+      ) : null}
+
+      {/* Selected — your picks, tap to remove. */}
+      {value.length > 0 ? (
+        <ChipWrap>
+          {value.map((item) => (
+            <Animated.View key={item} entering={enter} exiting={exit} layout={reflow}>
+              <SelectedPill
+                label={item}
+                onRemove={() => onChange(removeTag(value, item))}
+                removeA11y={t("personasCreator.removeTag", { tag: item })}
+              />
+            </Animated.View>
+          ))}
+        </ChipWrap>
+      ) : null}
+
+      {/* Add your own → lands in the selected list. */}
+      {allowCustom && !atCap ? (
         <View style={{ gap: 6 }}>
           <Input
             value={text}
