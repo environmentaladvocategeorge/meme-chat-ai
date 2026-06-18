@@ -6,15 +6,17 @@ import {
 } from "@/components/MessageActions";
 import { MessageGifAttachments } from "@/components/MessageGifAttachments";
 import { MessageImageAttachments } from "@/components/MessageImageAttachments";
+import { PersonaAvatar } from "@/components/PersonaAvatar";
 import { SelectableText } from "@/components/SelectableText";
 import { Typography } from "@/components/Typography";
 import { stripMemeArtifacts } from "@/domain/agentText";
+import { type ResolvedPersona } from "@/domain/personas";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import { useChatStore } from "@/store/chat";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
+import { ArrowClockwise, SmileyWink, WarningCircle } from "phosphor-react-native";
 import { useColorScheme } from "nativewind";
 import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -85,6 +87,8 @@ export const MessageBubble = memo(function MessageBubble({
   onEmoji,
   isLastAgent = false,
   onReplay,
+  showSenderAvatar = false,
+  resolveSender,
 }: {
   message: RenderMessage;
   retryLabel: string;
@@ -96,6 +100,12 @@ export const MessageBubble = memo(function MessageBubble({
   // replay is allowed to regenerate.
   isLastAgent?: boolean;
   onReplay: (serverId: string) => void;
+  // Multi-bot conversation: show which bot sent each agent reply, as a small
+  // avatar to the left of the bubble. A since-deleted bot shows a "?" coin.
+  showSenderAvatar?: boolean;
+  // Resolves a personaId to its bot slot. Provided by the parent (which holds
+  // the single persona-store subscription) so each bubble doesn't subscribe.
+  resolveSender: (personaId: string | undefined) => ResolvedPersona | "unknown";
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -106,6 +116,17 @@ export const MessageBubble = memo(function MessageBubble({
   const mine = message.role === "user";
   const errored = message.status === "error";
   const isErrorCard = message.role === "agent" && errored;
+
+  // In a multi-bot thread, resolve which bot sent this agent reply so its avatar
+  // can sit to the left. Resolution comes from the parent's single persona-store
+  // subscription. Missing personaId = a pre-tracking default reply.
+  const senderSlot = useMemo<ResolvedPersona | "unknown" | null>(
+    () =>
+      showSenderAvatar && !mine && !isErrorCard
+        ? resolveSender(message.personaId)
+        : null,
+    [showSenderAvatar, mine, isErrorCard, message.personaId, resolveSender],
+  );
 
   // The in-flight reply subscribes to the live stream itself, so delta flushes
   // re-render only this one bubble. For every other bubble the ternaries keep
@@ -791,6 +812,31 @@ export const MessageBubble = memo(function MessageBubble({
         ) : null}
 
         <Animated.View style={[rowStyle, rowRevealStyle]}>
+        {/* Multi-bot: the sending bot's avatar to the left of the bubble. */}
+        {senderSlot ? (
+          <View style={{ width: AVATAR_SIZE, marginRight: AVATAR_GUTTER, paddingTop: 2 }}>
+            {senderSlot === "unknown" ? (
+              <View
+                style={{
+                  width: AVATAR_SIZE,
+                  height: AVATAR_SIZE,
+                  borderRadius: AVATAR_SIZE / 2,
+                  backgroundColor: theme["--color-card-muted"],
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <SmileyWink
+                  size={AVATAR_SIZE - 12}
+                  weight="fill"
+                  color={theme["--color-foreground-muted"]}
+                />
+              </View>
+            ) : (
+              <PersonaAvatar persona={senderSlot} size={AVATAR_SIZE} />
+            )}
+          </View>
+        ) : null}
         <Animated.View
           style={[
             {
