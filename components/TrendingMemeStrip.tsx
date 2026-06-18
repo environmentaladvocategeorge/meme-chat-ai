@@ -154,14 +154,18 @@ function SkeletonCard({ width, delay }: { width: number; delay: number }) {
 // Varied widths so the loading state mimics the natural rhythm of real memes.
 const SKELETON_WIDTHS = [150, 110, 175, 120, 160, 100];
 
-function SkeletonRow() {
+function SkeletonRow({ bleed = 0 }: { bleed?: number }) {
   return (
     <View
       style={{
         height: STRIP_HEIGHT,
         flexDirection: "row",
         gap: CARD_GAP,
-        paddingHorizontal: 2,
+        // Match the loaded list's full-bleed: break out of the parent padding
+        // and re-add it as leading inset, so the shimmer doesn't pop wider when
+        // the real cards land (see `bleed`).
+        marginHorizontal: bleed > 0 ? -bleed : 0,
+        paddingHorizontal: bleed > 0 ? bleed : 2,
         overflow: "hidden",
       }}
     >
@@ -388,7 +392,7 @@ export function TrendingMemeStrip<T extends StripMedia>({
   if (loading) {
     // Fresh load (initial open or a new query) → shimmer skeletons. This also
     // gives searching a clean "swap" instead of stale results hanging around.
-    body = <SkeletonRow />;
+    body = <SkeletonRow bleed={bleed} />;
   } else if (error && items.length === 0) {
     body = (
       <View style={[centered, { flexDirection: "row", gap: 10 }]}>
