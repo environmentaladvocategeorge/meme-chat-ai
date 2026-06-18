@@ -6,7 +6,7 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (Subtítulo, 30 caracteres máx.)
 
-Roasts, GIFs y respuestas top
+Crea personajes IA y GIFs
 
 ## Keywords (Palabras clave, 100 caracteres máx., separadas por comas)
 
@@ -22,37 +22,33 @@ Toda IA suena igual. El Brainrot Bot no. Ahora crea el tuyo. Responde con humor,
 
 ## Description (Descripción)
 
-Brainrot Bot es un chatbot de IA con personalidad de verdad. Escribe como la persona más graciosa de tu grupo: la que te hace un roast, manda el GIF perfecto y encima da buenos consejos.
+Brainrot Bot es un chatbot de IA con personalidad de verdad. Escribe como la persona más graciosa de tu grupo: la que te hace un roast, manda el GIF perfecto y encima da buenos consejos. No es un asistente sin alma ni un compañero de rol. Es, sencillamente, la IA más divertida de tu teléfono.
 
-¿Atascado con una respuesta? ¿Necesitas un caption que funcione, una respuesta ingeniosa, o una explicación que no parezca un libro de texto? ¿Quieres que alguien destroce tu idea a medio formar antes de publicarla? Para eso está Brainrot Bot.
+Hay dos formas de usarlo.
 
-LO QUE PUEDES HACER
+HABLA CON BRAINROT BOT
 
-• Chatear con una IA que habla en memes
-El Brainrot Bot ayuda con respuestas, captions, ocurrencias, ideas, explicaciones y planes, con una voz que suena a internet y no a un call center.
+Abre un chat y consigue una respuesta cuando te atascas, un caption que funciona, una contestación ingeniosa o una explicación que no parezca un libro de texto. Ajusta el Rot Level para pasar de asistente normal a completamente desquiciado, y el Brainrot Bot va a ese ritmo. Responde con memes y GIFs, no solo con muros de texto.
 
-• Crea tus propios bots
-Crea personas personalizadas desde cero: ponle nombre, una personalidad, una voz, sus emojis y un avatar que puedes subir o generar a partir de una breve descripción, y luego chatea con él. El plan gratis incluye uno; los de pago guardan de 10 a 100.
+CREA TUS PROPIOS BRAINROT BOTS
 
-• Ajustar el Rot Level
-Un solo dial controla el caos. Ponlo de asistente normal a completamente desquiciado y el Brainrot Bot va a ese ritmo.
+Crea tus propios personajes de IA desde cero. Ponle nombre, una personalidad, una voz, sus emojis y un avatar que puedes subir o generar a partir de una breve descripción. Guárdalo y chatea con él como con cualquier otro bot. El plan gratis incluye uno; los de pago guardan de 10 a 100, y cada bot pasa un control de seguridad antes de estar disponible.
 
-• Recibir respuestas con memes y GIFs incluidos
-El Brainrot Bot mete memes y GIFs directamente en sus respuestas. También puedes buscar los que están en tendencia y adjuntar los tuyos.
+MÁS COSAS QUE HACE
+
+• Memes y GIFs incluidos
+Busca memes y GIFs en tendencia, mételos en el chat, adjunta los tuyos y guarda los que te gusten en tu galería.
 
 • Enviar fotos
-Adjunta fotos de tu cámara o galería y recibe reacciones, captions o respuestas según lo que compartes.
+Adjunta una foto de tu cámara o galería y recibe una reacción, un caption o una respuesta según lo que compartes.
 
-• Activar la memoria
-El Brainrot Bot recuerda tu vibra, tu gente y los temas que siempre sacas, para que los chats continúen donde los dejaste en vez de empezar desde cero. Es una función de pago y la controlas desde Ajustes.
+• Memoria que se queda
+El Brainrot Bot recuerda tu vibra, tu gente y los temas que siempre sacas, para que los chats continúen donde los dejaste en vez de empezar de cero. Es una función de pago y la controlas desde Ajustes.
 
-• Guardar tus favoritos
-Descarga memes y GIFs con marca de agua directamente en tu galería.
+• Mantén el orden
+Los chats guardados tienen títulos y resúmenes automáticos, más búsqueda, secciones por tiempo y eliminación masiva.
 
-• Mantener tus chats organizados
-Los chats guardados tienen títulos y resúmenes generados automáticamente, más búsqueda, secciones por tiempo y eliminación masiva.
-
-• Personalizarlo a tu gusto
+• Hazlo tuyo
 Los planes de pago desbloquean fondos de chat, temas de mensajes y opciones de apariencia extra.
 
 • Úsalo en tu idioma
@@ -65,12 +61,11 @@ IDEAL PARA
 • Respuestas ingeniosas y roasts
 • Explicar cosas confusas rápido
 • Bios, chistes y borradores de mensajes
-• Munición para el grupo de WhatsApp
-• Hacer las conversaciones con IA entretenidas de verdad
+• Crear un elenco de bots que suenen justo como tú quieres
 
 EL MISMO BOT, GRATIS O DE PAGO
 
-Tienes el Brainrot Bot completo en todos los planes. Los de pago solo le dan más margen: memoria, mucho más uso, sin anuncios y personalización extra.
+Tienes el Brainrot Bot completo en todos los planes. Los de pago solo le dan más margen: memoria, mucho más uso, más bots personalizados, sin anuncios y personalización extra.
 
 PRIVACIDAD Y CONTROL
 

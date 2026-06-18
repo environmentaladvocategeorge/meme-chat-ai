@@ -6,7 +6,7 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (Untertitel, max. 30 Zeichen)
 
-Witzige Roasts, GIFs & Konter
+KI-Charaktere & GIFs bauen
 
 ## Keywords (Schlüsselwörter, max. 100 Zeichen, kommagetrennt)
 
@@ -22,37 +22,33 @@ Jede KI klingt gleich. Brainrot Bot nicht. Jetzt bau deinen eigenen. Er kontert,
 
 ## Description (Beschreibung)
 
-Brainrot Bot ist ein KI-Chatbot mit echter Persönlichkeit. Er schreibt wie die lustigste Person in deinem Gruppenchat: die, die dich roastet, das perfekte GIF schickt, und trotzdem irgendwie gute Ratschläge gibt.
+Brainrot Bot ist ein KI-Chatbot mit echter Persönlichkeit. Er schreibt wie die lustigste Person in deinem Gruppenchat: die, die dich roastet, das perfekte GIF schickt und trotzdem irgendwie gute Ratschläge gibt. Er ist kein seelenloser Assistent und kein Rollenspiel-Begleiter. Er ist einfach die lustigste KI auf deinem Handy.
 
-Feststeckst mit einer Antwort? Brauchst eine Caption, die sitzt, ein Comeback, oder eine Erklärung, die nicht wie ein Lehrbuch klingt? Willst du, dass jemand deine halbgare Idee zerlegt, bevor du sie postest? Genau dafür gibt es Brainrot Bot.
+Es gibt zwei Wege, ihn zu nutzen.
 
-WAS DU TUN KANNST
+CHATTE MIT BRAINROT BOT
 
-• Mit einer meme-fließenden KI chatten
-Brainrot Bot hilft mit Antworten, Captions, Comebacks, Ideen, Erklärungen und Plänen, in einer Sprache, die nach Internet klingt statt nach Firmen-Hotline.
+Öffne einen Chat und hol dir eine Antwort, wenn du feststeckst, eine Caption, die sitzt, ein Comeback oder eine Erklärung, die nicht wie ein Lehrbuch klingt. Stell das Rot Level ein, um von normalem Assistenten bis völlig durchgeknallt zu schalten, und Brainrot Bot macht mit. Er antwortet mit Memes und GIFs, nicht nur mit Textwänden.
 
-• Bau deine eigenen Bots
-Erstell eigene Personas von Grund auf: gib einem Namen, eine Persönlichkeit, eine Stimme, Emojis und ein Avatar zum Hochladen oder Erstellen aus einer kurzen Beschreibung, und chatte dann mit ihm. Gratis enthält einen; Bezahlpläne speichern 10 bis 100.
+BAU DEINE EIGENEN BRAINROT BOTS
 
-• Den Rot Level einstellen
-Ein einziger Regler kontrolliert das Chaos. Schieb ihn von normalem Assistenten zu völlig durchgeknallt, und Brainrot Bot macht mit.
+Bau deine eigenen KI-Charaktere von Grund auf. Gib einem Namen, eine Persönlichkeit, eine Stimme, ein Emoji-Set und ein Avatar, das du hochlädst oder aus einer kurzen Beschreibung generierst. Speicher ihn und chatte mit ihm wie mit jedem anderen Bot. Gratis enthält einen; Bezahlpläne speichern 10 bis 100, und jeder Bot durchläuft einen Sicherheits-Check, bevor er live geht.
 
-• Antworten mit Memes und GIFs inklusive
-Brainrot Bot wirft Memes und GIFs direkt in seine Antworten. Du kannst auch nach Trends suchen und eigene anhängen.
+WAS ER SONST NOCH KANN
+
+• Memes und GIFs inklusive
+Such nach angesagten Memes und GIFs, pack sie in den Chat, häng eigene an und speicher die, die dir gefallen, in deiner Galerie.
 
 • Fotos schicken
-Füge Fotos aus deiner Kamera oder Galerie hinzu und erhalte Reaktionen, Captions oder Antworten basierend auf dem, was du teilst.
+Füge ein Foto aus Kamera oder Galerie hinzu und erhalte eine Reaktion, eine Caption oder eine Antwort zu dem, was du teilst.
 
-• Gedächtnis einschalten
+• Gedächtnis, das bleibt
 Brainrot Bot merkt sich deinen Vibe, deine Leute und die Themen, die du immer wieder ansprichst, damit Chats weitermachen, wo du aufgehört hast, statt bei null zu starten. Es ist eine Bezahlfunktion und du steuerst sie in den Einstellungen.
 
-• Favoriten speichern
-Lade Memes und GIFs mit Wasserzeichen direkt in deine Galerie herunter.
-
-• Deine Chats organisiert halten
+• Ordnung halten
 Gespeicherte Chats bekommen automatisch generierte Titel und Zusammenfassungen, plus Suche, Zeitabschnitte und Massenlöschung.
 
-• Es zu deinem machen
+• Mach's zu deinem
 Bezahlpläne schalten zusätzliche Chat-Hintergründe, Nachrichten-Themes und Darstellungsoptionen frei.
 
 • In deiner Sprache nutzen
@@ -65,12 +61,11 @@ TOLL FÜR
 • Comebacks und Roasts
 • Verwirrende Sachen schnell erklären
 • Bios, Witze und Nachrichten-Entwürfe
-• Munition für den Gruppenchat
-• KI-Gespräche wirklich unterhaltsam machen
+• Eine ganze Riege Bots bauen, die genau so klingen, wie du willst
 
 DERSELBE BOT, GRATIS ODER BEZAHLT
 
-Du bekommst den vollen Brainrot Bot in jedem Plan. Bezahlpläne geben ihm nur mehr Spielraum: Gedächtnis, viel mehr Nutzung, keine Werbung und zusätzliche Anpassung.
+Du bekommst den vollen Brainrot Bot in jedem Plan. Bezahlpläne geben ihm nur mehr Spielraum: Gedächtnis, viel mehr Nutzung, mehr eigene Bots, keine Werbung und zusätzliche Anpassung.
 
 DATENSCHUTZ & KONTROLLE
 

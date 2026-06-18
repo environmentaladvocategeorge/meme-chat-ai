@@ -6,11 +6,11 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (30 char max)
 
-Funny Roasts, GIFs & Comebacks
+Create AI Characters & GIFs
 
 ## Keywords (100 char max, comma-separated)
 
-caption,reply,texting,humor,joke,slang,chatbot,character,persona,companion,create,genz,gpt,rewrite
+caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,rewrite,comeback
 
 ## What's New
 
@@ -22,34 +22,30 @@ Every AI sounds the same. Brainrot Bot doesn't. Now build your own. It roasts ba
 
 ## Description
 
-Brainrot Bot is an AI chatbot with an actual personality. It texts like the funniest person in your group chat: the one who roasts you, sends the perfect GIF, and still somehow gives good advice.
+Brainrot Bot is an AI chatbot with an actual personality. It texts like the funniest person in your group chat: the one who roasts you, sends the perfect GIF, and still somehow gives good advice. It isn't a sterile assistant or a roleplay companion. It's just the funniest AI on your phone.
 
-Stuck on a reply? Need a caption that lands, a comeback, or an explanation that doesn't read like a textbook? Want someone to roast your half-baked idea before you post it? That's what Brainrot Bot is for.
+There are two ways to use it.
 
-WHAT YOU CAN DO
+TALK TO BRAINROT BOT
 
-• Chat with a meme-fluent AI
-Brainrot Bot helps with replies, captions, comebacks, ideas, explanations, and plans, in a voice that sounds like the internet instead of a help desk.
+Open a chat and get a reply when you're stuck, a caption that lands, a comeback, or an explanation that skips the textbook fog. Set the Rot Level to slide it from normal assistant to completely unhinged, and Brainrot Bot matches that energy. It answers in memes and GIFs, not just walls of text.
 
-• Build your own bots
-Create custom personas from scratch: name one, give it a personality, a voice, an emoji set, and an avatar you can upload or generate from a short description, then chat with it. Free includes one; paid plans hold from 10 up to 100.
+BUILD YOUR OWN BRAINROT BOTS
 
-• Set the Rot Level
-One dial controls the chaos. Slide it from normal assistant to completely unhinged and Brainrot Bot matches that energy.
+Make your own AI characters from scratch. Give one a name, a personality, a voice, an emoji set, and an avatar you upload or generate from a short description. Save it, then chat with it like any other bot. Free includes one custom bot; paid plans hold from 10 up to 100, and every bot passes a safety check before it goes live.
 
-• Get replies with memes and GIFs built in
-Brainrot Bot drops memes and GIFs right into its answers. You can also search trending ones and attach your own.
+MORE THINGS IT DOES
+
+• Memes and GIFs, built in
+Search trending memes and GIFs, drop them into the chat, attach your own, and save the ones you like to your gallery.
 
 • Send photos
-Attach photos from your camera or gallery and get reactions, captions, or answers based on what you share.
+Attach a photo from your camera or gallery and get a reaction, a caption, or an answer based on what you share.
 
-• Turn on memory
+• Memory that sticks
 Brainrot Bot remembers your vibe, your people, and the stuff you keep bringing up, so chats pick up where you left off instead of starting cold. It's a paid feature and you control it in Settings.
 
-• Save your favorites
-Download watermarked memes and GIFs straight to your gallery.
-
-• Keep your chats organized
+• Stay organized
 Saved chats get auto-generated titles and summaries, plus search, time sections, and bulk delete.
 
 • Make it yours
@@ -65,12 +61,11 @@ GREAT FOR
 • Comebacks and roasts
 • Explaining confusing stuff fast
 • Bios, jokes, and message drafts
-• Group chat ammunition
-• Making AI conversations actually fun
+• Building a cast of bots that sound exactly how you want
 
 SAME BOT, FREE OR PAID
 
-You get the full Brainrot Bot on every plan. Paid plans just give it more room: memory, way more usage, no ads, and extra customization.
+You get the full Brainrot Bot on every plan. Paid plans just give it more room: memory, way more usage, more custom bots, no ads, and extra customization.
 
 PRIVACY & CONTROL
 
