@@ -26,6 +26,9 @@ function makeDb(initial: Record<string, Doc>) {
   const docs = new Map(Object.entries(initial));
   const setCalls: Array<{ id: string; data: Doc }> = [];
   const deleteCalls: string[] = [];
+  // Every collection name the code under test reaches for — lets a test assert
+  // that delete never touches `conversations`.
+  const collectionsTouched: string[] = [];
 
   const makeRef = (id: string) => ({
     kind: "ref" as const,
@@ -62,6 +65,7 @@ function makeDb(initial: Record<string, Doc>) {
 
   const db = {
     collection: (name: string) => {
+      collectionsTouched.push(name);
       if (name !== "user_personas") throw new Error(`unexpected-collection-${name}`);
       return {
         doc: (id: string) => makeRef(id),
@@ -82,7 +86,7 @@ function makeDb(initial: Record<string, Doc>) {
     },
   };
 
-  return { db, docs, setCalls, deleteCalls };
+  return { db, docs, setCalls, deleteCalls, collectionsTouched };
 }
 
 function validInput(): UserPersonaInput {
@@ -154,11 +158,11 @@ function makeDeps(
   initial: Record<string, Doc>,
   moderationResult: PersonaModerationResult = passResult,
 ) {
-  const { db, docs, setCalls, deleteCalls } = makeDb(initial);
+  const { db, docs, setCalls, deleteCalls, collectionsTouched } = makeDb(initial);
   const moderate = jest.fn().mockResolvedValue(moderationResult);
   const deleteObject = jest.fn().mockResolvedValue(undefined);
   const deps: SavePersonaDeps = { db: db as never, moderate, deleteObject };
-  return { deps, moderate, deleteObject, docs, setCalls, deleteCalls };
+  return { deps, moderate, deleteObject, docs, setCalls, deleteCalls, collectionsTouched };
 }
 
 // A stored persona that already carries an uploaded avatar (edit fixtures).
@@ -293,30 +297,33 @@ describe("savePersonaForUser", () => {
     expect(moderate).not.toHaveBeenCalled();
   });
 
-  it("enforces the paid cap of 10 and allows the 10th create", async () => {
+  it("enforces per-tier caps: basic stops at 10 where plus still has room", async () => {
+    // Nine stored — basic (cap 10) still allows the 10th.
     const nine = Object.fromEntries(
       Array.from({ length: 9 }, (_, i) => [
         `user_uid-1_${i}`,
         storedPersona(`user_uid-1_${i}`, "uid-1"),
       ]),
     );
-    const ok = makeDeps(nine);
     await expect(
-      savePersonaForUser("uid-1", "plus", { persona: validInput() }, ok.deps),
+      savePersonaForUser("uid-1", "basic", { persona: validInput() }, makeDeps(nine).deps),
     ).resolves.toBeDefined();
 
+    // Ten stored — basic is full and rejects, but plus (cap 30) still creates.
     const ten = Object.fromEntries(
       Array.from({ length: 10 }, (_, i) => [
         `user_uid-1_${i}`,
         storedPersona(`user_uid-1_${i}`, "uid-1"),
       ]),
     );
-    const full = makeDeps(ten);
     await expectHttpsError(
-      savePersonaForUser("uid-1", "plus", { persona: validInput() }, full.deps),
+      savePersonaForUser("uid-1", "basic", { persona: validInput() }, makeDeps(ten).deps),
       "resource-exhausted",
       "persona_limit_reached",
     );
+    await expect(
+      savePersonaForUser("uid-1", "plus", { persona: validInput() }, makeDeps(ten).deps),
+    ).resolves.toBeDefined();
   });
 
   it("someone else's personas never count against the cap", async () => {
@@ -536,6 +543,23 @@ describe("deletePersonaForUser", () => {
     await deletePersonaForUser("uid-1", "user_uid-1_a1", deps.db, deleteObject);
 
     expect(deleteObject).toHaveBeenCalledWith("personaAvatars/uid-1/a.jpg");
+  });
+
+  it("leaves conversations untouched so the deleted bot renders as a ? coin, not a blank row", async () => {
+    const { deps, deleteCalls, collectionsTouched } = makeDeps({
+      "user_uid-1_a1": storedPersona("user_uid-1_a1", "uid-1"),
+    });
+
+    await deletePersonaForUser("uid-1", "user_uid-1_a1", deps.db);
+
+    // Regression: delete must NOT strip the id from conversations'
+    // participantPersonaIds. It only ever touches user_personas; the client
+    // resolves the now-missing persona to a "?" coin in both the chat and the
+    // history avatar stack. Stripping it emptied single-bot conversations and
+    // left the history row with no avatar at all.
+    expect(deleteCalls).toEqual(["user_uid-1_a1"]);
+    expect(collectionsTouched).toEqual(["user_personas"]);
+    expect(collectionsTouched).not.toContain("conversations");
   });
 
   it("rejects deleting someone else's or a missing persona", async () => {

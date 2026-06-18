@@ -241,6 +241,11 @@ export async function deletePersonaForUser(
     // Never let a leftover Storage object block the delete the user asked for.
     await deleteObject(avatarPath).catch(() => {});
   }
+  // We deliberately leave the deleted persona's id in every conversation's
+  // participantPersonaIds (and on each message). The client resolves a now-
+  // missing id to a "?" coin in both the chat and the history avatar stack —
+  // an honest "this bot is gone" marker. Stripping the id instead emptied
+  // single-bot conversations, leaving the history row with no avatar at all.
 }
 
 // `invoker: "public"` keeps Cloud Run's allUsers run.invoker binding asserted
@@ -286,7 +291,8 @@ export const deletePersona = onCall(
     }
     const personaId = parsed.data.personaId;
 
-    await deletePersonaForUser(uid, personaId, getFirestore(), async (path) => {
+    const db = getFirestore();
+    await deletePersonaForUser(uid, personaId, db, async (path) => {
       await getStorage().bucket().file(path).delete({ ignoreNotFound: true });
     });
 
