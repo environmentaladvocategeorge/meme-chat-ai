@@ -14,6 +14,7 @@
 import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
 import { MENU_BUTTON_SIZE, MenuButton } from "@/components/MenuButton";
+import { Shimmer } from "@/components/Shimmer";
 import { Typography } from "@/components/Typography";
 import { withAlpha } from "@/domain/customization";
 import { useTheme } from "@/hooks/useTheme";
@@ -73,6 +74,10 @@ interface AppHeaderProps {
   // Fired when the (interactive) persona pill is tapped. Optional — when unset
   // the pill still plays its tap feedback, it just performs no navigation yet.
   onTitlePress?: () => void;
+  // When true, the center renders a neutral loading pill (skeleton) instead of
+  // the title/persona pill — used by chat while the persisted persona selection
+  // is still resolving, so a returning user never flashes the wrong bot.
+  loading?: boolean;
   // The color the top darken fade dissolves into. Defaults to the screen
   // background; the chat screen passes its background-aware color so a custom
   // chat background doesn't show a wrong-colored band.
@@ -87,6 +92,7 @@ export function AppHeader({
   avatar,
   onTitlePress,
   fadeColor,
+  loading = false,
 }: AppHeaderProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -190,7 +196,9 @@ export function AppHeader({
           pointerEvents="box-none"
           style={{ flex: 1, alignItems: "center", paddingHorizontal: 8 }}
         >
-          {avatar ? (
+          {loading ? (
+            <PersonaPillSkeleton theme={theme} />
+          ) : avatar ? (
             <PersonaPill
               title={title}
               avatar={avatar}
@@ -214,6 +222,44 @@ export function AppHeader({
           {right}
         </View>
       </View>
+    </View>
+  );
+}
+
+// The loading placeholder for the persona pill — same glass shell + geometry as
+// PersonaPill (so there's no layout jump when the real pill swaps in), holding a
+// shimmering avatar circle and a short bar where the name will land.
+// Non-interactive. Shown while the persisted selection is still resolving.
+function PersonaPillSkeleton({
+  theme,
+}: {
+  theme: ReturnType<typeof useTheme>;
+}) {
+  return (
+    <View pointerEvents="none">
+      <GlassSurface
+        glassEffectStyle="regular"
+        style={{
+          height: 38,
+          borderRadius: 19,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 7,
+          paddingLeft: 6,
+          paddingRight: 12,
+          overflow: "hidden",
+        }}
+        fallbackStyle={{
+          backgroundColor: theme["--color-card"],
+          borderWidth: 1,
+          borderColor: theme["--color-border"],
+        }}
+      >
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Shimmer style={{ width: 26, height: 26, borderRadius: 13 }} />
+          <Shimmer style={{ width: 76, height: 12, borderRadius: 6 }} />
+        </View>
+      </GlassSurface>
     </View>
   );
 }

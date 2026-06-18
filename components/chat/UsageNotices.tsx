@@ -144,7 +144,8 @@ export function UsageLimitBlock({
               marginTop: 1,
             }}
           >
-            {t("chat.usage.atBody", { when })}
+            {/* Top tier has nothing to upgrade to, so its body never mentions it. */}
+            {t(isTopTier ? "chat.usage.atBodyTopTier" : "chat.usage.atBody", { when })}
           </Typography>
         </View>
         <UpgradeButton isTopTier={isTopTier} onPress={onUpgrade} height={44} />

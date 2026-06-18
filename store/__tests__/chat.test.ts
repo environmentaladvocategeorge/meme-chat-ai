@@ -5,6 +5,9 @@ const mockSignOut = jest.fn().mockResolvedValue(undefined);
 const mockSetMessageEmojiCallable = jest.fn();
 // Captured so snapshot tests can drive the live listener's callback directly.
 const mockSubscribeToMessages = jest.fn((...args: unknown[]) => () => {});
+const mockSubscribeToConversationParticipants = jest.fn(
+  (...args: unknown[]) => () => {},
+);
 const mockFetchOlderMessages = jest.fn();
 
 // Mock every module that would otherwise drag in the Firebase SDK / native
@@ -21,6 +24,8 @@ jest.mock("@/services/firebase/callables", () => ({
 }));
 jest.mock("@/services/firebase/conversations", () => ({
   subscribeToMessages: (...args: unknown[]) => mockSubscribeToMessages(...args),
+  subscribeToConversationParticipants: (...args: unknown[]) =>
+    mockSubscribeToConversationParticipants(...args),
   fetchOlderMessages: (...args: unknown[]) => mockFetchOlderMessages(...args),
 }));
 jest.mock("@/store/storage", () => ({
@@ -476,6 +481,21 @@ describe("useChatStore snapshot reconciliation", () => {
     storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" }),
     storedMsg({ id: "s2", role: "agent", text: "a", inReplyToClientMessageId: "c-1" }),
   ];
+
+  it("subscribes to the conversation's participant bots and stores them", () => {
+    useChatStore.getState().loadConversation("c-participants");
+
+    const call = mockSubscribeToConversationParticipants.mock.calls.at(-1);
+    expect(call?.[0]).toBe("c-participants");
+
+    // Drive the participants listener and confirm the authoritative set lands.
+    const participantsCb = call?.[1] as (ids: string[]) => void;
+    participantsCb(["brainrot_bot_default", "user_bot_1"]);
+    expect(useChatStore.getState().participantPersonaIds).toEqual([
+      "brainrot_bot_default",
+      "user_bot_1",
+    ]);
+  });
 
   it("keeps referential identity for messages a snapshot re-delivers unchanged", () => {
     const cb = openConversation();

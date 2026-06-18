@@ -68,7 +68,12 @@ import { useChatStore } from "@/store/chat";
 import { useDisplayPlan, useEntitlementStore } from "@/store/entitlement";
 import { useMemorySheetStore } from "@/store/memorySheet";
 import { usePersonaSheetStore } from "@/store/personaSheet";
-import { useSelectedPersona } from "@/store/personas";
+import {
+  useSelectedPersona,
+  usePersonaSelectionReady,
+  usePersonaStore,
+} from "@/store/personas";
+import { DEFAULT_PERSONA_ID, resolvePersonaSlot } from "@/domain/personas";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -162,6 +167,9 @@ export default function ChatScreen() {
   // GIF drawer is opened.
   const klipyGifs = useKlipyGifs({ perPage: 24, enabled: gifsOpen });
   const conversationId = useChatStore((s) => s.conversationId);
+  // Authoritative set of bots ever in this conversation (live from the
+  // conversation doc) — see multiBot below.
+  const participantPersonaIds = useChatStore((s) => s.participantPersonaIds);
   // Brainrot intensity dial. Sticky and persisted in the chat store, applied to
   // every turn; defaults to "Rotted". Edited via the RotLevelSheet (mounted in
   // the root layout, opened here through useRotLevelSheetStore).
@@ -194,6 +202,10 @@ export default function ChatScreen() {
   const openMemorySheet = useMemorySheetStore((s) => s.open);
   const openPersonaSheet = usePersonaSheetStore((s) => s.open);
   const selectedPersona = useSelectedPersona();
+  // While the persisted persona pick is still resolving (restore + list load),
+  // the header shows a loading pill instead of the default, so a returning user
+  // never flashes Brainrot Bot before their saved bot lands.
+  const personaReady = usePersonaSelectionReady();
   const { meta: memoryMeta } = useMemoryMeta();
   const router = useRouter();
 
@@ -314,6 +326,33 @@ export default function ChatScreen() {
     }
   }, [activeReplyClientId, pickLoadingMessage]);
 
+  const currentPersonaId =
+    selectedPersona.kind === "default" ? DEFAULT_PERSONA_ID : selectedPersona.persona.id;
+
+  // Show a per-message bot avatar once 2+ bots are in play. The conversation
+  // doc's participantPersonaIds is the authoritative set (it includes bots whose
+  // replies have scrolled out of the live window); we still union in the loaded
+  // replies' personas and the currently selected one so it flips on immediately
+  // when switching to a second bot, before the doc round-trips.
+  // Pre-tracking default replies have no personaId, so they count as the default.
+  const multiBot = useMemo(() => {
+    const ids = new Set<string>(participantPersonaIds);
+    for (const m of allMessages) {
+      if (m.role === "agent") ids.add(m.personaId ?? DEFAULT_PERSONA_ID);
+    }
+    ids.add(currentPersonaId);
+    return ids.size >= 2;
+  }, [allMessages, currentPersonaId, participantPersonaIds]);
+
+  // Resolve a message's sender bot once, in the parent, rather than each bubble
+  // subscribing to the persona store. Stable across renders unless the saved
+  // personas change, so MessageBubble's memo() still holds.
+  const personas = usePersonaStore((s) => s.personas);
+  const resolveSender = useCallback(
+    (personaId: string | undefined) => resolvePersonaSlot(personaId, personas),
+    [personas],
+  );
+
   const visibleMessages = useMemo<RenderMessage[]>(
     () =>
       buildVisibleMessages({
@@ -323,6 +362,7 @@ export default function ChatScreen() {
         settledReply,
         error,
         lastUserMessage,
+        currentPersonaId,
       }),
     [
       activeReplyClientId,
@@ -331,6 +371,7 @@ export default function ChatScreen() {
       allMessages,
       settledReply,
       status,
+      currentPersonaId,
     ],
   );
 
@@ -871,6 +912,8 @@ export default function ChatScreen() {
                     onRetry={handleRetry}
                     onRate={rateMessage}
                     onEmoji={setMessageEmoji}
+                    showSenderAvatar={multiBot}
+                    resolveSender={resolveSender}
                     isLastAgent={
                       item.serverId != null &&
                       item.serverId === lastAgentServerId
@@ -1147,6 +1190,7 @@ export default function ChatScreen() {
             title={personaTitle}
             avatar={<PersonaAvatar persona={selectedPersona} size={26} />}
             onTitlePress={openPersonaSheet}
+            loading={!personaReady}
             fadeColor={headerFadeColor}
             right={
               // Always mounted so the button can fade in/out (it self-gates

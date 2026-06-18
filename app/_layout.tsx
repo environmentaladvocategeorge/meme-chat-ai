@@ -139,14 +139,19 @@ export default function RootLayout() {
 
   // Hydrate the signed-in user's saved personas for the picker (and clear them
   // on sign-out so the next user on this device never sees the previous one's
-  // bots). Keyed on uid so it re-runs across every auth transition.
+  // bots). Keyed on uid + status so it re-runs across every auth transition.
+  //
+  // clear() must fire ONLY on a real sign-out ("signedOut"), never during the
+  // pre-auth "idle"/"initializing" window — clear() wipes the persisted persona
+  // pick, and doing that on every cold start (before auth resolves uid) raced
+  // hydrateSelection() and randomly reset the user back to Brainrot Bot.
   useEffect(() => {
     if (authUid) {
       void usePersonaStore.getState().hydrate(authUid);
-    } else {
+    } else if (authStatus === "signedOut") {
       usePersonaStore.getState().clear();
     }
-  }, [authUid]);
+  }, [authUid, authStatus]);
 
   useLayoutEffect(() => {
     Appearance.setColorScheme(appearance === "system" ? null : appearance);

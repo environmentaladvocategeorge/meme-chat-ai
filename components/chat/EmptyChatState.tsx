@@ -5,7 +5,7 @@ import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import { useOnboardingStore } from "@/store/onboarding";
-import { useSelectedPersona } from "@/store/personas";
+import { useSelectedPersona, usePersonaSelectionReady } from "@/store/personas";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
@@ -57,6 +57,20 @@ export function EmptyChatState({
   // The hero avatar tracks the active chat persona, so an empty chat with a
   // user-built bot selected shows that bot (not always Brainrot Bot).
   const selectedPersona = useSelectedPersona();
+  // Until the persisted pick resolves (restore + list load), don't render the
+  // hero/intro — it would briefly show the default bot before the saved one
+  // lands. A neutral "warming up" placeholder bridges that gap instead.
+  const personaReady = usePersonaSelectionReady();
+  // The rotating intros are written around the default bot's name ("Brainrot
+  // Bot is awake"). When a user-built persona is selected, show ITS name in that
+  // copy instead. defaultBotName is the localized default name the intros are
+  // phrased with; swapping it for the selected persona's display name keeps the
+  // rest of each line intact and is a no-op for the default persona.
+  const defaultBotName = t("chat.agentName");
+  const botName =
+    selectedPersona.kind === "default"
+      ? defaultBotName
+      : selectedPersona.persona.displayName;
 
   // One-shot seeded first chat: the moment onboarding finishes, open with
   // Brainrot Bot's fixed welcome + the spec's prompt chips instead of a random intro,
@@ -113,6 +127,16 @@ export function EmptyChatState({
       subtitle: string;
     };
   }, [t, atLimit]);
+
+  // Personalize the chosen intro to the selected persona. Kept in its own memo
+  // so re-running it (when the name resolves) never reshuffles the random pick
+  // above. split/join (not regex) so a persona name with regex-special chars is
+  // safe; a no-op when the default bot is selected or the line names no bot.
+  const displayIntro = useMemo(() => {
+    if (botName === defaultBotName) return intro;
+    const swap = (s: string) => s.split(defaultBotName).join(botName);
+    return { title: swap(intro.title), subtitle: swap(intro.subtitle) };
+  }, [intro, botName, defaultBotName]);
 
   // Entrance for the whole empty state. Plays once when this mounts — i.e. the
   // moment the loader clears and Brainrot Bot "wakes up". A gentle spring scale +
@@ -175,7 +199,19 @@ export function EmptyChatState({
             justifyContent: "center",
           }}
         >
-          <PersonaAvatar persona={selectedPersona} size={84} float />
+          {personaReady ? (
+            <PersonaAvatar persona={selectedPersona} size={84} float />
+          ) : (
+            // Neutral coin while the pick resolves — no bot identity claimed yet.
+            <View
+              style={{
+                width: 84,
+                height: 84,
+                borderRadius: 42,
+                backgroundColor: theme["--color-card-muted"],
+              }}
+            />
+          )}
         </View>
 
         <View style={{ alignItems: "center", gap: 6 }}>
@@ -183,21 +219,23 @@ export function EmptyChatState({
             variant="title-xl"
             style={{ color: theme["--color-foreground"], textAlign: "center" }}
           >
-            {intro.title}
+            {personaReady ? displayIntro.title : t("chat.empty.warming")}
           </Typography>
-          <Typography
-            variant="body"
-            style={{
-              color: theme["--color-foreground-muted"],
-              textAlign: "center",
-              maxWidth: 330,
-            }}
-          >
-            {intro.subtitle}
-          </Typography>
+          {personaReady && displayIntro.subtitle ? (
+            <Typography
+              variant="body"
+              style={{
+                color: theme["--color-foreground-muted"],
+                textAlign: "center",
+                maxWidth: 330,
+              }}
+            >
+              {displayIntro.subtitle}
+            </Typography>
+          ) : null}
         </View>
 
-        {!atLimit ? (
+        {!atLimit && personaReady ? (
           <View
             style={{
               width: "100%",

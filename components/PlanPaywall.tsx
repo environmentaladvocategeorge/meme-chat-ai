@@ -39,8 +39,9 @@ type PaidPlanId = Exclude<PlanId, "free">;
 
 const PAID_TIERS: readonly PaidPlanId[] = ["basic", "plus", "power"] as const;
 const RECOMMENDED: PaidPlanId = "plus";
-const FEATURE_KEYS: readonly ["chats", "memory", "customization", "adFree"] = [
+const FEATURE_KEYS: readonly ["chats", "bots", "memory", "customization", "adFree"] = [
   "chats",
+  "bots",
   "memory",
   "customization",
   "adFree",
@@ -357,15 +358,6 @@ export function PlanPaywall() {
           : t("settings.plan.paywallNote")}
       </Typography>
 
-      {!hasActiveSubscription && (
-        <RestorePurchasesButton
-          busy={busy}
-          setBusy={setBusy}
-          refresh={refresh}
-          theme={theme}
-        />
-      )}
-
       {/* Selected tier details */}
       <SelectedDetails selected={selected} theme={theme} />
 
@@ -375,6 +367,28 @@ export function PlanPaywall() {
         selectedPlan={selected}
         theme={theme}
       />
+
+      {/* Footer: restore + reassurance, grouped under a hairline so the
+          bottom of the sheet reads as a deliberate footer rather than a
+          stray link floating mid-page. Restore lives here (its conventional
+          spot) for users who reinstalled or switched devices. */}
+      {!hasActiveSubscription && (
+        <View style={{ gap: 10, marginTop: 2 }}>
+          <View style={{ height: 1, backgroundColor: theme["--color-border"] }} />
+          <Typography
+            variant="caption"
+            style={{ color: theme["--color-foreground-muted"], textAlign: "center" }}
+          >
+            {t("settings.plan.restorePrompt")}
+          </Typography>
+          <RestorePurchasesButton
+            busy={busy}
+            setBusy={setBusy}
+            refresh={refresh}
+            theme={theme}
+          />
+        </View>
+      )}
     </View>
    </SheetTouchableProvider>
   );
@@ -720,15 +734,11 @@ function MatrixHeaderCell({
   isSelected: boolean;
   theme: Theme;
 }) {
-  // Background tints follow the value-cell rules so the column reads as a
-  // continuous highlight. Child uses width: 100% + textAlign: center instead
-  // of alignItems on the parent — emoji glyph metrics make alignItems-based
-  // centering drift relative to plain ASCII values in the rows below.
-  const bg = isCurrent
-    ? theme["--color-primary-muted"]
-    : isSelected
-      ? theme["--color-primary-subtle"]
-      : "transparent";
+  const { t } = useTranslation();
+  // Neutral solid highlight for the current column (a faint accent tint reads
+  // as AI-generated filler); selection feedback lives on the CTA + the value
+  // rows, so the selected column stays clean rather than carrying a second tint.
+  const bg = isCurrent ? theme["--color-card-muted"] : "transparent";
 
   return (
     <View
@@ -737,11 +747,12 @@ function MatrixHeaderCell({
         paddingVertical: 4,
         borderRadius: 8,
         backgroundColor: bg,
+        alignItems: "center",
+        gap: 1,
       }}
     >
       <Typography
         style={{
-          width: "100%",
           textAlign: "center",
           fontSize: 18,
           lineHeight: 22,
@@ -752,6 +763,24 @@ function MatrixHeaderCell({
         }}
       >
         {PLAN_EMOJI[plan]}
+      </Typography>
+      {/* Plan name under each emoji so the matrix is readable on its own,
+          rather than asking the reader to memorize the emoji→tier mapping.
+          The selected column's name goes primary + bold — that's how the
+          chosen tier ties back to the table, with no extra column fill. */}
+      <Typography
+        numberOfLines={1}
+        style={{
+          width: "100%",
+          textAlign: "center",
+          fontSize: 9,
+          lineHeight: 12,
+          letterSpacing: 0.2,
+          color: isSelected ? theme["--color-primary"] : theme["--color-foreground-muted"],
+          fontWeight: isSelected ? "800" : "600",
+        }}
+      >
+        {t(`settings.plan.planNames.${plan}`)}
       </Typography>
     </View>
   );
@@ -806,8 +835,8 @@ function RestorePurchasesButton({
       <Typography
         variant="caption"
         style={{
-          color: theme["--color-foreground-muted"],
-          textDecorationLine: "underline",
+          color: theme["--color-primary"],
+          fontWeight: "700",
         }}
       >
         {t("settings.plan.restorePurchases")}
@@ -827,11 +856,16 @@ function MatrixValueCell({
   isSelected: boolean;
   theme: Theme;
 }) {
-  const bg = isCurrent
-    ? theme["--color-primary-muted"]
-    : isSelected
-      ? theme["--color-primary-subtle"]
-      : "transparent";
+  // Matches the header: a neutral solid for the current column, no accent tint.
+  const bg = isCurrent ? theme["--color-card-muted"] : "transparent";
+  void isSelected;
+
+  // Sentinel glyphs ("✓" / "—") render as real icons so the included/excluded
+  // columns scan instantly and look crisp across platforms, instead of relying
+  // on a font's checkmark and em-dash. Everything else (1×, 9×, 10, …) is real
+  // copy and stays as text.
+  const isCheck = value === "✓";
+  const isDash = value === "—";
 
   return (
     <View
@@ -840,22 +874,40 @@ function MatrixValueCell({
         paddingVertical: 4,
         borderRadius: 8,
         backgroundColor: bg,
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      <Typography
-        variant="body-sm"
-        style={{
-          width: "100%",
-          textAlign: "center",
-          lineHeight: 22,
-          color: isCurrent
-            ? theme["--color-primary"]
-            : theme["--color-foreground"],
-          fontWeight: isCurrent ? "800" : "600",
-        }}
-      >
-        {value}
-      </Typography>
+      {isCheck ? (
+        <Check
+          size={16}
+          weight="bold"
+          color={isCurrent ? theme["--color-primary"] : theme["--color-foreground"]}
+        />
+      ) : isDash ? (
+        <View
+          style={{
+            width: 10,
+            height: 2,
+            borderRadius: 1,
+            backgroundColor: theme["--color-foreground-muted"],
+            opacity: 0.6,
+          }}
+        />
+      ) : (
+        <Typography
+          variant="body-sm"
+          style={{
+            width: "100%",
+            textAlign: "center",
+            lineHeight: 22,
+            color: isCurrent ? theme["--color-primary"] : theme["--color-foreground"],
+            fontWeight: isCurrent ? "800" : "600",
+          }}
+        >
+          {value}
+        </Typography>
+      )}
     </View>
   );
 }

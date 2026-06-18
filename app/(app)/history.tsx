@@ -4,6 +4,7 @@ import { AppHeader, useAppHeaderHeight } from "@/components/AppHeader";
 import { AppPressable } from "@/components/AppPressable";
 import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
+import { ParticipantAvatars } from "@/components/ParticipantAvatars";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { Typography } from "@/components/Typography";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -364,6 +365,31 @@ export default function HistoryScreen() {
 
   const headerHeight = useAppHeaderHeight();
 
+  // Stable renderers: an inline `renderItem`/`renderSectionHeader` gets a fresh
+  // identity on every parent render, which made VirtualizedList re-render every
+  // visible cell on each sort-pill tap or search keystroke. Keyed off only the
+  // selection state (not sort/query), so when the list re-sorts the cells simply
+  // reposition by key — the memoized HistoryCard rows never re-render.
+  const renderItem = useCallback(
+    ({ item }: { item: ConversationSummary }) => (
+      <HistoryCard
+        conversation={item}
+        selectionMode={selectionMode}
+        selected={selectedIds.has(item.id)}
+        onPress={handleCardPress}
+        onLongPress={handleCardLongPress}
+      />
+    ),
+    [selectionMode, selectedIds, handleCardPress, handleCardLongPress],
+  );
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: HistorySection }) =>
+      section.title ? (
+        <SectionHeader title={section.title} count={section.data.length} />
+      ) : null,
+    [],
+  );
+
   // Search + sort + ad scroll under the floating header as the list's header.
   const listHeader = (
     <View style={{ gap: 10, paddingBottom: 10 }}>
@@ -436,20 +462,8 @@ export default function HistoryScreen() {
               <EmptyState />
             )
           }
-          renderSectionHeader={({ section }) =>
-            section.title ? (
-              <SectionHeader title={section.title} count={section.data.length} />
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <HistoryCard
-              conversation={item}
-              selectionMode={selectionMode}
-              selected={selectedIds.has(item.id)}
-              onPress={handleCardPress}
-              onLongPress={handleCardLongPress}
-            />
-          )}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
           ItemSeparatorComponent={ItemSeparator}
         />
         </Animated.View>
@@ -853,7 +867,13 @@ const HistoryCard = memo(function HistoryCard({
               />
             )}
           </Animated.View>
-        ) : null}
+        ) : (
+          // Normal mode: the bots that took part, stacked on the left.
+          <ParticipantAvatars
+            ids={conversation.participantPersonaIds}
+            ringColor={theme["--color-card"]}
+          />
+        )}
         {/* layout transition lets the title slide over as the indicator's
             space appears/disappears, instead of jumping. */}
         <Animated.View

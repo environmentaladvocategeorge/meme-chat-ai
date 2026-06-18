@@ -35,6 +35,20 @@ describe("shouldRenderMarkdown", () => {
 });
 
 describe("formatMessageTimestamp", () => {
+  // Pin the clock to a fixed mid-day, mid-year instant. The function reads
+  // `new Date()` internally to decide same-day / same-year, and the relative
+  // cases below build their inputs off "now" — so without a fixed clock,
+  // "now - 1h" lands on the previous day when the suite runs just after
+  // midnight and the same-day case flips to a dated format. A frozen noon makes
+  // every case deterministic regardless of when CI runs.
+  beforeAll(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 5, 15, 12, 0, 0));
+  });
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   it("returns null for missing or invalid dates", () => {
     expect(formatMessageTimestamp(null)).toBeNull();
     expect(formatMessageTimestamp(undefined)).toBeNull();
