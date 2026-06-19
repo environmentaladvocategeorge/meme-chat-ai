@@ -601,6 +601,8 @@ function VoiceExamplesStep() {
             max={LIMITS.voiceExamplesMax}
             userMax={LIMITS.voiceUser}
             goodMax={LIMITS.voiceGood}
+            userLabel={t("personasCreator.field.voiceUser")}
+            goodLabel={t("personasCreator.field.voiceGood", { name: botName })}
             userPlaceholder={t("personasCreator.field.voiceUserPlaceholder")}
             goodPlaceholder={t("personasCreator.field.voiceGoodPlaceholder")}
             addLabel={t("personasCreator.field.voiceExamplesAdd")}
@@ -688,10 +690,8 @@ function SlangStep() {
         emptyValue=""
       >
         <View style={{ gap: 10 }}>
-          <FieldLabel
-            label={t("personasCreator.field.slang")}
-            hint={t("personasCreator.field.slangHint")}
-          />
+          {/* No field label here: the step header ("Its slang" + hint) already
+              titles this, so a "Slang it uses" label just repeats it. */}
           <SlangTwoPill
             value={(slang.field.value as string) ?? ""}
             onChange={slang.field.onChange}
@@ -737,8 +737,9 @@ function RotLevelsStep() {
                 onChangeText={(text) => setBlock(i, text)}
                 placeholder={t(`personasCreator.field.rotLevelPlaceholder.${i + 1}`)}
                 multiline
-                numberOfLines={4}
+                rows={4}
                 maxLength={LIMITS.rotLevelBody}
+                showCount
               />
             </View>
           ))}
@@ -752,44 +753,47 @@ function RotLevelsStep() {
 // The reaction GIFs/memes the bot reaches for — picked from Klipy, never typed.
 // See ReactionPicker for the name-only / local-thumbnail model.
 //
-// WHICH gifs (the picked favorites) is decoupled from WHEN it sends them: the
-// picker is ALWAYS visible (favorites are optional but never hidden), and a
-// separate "let {bot} decide when to send" toggle (autoMedia) hands the cadence
-// to the bot. The two coexist — you can pick favorites AND let the bot decide
-// when. Toggling auto on clears the hand-written cadence note (it's moot once
-// delegated). The reactions step still gates on "pick a favorite OR delegate"
-// (validateField: mediaPills required unless autoMedia), so it can't be silently
-// skipped.
+// The autoMedia toggle is full delegation, like every other skippable step:
+// flip it on and the bot handles GIFs entirely, so the picker AND the cadence
+// note both disappear (leaving them visible after "let it decide" read as
+// broken). Toggling on clears the picked favorites (form mediaPills + the
+// session thumbnails) and the cadence note so the payload omits them. When off,
+// the step gates on "pick at least one favorite" (validateField: mediaPills
+// required unless autoMedia), so it can't be silently skipped.
 function ReactionsStep() {
   const { t } = useTranslation();
   const { control, setValue } = useFormContext<PersonaFormValues>();
   const autoMedia = useController({ control, name: "autoMedia" });
   const mediaPills = useController({ control, name: "mediaPills" });
+  const { setMediaPicks } = useCreatorSession();
   const botName = useBotName();
   const isAuto = Boolean(autoMedia.field.value);
 
   const onToggleAuto = (next: boolean) => {
     autoMedia.field.onChange(next);
     if (next) {
+      // Hand it all to the bot: drop the picked favorites (form + the session
+      // thumbnail cache) and the cadence note so the payload omits them.
+      setValue("mediaPills", [], { shouldDirty: true, shouldValidate: true });
       setValue("mediaLean", "", { shouldDirty: true, shouldValidate: true });
+      setMediaPicks([]);
     }
   };
 
   return (
     <View style={{ gap: 18 }}>
       <StepHeader step="reactions" />
-      {/* WHICH gifs — favorites, always pickable, independent of the cadence
-          decision below. */}
-      <ReactionPicker />
-      <FieldError code={mediaPills.fieldState.error?.message} />
-      {/* WHEN it sends — describe the cadence, or hand it to the bot. */}
-      <View style={{ gap: 14 }}>
-        <PersonaToggleRow
-          label={t("personasCreator.field.autoMedia", { name: botName })}
-          value={isAuto}
-          onValueChange={onToggleAuto}
-        />
-        {!isAuto ? (
+      <PersonaToggleRow
+        label={t("personasCreator.field.autoMedia", { name: botName })}
+        value={isAuto}
+        onValueChange={onToggleAuto}
+      />
+      {!isAuto ? (
+        <>
+          {/* Pick the favorites it reaches for… */}
+          <ReactionPicker />
+          <FieldError code={mediaPills.fieldState.error?.message} />
+          {/* …and, optionally, describe how eager it is to send them. */}
           <ControlledInput
             name="mediaLean"
             label={t("personasCreator.field.gifLean")}
@@ -798,8 +802,8 @@ function ReactionsStep() {
             limit={LIMITS.mediaLean}
             optional
           />
-        ) : null}
-      </View>
+        </>
+      ) : null}
     </View>
   );
 }

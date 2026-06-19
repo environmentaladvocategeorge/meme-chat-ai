@@ -30,7 +30,7 @@ export const LIMITS = {
   toneTag: 24,
   toneTagsMax: 5,
   wordBankTerm: 60,
-  wordBankMax: 40,
+  wordBankMax: 20,
   // The word bank is now required: at least this many terms before publish.
   // Client-only gate (the backend keeps it optional), so it can tighten the
   // builder UX without rejecting personas saved under the old rules.
@@ -40,8 +40,10 @@ export const LIMITS = {
   mediaLean: 200,
   // Up to this many voice-example pairs (message → reply) the bot can carry.
   voiceExamplesMax: 5,
-  // Per-level Rot Level block body cap (mirrors the backend rotLevels item cap).
-  rotLevelBody: 1500,
+  // Per-level Rot Level block body cap. A client-side ceiling kept well under
+  // the backend's lenient line(1500) so each level stays a tight description,
+  // not an essay. Lowering the client only tightens the builder UX.
+  rotLevelBody: 300,
 } as const;
 
 // Reply-length dial bounds (1 = curt … 5 = chatty). The middle is the default

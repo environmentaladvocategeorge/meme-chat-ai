@@ -36,6 +36,27 @@ function EnterHint() {
   );
 }
 
+// A small right-aligned "n/max" badge so every add-as-many field shows its hard
+// cap up front — not only once the user bumps into it. Turns accent-coloured at
+// the cap so "that's the limit" reads at a glance.
+function MaxCounter({ current, max }: { current: number; max: number }) {
+  const theme = useTheme();
+  const atCap = current >= max;
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+      <Typography
+        variant="caption"
+        weight="semibold"
+        style={{
+          color: atCap ? theme["--color-primary"] : theme["--color-foreground-muted"],
+        }}
+      >
+        {`${current}/${max}`}
+      </Typography>
+    </View>
+  );
+}
+
 function Chip({
   label,
   onRemove,
@@ -101,6 +122,7 @@ export function TypeToPill({
 
   return (
     <View style={{ gap: 10 }}>
+      <MaxCounter current={value.length} max={max} />
       {value.length > 0 ? (
         <ChipWrap>
           {value.map((item) => (
@@ -263,6 +285,7 @@ export function MultiSelectPills({
 
   return (
     <View style={{ gap: 12 }}>
+      <MaxCounter current={value.length} max={max} />
       {/* Suggestions — tap to add. Hidden once the cap is reached. */}
       {suggestions.length > 0 && !atCap ? (
         horizontal ? (
@@ -392,6 +415,7 @@ export function MultilineListInput({
   const display = value.length > 0 ? value : [""];
   return (
     <View style={{ gap: 10 }}>
+      <MaxCounter current={value.length} max={max} />
       {display.map((item, i) => (
         <View key={i} style={{ gap: 4 }}>
           <Input
@@ -414,15 +438,72 @@ export function MultilineListInput({
   );
 }
 
-// Up to `max` voice-example pairs: a "someone says" input on the left and the
-// bot's reply on the right, with an Add button that appends a fresh pair. When
-// empty it shows just the Add button (the whole field is optional).
+// A small labelled side of a voice example (the "someone says" prompt or the
+// bot's reply). The connector arrow before the reply makes the back-and-forth
+// read top-to-bottom like a real exchange, so it's obvious which line is which.
+function VoiceLine({
+  label,
+  connector,
+  value,
+  onChangeText,
+  placeholder,
+  maxLength,
+}: {
+  label: string;
+  // When true, render a leading "↳" so the reply visibly answers the prompt.
+  connector?: boolean;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  maxLength: number;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        {connector ? (
+          <Typography
+            variant="caption"
+            weight="bold"
+            style={{ color: theme["--color-foreground-muted"] }}
+          >
+            ↳
+          </Typography>
+        ) : null}
+        <Typography
+          variant="caption"
+          weight="semibold"
+          style={{ color: theme["--color-foreground-secondary"] }}
+        >
+          {label}
+        </Typography>
+      </View>
+      <Input
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        multiline
+        rows={2}
+      />
+    </View>
+  );
+}
+
+// Up to `max` voice-example exchanges. Each is a vertical mini-conversation: a
+// "someone says…" prompt, then a connected "{bot} replies…" line beneath it, so
+// the two sides read like an actual back-and-forth instead of two unlabelled
+// columns. Always shows at least one exchange (so there's something to fill in
+// and "Add another" reads sensibly); the whole field is still optional and
+// empty rows are filtered out at save time.
 export function VoiceExamplesField({
   value,
   onChange,
   max,
   userMax,
   goodMax,
+  userLabel,
+  goodLabel,
   userPlaceholder,
   goodPlaceholder,
   addLabel,
@@ -432,43 +513,55 @@ export function VoiceExamplesField({
   max: number;
   userMax: number;
   goodMax: number;
+  userLabel: string;
+  goodLabel: string;
   userPlaceholder?: string;
   goodPlaceholder?: string;
   addLabel: string;
 }) {
+  const theme = useTheme();
+  // Always render at least one exchange so the inputs are visible up front; the
+  // synthetic row only becomes a real form value once the user types into it.
+  const display = value.length > 0 ? value : [{ user: "", good: "" }];
   const patchAt = (i: number, patch: Partial<{ user: string; good: string }>) =>
-    onChange(value.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+    onChange(display.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
   return (
-    <View style={{ gap: 12 }}>
-      {value.map((pair, i) => (
-        <View key={i} style={{ gap: 4 }}>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <View style={{ flex: 1 }}>
-              <Input
-                value={pair.user}
-                onChangeText={(text) => patchAt(i, { user: text })}
-                placeholder={userPlaceholder}
-                maxLength={userMax}
-                multiline
-                rows={2}
-              />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Input
-                value={pair.good}
-                onChangeText={(text) => patchAt(i, { good: text })}
-                placeholder={goodPlaceholder}
-                maxLength={goodMax}
-                multiline
-                rows={2}
-              />
-            </View>
-          </View>
-          <RemoveRow onPress={() => onChange(value.filter((_, idx) => idx !== i))} />
+    <View style={{ gap: 14 }}>
+      <MaxCounter current={value.length} max={max} />
+      {display.map((pair, i) => (
+        <View
+          key={i}
+          style={{
+            gap: 10,
+            padding: 12,
+            borderRadius: 16,
+            backgroundColor: theme["--color-card"],
+            borderWidth: 1,
+            borderColor: theme["--color-border"],
+          }}
+        >
+          <VoiceLine
+            label={userLabel}
+            value={pair.user}
+            onChangeText={(text) => patchAt(i, { user: text })}
+            placeholder={userPlaceholder}
+            maxLength={userMax}
+          />
+          <VoiceLine
+            label={goodLabel}
+            connector
+            value={pair.good}
+            onChangeText={(text) => patchAt(i, { good: text })}
+            placeholder={goodPlaceholder}
+            maxLength={goodMax}
+          />
+          {display.length > 1 ? (
+            <RemoveRow onPress={() => onChange(display.filter((_, idx) => idx !== i))} />
+          ) : null}
         </View>
       ))}
-      {value.length < max ? (
-        <AddButton label={addLabel} onPress={() => onChange([...value, { user: "", good: "" }])} />
+      {display.length < max ? (
+        <AddButton label={addLabel} onPress={() => onChange([...display, { user: "", good: "" }])} />
       ) : null}
     </View>
   );

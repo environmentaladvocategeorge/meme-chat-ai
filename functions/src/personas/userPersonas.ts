@@ -49,7 +49,7 @@ export function userPersonaCap(plan: PlanId): number {
 // pins them). The bank is bounded by count + per-term length instead of the old
 // global rotating sampler; keeps the rendered WORD BANK section's token cost
 // predictable.
-export const WORD_BANK_MAX = 40;
+export const WORD_BANK_MAX = 20;
 export const WORD_BANK_TERM_MAX = 60;
 
 export function isUserPersonaId(id: string): boolean {

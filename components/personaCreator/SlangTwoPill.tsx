@@ -40,7 +40,7 @@ function serializePairs(pairs: Pair[]): string {
 // Strip the two delimiters so a typed term/meaning can't corrupt the encoding.
 const clean = (s: string) => s.replace(/[;=]/g, "");
 
-const MAX_PAIRS = 12;
+const MAX_PAIRS = 15;
 const TERM_MAX = 40;
 const MEANING_MAX = 120;
 
@@ -71,8 +71,22 @@ export function SlangTwoPill({
     commit(next.length > 0 ? next : [{ term: "", meaning: "" }]);
   };
 
+  const filled = pairs.filter((p) => p.term.trim().length > 0).length;
+  const atCap = filled >= MAX_PAIRS;
+
   return (
     <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: "row", justifyContent: "flex-end" }}>
+        <Typography
+          variant="caption"
+          weight="semibold"
+          style={{
+            color: atCap ? theme["--color-primary"] : theme["--color-foreground-muted"],
+          }}
+        >
+          {`${filled}/${MAX_PAIRS}`}
+        </Typography>
+      </View>
       {pairs.map((pair, i) => (
         <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <View style={{ flex: 1 }}>

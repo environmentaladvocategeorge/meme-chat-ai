@@ -41,7 +41,7 @@ describe("LIMITS parity with the backend", () => {
       toneTag: 24,
       toneTagsMax: 5,
       wordBankTerm: 60,
-      wordBankMax: 40,
+      wordBankMax: 20,
       mediaPill: 60,
       mediaPillsMax: 10,
       mediaLean: 200,
