@@ -285,7 +285,22 @@ export const streamReplayTurn = onRequest(
         | { kind: "gif" | "meme"; description: string }
         | undefined;
       if (mediaEnabled) {
-        const { history, recentReactions } = buildDeciderContext(priorMessages);
+        const { history, recentReactions, recentMediaIds } =
+          buildDeciderContext(priorMessages);
+        // Hard never-echo backstop (matches the normal turn): drop the user's
+        // current attachments + everything recently seen from the result pool so
+        // the regenerated reaction can never be the exact same asset.
+        const excludeIds = new Set<string>(recentMediaIds);
+        for (const g of gifs) {
+          if (g.id) excludeIds.add(g.id);
+          if (g.gifId) excludeIds.add(g.gifId);
+        }
+        for (const i of images) {
+          if (i.source === "klipy") {
+            if (i.id) excludeIds.add(i.id);
+            if (i.memeId) excludeIds.add(i.memeId);
+          }
+        }
         // Append the Klipy "meme name" hint (when present) so the regenerated
         // reaction can recognize the named reference the user originally sent.
         const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
@@ -324,7 +339,11 @@ export const streamReplayTurn = onRequest(
         deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
-          const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+          const klipyDeps = {
+            apiKey: klipyApiKey,
+            customerId: uid,
+            excludeIds,
+          };
           const rawArgs = JSON.stringify({
             query: decision.query,
             randomness_factor: decision.randomnessFactor,

@@ -27,7 +27,7 @@ const body = assembleFragments(PERSONA_MEDIA_DECIDER_FRAGMENTS, {
 describe("persona media decider prompt", () => {
   it("is a valid FragmentedPrompt that Firestore readers will accept", () => {
     expect(asFragmentedPrompt(PERSONA_MEDIA_DECIDER_FRAGMENTS)).not.toBeNull();
-    expect(PERSONA_MEDIA_DECIDER_VERSION).toBe("v2");
+    expect(PERSONA_MEDIA_DECIDER_VERSION).toBe("v3");
     expect(PERSONA_MEDIA_DECIDER_KEY).toBe("media_decider_persona");
   });
 
@@ -71,9 +71,9 @@ describe("persona media decider prompt", () => {
     expect(body).toContain('ALWAYS return "none"');
   });
 
-  it("carries the image-description rung (rung 2)", () => {
-    expect(body).toContain("DESCRIBE IT");
-    expect(body).toContain("crying dog meme");
+  it("carries the react-to-attachment rung (rung 2), never echo", () => {
+    expect(body).toContain("NEVER ECHO THE USER'S OWN ATTACHMENT");
+    expect(body).toContain("REACT TO IT, NEVER COPY IT");
   });
 
   it("does not carry its own rot line — that fragment is dynamic (deciderRotLine)", () => {

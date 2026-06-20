@@ -88,6 +88,10 @@ export type GetMemeDeps = {
   customerId: string;
   locale?: string;
   contentFilter?: ContentFilter;
+  // Klipy ids to drop from the result pool before picking — the meme/GIF the
+  // user JUST sent plus the bot's recent reactions. A hard backstop to the
+  // prompt's never-echo rule so the exact same asset is never re-sent.
+  excludeIds?: ReadonlySet<string>;
 };
 
 export type GetMemeResult = {
@@ -162,12 +166,16 @@ export async function runGetMeme(
     // then let the randomness factor pick among the usable ones. With factor 1
     // this is just the top hit; higher factors sample a few deep with a strong
     // front bias — without us reading each result to choose (token waste).
+    const exclude = deps.excludeIds;
     const candidates = result.memes
       .map((m) => ({ meme: toMessageImage(m), title: m.title }))
       .filter(
         (c): c is { meme: ValidatedMessageImage; title: string } =>
           c.meme !== null,
-      );
+      )
+      // Never re-send the user's own meme or a recent reaction: drop excluded
+      // ids so the randomness pick can only land on a fresh asset.
+      .filter((c) => !exclude || !exclude.has(c.meme.id));
     const chosen =
       candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
       null;

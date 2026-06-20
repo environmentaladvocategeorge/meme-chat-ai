@@ -122,6 +122,41 @@ describe("runGetGif", () => {
     }
   });
 
+  it("never re-sends an excluded id (the user's own GIF), picking the next hit", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: {
+          data: [sampleGif(10), sampleGif(20), sampleGif(30)],
+          has_next: false,
+        },
+      }),
+    );
+    // factor 1 would normally lock to index 0 (id 10) — but 10 is excluded
+    // (the user just sent it), so the pool collapses to [20, 30] and the top
+    // hit becomes 20. The exact same asset is never re-sent.
+    const result = await runGetGif(JSON.stringify({ query: "happy dance" }), {
+      ...deps,
+      excludeIds: new Set(["10"]),
+    });
+    expect(result.gif?.id).toBe("20");
+  });
+
+  it("returns no gif when every hit is excluded (text-only beats an echo)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: { data: [sampleGif(10), sampleGif(20)], has_next: false },
+      }),
+    );
+    const result = await runGetGif(JSON.stringify({ query: "happy dance" }), {
+      ...deps,
+      excludeIds: new Set(["10", "20"]),
+    });
+    expect(result.gif).toBeUndefined();
+    expect(JSON.parse(result.content)).toEqual({ found: false });
+  });
+
   it("hits the gifs/search endpoint with the model's query", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({ result: true, data: { data: [SAMPLE_GIF], has_next: false } }),

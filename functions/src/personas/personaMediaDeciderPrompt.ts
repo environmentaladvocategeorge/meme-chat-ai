@@ -32,7 +32,13 @@ import type { FragmentedPrompt } from "./fragments";
 // - All persona media data + the fallback bank: renderMediaNotes (appended as
 //   the dynamic tail BEFORE the rot line). Rung 3 references that tail.
 
-export const PERSONA_MEDIA_DECIDER_VERSION = "v2";
+// v3 (2026-06-19): NEVER-ECHO fix, mirrored from the brainrot decider. Rungs
+// 1-2 stopped the decider from searching the user's own attached GIF/meme back
+// verbatim (which the frozen search returned as the SAME asset). A meme the
+// user ATTACHED is never a query — REACT to it with a DIFFERENT reaction. A
+// deterministic id-exclude backstop in getGifTool/getMemeTool guarantees the
+// exact same asset can never be re-sent.
+export const PERSONA_MEDIA_DECIDER_VERSION = "v3";
 
 // The platform_prompts key user personas resolve their decider by (see
 // toResolvedPersonaForStream). Distinct from the brainrot MEDIA_DECIDER_KEY.
@@ -62,9 +68,11 @@ You are picking a reaction for a CUSTOM, user-built bot. The "THIS PERSONA'S MED
       key: "query_ladder",
       text: `BUILDING THE QUERY — one ladder, first match wins:
 
-1. NAMED THING → SEARCH IT VERBATIM. If the message OR the image contains a recognizable meme, character, format, show, song, catchphrase, or celebrity (shocked Pikachu, Drake, a specific movie line), the query IS that exact name (optionally + "meme").
+NEVER ECHO THE USER'S OWN ATTACHMENT. When the user SENDS you a GIF or image, you are REACTING to it, not handing it back. NEVER re-send the same GIF and NEVER search the same named meme, character, or literal subject they just sent. The thing they attached is never your query.
 
-2. IMAGE WITH NO NAMED MEME → DESCRIBE IT. Query = the image's literal subject + action + "meme" or "gif" ("crying dog meme", "cat falling over", "dog driving car"). Plain visual descriptions are CORRECT here — do not translate to a feeling. When the user sends an image with little/no text, default to MIRRORING the subject (more of the same energy) rather than reacting to it.
+1. NAMED THING IN THE USER'S TEXT → SEARCH IT VERBATIM. If the user's MESSAGE TEXT names a recognizable meme, character, format, show, song, catchphrase, or celebrity (shocked Pikachu, Drake, a specific movie line), the query IS that exact name (optionally + "meme"). (A meme the user ATTACHED is NOT a text reference — react to it per rung 2, never echo it.)
+
+2. USER ATTACHED A GIF/IMAGE → REACT TO IT, NEVER COPY IT. Read the vibe of what they sent, then pick a DIFFERENT reaction that ANSWERS it — laugh at it, clap back, one-up it, or react to its subject, leaning on this persona's theme when one fits. Your query is the REACTION, never a mirror of what they sent; do NOT re-describe their image's literal subject to fetch more of the same.
 
 3. OTHERWISE → DRAW FROM THIS PERSONA'S MEDIA (below). The creator's favorite searches define the bot's FLAVOR, not a fixed menu. Pick one of the favorites when one fits — OR search any meme/GIF that shares the SAME theme/vibe and fits the moment (favorites are gym memes → any gym / lifting / hype meme is fair game). Lead with a persona-themed pick even when it isn't a literal match for the turn: out-of-context is fine because it's the creator's preference, so a loosely-fitting on-theme reaction beats a generic one. Rotate; don't repeat. If the block gives a "free choice" fallback set (the creator let the bot choose freely), you may use that too. Never echo bare words like "lol"/"hi"/"ok" as the query. Pure abstract feelings ("happy", "sad", "funny gif") are never valid queries on this rung.`,
     },
@@ -93,8 +101,8 @@ query and randomness_factor are null when type is "none".`,
     {
       key: "examples",
       text: `EXAMPLES (the <…> placeholders stand for whatever fits THIS persona's theme)
-[GIF frames: clearly the shocked Pikachu format] -> {"type":"gif","query":"shocked Pikachu","randomness_factor":2}
-[GIF frames: dog crying dramatically, no text] -> {"type":"gif","query":"crying dog meme","randomness_factor":4}
+[GIF frames: the user SENT shocked Pikachu] (react, never copy → a different shock or an on-theme reaction) -> {"type":"gif","query":"<on-theme shock/reaction search>","randomness_factor":5}
+[GIF frames: the user SENT a dramatically crying dog, no text] (react, never copy) -> {"type":"gif","query":"<on-theme laugh/clap-back search>","randomness_factor":5}
 "I GOT THE JOB" (a favorite that celebrates, or an on-theme celebration meme) -> {"type":"gif","query":"<on-theme celebration search>","randomness_factor":4}
 "whats good" (no favorite is literally a wave, but the bot's theme is gym → an on-theme hype greeting) -> {"type":"gif","query":"<on-theme greeting search>","randomness_factor":5}
 "lol you're so dumb" (still prefer the closest on-theme favorite over a generic laugh) -> {"type":"gif","query":"<closest on-theme favorite>","randomness_factor":4}

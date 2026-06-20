@@ -345,7 +345,23 @@ export const streamAgentAnswer = onRequest(
       // Loaded for the media decider's context (used when media is on).
       const priorMessages = await loadRecentMessages(conversationId, 12);
       if (mediaEnabled) {
-        const { history, recentReactions } = buildDeciderContext(priorMessages);
+        const { history, recentReactions, recentMediaIds } =
+          buildDeciderContext(priorMessages);
+        // Hard never-echo backstop: the fetch tools drop these Klipy ids from
+        // the result pool so the exact same asset can never be re-sent. Covers
+        // the user's CURRENT attachments (the main echo source) plus everything
+        // recently seen in history (their past sends + the bot's reactions).
+        const excludeIds = new Set<string>(recentMediaIds);
+        for (const g of gifs) {
+          if (g.id) excludeIds.add(g.id);
+          if (g.gifId) excludeIds.add(g.gifId);
+        }
+        for (const i of images) {
+          if (i.source === "klipy") {
+            if (i.id) excludeIds.add(i.id);
+            if (i.memeId) excludeIds.add(i.memeId);
+          }
+        }
         // Append the Klipy "meme name" hint (when present) so the decider can
         // recognize a named reference the user sent, not just react to pixels.
         const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
@@ -382,7 +398,11 @@ export const streamAgentAnswer = onRequest(
         deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
-          const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+          const klipyDeps = {
+            apiKey: klipyApiKey,
+            customerId: uid,
+            excludeIds,
+          };
           const rawArgs = JSON.stringify({
             query: decision.query,
             randomness_factor: decision.randomnessFactor,

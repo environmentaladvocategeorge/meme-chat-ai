@@ -96,7 +96,11 @@ describe("buildDeciderContext", () => {
   });
 
   it("handles empty history", () => {
-    expect(buildDeciderContext([])).toEqual({ history: "", recentReactions: [] });
+    expect(buildDeciderContext([])).toEqual({
+      history: "",
+      recentReactions: [],
+      recentMediaIds: [],
+    });
   });
 });
 

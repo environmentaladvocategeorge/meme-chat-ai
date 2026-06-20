@@ -14,16 +14,30 @@ import type { ChatMessage } from "./types";
 export function buildDeciderContext(messages: ChatMessage[]): {
   history: string;
   recentReactions: string[];
+  recentMediaIds: string[];
 } {
   const lines: string[] = [];
   const recentReactions: string[] = [];
+  // Klipy ids of every GIF/meme seen in recent history — both the bot's own
+  // reactions AND the user's attachments. Fed to the fetch tools as a hard
+  // exclude set so the same exact asset is never re-sent (the prompt-level
+  // never-echo rule is reinforced by this deterministic backstop).
+  const recentMediaIds: string[] = [];
   for (const m of messages) {
     const who = m.role === "agent" ? "Bot" : "User";
     const text = (m.text || "").slice(0, 300).trim();
     const titles: string[] = [];
-    for (const g of m.gifs ?? []) if (g.title) titles.push(g.title);
+    for (const g of m.gifs ?? []) {
+      if (g.title) titles.push(g.title);
+      if (g.id) recentMediaIds.push(g.id);
+      if (g.gifId) recentMediaIds.push(g.gifId);
+    }
     for (const i of m.images ?? []) {
       if (i.source === "klipy" && i.title) titles.push(i.title);
+      if (i.source === "klipy") {
+        if (i.id) recentMediaIds.push(i.id);
+        if (i.memeId) recentMediaIds.push(i.memeId);
+      }
     }
     let line = `${who}: ${text || "[no text]"}`;
     if (m.role === "agent" && titles.length > 0) {
@@ -38,7 +52,7 @@ export function buildDeciderContext(messages: ChatMessage[]): {
     }
     lines.push(line);
   }
-  return { history: lines.join("\n"), recentReactions };
+  return { history: lines.join("\n"), recentReactions, recentMediaIds };
 }
 
 // The decider pre-step's verdict. Either no media, or a GIF/meme with a Klipy
@@ -170,12 +184,12 @@ export function buildDeciderMessages(args: {
           content: [
             {
               type: "text",
-              // Restates ladder rungs 1-2 at the point of decision: small
-              // models lose instruction force across long context, and this is
-              // what fixes the "no thoughts head empty" failure mode (a bank
-              // term reflecting how the model FELT about the image instead of
-              // what was in it). The last sentence targets that bug directly.
-              text: `${baseText}\n\nThe image(s) below are the frames of ONE GIF (or a single photo) the user just sent. First check: is this a recognizable named meme/format/character? If YES → that name is your query (ladder rung 1). If NO → your query is the literal subject + action you see, like "crying dog meme" (ladder rung 2). Base your pick on what is actually shown — never on what the frames make YOU feel.`,
+              // Restates the never-echo rule at the point of decision: small
+              // models lose instruction force across long context, and the
+              // strongest failure mode here is the model identifying the user's
+              // GIF and searching it back verbatim (the frozen search then
+              // returns the SAME asset). This forces a REACTION instead.
+              text: `${baseText}\n\nThe image(s) below are the frames of ONE GIF (or a single photo) the user JUST SENT to you. You are REACTING to it, not handing it back. NEVER make your query the same named meme/character/subject shown in these frames — that re-sends their own GIF. Instead, read the vibe of what they sent and pick a DIFFERENT reaction that answers it (laugh at it, clap back, one-up it, react to its subject). Your query is the REACTION, never a copy of what is shown.`,
             },
             ...imageUrls.map((url) => ({
               type: "image_url" as const,

@@ -37,7 +37,15 @@ import type { FragmentedPrompt } from "./fragments";
 // - The rot-level line: appended dynamically by deciderRotLine.
 // - Persona media notes: appended dynamically from the persona prompt doc.
 
-export const MEDIA_DECIDER_VERSION = "v5.1";
+// v6 (2026-06-19): NEVER-ECHO fix. The decider was identifying the GIF/image
+// the user sent and searching it back verbatim (rung 1 "named thing" + rung 2
+// "MIRROR the subject"), which against the frozen search returns the SAME
+// asset — the bot kept parroting the user's own GIF. Rungs 1-2 now say: a meme
+// the user ATTACHED is never a query; you REACT to it with a DIFFERENT
+// reaction, never a copy. A deterministic backstop in getGifTool/getMemeTool
+// also drops the user's just-sent id (and recent reaction ids) from the pool,
+// so the exact same asset can never be re-sent even if the model slips.
+export const MEDIA_DECIDER_VERSION = "v6";
 
 // The live Firestore doc the push script targets.
 export const MEDIA_DECIDER_DOC_PATH = "platform_prompts/media_decider_v1";
@@ -55,9 +63,11 @@ Attach ("gif" almost always; "meme" only when one specific captioned still forma
       key: "query_ladder",
       text: `BUILDING THE QUERY — one ladder, first match wins:
 
-1. NAMED THING → SEARCH IT VERBATIM. If the message OR the image contains a recognizable meme, character, format, show, song, catchphrase, or celebrity ("tung tung tung sahur", shocked Pikachu, Drake, skibidi), the query IS that exact name (optionally + "meme").
+NEVER ECHO THE USER'S OWN ATTACHMENT. When the user SENDS you a GIF or image, you are REACTING to it, not handing it back. NEVER re-send the same GIF and NEVER search the same named meme, character, or literal subject they just sent. The thing they attached is never your query.
 
-2. IMAGE WITH NO NAMED MEME → DESCRIBE IT. Query = the image's literal subject + action + "meme" or "gif" ("crying dog meme", "cat falling over", "dog driving car"). Plain visual descriptions are CORRECT here — do not swap in a bank term, do not translate to a feeling. When the user sends an image with little/no text, default to MIRRORING the subject (more of the same energy) rather than reacting to it.
+1. NAMED THING IN THE USER'S TEXT → SEARCH IT VERBATIM. If the user's MESSAGE TEXT names a recognizable meme, character, format, show, song, catchphrase, or celebrity ("tung tung tung sahur", shocked Pikachu, Drake, skibidi), the query IS that exact name (optionally + "meme"). (A meme the user ATTACHED is NOT a text reference — react to it per rung 2, never echo it.)
+
+2. USER ATTACHED A GIF/IMAGE → REACT TO IT, NEVER COPY IT. Read the vibe of what they sent, then pick a DIFFERENT reaction that ANSWERS it — laugh at it, clap back, one-up it, or react to its subject. Your query is the REACTION, never a mirror: they sent a fail clip → "crying laughing cat"; a flex → "gigachad"; a shocked-Pikachu → a DIFFERENT shock like "One Piece shocked"; a crying dog → "ryan gosling laughing". Do NOT re-describe their image's literal subject to fetch more of the same.
 
 3. TEXT VIBE, NO NAME, NO IMAGE → map to ONE concrete named reaction. Never echo bare words like "lol"/"hi"/"ok" as the query — "hi" → a named wave ("Elmo wave"), "lol" → "crying laughing cat". Use the bank below or your own meme knowledge — best fit wins. For greetings, pick freely across the greeting row — every term is equally right; never default to the first one. Pure abstract feelings ("happy", "sad", "funny gif") are never valid queries on this rung.
 
@@ -111,9 +121,9 @@ query and randomness_factor are null when type is "none".`,
       key: "examples",
       text: `EXAMPLES
 "tung tung tung sahur fr" -> {"type":"gif","query":"tung tung tung sahur","randomness_factor":1}
-[GIF frames: clearly the shocked Pikachu format] -> {"type":"gif","query":"shocked Pikachu","randomness_factor":2}
-[GIF frames: dog crying dramatically, no text] -> {"type":"gif","query":"crying dog meme","randomness_factor":4}
-[photo: cat mid-fall off a table] "LMAOO" -> {"type":"gif","query":"cat falling over","randomness_factor":4}
+[GIF frames: the user SENT shocked Pikachu] (react, never copy) -> {"type":"gif","query":"One Piece shocked","randomness_factor":5}
+[GIF frames: the user SENT a dramatically crying dog, no text] (react, never copy) -> {"type":"gif","query":"ryan gosling laughing","randomness_factor":5}
+[photo: the user SENT a cat mid-fall off a table] "LMAOO" -> {"type":"gif","query":"crying laughing cat","randomness_factor":6}
 "hi" (first message) -> {"type":"gif","query":"Kermit waving","randomness_factor":6}
 "I GOT THE JOB" -> {"type":"gif","query":"LeBron celebration","randomness_factor":5}
 "lol you're so dumb" -> {"type":"gif","query":"crying laughing cat","randomness_factor":6}

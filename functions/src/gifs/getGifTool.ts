@@ -56,6 +56,11 @@ export type GetGifDeps = {
   customerId: string;
   locale?: string;
   contentFilter?: ContentFilter;
+  // Klipy ids to drop from the result pool before picking — the GIF/meme the
+  // user JUST sent plus the bot's recent reactions. A hard backstop to the
+  // prompt's never-echo rule: the exact same asset can never be re-sent, even
+  // if the decider picks the same query at randomness 1.
+  excludeIds?: ReadonlySet<string>;
 };
 
 export type GetGifResult = {
@@ -129,11 +134,15 @@ export async function runGetGif(
     // then let the randomness factor pick among the usable ones. With factor 1
     // this is just the top hit; higher factors sample a few deep with a strong
     // front bias — without us reading each result to choose (token waste).
+    const exclude = deps.excludeIds;
     const candidates = result.gifs
       .map((g) => ({ gif: toMessageGif(g), title: g.title }))
       .filter(
         (c): c is { gif: ValidatedMessageGif; title: string } => c.gif !== null,
-      );
+      )
+      // Never re-send the user's own GIF or a recent reaction: drop excluded ids
+      // from the pool so the randomness pick can only land on a fresh asset.
+      .filter((c) => !exclude || !exclude.has(c.gif.id));
     const chosen =
       candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
       null;

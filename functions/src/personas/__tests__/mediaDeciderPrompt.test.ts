@@ -20,15 +20,15 @@ const assembled = assembleFragments(MEDIA_DECIDER_FRAGMENTS, {
   emojisEnabled: true,
 });
 
-describe("media decider prompt v5.1", () => {
+describe("media decider prompt v6", () => {
   it("is a valid FragmentedPrompt that Firestore readers will accept", () => {
     expect(asFragmentedPrompt(MEDIA_DECIDER_FRAGMENTS)).not.toBeNull();
-    expect(MEDIA_DECIDER_VERSION).toBe("v5.1");
+    expect(MEDIA_DECIDER_VERSION).toBe("v6");
   });
 
-  it("has the image-description rung (rung 2)", () => {
-    expect(assembled).toContain("DESCRIBE IT");
-    expect(assembled).toContain("crying dog meme");
+  it("has the react-to-attachment rung (rung 2), never echo", () => {
+    expect(assembled).toContain("NEVER ECHO THE USER'S OWN ATTACHMENT");
+    expect(assembled).toContain("REACT TO IT, NEVER COPY IT");
   });
 
   it("is one ladder, first match wins", () => {
@@ -63,9 +63,10 @@ describe("media decider prompt v5.1", () => {
     expect(assembled).toContain('ALWAYS return "none"');
   });
 
-  it("includes image few-shot examples (textual stand-ins)", () => {
-    expect(assembled).toContain("[GIF frames: dog crying dramatically, no text]");
-    expect(assembled).toContain("[GIF frames: clearly the shocked Pikachu format]");
+  it("includes image few-shot examples that react instead of echoing", () => {
+    expect(assembled).toContain("the user SENT a dramatically crying dog");
+    expect(assembled).toContain("the user SENT shocked Pikachu");
+    expect(assembled).toContain("react, never copy");
   });
 
   it("examples demonstrate the deep bands: chaos at 30, generic words mid-teens", () => {
@@ -100,14 +101,15 @@ describe("image-turn template (Decision C)", () => {
     return textPart.text;
   }
 
-  it("restates ladder rungs 1-2 at the point of decision", () => {
+  it("restates the never-echo rule at the point of decision", () => {
     const text = imageTurnText();
-    expect(text).toContain("ladder rung 1");
-    expect(text).toContain("ladder rung 2");
-    expect(text).toContain("crying dog meme");
+    expect(text).toContain("REACTING to it");
+    expect(text).toContain("not handing it back");
   });
 
-  it("targets the observed failure mode directly", () => {
-    expect(imageTurnText()).toContain("never on what the frames make YOU feel");
+  it("targets the echo failure mode directly", () => {
+    expect(imageTurnText()).toContain(
+      "NEVER make your query the same named meme/character/subject shown",
+    );
   });
 });
