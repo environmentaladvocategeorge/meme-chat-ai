@@ -5,6 +5,8 @@ import { onRequest } from "firebase-functions/v2/https";
 import { randomReplaySampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import { pickBestMediaIndex } from "./agent/pickBestMedia";
+import { gatherWebContext } from "./agent/webSearch";
 import { MemoryService } from "./agent/memory";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
@@ -53,6 +55,8 @@ import { authenticateStreamRequest } from "./streamAuth";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+// Web-search router key (optional — unset = search-free, see streamAgentAnswer).
+const TAVILY_API_KEY = defineSecret("TAVILY_API_KEY");
 
 // One reusable, stateless memory-service instance per function instance.
 const memoryService = new MemoryService();
@@ -92,7 +96,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
 // naturally consumes quota and is never refunded.
 export const streamReplayTurn = onRequest(
   {
-    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
+    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY, TAVILY_API_KEY],
     timeoutSeconds: 540,
     memory: "512MiB",
     minInstances: 1,
@@ -254,6 +258,11 @@ export const streamReplayTurn = onRequest(
       | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
       | null = null;
     let decideUsage: ModelUsage | null = null;
+    // Usage from the look-&-pick selector (nano), billed alongside the decider.
+    let pickUsage: ModelUsage | null = null;
+    // Web-search router usage (nano) + flat Tavily cost, billed with the reply.
+    let webRouterUsage: ModelUsage | null = null;
+    let searchCostUsd = 0;
     let pendingGif: MessageGif | null = null;
     let pendingMeme: MessageImage | null = null;
     // GIF frames decoded for the decider; reused by assembleContext so the GIF
@@ -264,8 +273,17 @@ export const streamReplayTurn = onRequest(
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
-      // Loaded for the media decider's context below.
+      // Loaded once for both pre-steps' context (media decider + web router).
       const priorMessages = await loadRecentMessages(conversationId, 12);
+      const deciderContext = buildDeciderContext(priorMessages);
+      // Web-search router (nano) + Tavily fetch for the regenerated turn, kicked
+      // off concurrently with the media pipeline and awaited before assembly.
+      const webContextPromise = gatherWebContext({
+        openaiApiKey: OPENAI_API_KEY.value(),
+        tavilyApiKey: TAVILY_API_KEY.value(),
+        message: userText,
+        history: deciderContext.history,
+      });
       const perTurnNote = buildPerTurnNote();
       // Resolve the persona ONCE for the whole replay: the system prompt and
       // the media decider (mediaDeciderKey/mediaNotes) share the resolution.
@@ -285,8 +303,7 @@ export const streamReplayTurn = onRequest(
         | { kind: "gif" | "meme"; description: string }
         | undefined;
       if (mediaEnabled) {
-        const { history, recentReactions, recentMediaIds } =
-          buildDeciderContext(priorMessages);
+        const { history, recentReactions, recentMediaIds } = deciderContext;
         // Hard never-echo backstop (matches the normal turn): drop the user's
         // current attachments + everything recently seen from the result pool so
         // the regenerated reaction can never be the exact same asset.
@@ -339,10 +356,21 @@ export const streamReplayTurn = onRequest(
         deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
+          // Look-&-pick on broad queries only (same rule as a normal turn).
+          const selectIndex =
+            decision.randomnessFactor > 2
+              ? (titles: string[]) =>
+                  pickBestMediaIndex({
+                    apiKey: OPENAI_API_KEY.value(),
+                    message: currentForDecider,
+                    titles,
+                  })
+              : undefined;
           const klipyDeps = {
             apiKey: klipyApiKey,
             customerId: uid,
             excludeIds,
+            selectIndex,
           };
           const rawArgs = JSON.stringify({
             query: decision.query,
@@ -351,6 +379,7 @@ export const streamReplayTurn = onRequest(
           try {
             if (decision.type === "gif") {
               const r = await runGetGif(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.gif) {
                 pendingGif = r.gif;
                 attachedMedia = {
@@ -360,6 +389,7 @@ export const streamReplayTurn = onRequest(
               }
             } else {
               const r = await runGetMeme(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.meme) {
                 pendingMeme = r.meme;
                 attachedMedia = {
@@ -377,6 +407,11 @@ export const streamReplayTurn = onRequest(
         }
       }
 
+      // Join the concurrent web-search pre-step before assembling context.
+      const web = await webContextPromise;
+      webRouterUsage = web.routerUsage;
+      searchCostUsd = web.searchCostUsd;
+
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
@@ -386,6 +421,7 @@ export const streamReplayTurn = onRequest(
         currentGifFrames: deciderGifFrames,
         currentAttachmentTitles: attachmentTitles,
         attachedMedia,
+        webContext: web.webContext ?? undefined,
         perTurnNote,
         systemPrompt,
         userAlias: entitlement.alias,
@@ -431,6 +467,18 @@ export const streamReplayTurn = onRequest(
       ) {
         usages.push(decideUsage);
       }
+      if (
+        pickUsage &&
+        (pickUsage.inputTokens > 0 || pickUsage.outputTokens > 0)
+      ) {
+        usages.push(pickUsage);
+      }
+      if (
+        webRouterUsage &&
+        (webRouterUsage.inputTokens > 0 || webRouterUsage.outputTokens > 0)
+      ) {
+        usages.push(webRouterUsage);
+      }
       if (lastUsage) {
         usages.push({
           model: internalModel,
@@ -454,10 +502,12 @@ export const streamReplayTurn = onRequest(
       }
 
       try {
-        const costUsd = usages.reduce(
+        const tokenCostUsd = usages.reduce(
           (sum, u) => sum + calculateCostUsd(u.model, u),
           0,
         );
+        // Fold the flat Tavily search cost into the turn's total before credits.
+        const costUsd = tokenCostUsd + searchCostUsd;
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
           conversationId,
@@ -466,6 +516,7 @@ export const streamReplayTurn = onRequest(
           usages,
           costUsd,
           credits,
+          searchCostUsd,
         });
       } catch (err) {
         logger.error("[streamReplayTurn] charge failed", {

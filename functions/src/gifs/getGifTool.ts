@@ -9,6 +9,7 @@ import {
 import { KlipyError, searchGifs } from "./klipy";
 import type { ContentFilter } from "../memes/types";
 import type { TrendingGif } from "./types";
+import type { ModelUsage } from "../billing/ledger";
 
 // The OpenAI tool the agent may call to attach a single animated GIF to its
 // reply. Sibling of get_meme — a GIF is the more dynamic/animated choice. The
@@ -61,6 +62,15 @@ export type GetGifDeps = {
   // prompt's never-echo rule: the exact same asset can never be re-sent, even
   // if the decider picks the same query at randomness 1.
   excludeIds?: ReadonlySet<string>;
+  // Optional "look at the results and pick the best" selector (the validated
+  // looks-&-picks design). Given the ranked candidate titles, returns the chosen
+  // index (+ usage to bill). Injected as a callback so this module stays free of
+  // any model/OpenAI coupling. Absent → blind front-biased randomness pick. The
+  // caller only passes it for broad queries; exact references stay on the top
+  // hit (see streamAgentAnswer's randomness gate).
+  selectIndex?: (
+    titles: string[],
+  ) => Promise<{ index: number; usage: ModelUsage }>;
 };
 
 export type GetGifResult = {
@@ -74,6 +84,9 @@ export type GetGifResult = {
   // dancing"). The media pipeline hands this to the reply model so it knows what
   // GIF is attached and can riff on it; never shown to the user verbatim.
   title?: string;
+  // Usage from the optional look-&-pick selector, surfaced so the orchestrator
+  // can bill it alongside the decider + reply. Absent when no selector ran.
+  selectUsage?: ModelUsage;
 };
 
 // Map the top Klipy GIF hit onto our attachment shape, then revalidate it
@@ -141,11 +154,30 @@ export async function runGetGif(
         (c): c is { gif: ValidatedMessageGif; title: string } => c.gif !== null,
       )
       // Never re-send the user's own GIF or a recent reaction: drop excluded ids
-      // from the pool so the randomness pick can only land on a fresh asset.
+      // from the pool so the pick can only land on a fresh asset.
       .filter((c) => !exclude || !exclude.has(c.gif.id));
-    const chosen =
-      candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
-      null;
+    if (candidates.length === 0) {
+      return { content: JSON.stringify({ found: false }) };
+    }
+
+    // Look-&-pick when a selector is supplied (broad queries) and there's a real
+    // choice; otherwise the blind front-biased randomness pick. Either way the
+    // index is clamped, so a bad selector can't index out of range.
+    let index: number;
+    let selectUsage: ModelUsage | undefined;
+    if (deps.selectIndex && candidates.length > 1) {
+      const sel = await deps.selectIndex(candidates.map((c) => c.title));
+      index =
+        Number.isInteger(sel.index) &&
+        sel.index >= 0 &&
+        sel.index < candidates.length
+          ? sel.index
+          : 0;
+      selectUsage = sel.usage;
+    } else {
+      index = pickIndexByRandomness(candidates.length, randomnessFactor);
+    }
+    const chosen = candidates[index] ?? null;
     if (!chosen) {
       return { content: JSON.stringify({ found: false }) };
     }
@@ -154,6 +186,7 @@ export async function runGetGif(
       content: JSON.stringify({ found: true }),
       gif: chosen.gif,
       title: chosen.title,
+      selectUsage,
     };
   } catch (err) {
     if (err instanceof KlipyError) {

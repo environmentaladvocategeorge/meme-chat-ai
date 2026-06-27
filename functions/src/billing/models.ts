@@ -61,3 +61,11 @@ export const AVATAR_IMAGE_QUALITY = "low" as const;
 // input cost (~100 chars) is absorbed; the per-image output price dominates.
 // At USD_PER_CREDIT ($0.001) this is ~5 credits/image → ~10 per two-image batch.
 export const AVATAR_IMAGE_USD = 0.005;
+
+// ── Web search (Tavily) ──────────────────────────────────────────────────────
+// Flat USD cost of ONE Tavily `/search` call at search_depth "basic". Like
+// AVATAR_IMAGE_USD this must track Tavily's published per-search price — if it
+// drifts the web-search credit charge lies. Billed on top of the turn's token
+// cost (the nano router + the extra responder input tokens are token-billed
+// separately). At USD_PER_CREDIT ($0.001) this is ~8 credits/search.
+export const TAVILY_SEARCH_USD = 0.008;

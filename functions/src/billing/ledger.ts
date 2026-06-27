@@ -48,6 +48,11 @@ export type SettlementInput = {
   usages: ModelUsage[];
   costUsd: number;
   credits: number;
+  // Portion of `costUsd` that came from a flat-rate web search (Tavily) on this
+  // turn rather than token usage. The caller already folds it into `costUsd`/
+  // `credits`; this is stored on the usageEvent purely for cost attribution so
+  // dashboards can split out web-search spend. Omitted/0 when no search ran.
+  searchCostUsd?: number;
 };
 
 // Builds a SettlementInput for a charge billed as a flat USD cost rather than
@@ -197,6 +202,9 @@ export async function chargeCredits(
       ...usageTokenFields(settlement.usages),
       costUsd: settlement.costUsd,
       credits: settlement.credits,
+      // Flat web-search spend folded into costUsd above; recorded separately so
+      // dashboards can attribute it. Always present (0 when no search ran).
+      searchCostUsd: settlement.searchCostUsd ?? 0,
       createdAt: FieldValue.serverTimestamp(),
     });
   });
@@ -211,5 +219,6 @@ export async function chargeCredits(
     ...usageTokenFields(settlement.usages),
     costUsd: settlement.costUsd,
     credits: settlement.credits,
+    searchCostUsd: settlement.searchCostUsd ?? 0,
   });
 }

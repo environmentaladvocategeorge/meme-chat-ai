@@ -46,6 +46,10 @@ export type BuildReplyContextArgs = {
   // Klipy titles of the current turn's attachments (newer clients only).
   currentAttachmentTitles?: CurrentAttachmentTitles;
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Live web context the search pipeline fetched for this turn (already wrapped
+  // by gatherWebContext). Injected as a fresh-tail system note; omitted when no
+  // search ran.
+  webContext?: string;
   userAlias?: string | null;
   userLanguage?: string | null;
   // Pre-rendered reply memory block. When the orchestrator has already read the
@@ -97,6 +101,7 @@ export class Agent {
       currentGifFrames: args.currentGifFrames,
       currentAttachmentTitles: args.currentAttachmentTitles,
       attachedMedia: args.attachedMedia,
+      webContext: args.webContext,
       userAlias: args.userAlias,
       userLanguage: args.userLanguage,
       excludeMessageIds: args.excludeMessageIds,

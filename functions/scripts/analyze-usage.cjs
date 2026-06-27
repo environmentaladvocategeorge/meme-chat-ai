@@ -64,8 +64,12 @@ function n(x) {
     miniOutputTokens: 0,
     costUsd: 0,
     credits: 0,
+    // Flat web-search (Tavily) spend folded into costUsd (auto-summed below).
+    searchCostUsd: 0,
   };
   let plan = "?";
+  // Turns that actually ran a paid web search (searchCostUsd > 0).
+  let searchedTurns = 0;
   for (const e of events) {
     plan = e.plan ?? plan;
     const k = e.kind ?? "turn";
@@ -78,6 +82,7 @@ function n(x) {
       if (key === "events") continue;
       tot[key] += n(e[key]);
     }
+    if (n(e.searchCostUsd) > 0) searchedTurns += 1;
     tot.events += 1;
   }
 
@@ -120,10 +125,16 @@ function n(x) {
   console.log(`output (total):        ${tot.outputTokens}  (reasoning ${tot.reasoningTokens})`);
   console.log(`  nano in/cached/out:  ${tot.nanoInputTokens} / ${tot.nanoCachedInputTokens} / ${tot.nanoOutputTokens}`);
   console.log(`  mini in/cached/out:  ${tot.miniInputTokens} / ${tot.miniCachedInputTokens} / ${tot.miniOutputTokens}`);
+  const turnEvents = byKind.turn?.events ?? 0;
+  const searchedPct = turnEvents ? ((searchedTurns / turnEvents) * 100).toFixed(0) : "0";
   console.log("\n--- cost ---");
   console.log(`total costUsd:         $${tot.costUsd.toFixed(5)}`);
   console.log(`total credits:         ${tot.credits.toFixed(2)}`);
   console.log(`avg credits / turn:    ${byKind.turn?.events ? (byKind.turn.credits / byKind.turn.events).toFixed(2) : "n/a"}`);
+  console.log("\n--- web search (Tavily) ---");
+  console.log(`searched turns:        ${searchedTurns} / ${turnEvents} turns (${searchedPct}%)`);
+  console.log(`web search costUsd:    $${tot.searchCostUsd.toFixed(5)}  (${tot.costUsd ? ((tot.searchCostUsd / tot.costUsd) * 100).toFixed(1) : "0"}% of total cost)`);
+  console.log(`avg cost / searched:   ${searchedTurns ? "$" + (tot.searchCostUsd / searchedTurns).toFixed(5) : "n/a"}`);
   console.log("\n--- vs FREE budget ---");
   console.log(`free daily cap:        ${dailyCap} credits  (${daysInMonth(now)}-day month)`);
   console.log(`free monthly:          ${FREE_MONTHLY_CREDITS} credits`);

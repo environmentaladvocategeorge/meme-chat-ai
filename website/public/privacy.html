@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy Policy &middot; Meme Chat AI</title>
-    <meta name="description" content="Privacy policy for Meme Chat AI: what we collect, how OpenAI (including meme/GIF image inputs, photos you attach, and the custom personas and avatars you create, including AI-generated avatars and AI-written descriptions), Firebase, RevenueCat, and Klipy process your data, the Memory feature and how to opt out, how we moderate custom personas, the date-of-birth age gate, device permissions, and how to delete your data." />
+    <meta name="description" content="Privacy policy for Meme Chat AI: what we collect, how OpenAI (including meme/GIF image inputs, photos you attach, and the custom personas and avatars you create, including AI-generated avatars and AI-written descriptions), Firebase, RevenueCat, Klipy, and Tavily (web search) process your data, the Memory feature and how to opt out, how we moderate custom personas, the date-of-birth age gate, device permissions, and how to delete your data." />
     <link rel="canonical" href="https://meme-chat-ai.com/privacy" />
     <link rel="stylesheet" href="/styles.css?v=3" />
     <style>
@@ -80,7 +80,7 @@
 
       <ul class="meta">
         <li><strong>App:</strong> Meme Chat AI</li>
-        <li><strong>Effective date:</strong> June 17, 2026</li>
+        <li><strong>Effective date:</strong> June 21, 2026</li>
         <li><strong>Applies to app version:</strong> 1.1.0 and later</li>
         <li><strong>Applies to:</strong> the Meme Chat AI mobile app (iOS and Android), its backend services, and this website at https://meme-chat-ai.com</li>
         <li><strong>Minimum age:</strong> 16 and older</li>
@@ -93,8 +93,10 @@
         and download trending memes and GIFs. To make that work, your messages —
         and the meme/GIF images involved in a chat — are sent to OpenAI to
         generate replies and are stored in our Firebase backend; meme and GIF
-        media come from Klipy; and subscriptions run through RevenueCat with the
-        app stores. You can also build your own custom chat personas: the text
+        media come from Klipy; when the AI determines a message needs current,
+        real-world information, a short search query derived from your message is
+        sent to Tavily (a web-search provider) and the results are used to inform
+        the reply; and subscriptions run through RevenueCat with the app stores. You can also build your own custom chat personas: the text
         you write and any avatar you upload are screened by automated moderation
         before the persona goes live, the persona's text is sent to OpenAI as
         part of its prompt when you chat with it, and the personas you make are
@@ -123,6 +125,7 @@
         <li><strong>Firebase / Google Cloud</strong> — accounts, database, and backend logic.</li>
         <li><strong>OpenAI</strong> — generates AI chat replies, conversation titles, conversation summaries, and (optionally) persona avatar images from a short text description you provide; also used for content moderation, including moderation of the custom personas and avatars you create (see Section 18). <strong>The App sends OpenAI both text and image inputs</strong> (see Sections 5, 6, and 7).</li>
         <li><strong>Klipy</strong> — supplies trending meme and GIF media and powers meme/GIF search.</li>
+        <li><strong>Tavily</strong> — a web-search provider used only when the AI determines a message needs current, real-world information; it receives a short search query derived from your message and returns web results that inform the reply (see Section 5).</li>
         <li><strong>RevenueCat</strong> — manages subscriptions and entitlements (with Apple App Store and Google Play as the payment rails).</li>
         <li><strong>Google AdMob</strong> — shows ads (and, where used, rewarded ads) to free users; paid plans are ad-free.</li>
       </ul>
@@ -229,6 +232,11 @@
             <td>Klipy meme/GIF request data</td>
             <td><code>customer_id</code> (= your Firebase UID), page, results-per-page, locale/country, content-filter level, and a search query — which may be one you type <em>or</em> one the AI generates from the conversation</td>
             <td>Sent to Klipy via our backend</td>
+          </tr>
+          <tr>
+            <td>Web search query data</td>
+            <td>A short search query the AI generates from your message (and recent conversation context) when it determines the turn needs current, real-world information; no account identifier is sent</td>
+            <td>Sent to Tavily via our backend; results inform the AI reply and are not stored long-term (see Section 5)</td>
           </tr>
           <tr>
             <td>Content moderation records</td>
@@ -405,6 +413,42 @@
         chats unless you are comfortable having it processed this way.
       </div>
 
+      <h3>Web search (Tavily)</h3>
+      <p>
+        To answer questions that depend on current, real-world information (for
+        example recent events, news, scores, prices, or anything that changes
+        over time and may be beyond the AI's training knowledge), the App can
+        perform a web search on your behalf. This happens automatically and only
+        when it is needed:
+      </p>
+      <ul>
+        <li>For each message, a lightweight OpenAI model (a "router") looks at
+            your message and recent conversation context and decides whether a
+            web search is required. Most messages — jokes, chit-chat, opinions,
+            general knowledge — do <strong>not</strong> trigger a search.</li>
+        <li>When a search is warranted, that model rewrites your message into a
+            short, clean search query (for example, turning a casual question
+            into a few keywords). <strong>This query is generated from your
+            message and recent context, so conversation-derived terms — not only
+            text you type — may be included in it.</strong></li>
+        <li>Our backend sends that query to <strong>Tavily</strong>, a web-search
+            provider, which returns a brief set of results (a short answer and a
+            few source snippets and links).</li>
+        <li>Those results are added to the context sent to OpenAI for that one
+            reply, so the AI can answer accurately. The fetched results are
+            <strong>not stored long-term</strong> by us; only the AI's resulting
+            reply is saved as part of your conversation (see Section 7).</li>
+      </ul>
+      <p>
+        We send Tavily only the search query and the parameters needed to run the
+        search. <strong>We do not send Tavily your account identifier, your email,
+        or your full conversation</strong> — just the short query. Tavily's
+        processing, retention, and any logging are governed by Tavily's own
+        <a href="https://tavily.com/privacy">privacy policy</a>. Web search uses
+        the same usage allowance as chat (the search and the extra context are
+        metered like any other AI usage; see Section 13). Results returned from
+        the web can be inaccurate, incomplete, or out of date.
+      </p>
       <p>
         AI responses can be inaccurate, incomplete, or out of date. Do not rely
         on them as professional advice.
@@ -557,7 +601,8 @@
         </li>
         <li>
           <strong>Cloud Functions</strong> run our backend logic, including the
-          AI streaming proxy and OpenAI calls, the Klipy proxy, account and
+          AI streaming proxy and OpenAI calls, the Klipy proxy, the web-search
+          proxy (Tavily), account and
           conversation deletion, the RevenueCat webhook, title generation,
           summarization, usage aggregation, rate limiting, content moderation
           (see Section 18), and server-side watermarking of downloaded media
@@ -784,7 +829,7 @@
       <ul>
         <li>confirm your age eligibility;</li>
         <li>create and authenticate your account and keep you signed in;</li>
-        <li>provide AI chat, including titles, summaries, and meme/GIF reactions;</li>
+        <li>provide AI chat, including titles, summaries, meme/GIF reactions, and web search for current information when a message needs it;</li>
         <li>store and show your conversation history, ratings, and personalization;</li>
         <li>provide the Memory feature (for paid subscribers who have it enabled), using memory notes as additional context in AI sessions;</li>
         <li>let you build, edit, and chat with custom personas, and moderate each one before it goes live;</li>
@@ -804,6 +849,7 @@
         <li><strong>OpenAI</strong> — chat content and conversation context, meme/GIF image inputs, photos you attach, the text and avatar of custom personas you create (for moderation and as the persona prompt), moderation checks, and the inputs for titles/summaries.</li>
         <li><strong>Firebase / Google Cloud</strong> — account, database, and backend processing.</li>
         <li><strong>Klipy</strong> — meme/GIF media requests, including your UID as <code>customer_id</code> and any search query (typed or AI-generated).</li>
+        <li><strong>Tavily</strong> — a short, AI-generated web-search query (no account identifier), when a message needs current information.</li>
         <li><strong>RevenueCat, Apple, and Google</strong> — purchase and subscription processing.</li>
         <li><strong>Google AdMob</strong> — ad requests and the technical / ad-delivery information listed in Section 14, for ads shown to free users.</li>
         <li><strong>Legal/safety</strong> — where required by law, to enforce our terms, or to protect users and the service.</li>
@@ -910,7 +956,8 @@
         <li><strong>De-identified RevenueCat webhook / audit records</strong> may be retained for accounting, fraud-prevention, and legal purposes, including after account deletion.</li>
         <li><strong>Hashed IP rate-limit records</strong> are short-lived and swept automatically by a time-to-live policy. Raw IP that appears in our Cloud Functions diagnostic logs is retained for up to 30 days under Google Cloud Logging's default retention.</li>
         <li><strong>Local device data</strong> (settings, onboarding flag, alias, customization, rot level, session, persona selection, persona drafts, review-prompt state, and scheduled daily notifications) is removed on sign-out, account deletion, or App deletion — <strong>except the age-gate status and date of birth</strong>, which are intentionally retained on the device after account deletion and cleared only by deleting the App.</li>
-        <li><strong>Third parties</strong> (OpenAI, Klipy, RevenueCat, Apple, Google) retain data under their own policies.</li>
+        <li><strong>Web search results</strong> fetched from Tavily are used only to inform a single AI reply and are not stored long-term by us (the resulting reply is saved as part of your conversation).</li>
+        <li><strong>Third parties</strong> (OpenAI, Klipy, Tavily, RevenueCat, Apple, Google) retain data under their own policies.</li>
       </ul>
 
       <!-- ===================================================== -->
@@ -950,7 +997,7 @@
         <li>hashed IP rate-limit records (until their time-to-live sweep);</li>
         <li>the local age-gate status and date of birth on your device;</li>
         <li>purchase/transaction records held by RevenueCat, Apple, or Google;</li>
-        <li>any API logs OpenAI retains, and any records held by Klipy.</li>
+        <li>any API logs OpenAI retains, and any records held by Klipy or Tavily.</li>
       </ul>
       <p>
         <strong>Deleting your account does not cancel your subscription</strong>
@@ -1011,7 +1058,7 @@
           <tr><td>Purchases</td><td>Subscription status, product IDs, entitlement status, purchase/transaction metadata (via RevenueCat/Apple/Google)</td><td>Yes</td><td>App functionality, fraud prevention</td></tr>
           <tr><td>Usage data</td><td>Token counts, credits, plan/model, usage events, ratings/reactions</td><td>Yes</td><td>App functionality, billing</td></tr>
           <tr><td>Diagnostics</td><td>Logs, errors, IP/network data, attachment metadata, rate-limit data</td><td>Yes</td><td>Security, diagnostics, app functionality</td></tr>
-          <tr><td>Search history</td><td>Meme/GIF search queries sent to Klipy — typed by you or generated by the AI from the conversation</td><td>Yes</td><td>App functionality (meme/GIF search/attachment)</td></tr>
+          <tr><td>Search history</td><td>Meme/GIF search queries sent to Klipy — typed by you or generated by the AI from the conversation — and AI-generated web-search queries sent to Tavily when a message needs current information</td><td>Yes</td><td>App functionality (meme/GIF search/attachment; web search)</td></tr>
           <tr><td>Photos or videos</td><td>Photos you take or choose to attach to a message are uploaded and sent to OpenAI. (Separately, the App saves watermarked memes/GIFs to your gallery via add/save access and does not otherwise read your library.)</td><td>Yes</td><td>App functionality (chat attachments)</td></tr>
           <tr><td>Coarse location</td><td>Locale/country code (not collected as device location)</td><td>&mdash;</td><td>Meme/GIF localization</td></tr>
           <tr><td>Notifications</td><td>Permission requested; no push token collected in the current version</td><td>&mdash;</td><td>&mdash;</td></tr>
@@ -1031,7 +1078,7 @@
       <p>
         Your data may be processed in the United States and other countries by
         us and our service providers, including Firebase / Google Cloud, OpenAI,
-        Klipy, RevenueCat, Apple, and Google. Where required, transfers are
+        Klipy, Tavily, RevenueCat, Apple, and Google. Where required, transfers are
         intended to rely on appropriate safeguards such as Standard Contractual
         Clauses or equivalent mechanisms.
       </p>

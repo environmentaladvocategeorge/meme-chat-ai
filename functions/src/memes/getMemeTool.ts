@@ -8,6 +8,7 @@ import {
 } from "../messages/messageImage";
 import { KlipyError, searchMemes } from "./klipy";
 import type { ContentFilter, TrendingMeme } from "./types";
+import type { ModelUsage } from "../billing/ledger";
 
 // Curated bank of meme references that exist on Klipy as near-exact titles,
 // each paired with the moment it fits. Klipy's search matches REFERENCES, not
@@ -92,6 +93,13 @@ export type GetMemeDeps = {
   // user JUST sent plus the bot's recent reactions. A hard backstop to the
   // prompt's never-echo rule so the exact same asset is never re-sent.
   excludeIds?: ReadonlySet<string>;
+  // Optional look-&-pick selector (see getGifTool's GetGifDeps.selectIndex):
+  // given the ranked candidate titles, returns the chosen index + usage. Absent
+  // → blind randomness pick. Only passed for broad queries; references lock to
+  // the top hit.
+  selectIndex?: (
+    titles: string[],
+  ) => Promise<{ index: number; usage: ModelUsage }>;
 };
 
 export type GetMemeResult = {
@@ -105,6 +113,9 @@ export type GetMemeResult = {
   // The chosen meme's Klipy title — a short description handed to the reply
   // model (via the media pipeline) so it knows what's attached. Not shown raw.
   title?: string;
+  // Usage from the optional look-&-pick selector, surfaced so the orchestrator
+  // can bill it alongside the decider + reply. Absent when no selector ran.
+  selectUsage?: ModelUsage;
 };
 
 // Map the top Klipy hit onto our message-attachment shape, then revalidate it
@@ -174,11 +185,29 @@ export async function runGetMeme(
           c.meme !== null,
       )
       // Never re-send the user's own meme or a recent reaction: drop excluded
-      // ids so the randomness pick can only land on a fresh asset.
+      // ids so the pick can only land on a fresh asset.
       .filter((c) => !exclude || !exclude.has(c.meme.id));
-    const chosen =
-      candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
-      null;
+    if (candidates.length === 0) {
+      return { content: JSON.stringify({ found: false }) };
+    }
+
+    // Look-&-pick when a selector is supplied (broad queries) with a real
+    // choice; otherwise the blind front-biased randomness pick.
+    let index: number;
+    let selectUsage: ModelUsage | undefined;
+    if (deps.selectIndex && candidates.length > 1) {
+      const sel = await deps.selectIndex(candidates.map((c) => c.title));
+      index =
+        Number.isInteger(sel.index) &&
+        sel.index >= 0 &&
+        sel.index < candidates.length
+          ? sel.index
+          : 0;
+      selectUsage = sel.usage;
+    } else {
+      index = pickIndexByRandomness(candidates.length, randomnessFactor);
+    }
+    const chosen = candidates[index] ?? null;
     if (!chosen) {
       return { content: JSON.stringify({ found: false }) };
     }
@@ -190,6 +219,7 @@ export async function runGetMeme(
       content: JSON.stringify({ found: true }),
       meme: chosen.meme,
       title: chosen.title,
+      selectUsage,
     };
   } catch (err) {
     if (err instanceof KlipyError) {

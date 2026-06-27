@@ -4,6 +4,8 @@ import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import { pickBestMediaIndex } from "./agent/pickBestMedia";
+import { gatherWebContext } from "./agent/webSearch";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
@@ -57,6 +59,9 @@ const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
 // configured the tool is simply not offered and the agent replies text-only.
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+// The Tavily key powering the web-search router pre-step. Optional: when it isn't
+// configured, gatherWebContext no-ops and every turn behaves search-free.
+const TAVILY_API_KEY = defineSecret("TAVILY_API_KEY");
 
 // One reusable, stateless memory-service instance per function instance.
 const memoryService = new MemoryService();
@@ -93,7 +98,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
 // abuse protection.
 export const streamAgentAnswer = onRequest(
   {
-    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
+    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY, TAVILY_API_KEY],
     timeoutSeconds: 540,
     memory: "512MiB",
     minInstances: 1,
@@ -311,6 +316,12 @@ export const streamAgentAnswer = onRequest(
     // GIF/meme it picked — fetched BEFORE the reply so the model knows what's
     // attached and the client can show it first (like texting a gif, then typing).
     let decideUsage: ModelUsage | null = null;
+    // Usage from the look-&-pick selector (nano), billed alongside the decider.
+    let pickUsage: ModelUsage | null = null;
+    // Usage from the web-search router (nano), and the flat USD cost of the Tavily
+    // call when one ran — both billed alongside the reply (see chargeForUsage).
+    let webRouterUsage: ModelUsage | null = null;
+    let searchCostUsd = 0;
     let pendingGif: MessageGif | null = null;
     let pendingMeme: MessageImage | null = null;
     // GIF frames decoded for the decider; reused by assembleContext so the GIF
@@ -342,11 +353,23 @@ export const streamAgentAnswer = onRequest(
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
-      // Loaded for the media decider's context (used when media is on).
+      // Loaded once for both pre-steps' context (media decider + web router).
       const priorMessages = await loadRecentMessages(conversationId, 12);
+      const deciderContext = buildDeciderContext(priorMessages);
+
+      // Web-search router (nano) + Tavily fetch, kicked off here WITHOUT awaiting
+      // so it runs concurrently with the media decider/fetch/pick below and hides
+      // under that latency. Awaited just before context assembly. Never throws;
+      // no-ops when the message is empty or the Tavily key is unset.
+      const webContextPromise = gatherWebContext({
+        openaiApiKey: OPENAI_API_KEY.value(),
+        tavilyApiKey: TAVILY_API_KEY.value(),
+        message: userText,
+        history: deciderContext.history,
+      });
+
       if (mediaEnabled) {
-        const { history, recentReactions, recentMediaIds } =
-          buildDeciderContext(priorMessages);
+        const { history, recentReactions, recentMediaIds } = deciderContext;
         // Hard never-echo backstop: the fetch tools drop these Klipy ids from
         // the result pool so the exact same asset can never be re-sent. Covers
         // the user's CURRENT attachments (the main echo source) plus everything
@@ -398,10 +421,24 @@ export const streamAgentAnswer = onRequest(
         deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
+          // Look-&-pick on BROAD queries only (randomness > 2): a cheap nano
+          // read of the real result titles, choosing the best fit instead of a
+          // blind random pick. Exact references (randomness 1-2) skip it and
+          // keep the top hit — no extra call, no drift off the canonical match.
+          const selectIndex =
+            decision.randomnessFactor > 2
+              ? (titles: string[]) =>
+                  pickBestMediaIndex({
+                    apiKey: OPENAI_API_KEY.value(),
+                    message: currentForDecider,
+                    titles,
+                  })
+              : undefined;
           const klipyDeps = {
             apiKey: klipyApiKey,
             customerId: uid,
             excludeIds,
+            selectIndex,
           };
           const rawArgs = JSON.stringify({
             query: decision.query,
@@ -411,6 +448,7 @@ export const streamAgentAnswer = onRequest(
           try {
             if (decision.type === "gif") {
               const r = await runGetGif(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.gif) {
                 pendingGif = r.gif;
                 attachedMedia = {
@@ -422,6 +460,7 @@ export const streamAgentAnswer = onRequest(
               }
             } else {
               const r = await runGetMeme(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.meme) {
                 pendingMeme = r.meme;
                 attachedMedia = {
@@ -464,6 +503,12 @@ export const streamAgentAnswer = onRequest(
         respondWithEmojis,
         memory: memoryService,
       });
+      // Join the concurrent web-search pre-step before assembling context. Its
+      // router usage + flat search cost are billed in chargeForUsage; the fetched
+      // context (when any) is injected as a fresh-tail system note.
+      const web = await webContextPromise;
+      webRouterUsage = web.routerUsage;
+      searchCostUsd = web.searchCostUsd;
       const replyContext = await agent.buildReplyContext({
         conversationId,
         currentUserMessage: userText,
@@ -472,6 +517,7 @@ export const streamAgentAnswer = onRequest(
         currentGifFrames: deciderGifFrames,
         currentAttachmentTitles: attachmentTitles,
         attachedMedia,
+        webContext: web.webContext ?? undefined,
         userAlias: entitlement.alias,
         userLanguage: language,
         // Already read above for the decider — hand the reply view to the Agent
@@ -525,6 +571,20 @@ export const streamAgentAnswer = onRequest(
       ) {
         usages.push(decideUsage);
       }
+      // The look-&-pick selector (nano), when it ran on a broad query.
+      if (
+        pickUsage &&
+        (pickUsage.inputTokens > 0 || pickUsage.outputTokens > 0)
+      ) {
+        usages.push(pickUsage);
+      }
+      // The web-search router (nano), when it actually hit the API.
+      if (
+        webRouterUsage &&
+        (webRouterUsage.inputTokens > 0 || webRouterUsage.outputTokens > 0)
+      ) {
+        usages.push(webRouterUsage);
+      }
       if (lastUsage) {
         usages.push({
           model: internalModel,
@@ -551,10 +611,12 @@ export const streamAgentAnswer = onRequest(
       }
 
       try {
-        const costUsd = usages.reduce(
+        const tokenCostUsd = usages.reduce(
           (sum, u) => sum + calculateCostUsd(u.model, u),
           0,
         );
+        // Fold the flat Tavily search cost into the turn's total before credits.
+        const costUsd = tokenCostUsd + searchCostUsd;
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
           conversationId: conversationId!,
@@ -563,6 +625,7 @@ export const streamAgentAnswer = onRequest(
           usages,
           costUsd,
           credits,
+          searchCostUsd,
         });
       } catch (err) {
         logger.error("[streamAgentAnswer] charge failed", {

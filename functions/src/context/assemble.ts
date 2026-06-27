@@ -81,6 +81,11 @@ export type AssembleArgs = {
   // the reply model knows what's attached and can riff on it. The model does not
   // attach media itself — this is purely informational.
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Live web context the search pipeline fetched for THIS turn (already wrapped
+  // with its usage instruction by gatherWebContext). Injected as its own system
+  // message in the fresh tail, right before the current turn, so the cacheable
+  // prefix stays identical. Omitted/empty when no search ran.
+  webContext?: string;
   // Per-turn style note (word-bank rotation + safety recap, see
   // personas/perTurnNote). Varies EVERY turn, so it must live here in the fresh
   // tail — putting it any earlier would cap the cacheable prefix at the static
@@ -313,6 +318,13 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
     if (args.perTurnNote) {
       out.push({ role: "system", content: args.perTurnNote });
     }
+    // Live web context (when a search ran) sits in the fresh tail too, after the
+    // style note and before the media note + current turn — never in the
+    // cacheable prefix, since it changes every searched turn.
+    const webContext = args.webContext?.trim();
+    if (webContext) {
+      out.push({ role: "system", content: webContext });
+    }
     if (args.attachedMedia) {
       out.push({
         role: "system",
@@ -428,6 +440,9 @@ export type AssembleContextArgs = {
   // Reaction GIF/meme the media pipeline chose for this reply (informational
   // note for the model — see AssembleArgs.attachedMedia).
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Live web context for this turn (see AssembleArgs.webContext). Passed straight
+  // through to the assembler; omitted when no search ran.
+  webContext?: string;
   // Per-turn style note (word-bank rotation + safety recap) — see
   // AssembleArgs.perTurnNote.
   perTurnNote?: string;
@@ -509,6 +524,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     currentGifFrames,
     currentAttachmentTitles: args.currentAttachmentTitles,
     attachedMedia: args.attachedMedia,
+    webContext: args.webContext,
     perTurnNote: args.perTurnNote,
     maxInputTokens: planCfg.maxInputTokens,
   });
