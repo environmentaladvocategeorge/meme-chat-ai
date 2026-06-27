@@ -53,7 +53,10 @@ function asDate(value: unknown): Date | null {
   return null;
 }
 
-function mapEntitlement(data: DocumentData | undefined): Entitlement {
+// Exported for direct unit testing (the listener wiring below is thin). Maps a
+// raw profiles/{uid} doc into the client Entitlement, applying plan/credit
+// fallbacks and the daily-window reset-for-display.
+export function mapEntitlement(data: DocumentData | undefined): Entitlement {
   const plan: PlanId = isPlanId(data?.plan) ? data.plan : "free";
   const monthlyCredits =
     typeof data?.monthlyCredits === "number"

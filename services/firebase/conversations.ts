@@ -182,7 +182,8 @@ function asDate(value: unknown): Date | null {
   return null;
 }
 
-function mapConversation(id: string, data: DocumentData): ConversationSummary {
+// Exported for direct unit testing (mirrors mapMessage).
+export function mapConversation(id: string, data: DocumentData): ConversationSummary {
   return {
     id,
     uid: typeof data.uid === "string" ? data.uid : "",
@@ -196,7 +197,9 @@ function mapConversation(id: string, data: DocumentData): ConversationSummary {
   };
 }
 
-function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
+// Exported for direct unit testing — the live listeners below are thin wrappers
+// over this defensive Firestore->model mapper.
+export function mapMessage(id: string, data: DocumentData): StoredChatMessage | null {
   const role = data.role;
   const status = data.status;
 
