@@ -56,6 +56,7 @@ import {
   View,
 } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -153,9 +154,10 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   // and white icon fade in, muted icon fades out (and vice versa) as the
   // user types or clears the draft, instead of snapping between states.
   const sendActiveProgress = useSharedValue(0);
-  // Continuous breathing loop driving the stop button's "working" ring
-  // while a reply streams.
-  const pulse = useSharedValue(0);
+  // Drives the stop button's rotating "working" arc while a reply streams.
+  // Runs only during a stream (see the effect) and sits at 0 between streams,
+  // so the spinner always begins a fresh turn from the top.
+  const spin = useSharedValue(0);
   // Tap feedback: a quick dip-and-settle scale plus a faint brighten flash
   // when the user taps the text area — the small "alive" cue ChatGPT's
   // composer has. Lives only on the text region so the send/expand buttons
@@ -194,22 +196,27 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
     });
   }, [canSend, sendActiveProgress]);
 
+  // Spin the arc only while streaming, and reset to 0 the moment a stream ends
+  // (the else branch). That reset is what makes a rotating arc safe here: the
+  // earlier version left the angle wherever the cancelled stream froze, so the
+  // next send started mid-rotation and read as a random snap. Sitting at 0
+  // between streams means every spinner begins a clean turn from the top.
   useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-      -1,
-      true,
-    );
-  }, [pulse]);
+    if (streaming) {
+      spin.value = 0;
+      spin.value = withRepeat(
+        withTiming(360, { duration: 1000, easing: Easing.linear }),
+        -1,
+        false,
+      );
+    } else {
+      cancelAnimation(spin);
+      spin.value = 0;
+    }
+  }, [streaming, spin]);
 
-  // Stop-button "working" treatment: the ring breathes (opacity pulse) while
-  // a reply streams. Deliberately NOT a rotating arc — the arc's first frames
-  // on each send painted at whatever angle the previous stream's cancelled
-  // animation froze at (before the reset effect ran), which read as the send
-  // button snapping to a random rotation. An opacity pulse has no angle to be
-  // stale at. Rides the composer's always-running `pulse` loop.
-  const stopRingStyle = useAnimatedStyle(() => ({
-    opacity: 0.35 + pulse.value * 0.65,
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value}deg` }],
   }));
 
   const triggerPressFeedback = useCallback(() => {
@@ -453,35 +460,42 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
           >
             {showStop ? (
               <>
-                {/* Faint static track the arc orbits on. */}
+                {/* Faint full track the arc sweeps over. */}
                 <View
                   pointerEvents="none"
                   style={{
                     ...StyleSheet.absoluteFillObject,
                     borderRadius: SEND_BUTTON_SIZE / 2,
-                    borderWidth: 2.5,
+                    borderWidth: 3,
                     borderColor: theme["--color-border"],
                   }}
                 />
-                {/* Breathing ring: the full primary ring pulses over the track
-                    to read as "working" without any rotation. */}
+                {/* Rotating accent arc: a bright ~half-ring sweeping the track —
+                    a recognizable circular loader that reads at a glance as
+                    "working, tap to stop". The two transparent edges let the
+                    track show through as the lit segment orbits. Uses
+                    --color-primary so it stays on-brand and high-contrast in
+                    both light and dark. */}
                 <Animated.View
                   pointerEvents="none"
                   style={[
                     {
                       ...StyleSheet.absoluteFillObject,
                       borderRadius: SEND_BUTTON_SIZE / 2,
-                      borderWidth: 2.5,
-                      borderColor: theme["--color-primary"],
+                      borderWidth: 3,
+                      borderColor: "transparent",
+                      borderTopColor: theme["--color-primary"],
+                      borderRightColor: theme["--color-primary"],
                     },
-                    stopRingStyle,
+                    spinStyle,
                   ]}
                 />
                 {/* --color-foreground: white in dark mode (the ask), and it
                     stays near-black in light mode so the icon never vanishes
-                    against the light pill. */}
+                    against the light pill. Slightly smaller so the spinning
+                    ring has clear breathing room around it. */}
                 <Stop
-                  size={16}
+                  size={14}
                   color={theme["--color-foreground"]}
                   weight="fill"
                 />
