@@ -45,7 +45,18 @@ import type { FragmentedPrompt } from "./fragments";
 // reaction, never a copy. A deterministic backstop in getGifTool/getMemeTool
 // also drops the user's just-sent id (and recent reaction ids) from the pool,
 // so the exact same asset can never be re-sent even if the model slips.
-export const MEDIA_DECIDER_VERSION = "v6";
+//
+// v7 (2026-06-27): TRENDING refresh. Swapped the spotlighted trending meme from
+// "sidetalk nyc" to "scuba" (the current meme of the moment — a cute cat/fox
+// bobbing along or a goofy "scuba" dance). scuba is word-triggered (SCUBAAA /
+// scuba), usable out of context on hype/chaos, AND fair game as a greeting
+// reaction right now; search terms scuba / scuba cat / scuba fox / scuba dance /
+// tung tung scuba. "sidetalk nyc" demoted into the permanent W/hype reaction
+// bank (no longer the headline trend). Also: rotated the greeting row (fresh
+// "hey you" / "whats good" / "elmo door" up front, "Elmo wave" + "SpongeBob hi"
+// to the back) and added a lighter "ALSO POPULAR (US)" pick, "Love Island USA".
+// Content-only — no deploy, just a re-push.
+export const MEDIA_DECIDER_VERSION = "v7";
 
 // The live Firestore doc the push script targets.
 export const MEDIA_DECIDER_DOC_PATH = "platform_prompts/media_decider_v1";
@@ -97,11 +108,11 @@ Avoid any query already used recently in this chat (see REPEAT RULE). Within a b
       // Klipy also has a live "Trending Search Terms" endpoint — future option:
       // inject live top terms as a small dynamic fragment instead of hardcoding.
       text: `REACTION BANK (sparks, not a menu)
-- greeting: Elmo wave, SpongeBob hi, Obi-Wan hello there, its been 84 years, Kermit waving, jim carrey hello, hasbullah hello
+- greeting: hey you, whats good, elmo door, Obi-Wan hello there, its been 84 years, Kermit waving, jim carrey hello, hasbullah hello, scuba cat, Elmo wave, SpongeBob hi
 - shock: shocked Pikachu, confused Math Lady, turtle shook, Wtf Tom Delonge, One Piece shocked
 - confused: John Travolta confused, Nick Young blinking guy, huh cat
 - judging: Gordon Ramsay disappointed, Squidward judging, side eye monkey
-- W / hype / entrance: massive W, LeBron celebration, gigachad, mic drop, Peaky Blinders walk
+- W / hype / entrance: massive W, LeBron celebration, gigachad, mic drop, Peaky Blinders walk, sidetalk nyc
 - no / nope / evasive: Michael Scott no, Evil Kermit, Peter Griffin perhaps
 - tired / over it: SpongeBob tired, this is fine dog, no thoughts head empty, penguin walking away
 - sad-cope (jokey devastation, NOT real grief): crying cat, sad corner, stranger things crying
@@ -109,7 +120,8 @@ Avoid any query already used recently in this chat (see REPEAT RULE). Within a b
 - laughing: crying laughing cat, ryan gosling laughing
 - chaos / panic: SpongeBob panic, Charlie Day conspiracy board, dramatic chipmunk, dramatic realization
 - brainrot: six seven, tung tung tung sahur, tralalero tralala, bombardiro crocodilo, ballerina cappuccina, skibidi, let me cook, aura farming, sigma, ate no crumbs, delulu is the solulu
-TRENDING: query "sidetalk nyc" on NYC/Knicks pride or pure hype.`,
+TRENDING — the meme of the moment, lean on it: "scuba" (a cute cat or fox bobbing along, or a goofy "scuba" dance). Fire it when the user types SCUBAAA/scuba, drop it out of context on pure hype or chaos, and it even works as a greeting/hello reaction right now. Search "scuba", "scuba cat", "scuba fox", "scuba dance", or "tung tung scuba".
+ALSO POPULAR (US) right now: "Love Island USA" — an occasional pop-culture reaction when reality-TV drama, gossip, or messy-situation energy fits.`,
     },
     {
       key: "output",
@@ -129,6 +141,8 @@ query and randomness_factor are null when type is "none".`,
 "lol you're so dumb" -> {"type":"gif","query":"crying laughing cat","randomness_factor":6}
 "ayy we did it 🤝" -> {"type":"gif","query":"handshake","randomness_factor":18}
 "KNICKS IN 6 LETSGOOO" -> {"type":"gif","query":"sidetalk nyc","randomness_factor":3}
+"SCUBAAA 🤿" -> {"type":"gif","query":"tung tung scuba","randomness_factor":4}
+"yooo wsg" (greeting — the trending pick is fair game) -> {"type":"gif","query":"scuba cat","randomness_factor":5}
 "bro I'm actually cooked, this final is gonna end me lol" -> {"type":"gif","query":"SpongeBob panic","randomness_factor":4}
 (chat already shows [reaction sent: crying laughing cat]) "LMAOOO STOP" -> {"type":"gif","query":"ryan gosling laughing","randomness_factor":4}
 "send me some brainrot" -> {"type":"gif","query":"random brainrot","randomness_factor":30}

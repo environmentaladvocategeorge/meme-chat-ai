@@ -38,7 +38,15 @@ import type { FragmentedPrompt } from "./fragments";
 // user ATTACHED is never a query — REACT to it with a DIFFERENT reaction. A
 // deterministic id-exclude backstop in getGifTool/getMemeTool guarantees the
 // exact same asset can never be re-sent.
-export const PERSONA_MEDIA_DECIDER_VERSION = "v3";
+//
+// v4 (2026-06-27): added a small universal TRENDING fragment so the app-wide
+// meme of the moment ("scuba") can surface on the persona-decide path too —
+// kept deliberately SUBORDINATE (the creator's favorites/theme still come
+// first; scuba only when nothing on-theme fits, on a hype/chaos beat, as a
+// greeting, or when the user says SCUBAAA/scuba). Also carries a lighter US
+// "also popular" pick (Love Island USA). Mirrors the brainrot decider's v7
+// trending swap. Content-only — no deploy, just a re-push.
+export const PERSONA_MEDIA_DECIDER_VERSION = "v4";
 
 // The platform_prompts key user personas resolve their decider by (see
 // toResolvedPersonaForStream). Distinct from the brainrot MEDIA_DECIDER_KEY.
@@ -91,6 +99,16 @@ REPEAT RULE: if your best query (or a near-identical one) already appears in thi
       key: "variety",
       text: `VARIETY
 Avoid any query already used recently in this chat (see REPEAT RULE). When several persona-fitting options work equally, pick across them, not always the first. When the user keeps the same vibe going (another hype gif, another flex), escalate WITHIN that energy — a bigger hit of the same — instead of switching moods.`,
+    },
+    {
+      // Universal app-wide trend, kept subordinate to the persona's own taste so
+      // it never overrides a creator's favorites. Mirrors the brainrot decider's
+      // TRENDING line (mediaDeciderPrompt.ts). Swap this whenever the meme of the
+      // moment changes; bump PERSONA_MEDIA_DECIDER_VERSION and re-push.
+      key: "trending",
+      text: `TRENDING (universal, fits any persona)
+One meme is blowing up across the whole app right now: "scuba" — a cute cat or fox bobbing along, or a goofy "scuba" dance. It works as a fun out-of-context drop for ANY persona, and it's even fair game as a hello/greeting reaction. The persona's favorites and theme still come first, but reach for scuba when the user types SCUBAAA/scuba, on a pure-hype or chaos beat, or as a greeting when nothing on-theme fits better. Search "scuba", "scuba cat", "scuba fox", "scuba dance", or "tung tung scuba".
+Also popular in the US right now: "Love Island USA" — an occasional pop-culture reaction when reality-TV drama or gossip energy fits.`,
     },
     {
       key: "output",

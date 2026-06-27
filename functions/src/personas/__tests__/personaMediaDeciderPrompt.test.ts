@@ -27,8 +27,20 @@ const body = assembleFragments(PERSONA_MEDIA_DECIDER_FRAGMENTS, {
 describe("persona media decider prompt", () => {
   it("is a valid FragmentedPrompt that Firestore readers will accept", () => {
     expect(asFragmentedPrompt(PERSONA_MEDIA_DECIDER_FRAGMENTS)).not.toBeNull();
-    expect(PERSONA_MEDIA_DECIDER_VERSION).toBe("v3");
+    expect(PERSONA_MEDIA_DECIDER_VERSION).toBe("v4");
     expect(PERSONA_MEDIA_DECIDER_KEY).toBe("media_decider_persona");
+  });
+
+  it("carries the universal trending meme (scuba) but keeps it subordinate to the persona's taste", () => {
+    expect(body).toContain("TRENDING (universal");
+    expect(body).toContain("scuba");
+    expect(body).toContain("tung tung scuba");
+    // Usable as a greeting, per the trend's current popularity.
+    expect(body).toContain("greeting");
+    // It must NOT outrank the creator's own picks.
+    expect(body).toContain("favorites and theme still come first");
+    // The lighter US "also popular" pick rides along too.
+    expect(body).toContain("Love Island USA");
   });
 
   it("frames the turn as a custom, user-built persona", () => {

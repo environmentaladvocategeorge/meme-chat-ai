@@ -20,10 +20,43 @@ const assembled = assembleFragments(MEDIA_DECIDER_FRAGMENTS, {
   emojisEnabled: true,
 });
 
-describe("media decider prompt v6", () => {
+describe("media decider prompt v7", () => {
   it("is a valid FragmentedPrompt that Firestore readers will accept", () => {
     expect(asFragmentedPrompt(MEDIA_DECIDER_FRAGMENTS)).not.toBeNull();
-    expect(MEDIA_DECIDER_VERSION).toBe("v6");
+    expect(MEDIA_DECIDER_VERSION).toBe("v7");
+  });
+
+  it("spotlights the current trending meme (scuba), usable out of context and as a greeting", () => {
+    // The headline trend is scuba, not the old sidetalk nyc.
+    expect(assembled).toContain("TRENDING");
+    expect(assembled).toContain("scuba");
+    expect(assembled).toContain("tung tung scuba");
+    expect(assembled).toContain("greeting/hello reaction");
+    // scuba is in the greeting row so it's a live pick for hellos.
+    const bank = MEDIA_DECIDER_FRAGMENTS.fragments.find((f) => f.key === "reaction_bank");
+    expect(bank?.text).toContain("greeting:");
+    expect(bank?.text).toContain("scuba cat");
+  });
+
+  it("keeps sidetalk nyc as a permanent bank entry, no longer the headline trend", () => {
+    const bank = MEDIA_DECIDER_FRAGMENTS.fragments.find((f) => f.key === "reaction_bank");
+    expect(bank?.text).toContain("sidetalk nyc");
+    // It moved into the W/hype row, not the TRENDING line.
+    expect(bank?.text).not.toContain('"sidetalk nyc" on');
+  });
+
+  it("rotates the greeting row: fresh terms up front, Elmo wave / SpongeBob hi at the end", () => {
+    const row = assembled.split("\n").find((l) => l.startsWith("- greeting:")) ?? "";
+    expect(row).toContain("hey you");
+    expect(row).toContain("whats good");
+    expect(row).toContain("elmo door");
+    // The two old leads are demoted to the back of the row.
+    expect(row.indexOf("hey you")).toBeLessThan(row.indexOf("Elmo wave"));
+    expect(row.trimEnd().endsWith("SpongeBob hi")).toBe(true);
+  });
+
+  it("carries the lighter US 'also popular' pick (Love Island USA)", () => {
+    expect(assembled).toContain("Love Island USA");
   });
 
   it("has the react-to-attachment rung (rung 2), never echo", () => {
