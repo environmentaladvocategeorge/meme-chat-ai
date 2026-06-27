@@ -196,6 +196,30 @@ export async function deletePersonaCallable(
   return result.data;
 }
 
+// Durably cancels (deletes) an in-flight agent reply — the pause action. Unlike
+// closing the SSE socket (best-effort, racy), this deletes the agent message
+// server-side so it can never re-appear via the live listener, and signals the
+// still-running stream function to stop. Idempotent + best-effort: callers fire
+// it without awaiting, since the local UI clear has already happened. Pass the
+// agent serverId (`messageId`) when known, else the user turn's `clientMessageId`.
+export async function cancelAgentReplyCallable(args: {
+  conversationId: string;
+  messageId?: string;
+  clientMessageId?: string;
+}): Promise<{ success: true; deleted: number }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    { conversationId: string; messageId?: string; clientMessageId?: string },
+    { success: true; deleted: number }
+  >(firebase.services.functions, "cancelAgentReply");
+  const result = await callable(args);
+  return result.data;
+}
+
 export type MessageReaction = "up" | "down";
 
 // Records (or clears, when reaction is null) the caller's thumbs rating on a

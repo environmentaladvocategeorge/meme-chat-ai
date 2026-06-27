@@ -250,6 +250,22 @@ export async function appendMessage(
   return { messageId: messageRef.id };
 }
 
+// True for a Firestore Admin NOT_FOUND (gRPC status 5) — what `.update()` throws
+// when the target doc no longer exists. The stream functions use it to tell an
+// explicit pause (the agent doc was deleted) apart from a real write failure.
+function isNotFoundError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === 5
+  );
+}
+
+// Finalizes the streaming agent message to `complete`. Returns `{ saved: false }`
+// when the doc no longer exists (an explicit pause deleted it mid-stream) so the
+// caller can skip charging for a cancelled turn; `.update()` never recreates a
+// deleted doc, so a raced cancel can't resurrect the reply.
 export async function finalizeAgentMessage(
   conversationId: string,
   messageId: string,
@@ -260,7 +276,7 @@ export async function finalizeAgentMessage(
   // GIF attachment the agent chose for this turn (a get_gif result). Omitted
   // for plain text replies.
   gifs?: MessageGif[],
-): Promise<void> {
+): Promise<{ saved: boolean }> {
   const db = getFirestore();
 
   const messageUpdate: Record<string, unknown> = {
@@ -275,12 +291,17 @@ export async function finalizeAgentMessage(
     messageUpdate.gifs = gifs;
   }
 
-  await db
-    .collection("conversations")
-    .doc(conversationId)
-    .collection("messages")
-    .doc(messageId)
-    .update(messageUpdate);
+  try {
+    await db
+      .collection("conversations")
+      .doc(conversationId)
+      .collection("messages")
+      .doc(messageId)
+      .update(messageUpdate);
+  } catch (err) {
+    if (isNotFoundError(err)) return { saved: false };
+    throw err;
+  }
 
   const hasAttachment =
     Boolean(images && images.length > 0) || Boolean(gifs && gifs.length > 0);
@@ -293,6 +314,8 @@ export async function finalizeAgentMessage(
           ? "Sent a meme"
           : "",
   });
+
+  return { saved: true };
 }
 
 export async function markAgentMessageErrored(
@@ -446,6 +469,33 @@ export async function loadReplayTargets(
   }
 
   return { found: true, isLatest, agent, user };
+}
+
+// Watches a single message doc and invokes `onDeleted` the first time it stops
+// existing. The stream functions use this as the explicit-cancel signal: the
+// pause action deletes the in-flight agent doc (cancelAgentReply), and this
+// listener lets the still-running stream notice and abort. The initial snapshot
+// is the doc that already exists, so onDeleted never fires for a live doc — only
+// for an actual deletion. Returns an unsubscribe; listener errors are swallowed
+// (the deletion + finalize guard remain the authoritative cancel path).
+export function watchMessageDeleted(
+  conversationId: string,
+  messageId: string,
+  onDeleted: () => void,
+): () => void {
+  return getFirestore()
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .doc(messageId)
+    .onSnapshot(
+      (snap) => {
+        if (!snap.exists) onDeleted();
+      },
+      () => {
+        // Transient listener error — ignore.
+      },
+    );
 }
 
 // Hard-deletes a single message doc. Used by turn replay to remove the old

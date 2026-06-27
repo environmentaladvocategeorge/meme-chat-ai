@@ -30,6 +30,7 @@ import {
   loadRecentMessages,
   markAgentMessageErrored,
   markConversationFiltered,
+  watchMessageDeleted,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
 import {
@@ -556,6 +557,31 @@ export const streamAgentAnswer = onRequest(
     let agentMeme: MessageImage | null = pendingMeme;
     let agentGif: MessageGif | null = pendingGif;
     const abortController = new AbortController();
+    // Explicit-pause signal: cancelAgentReply deletes the agent doc and the
+    // watcher below flips this + aborts. Distinct from clientClosed (socket gone
+    // but the turn should still finish + persist).
+    let cancelled = false;
+    let unsubscribeCancelWatch: (() => void) | null = null;
+
+    // Guarded SSE write: once the socket is gone, skip writes and never let a
+    // write failure abort generation — the persisted message is the source of
+    // truth, so the turn still finalizes (finish & save on background).
+    const emit = (event: string, data: unknown) => {
+      if (clientClosed) return;
+      try {
+        writeSse(res, event, data);
+      } catch {
+        clientClosed = true;
+      }
+    };
+    const endResponse = () => {
+      if (clientClosed) return;
+      try {
+        res.end();
+      } catch {
+        clientClosed = true;
+      }
+    };
 
     // Charge the turn's real cost once the stream's final usage is known. Sums
     // both calls that ran: the media decider (mini, always) + the mini reply —
@@ -638,11 +664,13 @@ export const streamAgentAnswer = onRequest(
       }
     };
 
+    // Socket closed (background / navigate-away / network drop). Do NOT abort or
+    // mark errored: the turn finishes and persists so the reply is there, clean
+    // and complete, when the user returns. Writes to the dead socket are skipped
+    // (see emit). Only an explicit pause (the agent doc deleted, watched below)
+    // stops generation.
     req.on("close", () => {
-      if (!finalized) {
-        clientClosed = true;
-        abortController.abort();
-      }
+      if (!finalized) clientClosed = true;
     });
 
     try {
@@ -670,9 +698,9 @@ export const streamAgentAnswer = onRequest(
       });
 
       if (newConversation) {
-        writeSse(res, "conversation", { id: conversationId });
+        emit("conversation", { id: conversationId });
       }
-      writeSse(res, "message", {
+      emit("message", {
         role: "user",
         id: userMessage.messageId,
         clientMessageId,
@@ -696,17 +724,30 @@ export const streamAgentAnswer = onRequest(
           : undefined,
       });
       agentMessageId = agentMessage.messageId;
-      writeSse(res, "message", {
+      // Watch our own agent doc for deletion — the durable cancel signal a pause
+      // sends via cancelAgentReply. The initial snapshot is the doc we just
+      // created (never fires); a later delete aborts generation. The delete is
+      // authoritative regardless (finalize can't resurrect a deleted doc).
+      unsubscribeCancelWatch = watchMessageDeleted(
+        conversationId,
+        agentMessageId,
+        () => {
+          if (finalized) return;
+          cancelled = true;
+          abortController.abort();
+        },
+      );
+      emit("message", {
         role: "agent",
         id: agentMessageId,
         inReplyToClientMessageId: clientMessageId,
       });
 
-      writeSse(res, "model", { id: internalModel });
+      emit("model", { id: internalModel });
       if (resolvedPersona) {
         // Only safe public metadata goes over SSE. Prompt content stays
         // backend-only inside assembleResult.messages[0].
-        writeSse(res, "persona", {
+        emit("persona", {
           id: resolvedPersona.id,
           name: resolvedPersona.name,
           displayName: resolvedPersona.publicConfig.displayName,
@@ -716,9 +757,9 @@ export const streamAgentAnswer = onRequest(
       // Media-first, like texting: surface the chosen GIF/meme before the reply
       // streams so it lands above the text bubble. At most one is set.
       if (agentGif) {
-        writeSse(res, "gif", { gif: agentGif });
+        emit("gif", { gif: agentGif });
       } else if (agentMeme) {
-        writeSse(res, "meme", { image: agentMeme });
+        emit("meme", { image: agentMeme });
       }
 
       let fullText = "";
@@ -735,17 +776,14 @@ export const streamAgentAnswer = onRequest(
         // fully cacheable.
         signal: abortController.signal,
       })) {
-        if (clientClosed) {
-          await markErroredSafely(conversationId, agentMessageId);
-          finalized = true;
-          await chargeForUsage("client-closed");
-          return;
-        }
+        // Explicit pause: the agent doc was deleted out from under us. Stop now —
+        // no finalize (the doc is gone), no markErrored, no charge (free pause).
+        if (cancelled) return;
 
         if (delta.type === "delta") {
           sawDelta = true;
           fullText += delta.text;
-          writeSse(res, "delta", { text: delta.text });
+          emit("delta", { text: delta.text });
           continue;
         }
 
@@ -755,14 +793,17 @@ export const streamAgentAnswer = onRequest(
         }
 
         if (delta.type === "error") {
+          // The abort we fire on cancel surfaces here as a stream error — treat
+          // it as the (already-handled) pause, not a real failure.
+          if (cancelled) return;
           logger.error("[streamAgentAnswer] agent stream failed", {
             // Renamed off `message` — the logger reserves that field and was
             // overwriting the real agent error with the log title.
             agentError: delta.message,
             sawDelta,
           });
-          writeSse(res, "error", { code: "agent_error" });
-          res.end();
+          emit("error", { code: "agent_error" });
+          endResponse();
           finalized = true;
           await markErroredSafely(conversationId, agentMessageId);
           await chargeForUsage("agent-error");
@@ -770,9 +811,12 @@ export const streamAgentAnswer = onRequest(
         }
       }
 
-      writeSse(res, "done", {});
+      // Paused as the stream wrapped up — nothing to save or charge.
+      if (cancelled) return;
+
+      emit("done", {});
       finalized = true;
-      res.end();
+      endResponse();
 
       // Post-hoc output lint: the no-eval behavior dashboard. Advisory only —
       // the reply already streamed; findings land in Cloud Logging as warns
@@ -797,8 +841,9 @@ export const streamAgentAnswer = onRequest(
         logger.error("[outputLint] linter threw", { err });
       }
 
+      let savedOk = true;
       try {
-        await finalizeAgentMessage(
+        const result = await finalizeAgentMessage(
           conversationId,
           agentMessageId,
           // Scrub any meme markdown/attachment artifacts the model may have
@@ -807,6 +852,7 @@ export const streamAgentAnswer = onRequest(
           agentMeme ? [agentMeme] : undefined,
           agentGif ? [agentGif] : undefined,
         );
+        savedOk = result.saved;
       } catch (err) {
         logger.error("[streamAgentAnswer] failed to finalize agent message", {
           conversationId,
@@ -815,8 +861,16 @@ export const streamAgentAnswer = onRequest(
         });
         await markErroredSafely(conversationId, agentMessageId);
       }
-      await chargeForUsage("done");
+      // A pause whose delete raced in after the stream finished leaves no doc to
+      // save — skip the charge (free pause).
+      if (savedOk) {
+        await chargeForUsage("done");
+      }
     } catch (err) {
+      // Explicit pause aborted us mid-flight — the doc is already deleted, so
+      // there's nothing to error or charge. Bail quietly.
+      if (cancelled) return;
+
       logger.error("[streamAgentAnswer] request failed", {
         conversationId,
         agentMessageId,
@@ -824,8 +878,8 @@ export const streamAgentAnswer = onRequest(
       });
 
       if (res.headersSent) {
-        writeSse(res, "error", { code: "agent_error" });
-        res.end();
+        emit("error", { code: "agent_error" });
+        endResponse();
         if (conversationId && agentMessageId) {
           await markErroredSafely(conversationId, agentMessageId);
         }
@@ -836,6 +890,8 @@ export const streamAgentAnswer = onRequest(
 
       res.status(500).json({ code: "internal" });
       await chargeForUsage("exception-before-headers");
+    } finally {
+      unsubscribeCancelWatch?.();
     }
   },
 );

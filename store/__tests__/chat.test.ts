@@ -3,6 +3,8 @@ const mockStreamReplayTurn = jest.fn();
 const mockSignOut = jest.fn().mockResolvedValue(undefined);
 // Controllable so a test can make the emoji persist resolve or reject (rollback).
 const mockSetMessageEmojiCallable = jest.fn();
+// The durable-pause callable; asserted on by the pause tests.
+const mockCancelAgentReplyCallable = jest.fn();
 // Captured so snapshot tests can drive the live listener's callback directly.
 const mockSubscribeToMessages = jest.fn((...args: unknown[]) => () => {});
 const mockSubscribeToConversationParticipants = jest.fn(
@@ -21,6 +23,8 @@ jest.mock("@/services/firebase/callables", () => ({
   rateMessageCallable: jest.fn(),
   setMessageEmojiCallable: (...args: unknown[]) =>
     mockSetMessageEmojiCallable(...args),
+  cancelAgentReplyCallable: (...args: unknown[]) =>
+    mockCancelAgentReplyCallable(...args),
 }));
 jest.mock("@/services/firebase/conversations", () => ({
   subscribeToMessages: (...args: unknown[]) => mockSubscribeToMessages(...args),
@@ -108,14 +112,27 @@ const IDLE_STATE = {
   streamingText: "",
   streamingMeme: null,
   streamingGif: null,
+  streamingAgentServerId: null,
+  cancelledServerId: null,
+  awaitingPersistedReply: null,
   activeReplyClientId: null,
   settledReply: null,
+  replacingServerId: null,
   currentModel: null,
   quota: null,
   status: "idle" as const,
   abortController: null,
   error: null,
 };
+
+// A stream stand-in that yields events in order, then throws — for modeling a
+// mid-flight transport drop after some events were received.
+function streamThenThrow(events: unknown[], error: unknown) {
+  return async function* () {
+    for (const event of events) yield event;
+    throw error;
+  };
+}
 
 describe("useChatStore sendMessage auth handling", () => {
   beforeEach(() => {
@@ -156,6 +173,189 @@ describe("useChatStore sendMessage auth handling", () => {
     expect(state.messages.some((m) => m.role === "user")).toBe(true);
     // A generic error must NOT sign the user out.
     expect(mockSignOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("useChatStore pauseStreaming (durable cancel)", () => {
+  beforeEach(() => {
+    mockCancelAgentReplyCallable.mockReset().mockResolvedValue({
+      success: true,
+      deleted: 1,
+    });
+    useChatStore.setState({ ...IDLE_STATE });
+  });
+
+  it("deletes the in-flight reply server-side and suppresses it locally", () => {
+    const controller = new AbortController();
+    useChatStore.setState({
+      ...IDLE_STATE,
+      conversationId: "c1",
+      status: "streaming",
+      activeReplyClientId: "client-1",
+      streamingAgentServerId: "agent-server-1",
+      streamingText: "half a rep",
+      abortController: controller,
+    });
+
+    useChatStore.getState().pauseStreaming();
+
+    // Durable: the callable is fired to delete the exact reply (by serverId).
+    expect(mockCancelAgentReplyCallable).toHaveBeenCalledWith({
+      conversationId: "c1",
+      messageId: "agent-server-1",
+      clientMessageId: "client-1",
+    });
+    // The local stream is torn down with no error…
+    const s = useChatStore.getState();
+    expect(s.status).toBe("idle");
+    expect(s.error).toBeNull();
+    expect(s.streamingText).toBe("");
+    expect(s.activeReplyClientId).toBeNull();
+    expect(s.streamingAgentServerId).toBeNull();
+    // …and the doc is suppressed until its server-side delete reaches the snapshot.
+    expect(s.cancelledServerId).toBe("agent-server-1");
+    expect(controller.signal.aborted).toBe(true);
+  });
+
+  it("falls back to the user turn's clientMessageId when the reply id isn't known yet", () => {
+    useChatStore.setState({
+      ...IDLE_STATE,
+      conversationId: "c1",
+      status: "streaming",
+      activeReplyClientId: "client-1",
+      streamingAgentServerId: null,
+      abortController: new AbortController(),
+    });
+
+    useChatStore.getState().pauseStreaming();
+
+    expect(mockCancelAgentReplyCallable).toHaveBeenCalledWith({
+      conversationId: "c1",
+      messageId: undefined,
+      clientMessageId: "client-1",
+    });
+  });
+});
+
+describe("useChatStore resilient stream drop", () => {
+  beforeAll(installRafPolyfill);
+
+  beforeEach(() => {
+    mockStreamAgentAnswer.mockReset();
+    mockSignOut.mockClear();
+    useChatStore.setState({ ...IDLE_STATE });
+  });
+
+  afterEach(() => {
+    // Tear down the module-level live subscription opened by loadConversation.
+    useChatStore.getState().startNewConversation();
+  });
+
+  it("defers to Firestore on a transport drop instead of showing an error", async () => {
+    const cb = openConversation("c1");
+    mockStreamAgentAnswer.mockImplementation(
+      streamThenThrow(
+        [
+          { type: "message", role: "agent", id: "a-server" },
+          { type: "delta", text: "partial" },
+        ],
+        new Error("stream-network-error"),
+      ),
+    );
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    let s = useChatStore.getState();
+    // No error card: the typing bubble stays up while we wait on the listener.
+    expect(s.status).toBe("streaming");
+    expect(s.error).toBeNull();
+    expect(s.awaitingPersistedReply?.agentServerId).toBe("a-server");
+    const clientId = s.awaitingPersistedReply!.clientMessageId!;
+
+    // The backend finished (finish & save) and the reply lands via the listener.
+    cb(
+      [
+        storedMsg({ id: "u-server", role: "user", text: "hi", clientMessageId: clientId }),
+        storedMsg({
+          id: "a-server",
+          role: "agent",
+          text: "the full reply",
+          inReplyToClientMessageId: clientId,
+        }),
+      ],
+      META_EMPTY,
+    );
+
+    s = useChatStore.getState();
+    expect(s.status).toBe("idle");
+    expect(s.error).toBeNull();
+    expect(s.awaitingPersistedReply).toBeNull();
+    expect(
+      s.messages.some((m) => m.serverId === "a-server" && m.text === "the full reply"),
+    ).toBe(true);
+  });
+
+  it("shows the error when the awaited reply never lands (grace timeout)", async () => {
+    jest.useFakeTimers();
+    try {
+      openConversation("c1");
+      mockStreamAgentAnswer.mockImplementation(
+        streamThenThrow(
+          [{ type: "message", role: "agent", id: "a-server" }],
+          new Error("stream-network-error"),
+        ),
+      );
+
+      await useChatStore.getState().sendMessage("hi");
+
+      expect(useChatStore.getState().status).toBe("streaming");
+      expect(useChatStore.getState().awaitingPersistedReply).not.toBeNull();
+
+      // No reply ever persists; the grace window expires → retryable error.
+      await jest.advanceTimersByTimeAsync(60_000);
+
+      const s = useChatStore.getState();
+      expect(s.status).toBe("error");
+      expect(s.error).toBe("generic");
+      expect(s.awaitingPersistedReply).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("still shows the error card for a real backend error mid-stream", async () => {
+    openConversation("c1");
+    mockStreamAgentAnswer.mockImplementation(
+      streamOf([
+        { type: "message", role: "agent", id: "a-server" },
+        { type: "error", code: "agent_error" },
+      ]),
+    );
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    const s = useChatStore.getState();
+    expect(s.status).toBe("error");
+    expect(s.error).toBe("agent_error");
+    expect(s.awaitingPersistedReply).toBeNull();
+  });
+
+  it("shows the error immediately when the drop happens before any reply was committed", async () => {
+    openConversation("c1");
+    // Drop before the agent `message` event → no reply doc exists to wait for.
+    mockStreamAgentAnswer.mockImplementation(
+      throwingStream(new Error("stream-network-error")),
+    );
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    const s = useChatStore.getState();
+    expect(s.status).toBe("error");
+    expect(s.error).toBe("stream-network-error");
+    expect(s.awaitingPersistedReply).toBeNull();
   });
 });
 

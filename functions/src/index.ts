@@ -7,6 +7,7 @@ export { deleteMyAccount } from "./deleteMyAccount";
 export { updateProfile } from "./profile/updateProfile";
 export { deleteConversations } from "./conversations/deleteConversations";
 export { rateMessage, setMessageEmoji } from "./conversations/rateMessage";
+export { cancelAgentReply } from "./conversations/cancelAgentReply";
 export { streamAgentAnswer } from "./streamAgentAnswer";
 export { streamReplayTurn } from "./streamReplayTurn";
 export { devSetPlan } from "./entitlement/devSetPlan";

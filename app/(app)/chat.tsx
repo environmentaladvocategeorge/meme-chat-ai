@@ -205,7 +205,7 @@ export default function ChatScreen() {
   const replayTurn = useChatStore((s) => s.replayTurn);
   const loadConversation = useChatStore((s) => s.loadConversation);
   const startNewConversation = useChatStore((s) => s.startNewConversation);
-  const cancelStreaming = useChatStore((s) => s.cancelStreaming);
+  const pauseStreaming = useChatStore((s) => s.pauseStreaming);
   const dismissQuota = useChatStore((s) => s.dismissQuota);
   const entitlement = useEntitlementStore((s) => s.entitlement);
   const currentPlan = useDisplayPlan();
@@ -1143,7 +1143,7 @@ export default function ChatScreen() {
                   value={draft}
                   onChangeText={setDraft}
                   onSend={handleSubmit}
-                  onCancel={cancelStreaming}
+                  onCancel={pauseStreaming}
                   onFocus={() => applyPickers(dismissPickers())}
                   streaming={status === "streaming"}
                   hasAttachments={stagedImages.length > 0 || stagedGif !== null}
