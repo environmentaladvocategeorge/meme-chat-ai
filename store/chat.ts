@@ -6,6 +6,7 @@ import {
 } from "@/services/firebase/callables";
 import {
   fetchOlderMessages,
+  subscribeToConversationParticipants,
   subscribeToMessages,
   type MessageCursor,
   type MessagesSnapshotMeta,
@@ -15,6 +16,8 @@ import { streamAgentAnswer, streamReplayTurn } from "@/services/firebase/streamA
 import { SessionExpiredError } from "@/services/firebase/sessionErrors";
 import { ChatSessionStorage, DEFAULT_ROT_LEVEL } from "@/store/storage";
 import { useSettingsStore } from "@/store/settings";
+import { usePersonaStore } from "@/store/personas";
+import { DEFAULT_PERSONA_ID } from "@/domain/personas";
 import { resolveLanguage } from "@/i18n";
 import { create } from "zustand";
 
@@ -40,6 +43,10 @@ export type ChatMessage = {
   emojiReaction?: string;
   // Brainrot intensity selected for a user turn (1–3). Absent on agent turns.
   levelOfRot?: number;
+  // The persona that generated this agent reply (id). Drives the per-message bot
+  // avatar shown once a conversation has 2+ participants. Absent on user turns
+  // and on default-bot turns from before personas were tracked.
+  personaId?: string;
   status: "complete" | "streaming" | "error";
   createdAt?: Date | null;
   optimistic?: boolean;
@@ -87,6 +94,11 @@ type ChatState = {
   olderCursor: MessageCursor | null;
   hasMoreOlder: boolean;
   loadingOlder: boolean;
+  // Authoritative set of bots that have ever sent in this conversation (live
+  // from the conversation doc). Drives the per-message bot avatar once 2+ bots
+  // are involved, even when an earlier bot's replies have scrolled out of the
+  // live window. Empty until a conversation is loaded.
+  participantPersonaIds: string[];
   // Page older history in (no-op while already loading or when exhausted).
   loadOlderMessages: () => Promise<void>;
   streamingText: string;
@@ -153,6 +165,7 @@ type ChatState = {
 };
 
 let unsubscribeMessages: (() => void) | null = null;
+let unsubscribeParticipants: (() => void) | null = null;
 let optimisticCounter = 0;
 
 // Delta batching — accumulate SSE token chunks and flush once per animation
@@ -213,6 +226,21 @@ function createClientMessageId() {
 function cleanupSubscription() {
   unsubscribeMessages?.();
   unsubscribeMessages = null;
+  unsubscribeParticipants?.();
+  unsubscribeParticipants = null;
+}
+
+// Start (or restart) the live participants subscription for a conversation,
+// feeding the authoritative bot set into state. Additive + best-effort: if it
+// never fires, multiBot falls back to the message-derived personas.
+function startParticipantsSubscription(
+  id: string,
+  set: (partial: Partial<ChatState>) => void,
+) {
+  unsubscribeParticipants?.();
+  unsubscribeParticipants = subscribeToConversationParticipants(id, (ids) => {
+    set({ participantPersonaIds: ids });
+  });
 }
 
 // The stream reported a terminal auth failure (token rejected even after a
@@ -267,6 +295,7 @@ export function shallowEqualMessage(a: ChatMessage, b: ChatMessage): boolean {
     a.reaction === b.reaction &&
     a.emojiReaction === b.emojiReaction &&
     a.levelOfRot === b.levelOfRot &&
+    a.personaId === b.personaId &&
     a.status === b.status &&
     a.optimistic === b.optimistic &&
     // Both-null/absent counts as equal; otherwise compare the instant.
@@ -359,6 +388,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   olderCursor: null,
   hasMoreOlder: false,
   loadingOlder: false,
+  participantPersonaIds: [],
   streamingText: "",
   streamingMeme: null,
   streamingGif: null,
@@ -416,12 +446,20 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       // backend tells the model to default to it unless the user writes in
       // another language.
       const language = resolveLanguage(useSettingsStore.getState().language);
+      // Forward the locally-selected persona so the backend serves it (and the
+      // turn gets stamped with its id). The default is sent as undefined so the
+      // backend falls back to the global Brainrot Bot — keeping the default
+      // payload byte-identical to before personas existed.
+      const selectedPersonaId = usePersonaStore.getState().selectedPersonaId;
+      const personaId =
+        selectedPersonaId === DEFAULT_PERSONA_ID ? undefined : selectedPersonaId;
       for await (const event of streamAgentAnswer({
         message: trimmed,
         images,
         gif,
         conversationId: get().conversationId,
         clientMessageId,
+        personaId,
         levelOfRot,
         language,
         // Sticky local-only prefs, read at send time. Omitted when on (the
@@ -438,6 +476,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             unsubscribeMessages = subscribeToMessages(event.id, (messages, meta) => {
               handleMessagesSnapshot(messages, meta, get, set);
             });
+          }
+          if (!unsubscribeParticipants) {
+            startParticipantsSubscription(event.id, set);
           }
           continue;
         }
@@ -570,6 +611,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
                     text: finalText,
                     images: finalMeme ? [finalMeme] : undefined,
                     gifs: finalGif ? [finalGif] : undefined,
+                    // Stamp the bot so an offline-committed reply still carries a
+                    // per-message avatar in a multi-bot conversation.
+                    personaId: usePersonaStore.getState().selectedPersonaId,
                     status: "complete",
                     createdAt: new Date(),
                     optimistic: true,
@@ -913,6 +957,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       olderCursor: null,
       hasMoreOlder: false,
       loadingOlder: false,
+      participantPersonaIds: [],
       streamingText: "",
       streamingMeme: null,
       streamingGif: null,
@@ -926,6 +971,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     unsubscribeMessages = subscribeToMessages(id, (messages, meta) => {
       handleMessagesSnapshot(messages, meta, get, set);
     });
+    startParticipantsSubscription(id, set);
   },
 
   startNewConversation: () => {
@@ -940,6 +986,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       olderCursor: null,
       hasMoreOlder: false,
       loadingOlder: false,
+      participantPersonaIds: [],
       streamingText: "",
       streamingMeme: null,
       streamingGif: null,

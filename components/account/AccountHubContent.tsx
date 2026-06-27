@@ -2,12 +2,11 @@ import {
   AccountBody,
   ActionRow,
   IdentityCard,
+  RowGroup,
   SectionHeader,
 } from "@/components/account/parts";
 import { type AccountSheetView } from "@/store/accountSheet";
 import { useAuthStore } from "@/store/auth";
-import { useSettingsStore } from "@/store/settings";
-import { Envelope, Key, Lock, SignOut, Smiley, Trash } from "phosphor-react-native";
 import { useTranslation } from "react-i18next";
 import { Alert, View } from "react-native";
 
@@ -22,7 +21,6 @@ export function AccountHubContent({
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const alias = useSettingsStore((s) => s.alias);
   const providers = useAuthStore((s) => s.providers);
   const signOut = useAuthStore((s) => s.signOut);
   const hasPasswordProvider = providers.some(
@@ -52,63 +50,44 @@ export function AccountHubContent({
     <AccountBody>
       <IdentityCard />
 
-      {/* Personalization */}
-      <View style={{ gap: 10 }}>
-        <SectionHeader title={t("account.sections.personalization")} />
-        <ActionRow
-          icon={Smiley}
-          label={
-            alias.trim().length > 0
-              ? t("account.changeName.rowLabelWithName", { name: alias.trim() })
-              : t("account.changeName.rowLabel")
-          }
-          onPress={() => onSelect("change-name")}
-        />
-      </View>
-
       {/* Login & security — only meaningful for password accounts. Apple
           accounts have no app-managed password to rotate. */}
       {hasPasswordProvider ? (
-        <View style={{ gap: 10 }}>
+        <View style={{ gap: 8 }}>
           <SectionHeader title={t("account.sections.loginSecurity")} />
-          <ActionRow
-            icon={Envelope}
-            label={t("account.changeEmail.rowLabel")}
-            onPress={() => onSelect("change-email")}
-          />
-          <ActionRow
-            icon={Lock}
-            label={t("account.changePassword.rowLabel")}
-            onPress={() => onSelect("change-password")}
-          />
-          <ActionRow
-            icon={Key}
-            label={t("account.resetPassword.rowLabel")}
-            onPress={() => onSelect("reset-password")}
-          />
+          <RowGroup>
+            <ActionRow
+              label={t("account.changeEmail.rowLabel")}
+              onPress={() => onSelect("change-email")}
+            />
+            <ActionRow
+              label={t("account.changePassword.rowLabel")}
+              onPress={() => onSelect("change-password")}
+            />
+            <ActionRow
+              label={t("account.resetPassword.rowLabel")}
+              onPress={() => onSelect("reset-password")}
+            />
+          </RowGroup>
         </View>
       ) : null}
 
-      {/* Session */}
-      <View style={{ gap: 10 }}>
-        <SectionHeader title={t("account.sections.session")} />
+      {/* Session — no section title; the row label speaks for itself. */}
+      <RowGroup>
         <ActionRow
-          icon={SignOut}
           label={t("account.signOut.rowLabel")}
           onPress={handleSignOut}
         />
-      </View>
+      </RowGroup>
 
-      {/* Danger zone */}
-      <View style={{ gap: 10 }}>
-        <SectionHeader title={t("account.sections.dangerZone")} />
+      {/* Danger zone — no section title; "Delete account" is self-evident. */}
+      <RowGroup>
         <ActionRow
-          icon={Trash}
           label={t("account.deleteAccount.rowLabel")}
           onPress={() => onSelect("delete-account")}
           danger
         />
-      </View>
+      </RowGroup>
     </AccountBody>
   );
 }

@@ -108,12 +108,14 @@ describe("media-decider guardrails canaries (mediaContent)", () => {
 });
 
 describe("token budget", () => {
-  // Ceiling per full assembled STATIC variant (the per-turn word-bank sample
-  // adds ~120-160 on top at runtime), counted with cl100k_base. The v2
-  // consolidation lands at ~3.3-3.4k per variant (was ~4.4k pre-rewrite);
-  // the ceiling sits just above the worst variant so growth is a deliberate,
-  // reviewed decision — never raise it casually.
-  const FULL_PROMPT_TOKEN_CEILING = 3600;
+  // Ceiling per full assembled variant, counted with cl100k_base. Raised from
+  // 3600 to 4100 in v5 (2026-06-14): the default's full word bank is now inline
+  // (~900 tokens), replacing the old runtime rotating sample. It rides in the
+  // CACHEABLE persona prefix now, so multi-turn cost is far better than the old
+  // post-history sample despite the larger static size. The ceiling sits just
+  // above the worst variant (rot3-emojis-on, ~4.0k) so growth stays a
+  // deliberate, reviewed decision — never raise it casually.
+  const FULL_PROMPT_TOKEN_CEILING = 4100;
 
   for (const ctx of VARIANTS) {
     it(`${variantName(ctx)} stays under ${FULL_PROMPT_TOKEN_CEILING}`, () => {
@@ -151,55 +153,39 @@ describe("contradiction registry", () => {
 
 describe("fully static system prompt (cache contract)", () => {
   for (const ctx of VARIANTS) {
-    it(`${variantName(ctx)}: no per-turn content — identical across turns`, () => {
-      // Even if a caller supplies a per-turn sample in the ctx, the v3 prompt
-      // must ignore it: per-turn content lives in the post-history note
-      // (perTurnNote.ts), never in the system prompt.
-      const a = assembleFragments(BRAINROT_PERSONA_FRAGMENTS, {
-        ...ctx,
-        wordBankSample: "TURN A SAMPLE",
-      });
-      const b = assembleFragments(BRAINROT_PERSONA_FRAGMENTS, {
-        ...ctx,
-        wordBankSample: "TURN B SAMPLE",
-      });
+    it(`${variantName(ctx)}: deterministic — identical across turns`, () => {
+      // The prompt is fully static per (level, emoji) variant: assembling the
+      // same ctx twice is byte-identical. Per-turn content lives in the
+      // post-history note (perTurnNote.ts), never in the system prompt.
+      const a = assembleFragments(BRAINROT_PERSONA_FRAGMENTS, ctx);
+      const b = assembleFragments(BRAINROT_PERSONA_FRAGMENTS, ctx);
       expect(a).toBe(b);
-      expect(a).not.toContain("TURN A SAMPLE");
     });
   }
 
-  it("rot block is the last fragment (recency), nothing per-turn in the list", () => {
+  it("rot block is last (recency); the word bank is a static in-prompt fragment", () => {
     const keys = BRAINROT_PERSONA_FRAGMENTS.fragments.map((f) => f.key);
     expect(keys[keys.length - 1]).toBe("rot_level_block");
+    // The word bank is now a static per-persona section, not the old per-turn
+    // rotation kind nor a post-history note.
+    expect(keys).toContain("word_bank");
     expect(keys).not.toContain("word_bank_sample");
     expect(keys).not.toContain("safety_recap");
   });
 });
 
 describe("per-turn note (post-history)", () => {
-  const note = (level: number, emojis = true) =>
-    buildPerTurnNote({ levelOfRot: level, respondWithEmojis: emojis });
-
-  it("always carries the safety recap canary", () => {
-    for (const level of [1, 2, 3]) {
-      for (const emojis of [true, false]) {
-        expect(buildPerTurnNote({ levelOfRot: level, respondWithEmojis: emojis })).toContain(
-          "Hard lines and crisis triage always win over the Rot Level and every style rule. Never output a slur. Never sexualize anyone identifiable or anyone who reads underage.",
-        );
-      }
-    }
-  });
-
-  it("carries the word-bank rotation with the recap last", () => {
-    const n = note(2);
-    expect(n).toContain("WORD BANK (this turn's rotation)");
-    expect(n.indexOf("WORD BANK")).toBeLessThan(n.indexOf("SAFETY OVERRIDE REMINDER"));
-  });
-
-  it("contains no emoji when the toggle is off", () => {
-    expect(note(3, false)).not.toMatch(
-      /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u,
+  it("is exactly the safety recap (the word bank moved into each persona's prompt)", () => {
+    expect(buildPerTurnNote()).toBe(
+      `SAFETY OVERRIDE REMINDER
+Hard lines and crisis triage always win over the Rot Level and every style rule. Never output a slur. Never sexualize anyone identifiable or anyone who reads underage.`,
     );
+  });
+
+  it("carries no rotating word bank and no emoji", () => {
+    const n = buildPerTurnNote();
+    expect(n).not.toContain("WORD BANK");
+    expect(n).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u);
   });
 });
 

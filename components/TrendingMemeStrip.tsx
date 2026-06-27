@@ -12,6 +12,7 @@
 // placeholder + per-meme watermark already satisfy the guidelines.
 
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { Typography } from "@/components/Typography";
 import { stripCardWidth } from "@/domain/mediaLayout";
 import { useTheme } from "@/hooks/useTheme";
@@ -82,6 +83,11 @@ type TrendingMemeStripProps<T extends StripMedia> = {
   // When true, cards render the animated asset (GIFs) via expo-image instead of
   // a static still.
   animated?: boolean;
+  // Horizontal padding of the parent container. The scrolling row breaks out of
+  // it with a negative margin and re-adds it as leading/trailing content padding
+  // — so the first card lines up with the search box at rest, but cards scroll
+  // edge-to-edge off the screen instead of being clipped at the parent's inset.
+  bleed?: number;
   labels: MemeStripLabels;
 };
 
@@ -148,14 +154,18 @@ function SkeletonCard({ width, delay }: { width: number; delay: number }) {
 // Varied widths so the loading state mimics the natural rhythm of real memes.
 const SKELETON_WIDTHS = [150, 110, 175, 120, 160, 100];
 
-function SkeletonRow() {
+function SkeletonRow({ bleed = 0 }: { bleed?: number }) {
   return (
     <View
       style={{
         height: STRIP_HEIGHT,
         flexDirection: "row",
         gap: CARD_GAP,
-        paddingHorizontal: 2,
+        // Match the loaded list's full-bleed: break out of the parent padding
+        // and re-add it as leading inset, so the shimmer doesn't pop wider when
+        // the real cards land (see `bleed`).
+        marginHorizontal: bleed > 0 ? -bleed : 0,
+        paddingHorizontal: bleed > 0 ? bleed : 2,
         overflow: "hidden",
       }}
     >
@@ -300,7 +310,7 @@ function SearchBox({
 }) {
   const theme = useTheme();
   return (
-    <View
+    <GlassSurface
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -308,10 +318,12 @@ function SearchBox({
         height: 40,
         paddingHorizontal: 12,
         borderRadius: 999,
+        marginBottom: 10,
+      }}
+      fallbackStyle={{
         backgroundColor: theme["--color-card"],
         borderWidth: 1,
         borderColor: theme["--color-border"],
-        marginBottom: 10,
       }}
     >
       <MagnifyingGlass size={18} color={theme["--color-foreground-muted"]} />
@@ -345,7 +357,7 @@ function SearchBox({
           <X size={16} color={theme["--color-foreground-muted"]} weight="bold" />
         </AppPressable>
       ) : null}
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -364,6 +376,7 @@ export function TrendingMemeStrip<T extends StripMedia>({
   onRetry,
   onSelectItem,
   animated,
+  bleed = 0,
   labels,
 }: TrendingMemeStripProps<T>) {
   const theme = useTheme();
@@ -379,7 +392,7 @@ export function TrendingMemeStrip<T extends StripMedia>({
   if (loading) {
     // Fresh load (initial open or a new query) → shimmer skeletons. This also
     // gives searching a clean "swap" instead of stale results hanging around.
-    body = <SkeletonRow />;
+    body = <SkeletonRow bleed={bleed} />;
   } else if (error && items.length === 0) {
     body = (
       <View style={[centered, { flexDirection: "row", gap: 10 }]}>
@@ -442,7 +455,14 @@ export function TrendingMemeStrip<T extends StripMedia>({
         keyboardShouldPersistTaps="handled"
         // Keep mounted cards alive so their entrance doesn't replay on scroll.
         removeClippedSubviews={false}
-        contentContainerStyle={{ gap: CARD_GAP, paddingHorizontal: 2 }}
+        // Full-bleed: cancel the parent's padding so the row reaches the screen
+        // edges, then re-add it inside so the first/last cards still sit at the
+        // resting inset (see `bleed`).
+        style={bleed > 0 ? { marginHorizontal: -bleed } : undefined}
+        contentContainerStyle={{
+          gap: CARD_GAP,
+          paddingHorizontal: bleed > 0 ? bleed : 2,
+        }}
         renderItem={({ item, index }) => (
           <MemeCard
             meme={item}

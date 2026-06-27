@@ -5,6 +5,8 @@ import { onRequest } from "firebase-functions/v2/https";
 import { randomReplaySampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
 import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import { pickBestMediaIndex } from "./agent/pickBestMedia";
+import { gatherWebContext } from "./agent/webSearch";
 import { MemoryService } from "./agent/memory";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
@@ -37,16 +39,24 @@ import {
 } from "./messages/messageImage";
 import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
+import {
+  buildDeciderAttachmentHint,
+  collectCurrentAttachmentTitles,
+} from "./messages/attachmentMeta";
 import { buildPerTurnNote } from "./personas/perTurnNote";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
+  PersonaAccessError,
+  resolvePersonaForStream,
 } from "./personas/prompts";
 import { streamReplayRequestSchema } from "./streamReplayRequest";
 import { authenticateStreamRequest } from "./streamAuth";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+// Web-search router key (optional — unset = search-free, see streamAgentAnswer).
+const TAVILY_API_KEY = defineSecret("TAVILY_API_KEY");
 
 // One reusable, stateless memory-service instance per function instance.
 const memoryService = new MemoryService();
@@ -86,7 +96,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
 // naturally consumes quota and is never refunded.
 export const streamReplayTurn = onRequest(
   {
-    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
+    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY, TAVILY_API_KEY],
     timeoutSeconds: 540,
     memory: "512MiB",
     minInstances: 1,
@@ -155,6 +165,9 @@ export const streamReplayTurn = onRequest(
     const images = userTurn.images ?? [];
     const gifs = userTurn.gifs ?? [];
     const currentGif = gifs[0];
+    // Klipy "meme name" metadata persisted on the replayed turn's attachments
+    // (empty for uploads/older turns → no-op downstream).
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
     // Reconstruct the original turn's dials: reuse the persona the deleted reply
     // was generated with so the same character answers; default rot to 2 to
     // match the request schema's default for turns stored before the dial.
@@ -245,6 +258,11 @@ export const streamReplayTurn = onRequest(
       | Awaited<ReturnType<typeof buildSystemPromptForStream>>["persona"]
       | null = null;
     let decideUsage: ModelUsage | null = null;
+    // Usage from the look-&-pick selector (nano), billed alongside the decider.
+    let pickUsage: ModelUsage | null = null;
+    // Web-search router usage (nano) + flat Tavily cost, billed with the reply.
+    let webRouterUsage: ModelUsage | null = null;
+    let searchCostUsd = 0;
     let pendingGif: MessageGif | null = null;
     let pendingMeme: MessageImage | null = null;
     // GIF frames decoded for the decider; reused by assembleContext so the GIF
@@ -255,22 +273,26 @@ export const streamReplayTurn = onRequest(
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseModel(entitlement.plan);
-      // The word-bank sampler (per-turn note below) excludes bank terms seen
-      // in recent bot replies — which includes the original reply being
-      // replayed, nudging the regeneration toward different wording.
+      // Loaded once for both pre-steps' context (media decider + web router).
       const priorMessages = await loadRecentMessages(conversationId, 12);
-      const recentAssistantTexts = priorMessages
-        .filter((m) => m.role === "agent" && m.text)
-        .map((m) => m.text);
-      const perTurnNote = buildPerTurnNote({
-        levelOfRot,
-        respondWithEmojis,
-        recentAssistantTexts,
+      const deciderContext = buildDeciderContext(priorMessages);
+      // Web-search router (nano) + Tavily fetch for the regenerated turn, kicked
+      // off concurrently with the media pipeline and awaited before assembly.
+      const webContextPromise = gatherWebContext({
+        openaiApiKey: OPENAI_API_KEY.value(),
+        tavilyApiKey: TAVILY_API_KEY.value(),
+        message: userText,
+        history: deciderContext.history,
       });
+      const perTurnNote = buildPerTurnNote();
+      // Resolve the persona ONCE for the whole replay: the system prompt and
+      // the media decider (mediaDeciderKey/mediaNotes) share the resolution.
+      const personaForStream = await resolvePersonaForStream(personaId, uid);
       const promptResult = await buildSystemPromptForStream(
         personaId,
         levelOfRot,
         respondWithEmojis,
+        personaForStream,
       );
       resolvedPersona = promptResult.persona;
       const systemPrompt = promptResult.systemPrompt;
@@ -281,20 +303,40 @@ export const streamReplayTurn = onRequest(
         | { kind: "gif" | "meme"; description: string }
         | undefined;
       if (mediaEnabled) {
-        const { history, recentReactions } = buildDeciderContext(priorMessages);
+        const { history, recentReactions, recentMediaIds } = deciderContext;
+        // Hard never-echo backstop (matches the normal turn): drop the user's
+        // current attachments + everything recently seen from the result pool so
+        // the regenerated reaction can never be the exact same asset.
+        const excludeIds = new Set<string>(recentMediaIds);
+        for (const g of gifs) {
+          if (g.id) excludeIds.add(g.id);
+          if (g.gifId) excludeIds.add(g.gifId);
+        }
+        for (const i of images) {
+          if (i.source === "klipy") {
+            if (i.id) excludeIds.add(i.id);
+            if (i.memeId) excludeIds.add(i.memeId);
+          }
+        }
+        // Append the Klipy "meme name" hint (when present) so the regenerated
+        // reaction can recognize the named reference the user originally sent.
+        const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
         const currentForDecider =
-          userText ||
-          (images.length > 0
-            ? "[user sent an image]"
-            : gifs.length > 0
-              ? "[user sent a GIF]"
-              : "");
+          (userText ||
+            (images.length > 0
+              ? "[user sent an image]"
+              : gifs.length > 0
+                ? "[user sent a GIF]"
+                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the replayed turn's GIF once, reused by the decider and
         // assembleContext below.
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
-        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(
+          levelOfRot,
+          personaForStream.personaPrompt,
+        );
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: deciderSystemPrompt,
@@ -314,7 +356,22 @@ export const streamReplayTurn = onRequest(
         deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
-          const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+          // Look-&-pick on broad queries only (same rule as a normal turn).
+          const selectIndex =
+            decision.randomnessFactor > 2
+              ? (titles: string[]) =>
+                  pickBestMediaIndex({
+                    apiKey: OPENAI_API_KEY.value(),
+                    message: currentForDecider,
+                    titles,
+                  })
+              : undefined;
+          const klipyDeps = {
+            apiKey: klipyApiKey,
+            customerId: uid,
+            excludeIds,
+            selectIndex,
+          };
           const rawArgs = JSON.stringify({
             query: decision.query,
             randomness_factor: decision.randomnessFactor,
@@ -322,6 +379,7 @@ export const streamReplayTurn = onRequest(
           try {
             if (decision.type === "gif") {
               const r = await runGetGif(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.gif) {
                 pendingGif = r.gif;
                 attachedMedia = {
@@ -331,6 +389,7 @@ export const streamReplayTurn = onRequest(
               }
             } else {
               const r = await runGetMeme(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.meme) {
                 pendingMeme = r.meme;
                 attachedMedia = {
@@ -348,6 +407,11 @@ export const streamReplayTurn = onRequest(
         }
       }
 
+      // Join the concurrent web-search pre-step before assembling context.
+      const web = await webContextPromise;
+      webRouterUsage = web.routerUsage;
+      searchCostUsd = web.searchCostUsd;
+
       assembleResult = await assembleContext({
         conversationId,
         plan: entitlement.plan,
@@ -355,7 +419,9 @@ export const streamReplayTurn = onRequest(
         currentImageUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
+        currentAttachmentTitles: attachmentTitles,
         attachedMedia,
+        webContext: web.webContext ?? undefined,
         perTurnNote,
         systemPrompt,
         userAlias: entitlement.alias,
@@ -366,6 +432,17 @@ export const streamReplayTurn = onRequest(
         excludeMessageIds: [userTurn.id],
       });
     } catch (err) {
+      if (err instanceof PersonaAccessError) {
+        // The replayed turn's stored persona isn't the caller's to use. Generic
+        // by design; logged at warn since it's misuse, not a server fault.
+        logger.warn("[streamReplayTurn] persona access denied", {
+          conversationId,
+          uid,
+          personaId,
+        });
+        res.status(403).json({ code: "forbidden" });
+        return;
+      }
       logger.error("[streamReplayTurn] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });
       return;
@@ -390,6 +467,18 @@ export const streamReplayTurn = onRequest(
       ) {
         usages.push(decideUsage);
       }
+      if (
+        pickUsage &&
+        (pickUsage.inputTokens > 0 || pickUsage.outputTokens > 0)
+      ) {
+        usages.push(pickUsage);
+      }
+      if (
+        webRouterUsage &&
+        (webRouterUsage.inputTokens > 0 || webRouterUsage.outputTokens > 0)
+      ) {
+        usages.push(webRouterUsage);
+      }
       if (lastUsage) {
         usages.push({
           model: internalModel,
@@ -413,10 +502,12 @@ export const streamReplayTurn = onRequest(
       }
 
       try {
-        const costUsd = usages.reduce(
+        const tokenCostUsd = usages.reduce(
           (sum, u) => sum + calculateCostUsd(u.model, u),
           0,
         );
+        // Fold the flat Tavily search cost into the turn's total before credits.
+        const costUsd = tokenCostUsd + searchCostUsd;
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
           conversationId,
@@ -425,6 +516,7 @@ export const streamReplayTurn = onRequest(
           usages,
           costUsd,
           credits,
+          searchCostUsd,
         });
       } catch (err) {
         logger.error("[streamReplayTurn] charge failed", {
@@ -470,7 +562,9 @@ export const streamReplayTurn = onRequest(
               name: resolvedPersona.name,
               slug: resolvedPersona.slug,
               displayName: resolvedPersona.publicConfig.displayName,
-              avatarKey: resolvedPersona.publicConfig.avatarKey,
+              // User personas have no preset avatarKey (uploaded avatarUrl
+              // instead); keep this stored field a plain string for history.
+              avatarKey: resolvedPersona.publicConfig.avatarKey ?? "",
             }
           : undefined,
       });

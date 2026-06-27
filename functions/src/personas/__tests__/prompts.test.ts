@@ -6,8 +6,11 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   buildMediaDeciderPrompt,
   buildSystemPromptForStream,
+  PersonaAccessError,
+  resolvePersonaForStream,
   DEFAULT_PERSONA_ID,
   MEDIA_DECIDER_KEY,
+  type ResolvedPersonaForStream,
 } from "../prompts";
 
 type Doc = Record<string, unknown>;
@@ -281,6 +284,36 @@ describe("persona prompt resolution", () => {
     );
   });
 
+  it("accepts a persona prompt doc carrying media-decider config", async () => {
+    const withMedia = personaPrompt("m", DEFAULT_PERSONA_ID, "BRAINROT");
+    withMedia.mediaDeciderKey = "minimal_decider";
+    withMedia.mediaNotes = "PERSONA MEDIA PREFERENCES";
+    setDb({
+      platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+      personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+      persona_prompts: { m: withMedia },
+    });
+
+    const result = await buildSystemPromptForStream();
+    expect(result.systemPrompt).toContain("BRAINROT");
+    // The media config never leaks into the persona-path system prompt.
+    expect(result.systemPrompt).not.toContain("PERSONA MEDIA PREFERENCES");
+  });
+
+  it("rejects a persona prompt doc with a malformed mediaDeciderKey", async () => {
+    const bad = personaPrompt("bad", DEFAULT_PERSONA_ID, "BAD");
+    bad.mediaDeciderKey = 5;
+    setDb({
+      platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+      personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+      persona_prompts: { bad },
+    });
+
+    await expect(buildSystemPromptForStream()).rejects.toThrow(
+      /no active persona prompt/,
+    );
+  });
+
   it("composes platform guardrails before persona prompt", async () => {
     setDb({
       platform_prompts: {
@@ -318,6 +351,28 @@ describe("persona prompt resolution", () => {
     expect(result.systemPrompt).not.toContain("MEDIA-GUARDS");
   });
 
+  it("uses a pre-resolved persona instead of resolving again", async () => {
+    // Firestore holds ONLY the default persona — if the function re-resolved,
+    // it would answer as Brainrot. The pre-resolved "other" must win.
+    setDb({
+      platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+      personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+      persona_prompts: {
+        brainrot_bot_default_v1: personaPrompt("brainrot_bot_default_v1", DEFAULT_PERSONA_ID, "BRAINROT"),
+      },
+    });
+    const preResolved = {
+      persona: persona("other", { isDefault: false }),
+      personaPrompt: personaPrompt("other_v1", "other", "PRE-RESOLVED"),
+    } as unknown as ResolvedPersonaForStream;
+
+    const result = await buildSystemPromptForStream("ignored", 2, true, preResolved);
+
+    expect(result.persona.id).toBe("other");
+    expect(result.systemPrompt).toContain("Active persona prompt:\nPRE-RESOLVED");
+    expect(result.systemPrompt).not.toContain("BRAINROT");
+  });
+
   it("returns only safe persona metadata next to the backend-only prompt", async () => {
     setDb({
       platform_prompts: { platform_guardrails_v1: platformPrompt("SECRET PLATFORM") },
@@ -338,6 +393,141 @@ describe("persona prompt resolution", () => {
     expect(personaJson).not.toContain("SECRET PERSONA");
     expect(result.systemPrompt).toContain("SECRET PLATFORM");
     expect(result.systemPrompt).toContain("SECRET PERSONA");
+  });
+});
+
+// A minimal valid user_personas doc — the stored shape savePersona writes.
+function userPersonaDoc(id: string, ownerUid: string, overrides: Partial<Doc> = {}): Doc {
+  return {
+    id,
+    ownerUid,
+    input: { displayName: "Capy" },
+    publicConfig: {
+      displayName: "Capy",
+      shortDescription: "Zen rodent",
+      avatarKey: "capybara",
+      toneTags: ["chill"],
+    },
+    fragments: fragmentsOf("USER-PERSONA-PROMPT"),
+    mediaNotes: "USER-MEDIA-NOTES",
+    isEnabled: true,
+    moderation: { certainty: 0.9, gates: ["openai_moderation"] },
+    ...overrides,
+  };
+}
+
+// Default-persona fixtures every fallback assertion needs in place.
+function defaultPersonaCollections(): Collections {
+  return {
+    platform_prompts: { platform_guardrails_v1: platformPrompt("PLATFORM") },
+    personas: { [DEFAULT_PERSONA_ID]: persona(DEFAULT_PERSONA_ID) },
+    persona_prompts: {
+      brainrot_bot_default_v1: personaPrompt(
+        "brainrot_bot_default_v1",
+        DEFAULT_PERSONA_ID,
+        "BRAINROT",
+      ),
+    },
+  };
+}
+
+describe("user persona resolution", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("resolves an owned, enabled user persona", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
+    });
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-1");
+
+    expect(resolved.persona.id).toBe("user_uid-1_a1");
+    expect(resolved.persona.publicConfig.displayName).toBe("Capy");
+    expect(resolved.personaPrompt.mediaNotes).toBe("USER-MEDIA-NOTES");
+    // User personas run the persona-tuned decider (favorites-first, no brainrot
+    // bank), not the brainrot default. Set unconditionally in resolution — never
+    // from user input, so it's first-party by construction.
+    expect(resolved.personaPrompt.mediaDeciderKey).toBe("media_decider_persona");
+  });
+
+  it("rejects (throws) someone else's persona id rather than serving or downgrading", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
+    });
+
+    // uid-2 must never receive uid-1's persona — and must NOT silently get the
+    // default either; it's a hard reject so the HTTP layer can send a generic
+    // error (anti-theft).
+    await expect(
+      resolvePersonaForStream("user_uid-1_a1", "uid-2"),
+    ).rejects.toBeInstanceOf(PersonaAccessError);
+  });
+
+  it("rejects a user_ id when no requester uid is provided", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: { "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1") },
+    });
+
+    await expect(
+      resolvePersonaForStream("user_uid-1_a1"),
+    ).rejects.toBeInstanceOf(PersonaAccessError);
+  });
+
+  it("falls back for a disabled user persona", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: {
+        "user_uid-1_a1": userPersonaDoc("user_uid-1_a1", "uid-1", { isEnabled: false }),
+      },
+    });
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("falls back for a missing or malformed user persona doc", async () => {
+    setDb({
+      ...defaultPersonaCollections(),
+      user_personas: {
+        "user_uid-1_bad": userPersonaDoc("user_uid-1_bad", "uid-1", {
+          fragments: { fragmentsVersion: 1 },
+        }),
+      },
+    });
+
+    const missing = await resolvePersonaForStream("user_uid-1_nope", "uid-1");
+    expect(missing.persona.id).toBe(DEFAULT_PERSONA_ID);
+
+    const malformed = await resolvePersonaForStream("user_uid-1_bad", "uid-1");
+    expect(malformed.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("a user_-prefixed id never resolves from the first-party collections", async () => {
+    // A malicious/buggy client sends a user_ id that happens to exist as a
+    // first-party persona doc. The resolver must treat the prefix as
+    // authoritative and fall back, not serve the first-party doc.
+    const collections = defaultPersonaCollections();
+    collections.personas["user_uid-1_a1"] = persona("user_uid-1_a1", { isDefault: false });
+    collections.persona_prompts.fake = personaPrompt("fake", "user_uid-1_a1", "FAKE");
+    setDb(collections);
+
+    const resolved = await resolvePersonaForStream("user_uid-1_a1", "uid-1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
+  });
+
+  it("first-party resolution is untouched when a requester uid is supplied", async () => {
+    setDb(defaultPersonaCollections());
+
+    const resolved = await resolvePersonaForStream(DEFAULT_PERSONA_ID, "uid-1");
+
+    expect(resolved.persona.id).toBe(DEFAULT_PERSONA_ID);
   });
 });
 
@@ -373,6 +563,83 @@ describe("media decider prompt resolution", () => {
     });
     expect(await buildMediaDeciderPrompt(1)).toContain("Current rot level: 1/3");
     expect(await buildMediaDeciderPrompt(3)).toContain("Current rot level: 3/3");
+  });
+
+  // An alternate decider prompt doc (custom platform_prompts key) a persona
+  // can reference via its mediaDeciderKey.
+  function customDecider(key: string, body: string): Doc {
+    return { ...deciderPrompt(body), id: `${key}_v1`, key };
+  }
+
+  it("uses the persona's mediaDeciderKey when that decider is active", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("P", 1, "MEDIA-GUARDS"),
+        media_decider_v1: deciderPrompt("DEFAULT-DECIDER"),
+        minimal_decider_v1: customDecider("minimal_decider", "CUSTOM-DECIDER"),
+      },
+    });
+
+    const out = await buildMediaDeciderPrompt(2, {
+      mediaDeciderKey: "minimal_decider",
+    });
+
+    expect(out).toContain("CUSTOM-DECIDER");
+    expect(out).not.toContain("DEFAULT-DECIDER");
+    // The custom decider still gets the media guardrails prefix + rot line.
+    expect(out.indexOf("MEDIA-GUARDS")).toBeLessThan(out.indexOf("CUSTOM-DECIDER"));
+    expect(out).toContain("Current rot level: 2/3");
+  });
+
+  it("falls back to the default decider when the persona's key has no active doc", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("P", 1, "MEDIA-GUARDS"),
+        media_decider_v1: deciderPrompt("DEFAULT-DECIDER"),
+      },
+    });
+
+    const out = await buildMediaDeciderPrompt(2, {
+      mediaDeciderKey: "missing_decider",
+    });
+
+    expect(out).toContain("DEFAULT-DECIDER");
+  });
+
+  it("appends the persona's mediaNotes between the decider body and the rot line", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("P", 1, "MEDIA-GUARDS"),
+        media_decider_v1: deciderPrompt("DECIDER-BODY"),
+      },
+    });
+
+    const out = await buildMediaDeciderPrompt(2, {
+      mediaNotes: "PERSONA-MEDIA-NOTES",
+    });
+
+    // Dynamic tail order: shared cacheable prefix, then persona notes, then
+    // the rot line (recency).
+    expect(out.indexOf("DECIDER-BODY")).toBeLessThan(
+      out.indexOf("PERSONA-MEDIA-NOTES"),
+    );
+    expect(out.indexOf("PERSONA-MEDIA-NOTES")).toBeLessThan(
+      out.indexOf("Current rot level: 2/3"),
+    );
+  });
+
+  it("a persona without media config is byte-identical to the no-persona path", async () => {
+    setDb({
+      platform_prompts: {
+        platform_guardrails_v1: platformPrompt("P", 1, "MEDIA-GUARDS"),
+        media_decider_v1: deciderPrompt("DECIDER-BODY"),
+      },
+    });
+
+    const withoutPersona = await buildMediaDeciderPrompt(2);
+    const withPlainPersona = await buildMediaDeciderPrompt(2, {});
+
+    expect(withPlainPersona).toBe(withoutPersona);
   });
 
   it("throws when the platform doc is missing", async () => {

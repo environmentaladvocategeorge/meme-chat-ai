@@ -9,6 +9,12 @@ import {
   isBubbleStyleId,
   normalizeHex,
 } from "@/domain/customization";
+import {
+  normalizeDrafts,
+  normalizeGeneratedAvatars,
+  type PersonaDraft,
+} from "@/domain/personaDrafts";
+import type { PickedAvatar } from "@/services/firebase/uploadPersonaAvatar";
 
 export type Appearance = "system" | "light" | "dark";
 export type Language = "system" | "en" | "es" | "fr" | "pt" | "de" | "zh" | "ja" | "hi" | "ru";
@@ -380,19 +386,199 @@ export const ChatSessionStorage = {
   },
 };
 
-// One call clears every AsyncStorage key the template controls. Wired into
-// the Settings "Delete data" action AFTER the account deletion callable
-// succeeds, so a partial failure on the backend doesn't strand the user
-// in a half-wiped local state.
+// Work-in-progress persona drafts (persona creator). Stored LOCALLY only —
+// never synced to the cloud — as a whole list (not a merged patch like the
+// other stores), capped + normalized by the domain layer. The avatar inside a
+// draft is a device-local image URI until publish, so nothing here is uploaded.
+const PERSONA_DRAFTS_KEY = "app.personaDrafts";
+
+let pendingPersonaDraftsWrite = Promise.resolve();
+
+export const PersonaDraftsStorage = {
+  async read(): Promise<PersonaDraft[]> {
+    try {
+      const raw = await AsyncStorage.getItem(PERSONA_DRAFTS_KEY);
+      if (!raw) return [];
+      return normalizeDrafts(JSON.parse(raw));
+    } catch {
+      return [];
+    }
+  },
+
+  // Whole-list replace (the caller owns ordering/cap via the domain helpers);
+  // re-normalized on the way out so a bad write can't corrupt the store.
+  async write(drafts: PersonaDraft[]): Promise<void> {
+    pendingPersonaDraftsWrite = pendingPersonaDraftsWrite
+      .then(() =>
+        AsyncStorage.setItem(
+          PERSONA_DRAFTS_KEY,
+          JSON.stringify(normalizeDrafts(drafts)),
+        ),
+      )
+      .catch(() => {});
+
+    await pendingPersonaDraftsWrite;
+  },
+
+  async reset(): Promise<void> {
+    pendingPersonaDraftsWrite = pendingPersonaDraftsWrite
+      .then(() => AsyncStorage.removeItem(PERSONA_DRAFTS_KEY))
+      .catch(() => {});
+
+    await pendingPersonaDraftsWrite;
+  },
+};
+
+// AI avatar candidate pairs for SAVED personas, keyed by personaId. The persona
+// creator keeps the last generated pair on the draft while a bot is still a draft
+// (see PersonaDraftsStorage / PersonaDraft.generatedAvatars), but a published bot
+// has no draft — editing it would otherwise lose the pair the moment the creator
+// closes. This map is that pair's durable home for saved personas, so both
+// candidates stay visible across close/reopen and saves, until the user
+// regenerates (which replaces them). Stored LOCALLY only — the unpicked candidate
+// is never moderated server-side, so it must not leave the device. The URIs point
+// at cache JPEGs, so like drafts the record can outlive the files if the OS evicts
+// them; the tile simply renders empty in that case.
+const EDIT_AVATAR_CANDIDATES_KEY = "app.editAvatarCandidates";
+
+type EditAvatarCandidates = Record<string, PickedAvatar[]>;
+
+// Drops malformed entries and any persona whose pair normalizes to empty, so the
+// map never accumulates dead keys.
+function normalizeEditAvatarCandidates(value: unknown): EditAvatarCandidates {
+  if (!isRecord(value)) return {};
+  const out: EditAvatarCandidates = {};
+  for (const [personaId, pair] of Object.entries(value)) {
+    if (!personaId) continue;
+    const candidates = normalizeGeneratedAvatars(pair);
+    if (candidates.length > 0) out[personaId] = candidates;
+  }
+  return out;
+}
+
+let pendingEditAvatarCandidatesWrite = Promise.resolve();
+
+export const EditAvatarCandidatesStorage = {
+  async read(): Promise<EditAvatarCandidates> {
+    try {
+      const raw = await AsyncStorage.getItem(EDIT_AVATAR_CANDIDATES_KEY);
+      if (!raw) return {};
+      return normalizeEditAvatarCandidates(JSON.parse(raw));
+    } catch {
+      return {};
+    }
+  },
+
+  // The stored pair for one persona, or [] when none (or unusable).
+  async getFor(personaId: string): Promise<PickedAvatar[]> {
+    const map = await EditAvatarCandidatesStorage.read();
+    return map[personaId] ?? [];
+  },
+
+  // Replace one persona's pair. An empty list deletes its key, so regenerating to
+  // nothing (or a cleared batch) never leaves a dangling entry. Serialized through
+  // a write chain so concurrent updates from the in-flight generate compose.
+  async setFor(personaId: string, candidates: PickedAvatar[]): Promise<void> {
+    if (!personaId) return;
+    pendingEditAvatarCandidatesWrite = pendingEditAvatarCandidatesWrite
+      .then(async () => {
+        const map = await EditAvatarCandidatesStorage.read();
+        const normalized = normalizeGeneratedAvatars(candidates);
+        if (normalized.length > 0) map[personaId] = normalized;
+        else delete map[personaId];
+        await AsyncStorage.setItem(
+          EDIT_AVATAR_CANDIDATES_KEY,
+          JSON.stringify(map),
+        );
+      })
+      .catch(() => {});
+
+    await pendingEditAvatarCandidatesWrite;
+  },
+
+  // Drop the pairs for deleted personas (wired into the persona-delete path).
+  async removeFor(personaIds: string[]): Promise<void> {
+    if (personaIds.length === 0) return;
+    pendingEditAvatarCandidatesWrite = pendingEditAvatarCandidatesWrite
+      .then(async () => {
+        const map = await EditAvatarCandidatesStorage.read();
+        let changed = false;
+        for (const id of personaIds) {
+          if (id in map) {
+            delete map[id];
+            changed = true;
+          }
+        }
+        if (changed) {
+          await AsyncStorage.setItem(
+            EDIT_AVATAR_CANDIDATES_KEY,
+            JSON.stringify(map),
+          );
+        }
+      })
+      .catch(() => {});
+
+    await pendingEditAvatarCandidatesWrite;
+  },
+
+  async reset(): Promise<void> {
+    pendingEditAvatarCandidatesWrite = pendingEditAvatarCandidatesWrite
+      .then(() => AsyncStorage.removeItem(EDIT_AVATAR_CANDIDATES_KEY))
+      .catch(() => {});
+
+    await pendingEditAvatarCandidatesWrite;
+  },
+};
+
+// AsyncStorage keys that must SURVIVE sign-out and account deletion. Today this
+// is only the age gate — a device-level decision (see AGE_GATE_KEY) that must
+// outlive deletion, otherwise an under-16 user could delete their account and
+// re-pass the gate. Everything else under the `app.` namespace is user/session
+// data and is wiped.
+const PRESERVED_LOCAL_KEYS = new Set<string>([AGE_GATE_KEY]);
+
+// Every `app.`-namespaced AsyncStorage key currently present that is NOT on the
+// preserve list — i.e. residual user/session data. Used both as the wipe target
+// and as the post-deletion validation surface (assertLocalDataCleared in
+// store/auth.ts). Empty on a read error so a transient failure never reports a
+// false "everything's clean".
+export async function listResidualUserKeys(): Promise<string[]> {
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    return keys.filter(
+      (key) => key.startsWith("app.") && !PRESERVED_LOCAL_KEYS.has(key),
+    );
+  } catch {
+    return [];
+  }
+}
+
+// One call clears every AsyncStorage key the app controls. Wired into the
+// sign-out and account-deletion teardown AFTER the deletion callable succeeds,
+// so a partial failure on the backend doesn't strand the user in a half-wiped
+// local state.
 //
-// NOTE: AgeGateStorage is intentionally NOT reset here. The age gate is a
-// device-level decision that must outlive account deletion — wiping it would let
-// an under-16 user delete their account and re-pass the gate. It is only ever
-// cleared by a full app reinstall.
+// Two passes:
+//   1. Reset the stores that own normalized, serialized writes so their pending
+//      write chains drain first (a queued write must not re-land a key after the
+//      sweep below removes it).
+//   2. Backstop sweep: remove EVERY remaining `app.` key. This catches keys
+//      owned by other modules (the persona selection, review-prompt, and daily-
+//      paywall keys) and, critically, any key a future feature adds without
+//      remembering to wire it in here — deletion stays complete by default.
+//
+// The age gate is preserved across both passes (see PRESERVED_LOCAL_KEYS).
 export async function wipeLocalAppData(): Promise<void> {
   await Promise.all([
     SettingsStorage.reset(),
     OnboardingStorage.reset(),
     ChatSessionStorage.reset(),
+    PersonaDraftsStorage.reset(),
+    EditAvatarCandidatesStorage.reset(),
   ]);
+
+  const residual = await listResidualUserKeys();
+  if (residual.length > 0) {
+    await AsyncStorage.multiRemove(residual).catch(() => {});
+  }
 }

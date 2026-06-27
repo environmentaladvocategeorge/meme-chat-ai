@@ -46,6 +46,10 @@ export default function AppLayout() {
             <Stack.Screen name="history" />
             <Stack.Screen name="settings" />
             <Stack.Screen name="plan" />
+            {/* No swipe-back: the creator has unsaved-draft state, so the only
+                exit is its X menu (Save draft / Discard), never an accidental
+                edge-swipe. Hardware back is intercepted in the screen. */}
+            <Stack.Screen name="persona-creator" options={{ gestureEnabled: false }} />
           </Stack>
         </View>
       </MaxWidthFrame>

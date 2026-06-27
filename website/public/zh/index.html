@@ -9,8 +9,8 @@
       document.documentElement.classList.add("js");
     </script>
     <title>Meme Chat AI | 让回复一击即中的搞笑 AI 聊天 App</title>
-    <meta name="description" content="Meme Chat AI 是一款搞笑 AI 聊天 App，能救活干巴巴的消息、迅速讲清看不懂的东西、有用地吐槽半生不熟的点子，把一团浆糊的脑子变成回复、文案和计划。" />
-    <meta name="keywords" content="meme AI 聊天, 搞笑 AI 助手, AI 文案改写, AI 聊天 App, meme 聊天机器人, iPhone AI 聊天" />
+    <meta name="description" content="Meme Chat AI 是一款搞笑 AI 聊天 App，能救活干巴巴的消息、迅速讲清看不懂的东西、有用地吐槽半生不熟的点子，还能让你打造自己的 brainrot bot。" />
+    <meta name="keywords" content="meme AI 聊天, 搞笑 AI 助手, 自定义 AI 人设, 打造你自己的 AI bot, AI 聊天 App, meme 聊天机器人, iPhone AI 聊天" />
     <link rel="canonical" href="https://meme-chat-ai.com/zh" />
     <link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
     <link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
@@ -31,7 +31,7 @@
     <meta property="og:image" content="https://meme-chat-ai.com/assets/images/app-icon.png?v=2" />
     <meta property="og:locale" content="zh" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=3" />
     <style>
       /* "Send a meme" callout — white KLIPY mark sits on a teal panel. */
       .meme-card {
@@ -129,7 +129,15 @@
             "name": "What are meme-power plans?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Hatchling (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
+              "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Newbie (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I create my own AI bot in Meme Chat AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Alongside Brainrot Bot you can build your own personas: name a bot, give it a personality, voice, slang, emojis, and an avatar, then chat with it like any other. The free plan includes one custom bot and paid plans hold up to ten, and you switch between them inside the app. Every bot passes an automated safety check before it goes live."
             }
           }
         ]
@@ -144,6 +152,7 @@
       </a>
       <nav class="nav" aria-label="Main navigation">
         <a href="#how">玩法</a>
+        <a href="#personas">做个 bot</a>
         <a href="#memory">记忆</a>
         <a href="#plans">套餐</a>
         <a href="/zh/ios">iOS</a>
@@ -289,6 +298,28 @@
         </div>
       </section>
 
+      <section class="section split-section reveal" id="personas">
+        <div>
+          <p class="eyebrow">打造你自己的</p>
+          <h2>打造一个完全属于你的 brainrot bot。</h2>
+          <p>Brainrot Bot 只是开始。从零打造你自己的：起个名字、写段背景、定下说话的方式，然后像和别的 bot 一样跟它聊。免费套餐含一个自定义 bot；付费套餐可存 10 到 100 个，还能随时在它们之间切换。每个 bot 上线前都会通过一次安全检查。</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>给它一个性格</h3>
+            <p>起名、写清它是谁、定下调调：温柔、面瘫，还是彻底放飞，随你。</p>
+          </article>
+          <article class="feature-card">
+            <h3>教它说话</h3>
+            <p>挑好它的幽默、俚语和常用表情，再放一条示例回复，让它从第一条消息就拿捏住语气。</p>
+          </article>
+          <article class="feature-card">
+            <h3>选好它的样子</h3>
+            <p>上传一张头像，或用一句简短描述生成一张，写一句话标语并保存。它就出现在你的 bot 选择器里，随时开聊。</p>
+          </article>
+        </div>
+      </section>
+
       <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
@@ -309,30 +340,37 @@
         </div>
       </section>
 
-      <section class="section split-section reveal" id="memory">
-        <div>
+      <section class="section memory-section reveal" id="memory">
+        <div class="memory-copy">
           <p class="eyebrow">记忆</p>
           <h2>真正懂你的 Brainrot Bot。</h2>
           <p>在付费套餐里，Brainrot Bot 会记住你的调调、你提到的人，以及你反复说起的事。下一次聊天从上次结束的地方继续。不用重新解释，不用从零开始。</p>
           <p>掌控权在你手里。随时在“设置”里关掉记忆或一键清空，不会多问。</p>
         </div>
-        <div class="feature-grid">
-          <article class="feature-card">
-            <h3>抓住上下文</h3>
-            <p>记下你的调调、你的人和你反复提起的话题，每次都跳过重新自我介绍。</p>
-          </article>
-          <article class="feature-card">
-            <h3>存在你的账号里</h3>
-            <p>绑定账号，而非设备。每次登录都是同一份记忆。</p>
-          </article>
-          <article class="feature-card">
-            <h3>你说了算</h3>
-            <p>在“设置”里关掉或清空。立刻停止，无需等待。</p>
-          </article>
-          <article class="feature-card">
-            <h3>仅限付费套餐</h3>
-            <p>Sidekick、Wingman 和 MVP 可用。免费套餐有完整的机器人，只是没有记忆。</p>
-          </article>
+        <div class="memory-thread" aria-label="How Brainrot Bot remembers you">
+          <div class="memory-thread-head">
+            <img src="/assets/images/app-icon.png?v=2" alt="" />
+            <span class="memory-thread-name">Brainrot Bot</span>
+            <span class="memory-thread-pill">记忆</span>
+          </div>
+          <div class="memory-msgs">
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">抓住上下文</span>
+              <p>记下你的调调、你的人和你反复提起的话题，每次都跳过重新自我介绍。</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">存在你的账号里</span>
+              <p>绑定账号，而非设备。每次登录都是同一份记忆。</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">你说了算</span>
+              <p>在“设置”里关掉或清空。立刻停止，无需等待。</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">仅限付费套餐</span>
+              <p>Sidekick、Wingman 和 MVP 可用。免费套餐有完整的机器人，只是没有记忆。</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -340,33 +378,38 @@
         <div class="section-heading">
           <p class="eyebrow">Meme-power</p>
           <h2>套餐配得上你聊天的猛劲。</h2>
-          <p>每个套餐都是同一个聪明的 Brainrot Bot。档位决定你的每月额度、Brainrot Bot 是否记得你，以及你能不能给聊天换风格。Wingman 最受欢迎，MVP 最强。</p>
+          <p>每个套餐都是同一个聪明的 Brainrot Bot。档位决定你的每月额度、能存多少个自定义 bot、Brainrot Bot 是否记得你，以及你能不能给聊天换风格。Wingman 最受欢迎，MVP 最强。</p>
         </div>
-        <div class="plan-grid">
-          <article class="plan-card">
-            <span class="plan-kicker">免费</span>
-            <h3>Hatchling</h3>
-            <p>完整机器人，入门级混乱。</p>
-            <strong>1x 聊天</strong>
-          </article>
-          <article class="plan-card">
-            <span class="plan-kicker">基础</span>
-            <h3>Sidekick</h3>
-            <p>更多聊天，更少气场欠债。</p>
-            <strong>9x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告</strong>
-          </article>
-          <article class="plan-card">
-            <span class="plan-kicker">热门</span>
-            <h3>Wingman</h3>
-            <p>海量聊天、记忆、势头。</p>
-            <strong>25x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告</strong>
-          </article>
-          <article class="plan-card recommended">
-            <span class="plan-kicker">最佳</span>
-            <h3>MVP</h3>
-            <p>为高强度聊天日和专业级唠嗑而生。</p>
-            <strong>50x 聊天 &middot; 记忆 &middot; App 主题 &middot; 无广告</strong>
-          </article>
+        <div class="plan-carousel" data-plan-carousel>
+          <button class="plan-nav plan-nav-prev" type="button" aria-label="Previous plan" data-plan-prev>&#8249;</button>
+          <button class="plan-nav plan-nav-next" type="button" aria-label="Next plan" data-plan-next>&#8250;</button>
+          <div class="plan-track" role="list">
+            <article class="plan-card" role="listitem">
+              <span class="plan-kicker">免费</span>
+              <h3>Newbie</h3>
+              <p>完整机器人，入门级混乱。</p>
+              <strong>1x 聊天 &middot; 1 个自定义 bot</strong>
+            </article>
+            <article class="plan-card" role="listitem">
+              <span class="plan-kicker">基础</span>
+              <h3>Sidekick</h3>
+              <p>更多聊天，更少气场欠债。</p>
+              <strong>9x 聊天 &middot; 10 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告</strong>
+            </article>
+            <article class="plan-card" role="listitem" data-plan-default>
+              <span class="plan-kicker">热门</span>
+              <h3>Wingman</h3>
+              <p>海量聊天、记忆、势头。</p>
+              <strong>25x 聊天 &middot; 30 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告</strong>
+            </article>
+            <article class="plan-card recommended" role="listitem">
+              <span class="plan-kicker">最佳</span>
+              <h3>MVP</h3>
+              <p>为高强度聊天日和专业级唠嗑而生。</p>
+              <strong>50x 聊天 &middot; 100 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告</strong>
+            </article>
+          </div>
+          <div class="plan-dots" aria-hidden="true"></div>
         </div>
       </section>
 
@@ -397,6 +440,10 @@
           <details>
             <summary>网站用的是真实的 App 素材吗?</summary>
             <p>是的。首页用的是 App 图标、Brainrot Bot 头像图、Poppins、Fredoka，以及和 App 一样的品牌配色。</p>
+          </details>
+          <details>
+            <summary>我能做自己的 bot 吗?</summary>
+            <p>可以。除了 Brainrot Bot，你还能打造自己的：起名，赋予性格、语气和头像，然后跟它聊。免费套餐含一个自定义 bot，付费套餐最多存一百个。每个 bot 上线前都会经过安全检查。</p>
           </details>
         </div>
       </section>
@@ -438,6 +485,91 @@
         els.forEach(function (el) {
           io.observe(el);
         });
+      })();
+    </script>
+
+    <!-- Plans carousel: flag the card nearest the middle (it scales up with a
+         faint glow) and build clickable position dots. Pure CSS scroll-snap
+         handles layout; without JS it stays a plain scrollable row. -->
+    <script>
+      (function () {
+        var carousel = document.querySelector("[data-plan-carousel]");
+        if (!carousel) return;
+        var track = carousel.querySelector(".plan-track");
+        var dotsWrap = carousel.querySelector(".plan-dots");
+        var prevBtn = carousel.querySelector("[data-plan-prev]");
+        var nextBtn = carousel.querySelector("[data-plan-next]");
+        var cards = Array.prototype.slice.call(track.querySelectorAll(".plan-card"));
+        if (!cards.length) return;
+
+        var current = 0;
+
+        function centerCard(card) {
+          track.scrollTo({
+            left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2,
+            behavior: "smooth",
+          });
+        }
+
+        function go(i) {
+          centerCard(cards[Math.max(0, Math.min(cards.length - 1, i))]);
+        }
+
+        var dots = cards.map(function (card, i) {
+          var dot = document.createElement("button");
+          dot.type = "button";
+          dot.setAttribute("aria-label", "Show plan " + (i + 1));
+          dot.addEventListener("click", function () {
+            go(i);
+          });
+          dotsWrap.appendChild(dot);
+          return dot;
+        });
+
+        if (prevBtn) prevBtn.addEventListener("click", function () { go(current - 1); });
+        if (nextBtn) nextBtn.addEventListener("click", function () { go(current + 1); });
+
+        var raf = 0;
+        function update() {
+          raf = 0;
+          var mid = track.scrollLeft + track.clientWidth / 2;
+          var best = 0;
+          var bestDist = Infinity;
+          for (var i = 0; i < cards.length; i++) {
+            var center = cards[i].offsetLeft + cards[i].offsetWidth / 2;
+            var dist = Math.abs(center - mid);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = i;
+            }
+          }
+          current = best;
+          for (var j = 0; j < cards.length; j++) {
+            cards[j].classList.toggle("is-center", j === best);
+            dots[j].classList.toggle("is-active", j === best);
+          }
+          if (prevBtn) prevBtn.disabled = best === 0;
+          if (nextBtn) nextBtn.disabled = best === cards.length - 1;
+        }
+
+        track.addEventListener(
+          "scroll",
+          function () {
+            if (!raf) raf = requestAnimationFrame(update);
+          },
+          { passive: true }
+        );
+        window.addEventListener("resize", update);
+        window.addEventListener("load", update);
+
+        // Start centered on the popular plan, without animating on first paint.
+        var initial = track.querySelector("[data-plan-default]") || cards[0];
+        var prev = track.style.scrollBehavior;
+        track.style.scrollBehavior = "auto";
+        track.scrollLeft =
+          initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
+        track.style.scrollBehavior = prev;
+        update();
       })();
     </script>
     <script>try{localStorage.setItem("mcai_lang","zh");}catch(e){}</script>

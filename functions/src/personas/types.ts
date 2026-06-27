@@ -23,8 +23,14 @@ export type PlatformPrompt = {
 export type PersonaPublicConfig = {
   displayName: string;
   shortDescription: string;
-  avatarKey: string;
+  // Preset-avatar key used by first-party personas. Optional because user
+  // personas instead carry an uploaded avatar (avatarUrl/avatarPath below).
+  avatarKey?: string;
   toneTags: string[];
+  // User-uploaded avatar (user personas only): the display URL and the Storage
+  // path kept for server-side deletion. Absent when the user uploaded none.
+  avatarUrl?: string;
+  avatarPath?: string;
 };
 
 export type Persona = {
@@ -48,6 +54,15 @@ export type PersonaPrompt = {
   // The prompt body, as ordered fragments assembled with the active rot level +
   // emoji flag. The single source of truth — see ./fragments.
   fragments: FragmentedPrompt;
+  // Which media-decider prompt this persona uses: a `platform_prompts` key
+  // (versioned/active-flippable like every prompt). Absent = the global
+  // default decider (MEDIA_DECIDER_KEY). Rendered from PersonaSpec.media.
+  mediaDeciderKey?: string;
+  // The persona's media preferences (favorite reaction searches, vibe lean),
+  // appended to the decider prompt as a DYNAMIC suffix at stream time — never
+  // baked into the decider body, so the shared decider prefix stays one
+  // globally cached block. Rendered from PersonaSpec.media.
+  mediaNotes?: string;
   isActive: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;

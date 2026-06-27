@@ -21,6 +21,7 @@
 const { getEncoding } = require("js-tiktoken");
 const {
   BRAINROT_PERSONA_FRAGMENTS,
+  BRAINROT_PERSONA_PROMPT_DOC,
   BRAINROT_PERSONA_PROMPT_VERSION,
   BRAINROT_PERSONA_PROMPT_DOC_PATH,
 } = require("../lib/personas/brainrotPersonaPrompt.js");
@@ -123,6 +124,13 @@ function verifyAgainstSnapshot(snapshotPath) {
     failures++;
     console.log("MISMATCH guardrails.mediaContent");
   }
+  // Doc-level media-decider config (absent on both sides = match).
+  for (const field of ["mediaDeciderKey", "mediaNotes"]) {
+    if ((personaDoc.data[field] ?? null) !== (BRAINROT_PERSONA_PROMPT_DOC[field] ?? null)) {
+      failures++;
+      console.log(`MISMATCH persona.${field}`);
+    }
+  }
 
   if (failures === 0) {
     console.log("VERIFIED: code modules match the snapshot byte-for-byte");
@@ -157,6 +165,10 @@ async function main() {
   console.log(`\ncurrent persona prompt version: ${personaSnap.get("version")}`);
   await personaRef.update({
     fragments: BRAINROT_PERSONA_FRAGMENTS,
+    // Doc-level media-decider config from the spec render. Absent in code =
+    // deleted on the doc, so the live doc can never drift from the render.
+    mediaDeciderKey: BRAINROT_PERSONA_PROMPT_DOC.mediaDeciderKey ?? FieldValue.delete(),
+    mediaNotes: BRAINROT_PERSONA_PROMPT_DOC.mediaNotes ?? FieldValue.delete(),
     version: BRAINROT_PERSONA_PROMPT_VERSION,
     notes:
       "Code-canonical: pushed from src/personas/brainrotPersonaPrompt.ts via push-prompts.cjs. " +

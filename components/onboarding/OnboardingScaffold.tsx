@@ -92,7 +92,8 @@ export function OnboardingScaffold({
                   accessibilityLabel="Back"
                   hitSlop={12}
                   size={38}
-                  surfaceStyle={{
+                  glass
+                  fallbackStyle={{
                     backgroundColor: theme["--color-card-muted"],
                     borderWidth: 1,
                     borderColor: theme["--color-border"],

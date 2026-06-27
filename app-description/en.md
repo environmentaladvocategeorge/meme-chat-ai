@@ -6,47 +6,52 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (30 char max)
 
-Funny Roasts, GIFs & Comebacks
+Create AI Characters & GIFs
 
 ## Keywords (100 char max, comma-separated)
 
-gif,roast,caption,reply,texting,humor,joke,sticker,reaction,slang,chatbot,rewrite,comeback,genz,gpt
+caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,rewrite,comeback
 
 ## What's New
 
-Two big ones squashed. We fixed a bug that kept signing some users out (sometimes every hour) and another that made you repeat onboarding after signing back in. You stay signed in now — and onboarding is one-and-done.
+• Build your own bots: create custom AI characters with their own name, personality, voice, and avatar. Chat with them like any other bot, and edit them anytime. Free includes 1; paid plans hold 10 to 100.
+• AI avatars: generate one from a short description, or upload your own.
+• Describe with AI: let it write a bot's personality from a few quick details.
+• A new look across the whole app.
+• New Plan & Usage screen to check your usage and manage your plan.
+• Minor improvements to daily notifications and account deletion.
+• Plus performance and stability fixes.
 
 ## Promotional Text
 
-Every AI sounds the same. Brainrot Bot doesn't. It roasts back, replies in memes and GIFs, and turns your half-typed thoughts into captions and comebacks that land.
+Every AI sounds the same. Brainrot Bot doesn't. Now build your own. It roasts back, replies in memes and GIFs, and turns half-typed thoughts into captions that land.
 
 ## Description
 
-Brainrot Bot is an AI chatbot with an actual personality. It texts like the funniest person in your group chat: the one who roasts you, sends the perfect GIF, and still somehow gives good advice.
+Brainrot Bot is an AI chatbot with an actual personality. It texts like the funniest person in your group chat: the one who roasts you, sends the perfect GIF, and still somehow gives good advice. It isn't a sterile assistant or a roleplay companion. It's just the funniest AI on your phone.
 
-Stuck on a reply? Need a caption that lands, a comeback, or an explanation that doesn't read like a textbook? Want someone to roast your half-baked idea before you post it? That's what Brainrot Bot is for.
+There are two ways to use it.
 
-WHAT YOU CAN DO
+TALK TO BRAINROT BOT
 
-• Chat with a meme-fluent AI
-Brainrot Bot helps with replies, captions, comebacks, ideas, explanations, and plans, in a voice that sounds like the internet instead of a help desk.
+Open a chat and get a reply when you're stuck, a caption that lands, a comeback, or an explanation that skips the textbook fog. Set the Rot Level to slide it from normal assistant to completely unhinged, and Brainrot Bot matches that energy. It answers in memes and GIFs, not just walls of text.
 
-• Set the Rot Level
-One dial controls the chaos. Slide it from normal assistant to completely unhinged and Brainrot Bot matches that energy.
+BUILD YOUR OWN BRAINROT BOTS
 
-• Get replies with memes and GIFs built in
-Brainrot Bot drops memes and GIFs right into its answers. You can also search trending ones and attach your own.
+Make your own AI characters from scratch. Give one a name, a personality, a voice, an emoji set, and an avatar you upload or generate from a short description. Save it, then chat with it like any other bot. Free includes one custom bot; paid plans hold from 10 up to 100, and every bot passes a safety check before it goes live.
+
+MORE THINGS IT DOES
+
+• Memes and GIFs, built in
+Search trending memes and GIFs, drop them into the chat, attach your own, and save the ones you like to your gallery.
 
 • Send photos
-Attach photos from your camera or gallery and get reactions, captions, or answers based on what you share.
+Attach a photo from your camera or gallery and get a reaction, a caption, or an answer based on what you share.
 
-• Turn on memory
+• Memory that sticks
 Brainrot Bot remembers your vibe, your people, and the stuff you keep bringing up, so chats pick up where you left off instead of starting cold. It's a paid feature and you control it in Settings.
 
-• Save your favorites
-Download watermarked memes and GIFs straight to your gallery.
-
-• Keep your chats organized
+• Stay organized
 Saved chats get auto-generated titles and summaries, plus search, time sections, and bulk delete.
 
 • Make it yours
@@ -62,12 +67,11 @@ GREAT FOR
 • Comebacks and roasts
 • Explaining confusing stuff fast
 • Bios, jokes, and message drafts
-• Group chat ammunition
-• Making AI conversations actually fun
+• Building a cast of bots that sound exactly how you want
 
 SAME BOT, FREE OR PAID
 
-You get the full Brainrot Bot on every plan. Paid plans just give it more room: memory, way more usage, no ads, and extra customization.
+You get the full Brainrot Bot on every plan. Paid plans just give it more room: memory, way more usage, more custom bots, no ads, and extra customization.
 
 PRIVACY & CONTROL
 

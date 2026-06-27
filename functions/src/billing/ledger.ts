@@ -25,9 +25,18 @@ export type ModelUsage = {
 
 // What kind of work the charge is for. "turn" is a user-facing chat turn;
 // "summary"/"title"/"memory" are background utility calls we also bill (they used
-// to be absorbed). "memory" is the offline fact-extraction nano call. Stored on
-// the usageEvent so cost dashboards can split them out.
-export type UsageKind = "turn" | "summary" | "title" | "memory";
+// to be absorbed). "memory" is the offline fact-extraction nano call. "avatar" is
+// one persona-avatar image generation (gpt-image-1-mini) — billed as a flat USD
+// cost, not token usage, so its usageEvent carries an empty `usages` list and the
+// cost/credits are passed in directly. Stored on the usageEvent so cost
+// dashboards can split them out.
+export type UsageKind =
+  | "turn"
+  | "summary"
+  | "title"
+  | "memory"
+  | "avatar"
+  | "persona_desc";
 
 // What actually happened on a billable unit of work — the per-model token usage
 // and the credits it cost, recomputed by the caller from each call's final usage
@@ -39,7 +48,33 @@ export type SettlementInput = {
   usages: ModelUsage[];
   costUsd: number;
   credits: number;
+  // Portion of `costUsd` that came from a flat-rate web search (Tavily) on this
+  // turn rather than token usage. The caller already folds it into `costUsd`/
+  // `credits`; this is stored on the usageEvent purely for cost attribution so
+  // dashboards can split out web-search spend. Omitted/0 when no search ran.
+  searchCostUsd?: number;
 };
+
+// Builds a SettlementInput for a charge billed as a flat USD cost rather than
+// token usage (e.g. an "avatar" image generation). These have no per-model
+// token usage, so `usages` is empty and the cost/credits are passed in directly;
+// this keeps that convention in one place instead of an inline `usages: []` at
+// every flat-cost call site.
+export function flatCostSettlement(input: {
+  conversationId: string;
+  kind: UsageKind;
+  costUsd: number;
+  credits: number;
+}): SettlementInput {
+  return {
+    conversationId: input.conversationId,
+    messageId: null,
+    kind: input.kind,
+    usages: [],
+    costUsd: input.costUsd,
+    credits: input.credits,
+  };
+}
 
 // Flattens per-model usages into the usageEvents token fields: summed aggregates
 // (what aggregateDailyUsage reads) PLUS per-model split fields (nanoInputTokens,
@@ -167,6 +202,9 @@ export async function chargeCredits(
       ...usageTokenFields(settlement.usages),
       costUsd: settlement.costUsd,
       credits: settlement.credits,
+      // Flat web-search spend folded into costUsd above; recorded separately so
+      // dashboards can attribute it. Always present (0 when no search ran).
+      searchCostUsd: settlement.searchCostUsd ?? 0,
       createdAt: FieldValue.serverTimestamp(),
     });
   });
@@ -181,5 +219,6 @@ export async function chargeCredits(
     ...usageTokenFields(settlement.usages),
     costUsd: settlement.costUsd,
     credits: settlement.credits,
+    searchCostUsd: settlement.searchCostUsd ?? 0,
   });
 }

@@ -1,4 +1,5 @@
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
@@ -84,18 +85,34 @@ function ComposerPill({
         gap: 7,
         paddingHorizontal: 12,
         borderRadius: COMPOSER_CHIP_HEIGHT / 2,
-        borderWidth: 1,
-        // Active content uses the primary token family (not tertiary) so
-        // user-customized accent colors — which override primary/-muted/
-        // -subtle but not tertiary — keep the selected chip coherent.
-        borderColor: active
-          ? theme["--color-primary-muted"]
-          : theme["--color-border"],
-        backgroundColor: active
-          ? theme["--color-primary-subtle"]
-          : theme["--color-card"],
+        // Surface (fill/border) lives on the glass layer below, not here, so
+        // Liquid Glass can replace it where supported.
       }}
     >
+      {/* Glass surface layer — scales with the pill (it's inside the
+          AppPressable inner view) and sits behind the glyph + label. Active
+          (drawer-open) chips take a primary-tinted glass / subtle wash; the
+          content color flip to primary still happens below.
+          Active content uses the primary token family (not tertiary) so
+          user-customized accent colors — which override primary/-muted/
+          -subtle but not tertiary — keep the selected chip coherent. */}
+      <GlassSurface
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { borderRadius: COMPOSER_CHIP_HEIGHT / 2 },
+        ]}
+        tintColor={active ? theme["--color-primary-subtle"] : undefined}
+        fallbackStyle={{
+          borderWidth: 1,
+          borderColor: active
+            ? theme["--color-primary-muted"]
+            : theme["--color-border"],
+          backgroundColor: active
+            ? theme["--color-primary-subtle"]
+            : theme["--color-card"],
+        }}
+      />
       {leading}
       <Typography
         variant="body-sm"
@@ -182,11 +199,14 @@ export function PhotoButton({
       accessibilityLabel={label}
       size={COMPOSER_CHIP_HEIGHT}
       hitSlop={{ top: 14, bottom: 14, left: 14, right: 4 }}
-      surfaceStyle={{
+      glass
+      // Fill/border live on the glass layer's fallback; only the busy dim
+      // stays on the inner surface so the whole button (glass included) dims.
+      surfaceStyle={{ opacity: busy ? 0.7 : 1 }}
+      fallbackStyle={{
         borderWidth: 1,
         borderColor: theme["--color-border"],
         backgroundColor: theme["--color-card"],
-        opacity: busy ? 0.7 : 1,
       }}
     >
       <CameraIcon

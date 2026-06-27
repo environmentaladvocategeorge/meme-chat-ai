@@ -15,6 +15,7 @@
 
 import { AppPressable } from "@/components/AppPressable";
 import { MemeAvatar } from "@/components/MemeAvatar";
+import { SocialProofBar } from "@/components/SocialProofBar";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
@@ -48,6 +49,11 @@ interface TrialOfferScreenProps {
 export function TrialOfferScreen({ onDecline }: TrialOfferScreenProps) {
   const { t } = useTranslation();
   const theme = useTheme();
+  // "Cancel anytime" reassurance names the store the purchase routes to.
+  const paywallNote =
+    Platform.OS === "android"
+      ? t("settings.plan.paywallNotePlay")
+      : t("settings.plan.paywallNote");
   const { colorScheme } = useColorScheme();
   const gradient = gradients[colorScheme ?? "light"].primary;
 
@@ -84,7 +90,7 @@ export function TrialOfferScreen({ onDecline }: TrialOfferScreenProps) {
 
   const handleStartTrial = async () => {
     if (subscriptionStatus !== "ready") {
-      Alert.alert(t("settings.plan.heading"), t("settings.plan.paywallNote"));
+      Alert.alert(t("settings.plan.heading"), paywallNote);
       return;
     }
     setBusy(true);
@@ -94,7 +100,7 @@ export function TrialOfferScreen({ onDecline }: TrialOfferScreenProps) {
         (p) => p.product.identifier === productId,
       );
       if (!pkg) {
-        Alert.alert(t("settings.plan.heading"), t("settings.plan.paywallNote"));
+        Alert.alert(t("settings.plan.heading"), paywallNote);
         return;
       }
       await Purchases.purchasePackage(pkg);
@@ -233,6 +239,16 @@ export function TrialOfferScreen({ onDecline }: TrialOfferScreenProps) {
                 </Typography>
               </View>
             ))}
+          </Animated.View>
+
+          {/* Social proof — real App Store review, placed right before the
+              charge disclosure so the reassurance lands just ahead of the
+              money details. */}
+          <Animated.View
+            entering={FadeInDown.duration(360).delay(220)}
+            style={{ width: "100%" }}
+          >
+            <SocialProofBar />
           </Animated.View>
 
           {/* Charge disclosure card */}

@@ -6,7 +6,6 @@ import { create } from "zustand";
 // bottom sheet instead of pushing full-screen stack pages.
 export type AccountSheetView =
   | "hub"
-  | "change-name"
   | "change-email"
   | "change-password"
   | "reset-password"

@@ -1,6 +1,12 @@
 import { getFirestore, type DocumentData } from "firebase-admin/firestore";
 import { asFragmentedPrompt, assembleFragments } from "./fragments";
 import type { Persona, PersonaPrompt, PlatformPrompt } from "./types";
+import {
+  isUserPersonaDoc,
+  isUserPersonaId,
+  toResolvedPersonaForStream,
+  USER_PERSONA_ID_PREFIX,
+} from "./userPersonas";
 
 // Backend identifiers used to look up the ACTIVE prompts in Firestore. The
 // prompt text itself lives in Firestore (collections `platform_prompts` /
@@ -55,7 +61,11 @@ function isPersonaPrompt(data: DocumentData | undefined): data is PersonaPrompt 
     asFragmentedPrompt(data?.fragments) !== null &&
     typeof data?.isActive === "boolean" &&
     isString(data?.addedBy) &&
-    isString(data?.notes)
+    isString(data?.notes) &&
+    // Optional media-decider config — absent is fine (default decider, no
+    // notes), but a malformed value rejects the doc like any other field.
+    (data?.mediaDeciderKey == null || isString(data.mediaDeciderKey)) &&
+    (data?.mediaNotes == null || isString(data.mediaNotes))
   );
 }
 
@@ -122,15 +132,76 @@ export async function getActivePersonaPrompt(
   return isPersonaPrompt(data) ? data : null;
 }
 
+// Thrown when a stream turn references a user persona the requester does NOT
+// own. The HTTP layer maps it to a deliberately GENERIC error: a foreign id is
+// indistinguishable from a nonexistent one to the caller, so we never reveal
+// whether the persona exists or who owns it. This is the anti-theft gate — a
+// tampered client can't borrow someone else's bot by guessing/lifting its id.
+//
+// Note the asymmetry with the fallback below: the requester's OWN persona being
+// gone or disabled does NOT throw — it silently falls back to the default so a
+// stale client (persona deleted on another device) keeps chatting.
+export class PersonaAccessError extends Error {
+  constructor() {
+    super("persona-access-denied");
+    this.name = "PersonaAccessError";
+  }
+}
+
+// Reads a user-built persona, honoring it only for its owner. Ownership is
+// authoritative from the id alone: ids are minted as `user_<ownerUid>_<rand>`
+// (newUserPersonaId) and savePersona always sets ownerUid to match, so a
+// requester owns a persona iff its id carries their uid. That lets us reject a
+// foreign id WITHOUT reading another user's document.
+//
+// Outcomes:
+//   - foreign id (or no authenticated requester) → throw PersonaAccessError.
+//   - the requester's own id, present + enabled   → serve it.
+//   - the requester's own id, missing/malformed/disabled → return null so the
+//     caller falls back to the default (a stale client keeps chatting).
+async function getUserPersonaForStream(
+  personaId: string,
+  requesterUid?: string,
+): Promise<ResolvedPersonaForStream | null> {
+  if (
+    !requesterUid ||
+    !personaId.startsWith(`${USER_PERSONA_ID_PREFIX}${requesterUid}_`)
+  ) {
+    throw new PersonaAccessError();
+  }
+  const snap = await getFirestore().collection("user_personas").doc(personaId).get();
+  const data = snap.data();
+  // The requester's own persona is gone or malformed (deleted elsewhere,
+  // mid-migration): fall back rather than error.
+  if (!isUserPersonaDoc(data)) return null;
+  // Defense in depth: the stored ownerUid must still match (it always should,
+  // given the id check above) — a mismatch means a tampered doc, so reject.
+  if (data.ownerUid !== requesterUid) throw new PersonaAccessError();
+  // Own but disabled → fall back to the default; it's theirs, not a violation.
+  if (!data.isEnabled) return null;
+  return toResolvedPersonaForStream(data);
+}
+
 // Resolves the persona + its active prompt for a stream turn. An unknown or
-// disabled personaId falls back to the default persona; a missing persona or
-// prompt doc throws — Firestore is the single source of truth.
+// disabled first-party personaId falls back to the default persona; a missing
+// persona or prompt doc throws — Firestore is the single source of truth.
+//
+// A `user_`-prefixed id resolves from user_personas instead and is honored
+// ONLY when requesterUid owns it (and it's enabled) — the prefix is
+// authoritative, so a user_ id never resolves from the first-party collections.
+// Ownership is enforced hard: a foreign user_ id throws PersonaAccessError
+// (anti-theft) rather than silently downgrading. The owner's own
+// missing/disabled persona still falls back to the default (stale-client grace).
 export async function resolvePersonaForStream(
   inputPersonaId?: string,
+  requesterUid?: string,
 ): Promise<ResolvedPersonaForStream> {
   let persona: Persona | null = null;
 
-  if (inputPersonaId) {
+  if (inputPersonaId && isUserPersonaId(inputPersonaId)) {
+    const userPersona = await getUserPersonaForStream(inputPersonaId, requesterUid);
+    if (userPersona) return userPersona;
+  } else if (inputPersonaId) {
     const requestedPersona = await getPersonaById(inputPersonaId);
     if (requestedPersona?.isEnabled) {
       persona = requestedPersona;
@@ -172,16 +243,29 @@ function deciderRotLine(level: number): string {
 
 // Assembles the nano media-decider system prompt: the media-specific guardrails
 // (the platform_guardrails record's `mediaContent` field — decider-tuned
-// language, NOT the persona guardrails) + the decider fragments + a rot-level
-// frequency nudge. The decider is unaffected by the emoji toggle, so
-// emojisEnabled is always true here.
+// language, NOT the persona guardrails) + the decider fragments + the dynamic
+// tail (persona media notes, then the rot-level frequency nudge). The decider
+// is unaffected by the emoji toggle, so emojisEnabled is always true here.
+//
+// Persona awareness rides the resolved persona prompt's optional fields:
+// - mediaDeciderKey picks WHICH decider prompt (a platform_prompts key); an
+//   unknown/inactive key silently falls back to the global default, mirroring
+//   resolvePersonaForStream's fallback philosophy.
+// - mediaNotes (pills/lean) appends as a dynamic suffix BEFORE the rot line —
+//   never into the decider body, so the shared prefix (guardrails + decider
+//   fragments) stays one globally cached block across all personas.
 export async function buildMediaDeciderPrompt(
   levelOfRot = 2,
+  personaPrompt?: Pick<PersonaPrompt, "mediaDeciderKey" | "mediaNotes">,
 ): Promise<string> {
-  const [platformPrompt, deciderPrompt] = await Promise.all([
+  const deciderKey = personaPrompt?.mediaDeciderKey;
+  const [platformPrompt, personaDecider] = await Promise.all([
     getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY),
-    getActivePlatformPrompt(MEDIA_DECIDER_KEY),
+    getActivePlatformPrompt(deciderKey ?? MEDIA_DECIDER_KEY),
   ]);
+  const deciderPrompt =
+    personaDecider ??
+    (deciderKey ? await getActivePlatformPrompt(MEDIA_DECIDER_KEY) : null);
   if (!platformPrompt || !isString(platformPrompt.mediaContent)) {
     throw new Error(
       "[personas] platform_guardrails mediaContent missing in Firestore",
@@ -194,7 +278,11 @@ export async function buildMediaDeciderPrompt(
     level: levelOfRot,
     emojisEnabled: true,
   });
-  return `${platformPrompt.mediaContent}\n\n${deciderContent}\n\n${deciderRotLine(levelOfRot)}`;
+  const mediaNotes = personaPrompt?.mediaNotes;
+  const dynamicTail = mediaNotes
+    ? `${mediaNotes}\n\n${deciderRotLine(levelOfRot)}`
+    : deciderRotLine(levelOfRot);
+  return `${platformPrompt.mediaContent}\n\n${deciderContent}\n\n${dynamicTail}`;
 }
 
 export async function buildSystemPromptForStream(
@@ -206,6 +294,11 @@ export async function buildSystemPromptForStream(
   // drop out and emoji-off text variants are used (see ./fragments). Defaults to
   // true so existing callers keep today's behavior.
   respondWithEmojis = true,
+  // Already-resolved persona + prompt, when the orchestrator resolved it once
+  // for the whole turn (it also feeds the media decider). Skips the internal
+  // resolution so the persona docs are never read twice; inputPersonaId is
+  // ignored when this is provided.
+  preResolved?: ResolvedPersonaForStream,
 ): Promise<BuiltSystemPromptForStream> {
   const platformPrompt = await getActivePlatformPrompt(PLATFORM_GUARDRAILS_KEY);
   if (!platformPrompt) {
@@ -214,13 +307,12 @@ export async function buildSystemPromptForStream(
     );
   }
 
-  const { persona, personaPrompt } = await resolvePersonaForStream(inputPersonaId);
-  // NOTE: the per-turn word-bank sample is deliberately NOT part of the system
-  // prompt — it varies every turn and would cap the cacheable prefix here. It
-  // ships as a post-history note instead (personas/perTurnNote.ts). The result
-  // of this function is fully static per (rot level, emoji toggle) variant.
-  // (If a stale fragment set still contains a word_bank_sample fragment, it
-  // drops out cleanly because no sample is provided in the ctx.)
+  const { persona, personaPrompt } =
+    preResolved ?? (await resolvePersonaForStream(inputPersonaId));
+  // The result is fully static per (rot level, emoji toggle) variant — no
+  // per-turn-varying text. Each persona's word bank is a static `word_bank`
+  // fragment in its own prompt (personaSpec.ts), so it's part of this cacheable
+  // prefix; only the safety recap rides the post-history note now (perTurnNote.ts).
   const assembleCtx = {
     level: levelOfRot,
     emojisEnabled: respondWithEmojis,

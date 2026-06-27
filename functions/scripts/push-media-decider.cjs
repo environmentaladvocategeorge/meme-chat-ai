@@ -1,14 +1,14 @@
-// Pushes the v4 "ladder" media-decider prompt to the LIVE
+// Pushes the media-decider prompt to the LIVE
 // platform_prompts/media_decider_v1 doc. The fragment content's source of
 // truth is src/personas/mediaDeciderPrompt.ts (read here from the compiled
 // lib), so run `npm run build` in functions/ first. Prompt edits are live
 // immediately — no functions deploy needed for the prompt itself.
 //
-// IMPORTANT ordering for the v4 rollout: deploy the functions code BEFORE
-// running this. The v4 greeting row has 7 terms while pre-v4 deployed code
-// injects cold-start indexes up to 13 (GREETING_BANK_SIZE=14) — pushing the
-// prompt first would make indexes 7-13 dangle. New code against the old
-// prompt is safe (0-6 is valid in the 14-term row).
+// IMPORTANT ordering for the v5 rollout: deploy the functions code BEFORE
+// running this. The v5 prompt tells the model to use randomness_factor up to
+// 10, while pre-v5 deployed code clamps anything above 6 back down to 1 —
+// pushing the prompt first would collapse every high-band pick to the top
+// hit. New code against the old prompt is safe (1-6 is inside 1-10).
 //
 // Rollback: take a snapshot first (node functions/scripts/pull-prompts.cjs)
 // and restore the doc's `fragments`/`version` from it if needed.
@@ -61,8 +61,12 @@ async function main() {
     fragments: MEDIA_DECIDER_FRAGMENTS,
     version: MEDIA_DECIDER_VERSION,
     notes:
-      "v4 ladder rewrite (2026-06-10): 4-rung query ladder w/ image-description rung, " +
-      "trimmed bank + merged brainrot row + trending adds, image few-shots. " +
+      "v7 trending refresh (2026-06-27): headline trend swapped sidetalk nyc -> scuba " +
+      "(word-triggered SCUBAAA/scuba, usable out of context + as a greeting; search " +
+      "scuba / scuba cat / scuba fox / scuba dance / tung tung scuba); sidetalk nyc " +
+      "demoted into the W/hype reaction bank; greeting row rotated (hey you / whats " +
+      "good / elmo door up front, Elmo wave + SpongeBob hi to the back); added lighter " +
+      "'also popular (US)' pick Love Island USA. " +
       "Pushed from src/personas/mediaDeciderPrompt.ts via push-media-decider.cjs.",
     fragmentsUpdatedAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),

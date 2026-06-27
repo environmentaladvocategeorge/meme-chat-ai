@@ -1,9 +1,12 @@
 import { MemeAvatar } from "@/components/MemeAvatar";
 import { AccountSheet } from "@/components/AccountSheet";
 import { ChatCustomizationSheet } from "@/components/ChatCustomizationSheet";
+import { DeletingAccountScreen } from "@/components/DeletingAccountScreen";
 import { PlanSheet } from "@/components/PlanSheet";
 import { LanguageSheet } from "@/components/LanguageSheet";
 import { MemorySheet } from "@/components/MemorySheet";
+import { NameSheet } from "@/components/NameSheet";
+import { PersonaSheet } from "@/components/PersonaSheet";
 import { RotLevelSheet } from "@/components/RotLevelSheet";
 import { Typography } from "@/components/Typography";
 import { UpdateRequiredScreen } from "@/components/UpdateRequiredScreen";
@@ -15,6 +18,8 @@ import { useAppUpdateStore } from "@/store/appUpdate";
 import { useAuthStore } from "@/store/auth";
 import { useNotificationsStore } from "@/store/notifications";
 import { useOnboardingStore } from "@/store/onboarding";
+import { usePersonaDraftStore } from "@/store/personaDraft";
+import { usePersonaStore } from "@/store/personas";
 import { useSettingsStore } from "@/store/settings";
 import { useSubscriptionStore } from "@/store/subscription";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -86,6 +91,7 @@ export default function RootLayout() {
   const ageGateHydrated = useAgeGateStore((s) => s.hydrated);
   const ageGatePassed = useAgeGateStore((s) => s.status === "passed");
   const initializeAuthSession = useAuthStore((s) => s.initializeAuthSession);
+  const authUid = useAuthStore((s) => s.uid);
   const authStatus = useAuthStore((s) => s.status);
   const authEmailVerified = useAuthStore((s) => s.emailVerified);
   const authProviders = useAuthStore((s) => s.providers);
@@ -104,6 +110,12 @@ export default function RootLayout() {
       hydrateSettings(),
       hydrateOnboarding(),
       hydrateAgeGate(),
+      // Restore the locally-persisted persona selection so the chat header
+      // shows the right bot before the (validating) list loads. Non-critical:
+      // not part of the gate — it resolves to the default on a read error.
+      usePersonaStore.getState().hydrateSelection(),
+      // Local persona-creator drafts (device-only, not uid-keyed).
+      usePersonaDraftStore.getState().hydrate(),
     ]).finally(() => setHydrated(true));
   }, [hydrateAgeGate, hydrateOnboarding, hydrateSettings]);
 
@@ -125,6 +137,22 @@ export default function RootLayout() {
       void useNotificationsStore.getState().refresh();
     }
   }, [hydrated, initializeAuthSession, initializeSubscription]);
+
+  // Hydrate the signed-in user's saved personas for the picker (and clear them
+  // on sign-out so the next user on this device never sees the previous one's
+  // bots). Keyed on uid + status so it re-runs across every auth transition.
+  //
+  // clear() must fire ONLY on a real sign-out ("signedOut"), never during the
+  // pre-auth "idle"/"initializing" window — clear() wipes the persisted persona
+  // pick, and doing that on every cold start (before auth resolves uid) raced
+  // hydrateSelection() and randomly reset the user back to Brainrot Bot.
+  useEffect(() => {
+    if (authUid) {
+      void usePersonaStore.getState().hydrate(authUid);
+    } else if (authStatus === "signedOut") {
+      usePersonaStore.getState().clear();
+    }
+  }, [authUid, authStatus]);
 
   useLayoutEffect(() => {
     Appearance.setColorScheme(appearance === "system" ? null : appearance);
@@ -205,6 +233,13 @@ export default function RootLayout() {
     return <UpdateRequiredScreen storeUrl={updateStoreUrl} />;
   }
 
+  // Account deletion in flight: a non-cancellable takeover (over the account
+  // sheet that started it) until the wipe completes and auth flips to
+  // signed-out, or the callable fails and flips back to authenticated.
+  if (authStatus === "deleting") {
+    return <DeletingAccountScreen />;
+  }
+
   if (!appReady) {
     return (
       <LoadingScreen
@@ -248,6 +283,8 @@ export default function RootLayout() {
             <RotLevelSheet />
             <LanguageSheet />
             <MemorySheet />
+            <NameSheet />
+            <PersonaSheet />
           </VariableContextProvider>
         </BottomSheetModalProvider>
       </PortalProvider>

@@ -1,9 +1,13 @@
 import type { PlanId } from "../billing/plans";
 import type { AssembledContext } from "../context/assemble";
 import type { ExtractedGifFrames } from "../gifs/extractFrames";
+import type { CurrentAttachmentTitles } from "../messages/attachmentMeta";
 import type { MessageGif } from "../messages/messageGif";
 import { buildPerTurnNote } from "../personas/perTurnNote";
-import { buildSystemPromptForStream } from "../personas/prompts";
+import {
+  buildSystemPromptForStream,
+  type ResolvedPersonaForStream,
+} from "../personas/prompts";
 import { ConversationHistory } from "./ConversationHistory";
 import type { MemoryService } from "./memory";
 
@@ -20,6 +24,11 @@ export type AgentConfig = {
   uid: string;
   plan: PlanId;
   personaId?: string;
+  // Persona + prompt already resolved by the orchestrator (it resolves once
+  // per turn, before the media decider, and shares the result). When present,
+  // personaId is ignored and the persona docs are never read twice. Absent =
+  // the Agent resolves from personaId itself (back-compat).
+  resolvedPersona?: ResolvedPersonaForStream;
   levelOfRot: number;
   // The user's "Respond with emojis" toggle (local-only, sent per turn).
   // Defaults to true; when false the persona prompt's emoji guidance is swapped
@@ -34,7 +43,13 @@ export type BuildReplyContextArgs = {
   currentImageUrls?: string[];
   currentGif?: MessageGif;
   currentGifFrames?: ExtractedGifFrames;
+  // Klipy titles of the current turn's attachments (newer clients only).
+  currentAttachmentTitles?: CurrentAttachmentTitles;
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Live web context the search pipeline fetched for this turn (already wrapped
+  // by gatherWebContext). Injected as a fresh-tail system note; omitted when no
+  // search ran.
+  webContext?: string;
   userAlias?: string | null;
   userLanguage?: string | null;
   // Pre-rendered reply memory block. When the orchestrator has already read the
@@ -42,10 +57,6 @@ export type BuildReplyContextArgs = {
   // here so the Agent doesn't read it again. Omitted = the Agent fetches it
   // itself (back-compat). Empty string is a valid value (no memory).
   memoryBlock?: string;
-  // Recent BOT reply texts; bank terms detected in them are excluded from this
-  // turn's word-bank sample (deterministic anti-repetition — see wordBank.ts).
-  // Omitted = no exclusion, the sample still rotates randomly.
-  recentAssistantTexts?: readonly string[];
   excludeMessageIds?: string[];
 };
 
@@ -65,6 +76,7 @@ export class Agent {
         this.cfg.personaId,
         this.cfg.levelOfRot,
         this.cfg.respondWithEmojis ?? true,
+        this.cfg.resolvedPersona,
       ),
       // Use the orchestrator-supplied reply block when present (it already read
       // the state to feed the decider); otherwise fetch it ourselves.
@@ -73,14 +85,10 @@ export class Agent {
         : this.cfg.memory.getMemoryBlock(this.cfg.uid, this.cfg.plan),
     ]);
 
-    // The per-turn word-bank rotation + safety recap rides AFTER the history
-    // (fresh tail) so the system prompt + history stay prefix-cacheable; see
-    // personas/perTurnNote.ts.
-    const perTurnNote = buildPerTurnNote({
-      levelOfRot: this.cfg.levelOfRot,
-      respondWithEmojis: this.cfg.respondWithEmojis ?? true,
-      recentAssistantTexts: args.recentAssistantTexts,
-    });
+    // The per-turn safety recap rides AFTER the history (fresh tail) so the
+    // system prompt + history stay prefix-cacheable; see personas/perTurnNote.ts.
+    // (The word bank now lives in each persona's prompt, not here.)
+    const perTurnNote = buildPerTurnNote();
 
     const history = new ConversationHistory(args.conversationId, this.cfg.plan);
     const assembled = await history.assemble({
@@ -91,7 +99,9 @@ export class Agent {
       currentImageUrls: args.currentImageUrls,
       currentGif: args.currentGif,
       currentGifFrames: args.currentGifFrames,
+      currentAttachmentTitles: args.currentAttachmentTitles,
       attachedMedia: args.attachedMedia,
+      webContext: args.webContext,
       userAlias: args.userAlias,
       userLanguage: args.userLanguage,
       excludeMessageIds: args.excludeMessageIds,

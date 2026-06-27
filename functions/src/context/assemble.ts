@@ -5,6 +5,10 @@ import {
   extractGifFrames,
   type ExtractedGifFrames,
 } from "../gifs/extractFrames";
+import {
+  buildMemeTitleNote,
+  type CurrentAttachmentTitles,
+} from "../messages/attachmentMeta";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
 import { RECENT_LOAD_LIMIT } from "./compaction";
@@ -68,11 +72,20 @@ export type AssembleArgs = {
   // is async (fetch + decode), so the caller does it before this pure
   // assembler runs and hands the result in here.
   currentGifFrames?: ExtractedGifFrames;
+  // Klipy titles of the current turn's attachments (newer clients only). Folded
+  // into the current user content so the model knows the named meme. Empty/
+  // omitted → no change vs. older clients.
+  currentAttachmentTitles?: CurrentAttachmentTitles;
   // A reaction GIF/meme the media pipeline already chose for THIS reply. When
   // present, a short system note is injected right before the current turn so
   // the reply model knows what's attached and can riff on it. The model does not
   // attach media itself — this is purely informational.
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Live web context the search pipeline fetched for THIS turn (already wrapped
+  // with its usage instruction by gatherWebContext). Injected as its own system
+  // message in the fresh tail, right before the current turn, so the cacheable
+  // prefix stays identical. Omitted/empty when no search ran.
+  webContext?: string;
   // Per-turn style note (word-bank rotation + safety recap, see
   // personas/perTurnNote). Varies EVERY turn, so it must live here in the fresh
   // tail — putting it any earlier would cap the cacheable prefix at the static
@@ -136,14 +149,20 @@ function buildAttachedMediaNote(media: {
 
 // Builds the note that tells the model the supplied frames are slices of ONE
 // animated GIF — never separate images — so it doesn't narrate "three images."
-function buildGifNote(frames: ExtractedGifFrames): string {
+// When the GIF carries a Klipy title (newer clients only), it's appended so the
+// model knows the named meme; older clients pass no title and the note is
+// byte-identical to before.
+function buildGifNote(frames: ExtractedGifFrames, title?: string): string {
+  const named = title
+    ? ` It's titled "${title}" — use the name to recognize the reference, but don't read the title aloud.`
+    : "";
   if (frames.frames.length === 0) {
-    return "[The user sent ONE animated GIF, but its frames could not be processed. Acknowledge the GIF without describing specific contents.]";
+    return `[The user sent ONE animated GIF, but its frames could not be processed. Acknowledge the GIF without describing specific contents.${named}]`;
   }
   if (frames.frames.length === 1) {
-    return "[The user sent ONE animated GIF. The following image is a single still frame sampled from it (the full animation could not be processed). Treat it as one GIF, not a standalone image.]";
+    return `[The user sent ONE animated GIF. The following image is a single still frame sampled from it (the full animation could not be processed). Treat it as one GIF, not a standalone image.${named}]`;
   }
-  return `[The user sent ONE animated GIF. The following ${frames.frames.length} images are still frames sampled from that single GIF, in order (start → middle → end). Treat them together as one GIF, not as ${frames.frames.length} separate images.]`;
+  return `[The user sent ONE animated GIF. The following ${frames.frames.length} images are still frames sampled from that single GIF, in order (start → middle → end). Treat them together as one GIF, not as ${frames.frames.length} separate images.${named}]`;
 }
 
 // Historical user turns that carried attachments are collapsed to a cheap text
@@ -159,14 +178,34 @@ function collapseHistoricalUserContent(
   const notes: string[] = [];
 
   if (images && images.length > 0) {
-    notes.push(
-      images.length === 1
-        ? "[User sent an image]"
-        : `[User sent ${images.length} images]`,
+    // When the Klipy memes carry titles (newer clients), name them so the model
+    // keeps continuity on what the user sent earlier. Falls back to the bare
+    // count placeholder for untitled/older/uploaded images.
+    const memeTitles = images.flatMap((i) =>
+      i.source === "klipy" && i.title ? [i.title] : [],
     );
+    if (memeTitles.length > 0) {
+      const quoted = memeTitles.map((t) => `"${t}"`).join(", ");
+      notes.push(
+        memeTitles.length === images.length
+          ? `[User sent ${images.length === 1 ? "a meme" : "memes"}: ${quoted}]`
+          : `[User sent ${images.length} images, including ${quoted}]`,
+      );
+    } else {
+      notes.push(
+        images.length === 1
+          ? "[User sent an image]"
+          : `[User sent ${images.length} images]`,
+      );
+    }
   }
   if (gifs && gifs.length > 0) {
-    notes.push("[User sent an animated GIF]");
+    const gifTitle = gifs[0]?.title;
+    notes.push(
+      gifTitle
+        ? `[User sent an animated GIF: "${gifTitle}"]`
+        : "[User sent an animated GIF]",
+    );
   }
 
   if (notes.length === 0) return trimmed;
@@ -184,6 +223,11 @@ export function buildCurrentUserContent(
   text: string,
   imageUrls?: string[],
   gifFrames?: ExtractedGifFrames,
+  // Klipy titles of the current turn's attachments (newer clients only). When
+  // present, a text note names the meme(s) after the images and the GIF's title
+  // is folded into the GIF note. Omitted/empty → output is byte-identical to the
+  // pre-title behavior, so older clients are unaffected.
+  attachmentTitles?: CurrentAttachmentTitles,
 ): string | OpenAIContentPart[] {
   const trimmed = text.trim();
   const hasImages = Boolean(imageUrls && imageUrls.length > 0);
@@ -205,8 +249,17 @@ export function buildCurrentUserContent(
       });
     }
   }
+  // Name the meme image(s) right after their pixels, so the model can recognize
+  // the reference. GIF titles go in the GIF note below, not here.
+  const memeNote = attachmentTitles ? buildMemeTitleNote(attachmentTitles) : null;
+  if (hasImages && memeNote) {
+    parts.push({ type: "text", text: memeNote });
+  }
   if (gifFrames) {
-    parts.push({ type: "text", text: buildGifNote(gifFrames) });
+    parts.push({
+      type: "text",
+      text: buildGifNote(gifFrames, attachmentTitles?.gif),
+    });
     for (const frame of gifFrames.frames) {
       parts.push({ type: "image_url", image_url: { url: frame, detail: "low" } });
     }
@@ -265,6 +318,13 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
     if (args.perTurnNote) {
       out.push({ role: "system", content: args.perTurnNote });
     }
+    // Live web context (when a search ran) sits in the fresh tail too, after the
+    // style note and before the media note + current turn — never in the
+    // cacheable prefix, since it changes every searched turn.
+    const webContext = args.webContext?.trim();
+    if (webContext) {
+      out.push({ role: "system", content: webContext });
+    }
     if (args.attachedMedia) {
       out.push({
         role: "system",
@@ -277,6 +337,7 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
         args.currentText,
         args.currentImageUrls,
         args.currentGifFrames,
+        args.currentAttachmentTitles,
       ),
     });
     return out;
@@ -367,6 +428,10 @@ export type AssembleContextArgs = {
   // The GIF attached to the current turn (max one). Decoded into sampled frames
   // for the model before assembly.
   currentGif?: MessageGif;
+  // Klipy titles of the current turn's attachments (newer clients only). Passed
+  // straight to the assembler so the reply model can name the meme/GIF. Empty/
+  // omitted → byte-identical to the pre-title behavior.
+  currentAttachmentTitles?: CurrentAttachmentTitles;
   // Pre-decoded frames for `currentGif`. The media decider now also needs the
   // GIF's frames (so it can react to what was sent), so the caller extracts them
   // ONCE before the decider and passes them here to avoid re-fetching/-decoding
@@ -375,6 +440,9 @@ export type AssembleContextArgs = {
   // Reaction GIF/meme the media pipeline chose for this reply (informational
   // note for the model — see AssembleArgs.attachedMedia).
   attachedMedia?: { kind: "gif" | "meme"; description: string };
+  // Live web context for this turn (see AssembleArgs.webContext). Passed straight
+  // through to the assembler; omitted when no search ran.
+  webContext?: string;
   // Per-turn style note (word-bank rotation + safety recap) — see
   // AssembleArgs.perTurnNote.
   perTurnNote?: string;
@@ -454,7 +522,9 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     currentText: args.currentUserMessage,
     currentImageUrls: args.currentImageUrls,
     currentGifFrames,
+    currentAttachmentTitles: args.currentAttachmentTitles,
     attachedMedia: args.attachedMedia,
+    webContext: args.webContext,
     perTurnNote: args.perTurnNote,
     maxInputTokens: planCfg.maxInputTokens,
   });

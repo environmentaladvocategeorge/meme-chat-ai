@@ -4,10 +4,12 @@
 // title text. State comes from `useMenuStore` so the matching overlay
 // (mounted once at the (app) layout level) stays in sync.
 
+import { liquidGlassAvailable } from "@/components/GlassSurface";
 import { useChatAccentGradient, useTheme } from "@/hooks/useTheme";
 import { tapHaptic } from "@/lib/haptics";
 import { gradients } from "@/nativewind-theme";
 import { useMenuStore } from "@/store/menu";
+import { GlassView } from "expo-glass-effect";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
 import { List, X } from "phosphor-react-native";
@@ -34,9 +36,14 @@ export function MenuButton() {
   const gradientColors = chatAccentGradient ?? primaryGradient.colors;
   const gradientStart = chatAccentGradient ? { x: 0, y: 0 } : primaryGradient.start;
   const gradientEnd = chatAccentGradient ? { x: 1, y: 1 } : primaryGradient.end;
-  const iconColor = chatAccentGradient
-    ? theme["--color-primary-foreground"]
-    : "#FFFFFF";
+  // On glass the gradient fill is gone, so the white-on-gradient icon would
+  // wash out — switch it to the brand color (matching the glass camera/pills).
+  // Off glass (the gradient fallback), keep the white/foreground icon.
+  const iconColor = liquidGlassAvailable
+    ? theme["--color-primary"]
+    : chatAccentGradient
+      ? theme["--color-primary-foreground"]
+      : "#FFFFFF";
   const open = useMenuStore((s) => s.open);
   const toggle = useMenuStore((s) => s.toggle);
 
@@ -109,15 +116,28 @@ export function MenuButton() {
           visualStyle,
         ]}
       >
-        <LinearGradient
-          colors={gradientColors}
-          start={gradientStart}
-          end={gradientEnd}
-          style={{
-            ...StyleSheet.absoluteFillObject,
-            borderRadius: MENU_BUTTON_SIZE / 2,
-          }}
-        />
+        {/* iOS 26 → brand-tinted Liquid Glass; everywhere else → the brand
+            gradient, so non-glass devices keep the menu button's identity. */}
+        {liquidGlassAvailable ? (
+          <GlassView
+            glassEffectStyle="regular"
+            tintColor={theme["--color-primary-subtle"]}
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              borderRadius: MENU_BUTTON_SIZE / 2,
+            }}
+          />
+        ) : (
+          <LinearGradient
+            colors={gradientColors}
+            start={gradientStart}
+            end={gradientEnd}
+            style={{
+              ...StyleSheet.absoluteFillObject,
+              borderRadius: MENU_BUTTON_SIZE / 2,
+            }}
+          />
+        )}
         <Animated.View
           style={[StyleSheet.absoluteFillObject, centered, listStyle]}
         >

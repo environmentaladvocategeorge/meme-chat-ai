@@ -459,6 +459,52 @@ describe("assembleFromInputs with images", () => {
     expect(result.messages[1].content).toBe("[User sent 3 images]");
   });
 
+  it("names a prior titled klipy meme in the placeholder (newer clients)", () => {
+    const recent: ChatMessage[] = [
+      { role: "user", text: "", images: [mkImage({ title: "Gigachad" })] },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "ok",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe('[User sent a meme: "Gigachad"]');
+  });
+
+  it("names multiple titled memes in one placeholder", () => {
+    const recent: ChatMessage[] = [
+      {
+        role: "user",
+        text: "",
+        images: [
+          mkImage({ title: "Gigachad" }),
+          mkImage({ id: "b", title: "Doge" }),
+        ],
+      },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "ok",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe('[User sent memes: "Gigachad", "Doge"]');
+  });
+
+  it("falls back to the bare placeholder for untitled images (older turns)", () => {
+    const recent: ChatMessage[] = [
+      { role: "user", text: "", images: [mkImage()] },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "ok",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe("[User sent an image]");
+  });
+
   it("counts current-turn image tokens at IMAGE_TOKENS_LOW each", () => {
     const noImages = assembleFromInputs({
       summary: null,
@@ -579,5 +625,33 @@ describe("assembleFromInputs collapses historical GIFs", () => {
     expect(result.messages[1].content).toBe("[User sent an animated GIF]");
     const allImageParts = result.messages.flatMap((m) => imageParts(m.content));
     expect(allImageParts).toHaveLength(0);
+  });
+
+  it("names a prior titled GIF in the placeholder (newer clients)", () => {
+    const recent: ChatMessage[] = [
+      {
+        role: "user",
+        text: "",
+        gifs: [
+          {
+            id: "g1",
+            source: "klipy-gif",
+            url: "https://static.klipy.com/g.webp",
+            previewUrl: "https://static.klipy.com/g.jpg",
+            frameSourceUrl: "https://static.klipy.com/sm.webp",
+            title: "rat dancing",
+          },
+        ],
+      },
+    ];
+    const result = assembleFromInputs({
+      summary: null,
+      recent,
+      currentText: "and now?",
+      maxInputTokens: 10_000,
+    });
+    expect(result.messages[1].content).toBe(
+      '[User sent an animated GIF: "rat dancing"]',
+    );
   });
 });

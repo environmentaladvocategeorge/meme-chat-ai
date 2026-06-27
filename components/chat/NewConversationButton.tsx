@@ -20,6 +20,12 @@ import Animated, {
 // `entering`/`exiting` layout animation, which leaves the child's native
 // hit-test frame unsynced on Fabric/release and drops the first tap(s). The
 // component stays mounted; `pointerEvents` gates taps while it's faded out.
+//
+// The IconButton is glass, and opacity 0 on a glass ancestor permanently blanks
+// the native material (expo-glass-effect bug). So we feed the same `opacity`
+// SharedValue to the glass layer as `glassFadeProgress`: it flips the material
+// to 'none' near 0, letting the wrapper opacity fade to a true 0 without killing
+// the glass. See GlassSurface's opacity-0 note + fadeProgress.
 export function NewConversationButton({
   label,
   onPress,
@@ -45,7 +51,9 @@ export function NewConversationButton({
         accessibilityLabel={label}
         size={40}
         hitSlop={16}
-        surfaceStyle={{
+        glass
+        glassFadeProgress={opacity}
+        fallbackStyle={{
           borderWidth: 1,
           borderColor: theme["--color-border"],
           backgroundColor: theme["--color-card-muted"],

@@ -3,6 +3,7 @@ import { PLANS, computeDailyCap } from "../plans";
 import {
   evaluateCharge,
   evaluateQuota,
+  flatCostSettlement,
   primaryModel,
   usageTokenFields,
   type ModelUsage,
@@ -155,6 +156,33 @@ describe("primaryModel", () => {
     };
     expect(primaryModel([nano, mini])).toBe("mini");
     expect(primaryModel([nano])).toBe("nano");
+  });
+});
+
+describe("flatCostSettlement", () => {
+  it("builds an empty-usages settlement carrying the flat cost + credits", () => {
+    const s = flatCostSettlement({
+      conversationId: "persona-avatar",
+      kind: "avatar",
+      costUsd: 0.005,
+      credits: 5,
+    });
+    expect(s).toEqual({
+      conversationId: "persona-avatar",
+      messageId: null,
+      kind: "avatar",
+      usages: [],
+      costUsd: 0.005,
+      credits: 5,
+    });
+    // Empty usages must flatten to all-zero token fields and the fallback model.
+    expect(usageTokenFields(s.usages)).toEqual({
+      inputTokens: 0,
+      cachedInputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+    });
+    expect(primaryModel(s.usages)).toBe("mini");
   });
 });
 

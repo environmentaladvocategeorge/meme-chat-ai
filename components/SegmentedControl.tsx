@@ -6,6 +6,7 @@ import {
   LayoutChangeEvent,
 } from "react-native";
 import { useTheme } from "@/hooks/useTheme";
+import { GlassSurface } from "./GlassSurface";
 import { Typography } from "./Typography";
 
 export interface SegmentOption<T extends string> {
@@ -64,15 +65,17 @@ export function SegmentedControl<T extends string>({
   };
 
   return (
+    // iOS pattern: the TRACK is a flat solid groove (no glass, no shadow); the
+    // SELECTED pill is what carries the Liquid Glass (no shadow either).
     <View
       onLayout={handleLayout}
       style={{
         position: "relative",
         flexDirection: "row",
-        backgroundColor: theme["--color-tab"],
         borderRadius: 14,
         padding: OUTER_PADDING,
         gap: GAP,
+        backgroundColor: theme["--color-tab"],
         overflow: "hidden",
       }}
     >
@@ -85,11 +88,16 @@ export function SegmentedControl<T extends string>({
             top: OUTER_PADDING,
             bottom: OUTER_PADDING,
             width: segmentWidth,
-            borderRadius: 10,
-            backgroundColor: theme["--color-tab-active"],
             transform: [{ translateX }],
           }}
-        />
+        >
+          {/* The moving selection pill — Liquid Glass where supported, the old
+              solid tab-active fill as the fallback. No shadow. */}
+          <GlassSurface
+            style={{ flex: 1, borderRadius: 10 }}
+            fallbackStyle={{ backgroundColor: theme["--color-tab-active"] }}
+          />
+        </Animated.View>
       )}
 
       {options.map((option) => {

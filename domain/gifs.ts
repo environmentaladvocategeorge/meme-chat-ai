@@ -43,6 +43,12 @@ export type MessageGif = {
   mimeType?: "image/gif" | "image/webp";
   attribution?: string;
   gifId?: string;
+  // Klipy's short human title of the GIF (e.g. "rat dancing"). Sent to the
+  // backend so the model/media decider knows which named meme the user sent
+  // instead of guessing from frames. Optional + additive: older clients omit it
+  // and the backend gates every use on its presence, so nothing breaks. Only
+  // set for Klipy GIFs — uploads never carry one. Never rendered to the user.
+  title?: string;
 };
 
 // Exactly one GIF per message. The backend enforces this too (it's the source
@@ -62,5 +68,8 @@ export function trendingGifToMessageGif(gif: TrendingGif): MessageGif {
     height: gif.height,
     attribution: "Powered by Klipy",
     gifId: gif.id,
+    // Carry Klipy's title through so the backend can tell the model/decider the
+    // GIF's name. Omitted when Klipy returned no title (keeps old behavior).
+    ...(gif.title ? { title: gif.title } : {}),
   };
 }

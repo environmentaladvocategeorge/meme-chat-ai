@@ -32,6 +32,16 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
+    // Persona avatars the user uploads in the creator. Owner reads its own
+    // (rendered in the persona picker / chat header) and creates new ones; the
+    // backend moderates the image at save time and deletes objects server-side
+    // on persona/account deletion. Same bounds as chat photos.
+    match /personaAvatars/{uid}/{fileName} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && isAllowedImage();
+      allow update, delete: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

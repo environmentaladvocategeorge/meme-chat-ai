@@ -1,4 +1,4 @@
-import { rotLevelBlock } from "./rotLevel";
+import { rotLevelBlock, type PersonaRotLevels } from "./rotLevel";
 
 // ── Fragmented prompts ───────────────────────────────────────────────────────
 // A prompt (persona or media-decider) can be stored in Firestore either as one
@@ -31,9 +31,11 @@ export type PromptFragment = {
   requires?: "emojis";
   // Computed fragment: ignore `text` and resolve in code at assembly time.
   // "rot_level_block" → rotLevelBlock(level, emojisEnabled).
-  // "word_bank_sample" → AssembleCtx.wordBankSample (the per-turn sampled
-  // bank, see ./wordBank); drops out when no sample was provided.
-  dynamic?: "rot_level_block" | "word_bank_sample";
+  dynamic?: "rot_level_block";
+  // For dynamic === "rot_level_block" only: the persona's own per-level blocks.
+  // Absent → the built-in dial (the default Brainrot behavior), so a fragment
+  // without it resolves exactly as before.
+  rotLevels?: PersonaRotLevels;
 };
 
 export type FragmentedPrompt = {
@@ -54,11 +56,6 @@ export type AssembleCtx = {
   // emoji-off text variants. The media-decider path passes true (it's unaffected
   // by the user's emoji toggle).
   emojisEnabled: boolean;
-  // Pre-rendered per-turn word-bank sample (see ./wordBank). Consumed by the
-  // dynamic word_bank_sample fragment; absent/empty drops the fragment. The
-  // caller renders it (not this module) so assembly stays pure while sampling
-  // owns the rng and recent-term exclusion.
-  wordBankSample?: string;
 };
 
 // Resolves one fragment to its final text for this turn, or null when the
@@ -66,10 +63,7 @@ export type AssembleCtx = {
 function resolveFragment(f: PromptFragment, ctx: AssembleCtx): string | null {
   if (f.requires === "emojis" && !ctx.emojisEnabled) return null;
   if (f.dynamic === "rot_level_block") {
-    return rotLevelBlock(ctx.level, ctx.emojisEnabled);
-  }
-  if (f.dynamic === "word_bank_sample") {
-    return ctx.wordBankSample ? ctx.wordBankSample : null;
+    return rotLevelBlock(ctx.level, ctx.emojisEnabled, f.rotLevels);
   }
   if (!ctx.emojisEnabled && typeof f.textWhenEmojisOff === "string") {
     return f.textWhenEmojisOff;
@@ -108,13 +102,25 @@ export function asFragmentedPrompt(value: unknown): FragmentedPrompt | null {
       return null;
     }
     if (f.requires != null && f.requires !== "emojis") return null;
-    if (
-      f.dynamic != null &&
-      f.dynamic !== "rot_level_block" &&
-      f.dynamic !== "word_bank_sample"
-    ) {
+    if (f.dynamic != null && f.dynamic !== "rot_level_block") {
       return null;
     }
+    if (f.rotLevels != null && !isPersonaRotLevels(f.rotLevels)) return null;
   }
   return value as FragmentedPrompt;
+}
+
+// True when `value` is a well-formed PersonaRotLevels (blocks + emojiLines, each
+// a record with string entries for levels 1, 2, and 3). Used so a malformed
+// rot-levels payload off a Firestore doc falls back to the built-in dial rather
+// than breaking assembly.
+function isPersonaRotLevels(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  const stringMap = (m: unknown): boolean => {
+    if (!m || typeof m !== "object") return false;
+    const rec = m as Record<string, unknown>;
+    return ([1, 2, 3] as const).every((lvl) => typeof rec[lvl] === "string");
+  };
+  return stringMap(v.blocks) && stringMap(v.emojiLines);
 }

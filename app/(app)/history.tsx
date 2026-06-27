@@ -1,8 +1,10 @@
 import { AdBanner } from "@/components/ads/AdBanner";
 import { AgentAvatar } from "@/components/AgentAvatar";
-import { AppHeader } from "@/components/AppHeader";
+import { AppHeader, useAppHeaderHeight } from "@/components/AppHeader";
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import { IconButton } from "@/components/IconButton";
+import { ParticipantAvatars } from "@/components/ParticipantAvatars";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { Typography } from "@/components/Typography";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -29,6 +31,7 @@ import {
   ActivityIndicator,
   Modal,
   SectionList,
+  StyleSheet,
   TextInput,
   View,
 } from "react-native";
@@ -360,52 +363,59 @@ export default function HistoryScreen() {
     }
   };
 
+  const headerHeight = useAppHeaderHeight();
+
+  // Stable renderers: an inline `renderItem`/`renderSectionHeader` gets a fresh
+  // identity on every parent render, which made VirtualizedList re-render every
+  // visible cell on each sort-pill tap or search keystroke. Keyed off only the
+  // selection state (not sort/query), so when the list re-sorts the cells simply
+  // reposition by key — the memoized HistoryCard rows never re-render.
+  const renderItem = useCallback(
+    ({ item }: { item: ConversationSummary }) => (
+      <HistoryCard
+        conversation={item}
+        selectionMode={selectionMode}
+        selected={selectedIds.has(item.id)}
+        onPress={handleCardPress}
+        onLongPress={handleCardLongPress}
+      />
+    ),
+    [selectionMode, selectedIds, handleCardPress, handleCardLongPress],
+  );
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: HistorySection }) =>
+      section.title ? (
+        <SectionHeader title={section.title} count={section.data.length} />
+      ) : null,
+    [],
+  );
+
+  // Search + sort + ad scroll under the floating header as the list's header.
+  const listHeader = (
+    <View style={{ gap: 10, paddingBottom: 10 }}>
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        placeholder={t("history.search.placeholder")}
+        clearLabel={t("history.search.clear")}
+      />
+
+      <SegmentedControl
+        options={SORT_OPTIONS.map((o) => ({
+          value: o.value,
+          label: t(o.labelKey),
+        }))}
+        value={sort}
+        onChange={setSort}
+      />
+
+      {/* Free-tier ad banner — hidden for Pro (any paid plan). */}
+      <AdBanner />
+    </View>
+  );
+
   return (
     <View style={{ flex: 1, backgroundColor: theme["--color-background"] }}>
-      {selectionMode ? (
-        <AppHeader
-          title={t("history.select.count", { count: selectedIds.size })}
-          onBack={clearSelection}
-          backAccessibilityLabel={t("common.cancel")}
-          right={
-            <Animated.View entering={FadeIn.duration(180)}>
-              <IconButton
-                accessibilityLabel={t("history.select.confirm")}
-                onPress={() => setConfirmOpen(true)}
-                hitSlop={8}
-                size={40}
-                surfaceStyle={{ backgroundColor: theme["--color-error-muted"] }}
-              >
-                <Trash size={22} color={theme["--color-error"]} weight="bold" />
-              </IconButton>
-            </Animated.View>
-          }
-        />
-      ) : (
-        <AppHeader title={t("history.title")} />
-      )}
-
-      <View style={{ paddingHorizontal: 18, paddingTop: 14, gap: 10 }}>
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          placeholder={t("history.search.placeholder")}
-          clearLabel={t("history.search.clear")}
-        />
-
-        <SegmentedControl
-          options={SORT_OPTIONS.map((o) => ({
-            value: o.value,
-            label: t(o.labelKey),
-          }))}
-          value={sort}
-          onChange={setSort}
-        />
-
-        {/* Free-tier ad banner — hidden for Pro (any paid plan). */}
-        <AdBanner />
-      </View>
-
       {/* relative wrapper hosts the edge fades over the scroll area; the
           inner animated wrapper carries the re-sort settle fade (kept off
           the edge fades so they don't flicker with it). */}
@@ -414,12 +424,14 @@ export default function HistoryScreen() {
         <SectionList<ConversationSummary, HistorySection>
           sections={sections}
           keyExtractor={(item) => item.id}
+          ListHeaderComponent={listHeader}
           contentContainerStyle={{
             flexGrow: 1,
             paddingHorizontal: 18,
-            paddingTop: 16,
+            paddingTop: headerHeight + 8,
             paddingBottom: 28,
           }}
+          scrollIndicatorInsets={{ top: headerHeight }}
           keyboardShouldPersistTaps="handled"
           stickySectionHeadersEnabled={false}
           // Virtualization tuning mirrors the chat thread's: render enough to
@@ -450,20 +462,8 @@ export default function HistoryScreen() {
               <EmptyState />
             )
           }
-          renderSectionHeader={({ section }) =>
-            section.title ? (
-              <SectionHeader title={section.title} count={section.data.length} />
-            ) : null
-          }
-          renderItem={({ item }) => (
-            <HistoryCard
-              conversation={item}
-              selectionMode={selectionMode}
-              selected={selectedIds.has(item.id)}
-              onPress={handleCardPress}
-              onLongPress={handleCardLongPress}
-            />
-          )}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderItem}
           ItemSeparatorComponent={ItemSeparator}
         />
         </Animated.View>
@@ -502,6 +502,29 @@ export default function HistoryScreen() {
           }}
         />
       </View>
+
+      {selectionMode ? (
+        <AppHeader
+          title={t("history.select.count", { count: selectedIds.size })}
+          onBack={clearSelection}
+          backAccessibilityLabel={t("common.cancel")}
+          right={
+            <Animated.View entering={FadeIn.duration(180)}>
+              <IconButton
+                accessibilityLabel={t("history.select.confirm")}
+                onPress={() => setConfirmOpen(true)}
+                hitSlop={8}
+                size={40}
+                surfaceStyle={{ backgroundColor: theme["--color-error-muted"] }}
+              >
+                <Trash size={22} color={theme["--color-error"]} weight="bold" />
+              </IconButton>
+            </Animated.View>
+          }
+        />
+      ) : (
+        <AppHeader title={t("history.title")} />
+      )}
 
       <DeleteConfirmModal
         visible={confirmOpen}
@@ -690,30 +713,22 @@ function SearchField({
 }) {
   const theme = useTheme();
   const inputRef = useRef<TextInput>(null);
-  const focused = useSharedValue(0);
-
-  const wrapperStyle = useAnimatedStyle(() => ({
-    borderColor:
-      focused.value > 0.5
-        ? theme["--color-primary"]
-        : theme["--color-border"],
-  }));
 
   return (
-    <Animated.View
-      style={[
-        {
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-          height: 46,
-          paddingHorizontal: 14,
-          borderRadius: 16,
-          borderWidth: 1,
-          backgroundColor: theme["--color-input"],
-        },
-        wrapperStyle,
-      ]}
+    <GlassSurface
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        height: 46,
+        paddingHorizontal: 14,
+        borderRadius: 16,
+      }}
+      fallbackStyle={{
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+        backgroundColor: theme["--color-input"],
+      }}
     >
       <MagnifyingGlass
         size={18}
@@ -730,12 +745,6 @@ function SearchField({
         autoCorrect={false}
         returnKeyType="search"
         clearButtonMode="never"
-        onFocus={() => {
-          focused.value = withTiming(1, { duration: 160 });
-        }}
-        onBlur={() => {
-          focused.value = withTiming(0, { duration: 160 });
-        }}
         style={{
           flex: 1,
           color: theme["--color-foreground"],
@@ -765,7 +774,7 @@ function SearchField({
           <X size={12} color={theme["--color-foreground-muted"]} weight="bold" />
         </AppPressable>
       ) : null}
-    </Animated.View>
+    </GlassSurface>
   );
 }
 
@@ -811,17 +820,28 @@ const HistoryCard = memo(function HistoryCard({
           alignItems: "center",
           gap: 12,
           borderRadius: 14,
-          backgroundColor: selected
-            ? theme["--color-primary-subtle"]
-            : theme["--color-card"],
-          borderWidth: 1,
-          borderColor: selected
-            ? theme["--color-primary"]
-            : theme["--color-border"],
           paddingHorizontal: 14,
           paddingVertical: 12,
+          overflow: "hidden",
         }}
       >
+        {/* Liquid Glass surface where supported; the previous solid card +
+            border is the non-glass fallback. Selection tints the glass (and
+            swaps the fallback to the primary-subtle treatment). */}
+        <GlassSurface
+          pointerEvents="none"
+          tintColor={selected ? theme["--color-primary-subtle"] : undefined}
+          style={[StyleSheet.absoluteFillObject, { borderRadius: 14 }]}
+          fallbackStyle={{
+            backgroundColor: selected
+              ? theme["--color-primary-subtle"]
+              : theme["--color-card"],
+            borderWidth: 1,
+            borderColor: selected
+              ? theme["--color-primary"]
+              : theme["--color-border"],
+          }}
+        />
         {selectionMode ? (
           // Fade the indicator in/out so entering/leaving selection mode reads
           // as a gentle change rather than a snap.
@@ -847,7 +867,13 @@ const HistoryCard = memo(function HistoryCard({
               />
             )}
           </Animated.View>
-        ) : null}
+        ) : (
+          // Normal mode: the bots that took part, stacked on the left.
+          <ParticipantAvatars
+            ids={conversation.participantPersonaIds}
+            ringColor={theme["--color-card"]}
+          />
+        )}
         {/* layout transition lets the title slide over as the indicator's
             space appears/disappears, instead of jumping. */}
         <Animated.View

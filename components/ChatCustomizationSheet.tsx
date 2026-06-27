@@ -188,7 +188,7 @@ export function ChatCustomizationSheet() {
           width: 40,
           height: 4,
           borderRadius: 999,
-          backgroundColor: theme["--color-border"],
+          backgroundColor: theme["--color-foreground-muted"],
         }}
       >
         <BottomSheetScrollView

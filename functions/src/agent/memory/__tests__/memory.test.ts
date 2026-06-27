@@ -10,6 +10,7 @@ import {
 } from "../compile";
 import { consolidateFacts } from "../consolidate";
 import { memoryEnabledForUser, planHasMemory } from "../gating";
+import { transcriptTailLimit } from "../extractionWindow";
 import { factToLite, parseLiteFact } from "../repository";
 import { MemoryService } from "../MemoryService";
 import {
@@ -175,11 +176,16 @@ describe("consolidateFacts", () => {
   });
 
   it("enforces the fact cap, evicting lowest-salience first", () => {
+    // Distinct texts so the near-duplicate backstop doesn't collapse them
+    // before the cap logic gets exercised.
     const existing: MemoryFact[] = Array.from({ length: MEMORY_MAX_FACTS }, (_, i) =>
-      fact({ id: `f${i}`, salience: 3 }),
+      fact({ id: `f${i}`, text: `Keeps topic${i} alpha${i} going`, salience: 3 }),
     );
     // Add one more high-salience fact -> over cap by one -> a salience-1 victim drops.
-    const withVictim = [...existing, fact({ id: "victim", salience: 1 })];
+    const withVictim = [
+      ...existing,
+      fact({ id: "victim", text: "Collects vintage keyboards", salience: 1 }),
+    ];
     const out = consolidateFacts(
       withVictim,
       [{ operation: "ADD", text: "important", category: "identity", salience: 5 }],
@@ -188,6 +194,73 @@ describe("consolidateFacts", () => {
     expect(out).toHaveLength(MEMORY_MAX_FACTS);
     expect(out.find((f) => f.id === "victim")).toBeUndefined();
     expect(out.find((f) => f.text === "important")).toBeDefined();
+  });
+});
+
+describe("consolidateFacts — near-duplicate backstop", () => {
+  const deps = { now: 5000, newId: () => "re-add" };
+
+  it("collapses a re-ADDed near-verbatim fact, keeping the newer one", () => {
+    const out = consolidateFacts(
+      [
+        fact({
+          id: "old",
+          text: "Likes kawaii memes",
+          category: "preference",
+          updatedAt: 1000,
+        }),
+      ],
+      [
+        {
+          operation: "ADD",
+          text: "Likes kawaii meme content",
+          category: "preference",
+          salience: 2,
+        },
+      ],
+      deps,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]?.id).toBe("re-add");
+  });
+
+  it("never merges different tastes in the same category", () => {
+    const out = consolidateFacts(
+      [
+        fact({ id: "a", text: "Into kawaii memes", category: "preference" }),
+        fact({ id: "b", text: "Into anime memes", category: "preference" }),
+      ],
+      [],
+      deps,
+    );
+    expect(out).toHaveLength(2);
+  });
+
+  it("identical text across categories is untouched (different kinds of fact)", () => {
+    const out = consolidateFacts(
+      [
+        fact({ id: "a", text: "Quotes SpongeBob constantly", category: "preference" }),
+        fact({ id: "b", text: "Quotes SpongeBob constantly", category: "lore" }),
+      ],
+      [],
+      deps,
+    );
+    expect(out).toHaveLength(2);
+  });
+});
+
+describe("transcriptTailLimit — the extraction window", () => {
+  it("fetches only the new tail plus a few context turns", () => {
+    // 6 new messages since the watermark + 4 context turns.
+    expect(transcriptTailLimit(20, 14)).toBe(10);
+  });
+
+  it("caps at the transcript turn limit for a big backlog", () => {
+    expect(transcriptTailLimit(100, 10)).toBe(40);
+  });
+
+  it("clamps a stale watermark above the total (deleted messages)", () => {
+    expect(transcriptTailLimit(5, 10)).toBe(4);
   });
 });
 

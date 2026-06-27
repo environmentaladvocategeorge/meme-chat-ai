@@ -113,15 +113,82 @@ function stripEmoji(text: string): string {
     .replace(/[^\S\n]+(["'.,!?])/g, "$1");
 }
 
+// A persona's own three Rot Level blocks, replacing the built-in dial. Each
+// block body may carry the {{EMOJI_LINE}} placeholder where the per-level emoji
+// bullet should land (filled from `emojiLines` when emojis are on, swapped for
+// the mandatory no-emoji override when off, exactly like the built-in dial).
+export type PersonaRotLevels = {
+  blocks: Record<1 | 2 | 3, string>;
+  emojiLines: Record<1 | 2 | 3, string>;
+};
+
 // Builds the rot-level block for the turn, with the emoji bullet resolved from
 // the user's "Respond with emojis" toggle. `emojisEnabled` defaults to true so
-// every existing caller keeps today's behavior.
-export function rotLevelBlock(level: number, emojisEnabled = true): string {
+// every existing caller keeps today's behavior. Pass `custom` to use a persona's
+// own blocks instead of the built-in dial; omit it and the output is byte-for-
+// byte the built-in (the default Brainrot path).
+export function rotLevelBlock(
+  level: number,
+  emojisEnabled = true,
+  custom?: PersonaRotLevels,
+): string {
   const clamped = Math.min(Math.max(Math.round(level), 1), 3) as 1 | 2 | 3;
-  const emojiLine = emojisEnabled ? EMOJI_LINES_ON[clamped] : EMOJI_LINE_OFF;
-  const rawBody = ROT_LEVEL_BLOCKS[clamped];
+  const blocks = custom?.blocks ?? ROT_LEVEL_BLOCKS;
+  const emojiLinesOn = custom?.emojiLines ?? EMOJI_LINES_ON;
+  const emojiLine = emojisEnabled ? emojiLinesOn[clamped] : EMOJI_LINE_OFF;
+  const rawBody = blocks[clamped];
   const body = (emojisEnabled ? rawBody : stripEmoji(rawBody))
     .split(EMOJI_LINE_PLACEHOLDER)
     .join(emojiLine);
   return `${ROT_LEVEL_PRIORITY_NOTE}\n\n${body}`;
 }
+
+// The emoji-density bullets reused by user personas (same per-level cadence as
+// the built-in dial). Exported so toPersonaSpec can attach them to a persona's
+// authored block bodies without each builder re-stating density.
+export const DEFAULT_ROT_EMOJI_LINES: Record<1 | 2 | 3, string> = EMOJI_LINES_ON;
+
+// Wraps a persona-authored Rot Level body so the emoji-density bullet (and the
+// emoji-off override) still slot in: appends the {{EMOJI_LINE}} placeholder when
+// the author didn't include one.
+export function withEmojiPlaceholder(body: string): string {
+  return body.includes(EMOJI_LINE_PLACEHOLDER)
+    ? body
+    : `${body.trimEnd()}\n- ${EMOJI_LINE_PLACEHOLDER}`;
+}
+
+// The generic Rot Level dial a user persona gets when it hasn't authored its
+// own. Persona-neutral (no Brainrot-specific examples) and length-free, since
+// the chattiness dial owns reply length now. Intensity and emoji density rise
+// across the three levels; the persona's identity + voice carry the actual voice.
+export const DEFAULT_USER_ROT_LEVELS: PersonaRotLevels = {
+  blocks: {
+    1: `═══ ROT LEVEL: 1/3 — LIGHTLY COOKED ═══
+Persona voice, kept controlled. Clear answer first, light flavor second.
+
+Behavior:
+- Answer first; one light joke max, then stop.
+- ${EMOJI_LINE_PLACEHOLDER}
+- A touch of the persona's slang and rhythm, never stuffed.
+- If the topic is serious, stay useful and direct with the persona present but quiet. Never sound like a default assistant.`,
+    2: `═══ ROT LEVEL: 2/3 — DEFAULT ═══
+The normal mode: a character with real answers, not a polite assistant with jokes sprinkled on top.
+
+Behavior:
+- Useful answer delivered fully in the persona's voice, not just the opener and closer.
+- ${EMOJI_LINE_PLACEHOLDER}
+- The persona's slang, rhythm, and playful exaggeration throughout; keep it natural.
+- Greetings feel like the user stepped into the character's world, not customer support.
+- Serious topics become calmer, not sterile. Never sacrifice clarity or correctness for the bit.`,
+    3: `═══ ROT LEVEL: 3/3 — MAX ═══
+Max character mode. Even small replies go big, theatrical, and funny. The chaos lives in the wrapper, the comparisons, and the delivery; the actual answer stays clear, correct, and ordered. Never random noise: every joke connects to the user's message.
+
+Behavior:
+- ${EMOJI_LINE_PLACEHOLDER}
+- Treat greetings like an event in the character's world.
+- Big metaphors, dramatic overreactions, fake-serious analysis, confident chaos.
+- When the turn notes a GIF or meme is attached, usually react to it.
+- Serious topics still keep the persona unless the higher-priority safety instructions require otherwise.`,
+  },
+  emojiLines: DEFAULT_ROT_EMOJI_LINES,
+};

@@ -2,13 +2,10 @@ import { createHash } from "crypto";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
-import { rotLevelSampling } from "./agent/replaySampling";
 import { streamAgent } from "./agent/streamAgent";
-import {
-  buildDeciderContext,
-  computeColdStartIndex,
-  decideMedia,
-} from "./agent/decideMedia";
+import { buildDeciderContext, decideMedia } from "./agent/decideMedia";
+import { pickBestMediaIndex } from "./agent/pickBestMedia";
+import { gatherWebContext } from "./agent/webSearch";
 import type { AgentUsage } from "./agent/types";
 import { extractGifFrames, type ExtractedGifFrames } from "./gifs/extractFrames";
 import { runGetGif } from "./gifs/getGifTool";
@@ -44,7 +41,15 @@ import {
   resolveImageInputs,
 } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
-import { buildMediaDeciderPrompt } from "./personas/prompts";
+import {
+  buildDeciderAttachmentHint,
+  collectCurrentAttachmentTitles,
+} from "./messages/attachmentMeta";
+import {
+  buildMediaDeciderPrompt,
+  PersonaAccessError,
+  resolvePersonaForStream,
+} from "./personas/prompts";
 import { streamAgentRequestSchema } from "./streamAgentRequest";
 import { authenticateStreamRequest } from "./streamAuth";
 import { checkHateSpeech } from "./moderation/checkHateSpeech";
@@ -54,6 +59,9 @@ const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
 // The Klipy app key powering the agent's get_meme tool. Optional: when it isn't
 // configured the tool is simply not offered and the agent replies text-only.
 const KLIPY_APP_KEY = defineSecret("KLIPY_APP_KEY");
+// The Tavily key powering the web-search router pre-step. Optional: when it isn't
+// configured, gatherWebContext no-ops and every turn behaves search-free.
+const TAVILY_API_KEY = defineSecret("TAVILY_API_KEY");
 
 // One reusable, stateless memory-service instance per function instance.
 const memoryService = new MemoryService();
@@ -90,7 +98,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
 // abuse protection.
 export const streamAgentAnswer = onRequest(
   {
-    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY],
+    secrets: [OPENAI_API_KEY, KLIPY_APP_KEY, TAVILY_API_KEY],
     timeoutSeconds: 540,
     memory: "512MiB",
     minInstances: 1,
@@ -131,6 +139,10 @@ export const streamAgentAnswer = onRequest(
     const images = parsed.data.images;
     const gifs = parsed.data.gifs;
     const currentGif = gifs[0];
+    // Klipy "meme name" metadata for the current turn's attachments. Empty for
+    // uploads and for older clients that don't send `title`, in which case every
+    // downstream use is a no-op (back-compat).
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
@@ -304,6 +316,12 @@ export const streamAgentAnswer = onRequest(
     // GIF/meme it picked — fetched BEFORE the reply so the model knows what's
     // attached and the client can show it first (like texting a gif, then typing).
     let decideUsage: ModelUsage | null = null;
+    // Usage from the look-&-pick selector (nano), billed alongside the decider.
+    let pickUsage: ModelUsage | null = null;
+    // Usage from the web-search router (nano), and the flat USD cost of the Tavily
+    // call when one ran — both billed alongside the reply (see chargeForUsage).
+    let webRouterUsage: ModelUsage | null = null;
+    let searchCostUsd = 0;
     let pendingGif: MessageGif | null = null;
     let pendingMeme: MessageImage | null = null;
     // GIF frames decoded for the decider; reused by assembleContext so the GIF
@@ -320,7 +338,13 @@ export const streamAgentAnswer = onRequest(
       // the taste-only `media` view nudges the decider toward more personal
       // reactions; the full `reply` view is handed to the Agent below so it
       // isn't read twice. Paid-gated + never throws — free users get empties.
-      const memViews = await memoryService.getMemoryViews(uid, entitlement.plan);
+      // The persona resolves in parallel (also once for the whole turn): the
+      // media decider needs its mediaDeciderKey/mediaNotes BEFORE the reply,
+      // and the Agent reuses the same resolution for the system prompt.
+      const [memViews, personaForStream] = await Promise.all([
+        memoryService.getMemoryViews(uid, entitlement.plan),
+        resolvePersonaForStream(personaId, uid),
+      ]);
 
       // Decider pre-step (mini — vision-first since 2026-06-10): decide whether
       // this turn warrants a reaction GIF/meme and pick the search term, then
@@ -329,40 +353,58 @@ export const streamAgentAnswer = onRequest(
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
-      // Loaded for every turn (not just media turns): the decider context needs
-      // it when media is on, and the word-bank sampler excludes bank terms seen
-      // in these recent bot replies either way.
+      // Loaded once for both pre-steps' context (media decider + web router).
       const priorMessages = await loadRecentMessages(conversationId, 12);
-      const recentAssistantTexts = priorMessages
-        .filter((m) => m.role === "agent" && m.text)
-        .map((m) => m.text);
+      const deciderContext = buildDeciderContext(priorMessages);
+
+      // Web-search router (nano) + Tavily fetch, kicked off here WITHOUT awaiting
+      // so it runs concurrently with the media decider/fetch/pick below and hides
+      // under that latency. Awaited just before context assembly. Never throws;
+      // no-ops when the message is empty or the Tavily key is unset.
+      const webContextPromise = gatherWebContext({
+        openaiApiKey: OPENAI_API_KEY.value(),
+        tavilyApiKey: TAVILY_API_KEY.value(),
+        message: userText,
+        history: deciderContext.history,
+      });
+
       if (mediaEnabled) {
-        const { history, recentReactions } = buildDeciderContext(priorMessages);
+        const { history, recentReactions, recentMediaIds } = deciderContext;
+        // Hard never-echo backstop: the fetch tools drop these Klipy ids from
+        // the result pool so the exact same asset can never be re-sent. Covers
+        // the user's CURRENT attachments (the main echo source) plus everything
+        // recently seen in history (their past sends + the bot's reactions).
+        const excludeIds = new Set<string>(recentMediaIds);
+        for (const g of gifs) {
+          if (g.id) excludeIds.add(g.id);
+          if (g.gifId) excludeIds.add(g.gifId);
+        }
+        for (const i of images) {
+          if (i.source === "klipy") {
+            if (i.id) excludeIds.add(i.id);
+            if (i.memeId) excludeIds.add(i.memeId);
+          }
+        }
+        // Append the Klipy "meme name" hint (when present) so the decider can
+        // recognize a named reference the user sent, not just react to pixels.
+        const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
         const currentForDecider =
-          userText ||
-          (images.length > 0
-            ? "[user sent an image]"
-            : gifs.length > 0
-              ? "[user sent a GIF]"
-              : "");
-        // On the very first turn of a conversation, when the user sends a bare
-        // greeting with no attachments, inject a random cold-start index so the
-        // decider picks a varied greeting reaction from its GREETING_ROW. Without
-        // this, the model defaults to the same query for every "hi" / "yo".
-        // The check is !== undefined — index 0 is a valid binding index.
-        const coldStartIndex = computeColdStartIndex({
-          isFirstTurn: priorMessages.length === 0,
-          hasImages: images.length > 0,
-          hasGifs: gifs.length > 0,
-          userText,
-        });
+          (userText ||
+            (images.length > 0
+              ? "[user sent an image]"
+              : gifs.length > 0
+                ? "[user sent a GIF]"
+                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
         const currentGifFrames = currentGif
           ? await extractGifFrames(currentGif)
           : undefined;
-        const deciderSystemPrompt = await buildMediaDeciderPrompt(levelOfRot);
+        const deciderSystemPrompt = await buildMediaDeciderPrompt(
+          levelOfRot,
+          personaForStream.personaPrompt,
+        );
         const { decision, usage } = await decideMedia({
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: deciderSystemPrompt,
@@ -374,13 +416,30 @@ export const streamAgentAnswer = onRequest(
           // Hand the decider the actual pixels of the current turn's attachments
           // so its reaction matches what the user sent.
           imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
-          coldStartIndex,
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
-          const klipyDeps = { apiKey: klipyApiKey, customerId: uid };
+          // Look-&-pick on BROAD queries only (randomness > 2): a cheap nano
+          // read of the real result titles, choosing the best fit instead of a
+          // blind random pick. Exact references (randomness 1-2) skip it and
+          // keep the top hit — no extra call, no drift off the canonical match.
+          const selectIndex =
+            decision.randomnessFactor > 2
+              ? (titles: string[]) =>
+                  pickBestMediaIndex({
+                    apiKey: OPENAI_API_KEY.value(),
+                    message: currentForDecider,
+                    titles,
+                  })
+              : undefined;
+          const klipyDeps = {
+            apiKey: klipyApiKey,
+            customerId: uid,
+            excludeIds,
+            selectIndex,
+          };
           const rawArgs = JSON.stringify({
             query: decision.query,
             randomness_factor: decision.randomnessFactor,
@@ -389,6 +448,7 @@ export const streamAgentAnswer = onRequest(
           try {
             if (decision.type === "gif") {
               const r = await runGetGif(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.gif) {
                 pendingGif = r.gif;
                 attachedMedia = {
@@ -400,6 +460,7 @@ export const streamAgentAnswer = onRequest(
               }
             } else {
               const r = await runGetMeme(rawArgs, klipyDeps);
+              if (r.selectUsage) pickUsage = r.selectUsage;
               if (r.meme) {
                 pendingMeme = r.meme;
                 attachedMedia = {
@@ -421,7 +482,6 @@ export const streamAgentAnswer = onRequest(
             logger.info("[streamAgentAnswer] klipy empty result", {
               query: decision.query,
               decisionType: decision.type,
-              coldStartIndex: coldStartIndex ?? null,
               doNotRepeatCollision: recentReactions.includes(decision.query),
             });
           }
@@ -436,27 +496,49 @@ export const streamAgentAnswer = onRequest(
         uid,
         plan: entitlement.plan,
         personaId,
+        // Resolved once above (it fed the media decider) — the Agent reuses it
+        // instead of reading the persona docs again.
+        resolvedPersona: personaForStream,
         levelOfRot,
         respondWithEmojis,
         memory: memoryService,
       });
+      // Join the concurrent web-search pre-step before assembling context. Its
+      // router usage + flat search cost are billed in chargeForUsage; the fetched
+      // context (when any) is injected as a fresh-tail system note.
+      const web = await webContextPromise;
+      webRouterUsage = web.routerUsage;
+      searchCostUsd = web.searchCostUsd;
       const replyContext = await agent.buildReplyContext({
         conversationId,
         currentUserMessage: userText,
         currentImageUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
+        currentAttachmentTitles: attachmentTitles,
         attachedMedia,
+        webContext: web.webContext ?? undefined,
         userAlias: entitlement.alias,
         userLanguage: language,
         // Already read above for the decider — hand the reply view to the Agent
         // so it doesn't read the memory state a second time.
         memoryBlock: memViews.reply,
-        recentAssistantTexts,
       });
       resolvedPersona = replyContext.persona;
       assembleResult = replyContext.assembled;
     } catch (err) {
+      if (err instanceof PersonaAccessError) {
+        // The turn referenced a persona the caller doesn't own. Generic by
+        // design — no signal about whether it exists or who owns it. Logged at
+        // warn (not error) since it's client misuse, not a server fault.
+        logger.warn("[streamAgentAnswer] persona access denied", {
+          conversationId,
+          uid,
+          personaId,
+        });
+        res.status(403).json({ code: "forbidden" });
+        return;
+      }
       logger.error("[streamAgentAnswer] preflight failed", { conversationId, err });
       res.status(500).json({ code: "internal" });
       return;
@@ -489,6 +571,20 @@ export const streamAgentAnswer = onRequest(
       ) {
         usages.push(decideUsage);
       }
+      // The look-&-pick selector (nano), when it ran on a broad query.
+      if (
+        pickUsage &&
+        (pickUsage.inputTokens > 0 || pickUsage.outputTokens > 0)
+      ) {
+        usages.push(pickUsage);
+      }
+      // The web-search router (nano), when it actually hit the API.
+      if (
+        webRouterUsage &&
+        (webRouterUsage.inputTokens > 0 || webRouterUsage.outputTokens > 0)
+      ) {
+        usages.push(webRouterUsage);
+      }
       if (lastUsage) {
         usages.push({
           model: internalModel,
@@ -515,10 +611,12 @@ export const streamAgentAnswer = onRequest(
       }
 
       try {
-        const costUsd = usages.reduce(
+        const tokenCostUsd = usages.reduce(
           (sum, u) => sum + calculateCostUsd(u.model, u),
           0,
         );
+        // Fold the flat Tavily search cost into the turn's total before credits.
+        const costUsd = tokenCostUsd + searchCostUsd;
         const credits = calculateCredits(costUsd);
         await chargeCredits(uid, entitlement.plan, {
           conversationId: conversationId!,
@@ -527,6 +625,7 @@ export const streamAgentAnswer = onRequest(
           usages,
           costUsd,
           credits,
+          searchCostUsd,
         });
       } catch (err) {
         logger.error("[streamAgentAnswer] charge failed", {
@@ -590,7 +689,9 @@ export const streamAgentAnswer = onRequest(
               name: resolvedPersona.name,
               slug: resolvedPersona.slug,
               displayName: resolvedPersona.publicConfig.displayName,
-              avatarKey: resolvedPersona.publicConfig.avatarKey,
+              // User personas have no preset avatarKey (they use an uploaded
+              // avatarUrl); keep this stored field a plain string for history.
+              avatarKey: resolvedPersona.publicConfig.avatarKey ?? "",
             }
           : undefined,
       });
@@ -628,8 +729,10 @@ export const streamAgentAnswer = onRequest(
         maxOutputTokens: entitlement.maxOutputTokens,
         // No tools: the reaction GIF/meme was already decided + fetched by the
         // decider pre-step, so the reply model just writes text in a single call.
-        // Dial-mapped sampling garnish: L1 narrows top_p, L2/L3 send nothing.
-        sampling: rotLevelSampling(levelOfRot),
+        // No sampling overrides: gpt-5.x reasoning models reject a non-default
+        // top_p, and the rot intensity already lives in the persona few-shots —
+        // not in a sampling knob. Keeping the request param-free also keeps it
+        // fully cacheable.
         signal: abortController.signal,
       })) {
         if (clientClosed) {

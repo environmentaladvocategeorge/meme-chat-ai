@@ -43,6 +43,7 @@ describe("trendingMemeToMessageImage", () => {
       height: 400,
       attribution: "Powered by Klipy",
       memeId: "meme-1",
+      title: "Distracted Boyfriend",
     });
   });
 
@@ -50,6 +51,15 @@ describe("trendingMemeToMessageImage", () => {
     const image = trendingMemeToMessageImage(meme);
     expect(image.id).toBe(meme.id);
     expect(image.memeId).toBe(meme.id);
+  });
+
+  it("carries Klipy's title so the backend can name the meme to the model", () => {
+    expect(trendingMemeToMessageImage(meme).title).toBe("Distracted Boyfriend");
+  });
+
+  it("omits title when Klipy returned an empty one (back-compat)", () => {
+    const image = trendingMemeToMessageImage({ ...meme, title: "" });
+    expect("title" in image).toBe(false);
   });
 
   it("caps memes per message at 3", () => {
@@ -69,11 +79,21 @@ describe("trendingGifToMessageGif", () => {
       height: 480,
       attribution: "Powered by Klipy",
       gifId: "gif-1",
+      title: "Happy Dance",
     });
   });
 
   it("preserves the distinct frameSourceUrl the backend decodes for the model", () => {
     expect(trendingGifToMessageGif(gif).frameSourceUrl).toBe(gif.frameSourceUrl);
+  });
+
+  it("carries Klipy's title so the backend can name the GIF to the model", () => {
+    expect(trendingGifToMessageGif(gif).title).toBe("Happy Dance");
+  });
+
+  it("omits title when Klipy returned an empty one (back-compat)", () => {
+    const staged = trendingGifToMessageGif({ ...gif, title: "" });
+    expect("title" in staged).toBe(false);
   });
 
   it("caps gifs per message at 1", () => {

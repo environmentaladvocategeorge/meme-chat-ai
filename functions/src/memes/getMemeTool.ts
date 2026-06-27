@@ -8,6 +8,7 @@ import {
 } from "../messages/messageImage";
 import { KlipyError, searchMemes } from "./klipy";
 import type { ContentFilter, TrendingMeme } from "./types";
+import type { ModelUsage } from "../billing/ledger";
 
 // Curated bank of meme references that exist on Klipy as near-exact titles,
 // each paired with the moment it fits. Klipy's search matches REFERENCES, not
@@ -61,9 +62,9 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
         randomness_factor: {
           type: "integer",
           minimum: 1,
-          maximum: 6,
+          maximum: 30,
           description:
-            "How literal/exact your query is. Use 1 for an exact meme reference (e.g. a bank title) — it returns that precise meme. Use 2–3 for a looser query where any of the top few hits would land (e.g. a generic word like 'cooked'); we then randomly pick from roughly the first N results, favoring earlier ones. Use 6 ONLY for pure no-subject chaos requests ('send me some brainrot') where any wild hit is the right answer. Default 1.",
+            "How deep to sample the ranked results (the search is literal and frozen: the same query returns the same top hits every time, so generic queries NEED high randomness to vary; sampling is front-biased, so deep hits stay rare). 1-2 = exact meme reference (e.g. a bank title). 3-6 = named-but-broad references and descriptive queries. 15-20 = generic/common words with huge pools whose top hits never change. 25-30 = grab-bag chaos requests ('send me some brainrot'). Default 1.",
         },
       },
       required: ["query"],
@@ -74,10 +75,11 @@ export const GET_MEME_TOOL: ChatCompletionTool = {
 
 const memeArgsSchema = z.object({
   query: z.string().trim().min(1).max(100),
-  // How widely to sample the ranked results. 1 = always the top hit; 6 = the
-  // chaos band for pure brainrot requests. Invalid or missing values fall back
-  // to 1 (exact) rather than failing the tool.
-  randomness_factor: z.coerce.number().int().min(1).max(6).catch(1).default(1),
+  // How deep to sample the ranked results. 1 = always the top hit; 30 = the
+  // chaos band for grab-bag requests (front-biased decay keeps the deep tail
+  // rare). Invalid or missing values fall back to 1 (exact) rather than
+  // failing the tool.
+  randomness_factor: z.coerce.number().int().min(1).max(30).catch(1).default(1),
 });
 
 export type GetMemeDeps = {
@@ -87,6 +89,17 @@ export type GetMemeDeps = {
   customerId: string;
   locale?: string;
   contentFilter?: ContentFilter;
+  // Klipy ids to drop from the result pool before picking — the meme/GIF the
+  // user JUST sent plus the bot's recent reactions. A hard backstop to the
+  // prompt's never-echo rule so the exact same asset is never re-sent.
+  excludeIds?: ReadonlySet<string>;
+  // Optional look-&-pick selector (see getGifTool's GetGifDeps.selectIndex):
+  // given the ranked candidate titles, returns the chosen index + usage. Absent
+  // → blind randomness pick. Only passed for broad queries; references lock to
+  // the top hit.
+  selectIndex?: (
+    titles: string[],
+  ) => Promise<{ index: number; usage: ModelUsage }>;
 };
 
 export type GetMemeResult = {
@@ -100,6 +113,9 @@ export type GetMemeResult = {
   // The chosen meme's Klipy title — a short description handed to the reply
   // model (via the media pipeline) so it knows what's attached. Not shown raw.
   title?: string;
+  // Usage from the optional look-&-pick selector, surfaced so the orchestrator
+  // can bill it alongside the decider + reply. Absent when no selector ran.
+  selectUsage?: ModelUsage;
 };
 
 // Map the top Klipy hit onto our message-attachment shape, then revalidate it
@@ -147,9 +163,10 @@ export async function runGetMeme(
       apiKey: deps.apiKey,
       query,
       page: 1,
-      // Klipy's search endpoint requires per_page >= 8; the randomness factor
-      // may sample a few hits deep, so keep the full page available.
-      perPage: 8,
+      // Klipy's search endpoint requires per_page >= 8 and caps at 50. Size
+      // the page to the requested sampling window (+1 straggler) — a short
+      // page silently shrinks the high band's window to whatever was fetched.
+      perPage: Math.min(50, Math.max(16, randomnessFactor + 2)),
       customerId: deps.customerId,
       locale: deps.locale,
       // Conservative default safety level for a consumer chat app.
@@ -160,15 +177,37 @@ export async function runGetMeme(
     // then let the randomness factor pick among the usable ones. With factor 1
     // this is just the top hit; higher factors sample a few deep with a strong
     // front bias — without us reading each result to choose (token waste).
+    const exclude = deps.excludeIds;
     const candidates = result.memes
       .map((m) => ({ meme: toMessageImage(m), title: m.title }))
       .filter(
         (c): c is { meme: ValidatedMessageImage; title: string } =>
           c.meme !== null,
-      );
-    const chosen =
-      candidates[pickIndexByRandomness(candidates.length, randomnessFactor)] ??
-      null;
+      )
+      // Never re-send the user's own meme or a recent reaction: drop excluded
+      // ids so the pick can only land on a fresh asset.
+      .filter((c) => !exclude || !exclude.has(c.meme.id));
+    if (candidates.length === 0) {
+      return { content: JSON.stringify({ found: false }) };
+    }
+
+    // Look-&-pick when a selector is supplied (broad queries) with a real
+    // choice; otherwise the blind front-biased randomness pick.
+    let index: number;
+    let selectUsage: ModelUsage | undefined;
+    if (deps.selectIndex && candidates.length > 1) {
+      const sel = await deps.selectIndex(candidates.map((c) => c.title));
+      index =
+        Number.isInteger(sel.index) &&
+        sel.index >= 0 &&
+        sel.index < candidates.length
+          ? sel.index
+          : 0;
+      selectUsage = sel.usage;
+    } else {
+      index = pickIndexByRandomness(candidates.length, randomnessFactor);
+    }
+    const chosen = candidates[index] ?? null;
     if (!chosen) {
       return { content: JSON.stringify({ found: false }) };
     }
@@ -180,6 +219,7 @@ export async function runGetMeme(
       content: JSON.stringify({ found: true }),
       meme: chosen.meme,
       title: chosen.title,
+      selectUsage,
     };
   } catch (err) {
     if (err instanceof KlipyError) {

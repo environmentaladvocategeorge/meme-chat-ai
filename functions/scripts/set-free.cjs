@@ -7,7 +7,7 @@ const { getApps, initializeApp } = require("firebase-admin/app");
 const { getAuth } = require("firebase-admin/auth");
 const { getDb, PROJECT_ID } = require("./admin-app.cjs");
 
-const MONTHLY_CREDITS_FREE = 260; // mirror of PLANS.free.monthlyCredits — keep in sync
+const MONTHLY_CREDITS_FREE = 370; // mirror of PLANS.free.monthlyCredits — keep in sync
 const MONTHLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 function daysInMonth(date) {

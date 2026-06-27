@@ -90,6 +90,112 @@ export async function updateProfileCallable(args: {
   return result.data;
 }
 
+import type { PersonaSavePayload } from "@/domain/personaForm";
+
+export type SavePersonaPublicConfig = {
+  displayName: string;
+  shortDescription: string;
+  toneTags: string[];
+  avatarKey?: string;
+  avatarUrl?: string;
+  avatarPath?: string;
+};
+
+export type SavePersonaResponse = {
+  success: true;
+  personaId: string;
+  publicConfig: SavePersonaPublicConfig;
+  certainty: number;
+};
+
+// Creates or overwrites a user persona (Admin SDK; client writes to
+// user_personas are blocked by firestore.rules). The backend validates +
+// moderates (text + avatar image) and renders the prompt. `avatar` carries a
+// just-uploaded image's download URL + Storage path. On rejection it throws an
+// HttpsError whose message is one of: persona_rejected, moderation_unavailable,
+// persona_limit_reached, invalid_avatar.
+export async function savePersonaCallable(args: {
+  persona: PersonaSavePayload;
+  personaId?: string;
+  avatar?: { url: string; path: string };
+  // Edit-only: clear the stored avatar. Ignored on create / when `avatar` is set.
+  removeAvatar?: boolean;
+}): Promise<SavePersonaResponse> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<typeof args, SavePersonaResponse>(
+    firebase.services.functions,
+    "savePersona",
+  );
+  const result = await callable(args);
+  return result.data;
+}
+
+// Generates ONE avatar image (base64 PNG) for the persona creator from a short
+// text description, using gpt-image-1-mini server-side. The UI calls this twice
+// in parallel for two candidates; each call gates + charges the user's normal
+// credit allowance. On failure it throws an HttpsError whose message is one of:
+// quota_daily, quota_monthly, prompt_rejected, generation_failed, invalid_request.
+export async function generatePersonaAvatarCallable(args: {
+  description: string;
+  // Art-direction selector so the two parallel calls diverge (see backend).
+  variant?: number;
+}): Promise<{ success: true; imageBase64: string }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    { description: string; variant?: number },
+    { success: true; imageBase64: string }
+  >(firebase.services.functions, "generatePersonaAvatar");
+  const result = await callable(args);
+  return result.data;
+}
+
+// AI-writes the persona's "who they are" description from the details entered so
+// far plus the picked avatar (base64). Billed to the user; see backend.
+export async function generatePersonaDescriptionCallable(args: {
+  displayName?: string;
+  shortDescription?: string;
+  toneTags?: string[];
+  humorTypes?: string[];
+  imageBase64?: string;
+}): Promise<{ success: true; description: string }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<typeof args, { success: true; description: string }>(
+    firebase.services.functions,
+    "generatePersonaDescription",
+  );
+  const result = await callable(args);
+  return result.data;
+}
+
+// Deletes a user persona (and its uploaded avatar object) server-side.
+export async function deletePersonaCallable(
+  personaId: string,
+): Promise<{ success: true }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<{ personaId: string }, { success: true }>(
+    firebase.services.functions,
+    "deletePersona",
+  );
+  const result = await callable({ personaId });
+  return result.data;
+}
+
 export type MessageReaction = "up" | "down";
 
 // Records (or clears, when reaction is null) the caller's thumbs rating on a

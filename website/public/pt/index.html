@@ -9,8 +9,8 @@
       document.documentElement.classList.add("js");
     </script>
     <title>Meme Chat AI | App de chat com IA engraçada para respostas que acertam</title>
-    <meta name="description" content="Meme Chat AI é um app de chat com IA engraçada que conserta textos sem graça, explica o confuso rápido, critica ideias mal cozidas de um jeito útil e transforma sopa mental em respostas, legendas e planos." />
-    <meta name="keywords" content="chat IA memes, assistente IA engraçado, reescritor de textos IA, app de chat IA, chatbot de memes, chat IA iPhone" />
+    <meta name="description" content="Meme Chat AI é um app de chat com IA engraçada que conserta textos sem graça, explica o confuso rápido, critica ideias mal cozidas de um jeito útil e te deixa criar os seus próprios brainrot bots." />
+    <meta name="keywords" content="chat IA memes, assistente IA engraçado, persona IA personalizada, crie seu próprio bot IA, app de chat IA, chatbot de memes, chat IA iPhone" />
     <link rel="canonical" href="https://meme-chat-ai.com/pt" />
     <link rel="alternate" hreflang="en" href="https://meme-chat-ai.com/" />
     <link rel="alternate" hreflang="es" href="https://meme-chat-ai.com/es" />
@@ -31,7 +31,7 @@
     <meta property="og:image" content="https://meme-chat-ai.com/assets/images/app-icon.png?v=2" />
     <meta property="og:locale" content="pt" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/styles.css?v=3" />
     <style>
       /* "Send a meme" callout — white KLIPY mark sits on a teal panel. */
       .meme-card {
@@ -129,7 +129,15 @@
             "name": "What are meme-power plans?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Hatchling (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
+              "text": "Every plan gets the same smart Brainrot Bot. The tiers set how much you can chat each month and whether Brainrot Bot remembers you across chats. Every paid plan unlocks Memory and app customization. The tiers are Newbie (free), Sidekick, Wingman, and MVP. Wingman is the popular pick and MVP is the most powerful."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I create my own AI bot in Meme Chat AI?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Alongside Brainrot Bot you can build your own personas: name a bot, give it a personality, voice, slang, emojis, and an avatar, then chat with it like any other. The free plan includes one custom bot and paid plans hold up to ten, and you switch between them inside the app. Every bot passes an automated safety check before it goes live."
             }
           }
         ]
@@ -144,6 +152,7 @@
       </a>
       <nav class="nav" aria-label="Main navigation">
         <a href="#how">Como funciona</a>
+        <a href="#personas">Crie um bot</a>
         <a href="#memory">Memória</a>
         <a href="#plans">Planos</a>
         <a href="/pt/ios">iOS</a>
@@ -289,6 +298,28 @@
         </div>
       </section>
 
+      <section class="section split-section reveal" id="personas">
+        <div>
+          <p class="eyebrow">Crie o seu</p>
+          <h2>Crie um brainrot bot que é só seu.</h2>
+          <p>O Brainrot Bot é só o começo. Crie o seu do zero: dê um nome, uma história e um jeito próprio de falar, e depois converse com ele como com qualquer outro. O plano grátis inclui um bot personalizado; os planos pagos guardam de 10 a 100 e deixam você alternar entre eles quando quiser. Cada bot passa por uma verificação de segurança antes de entrar no ar.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <h3>Dê uma personalidade</h3>
+            <p>Dê um nome, escreva quem ele é e defina o vibe: fofo, seco ou completamente pirado.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Ensine a falar</h3>
+            <p>Escolha o humor, as gírias e os emojis preferidos, e solte um exemplo de resposta para ele acertar a voz desde a primeira mensagem.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Escolha o visual</h3>
+            <p>Suba um avatar ou gere um a partir de uma breve descrição, escreva o slogan de uma linha e salve. Ele aparece no seu seletor de bots, pronto pra usar.</p>
+          </article>
+        </div>
+      </section>
+
       <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
@@ -309,30 +340,37 @@
         </div>
       </section>
 
-      <section class="section split-section reveal" id="memory">
-        <div>
+      <section class="section memory-section reveal" id="memory">
+        <div class="memory-copy">
           <p class="eyebrow">Memória</p>
           <h2>Um Brainrot Bot que realmente te conhece.</h2>
           <p>Nos planos pagos, o Brainrot Bot capta o seu vibe, as pessoas que você menciona e as coisas que você repete. O próximo chat continua de onde o anterior parou. Sem reexplicar, sem começar do zero.</p>
           <p>Você fica no controle. Desligue a memória ou apague tudo em Ajustes quando quiser, sem perguntas.</p>
         </div>
-        <div class="feature-grid">
-          <article class="feature-card">
-            <h3>Capta o contexto</h3>
-            <p>Anota seu vibe, sua gente e os temas que você repete, então pula a reapresentação a cada sessão.</p>
-          </article>
-          <article class="feature-card">
-            <h3>Mora na sua conta</h3>
-            <p>Ligada à sua conta, não ao aparelho. A mesma memória em cada login.</p>
-          </article>
-          <article class="feature-card">
-            <h3>Você no comando</h3>
-            <p>Desligue ou apague em Ajustes. Para na hora, sem espera.</p>
-          </article>
-          <article class="feature-card">
-            <h3>Só nos planos pagos</h3>
-            <p>Disponível no Sidekick, Wingman e MVP. O plano grátis tem o bot completo, só não tem a memória.</p>
-          </article>
+        <div class="memory-thread" aria-label="How Brainrot Bot remembers you">
+          <div class="memory-thread-head">
+            <img src="/assets/images/app-icon.png?v=2" alt="" />
+            <span class="memory-thread-name">Brainrot Bot</span>
+            <span class="memory-thread-pill">Memória</span>
+          </div>
+          <div class="memory-msgs">
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">Capta o contexto</span>
+              <p>Anota seu vibe, sua gente e os temas que você repete, então pula a reapresentação a cada sessão.</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">Mora na sua conta</span>
+              <p>Ligada à sua conta, não ao aparelho. A mesma memória em cada login.</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">Você no comando</span>
+              <p>Desligue ou apague em Ajustes. Para na hora, sem espera.</p>
+            </div>
+            <div class="memory-bubble">
+              <span class="memory-bubble-tag">Só nos planos pagos</span>
+              <p>Disponível no Sidekick, Wingman e MVP. O plano grátis tem o bot completo, só não tem a memória.</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -340,33 +378,38 @@
         <div class="section-heading">
           <p class="eyebrow">Meme-power</p>
           <h2>Planos que acompanham o quanto você conversa.</h2>
-          <p>O mesmo Brainrot Bot esperto em todos os planos. Os níveis definem sua cota mensal, se o Brainrot Bot lembra de você e se você pode mudar o estilo do chat. Wingman é o queridinho; MVP é o mais poderoso.</p>
+          <p>O mesmo Brainrot Bot esperto em todos os planos. Os níveis definem sua cota mensal, quantos bots personalizados você pode guardar, se o Brainrot Bot lembra de você e se você pode mudar o estilo do chat. Wingman é o queridinho; MVP é o mais poderoso.</p>
         </div>
-        <div class="plan-grid">
-          <article class="plan-card">
-            <span class="plan-kicker">Grátis</span>
-            <h3>Hatchling</h3>
-            <p>Bot completo, caos inicial.</p>
-            <strong>1x chats</strong>
-          </article>
-          <article class="plan-card">
-            <span class="plan-kicker">Básico</span>
-            <h3>Sidekick</h3>
-            <p>Mais chats, menos dívida de aura.</p>
-            <strong>9x chats &middot; Memória &middot; Temas do app &middot; Sem anúncios</strong>
-          </article>
-          <article class="plan-card">
-            <span class="plan-kicker">Popular</span>
-            <h3>Wingman</h3>
-            <p>Toneladas de chats, memória, embalo.</p>
-            <strong>25x chats &middot; Memória &middot; Temas do app &middot; Sem anúncios</strong>
-          </article>
-          <article class="plan-card recommended">
-            <span class="plan-kicker">Melhor</span>
-            <h3>MVP</h3>
-            <p>Para dias de chat pesado e yapping profissional.</p>
-            <strong>50x chats &middot; Memória &middot; Temas do app &middot; Sem anúncios</strong>
-          </article>
+        <div class="plan-carousel" data-plan-carousel>
+          <button class="plan-nav plan-nav-prev" type="button" aria-label="Previous plan" data-plan-prev>&#8249;</button>
+          <button class="plan-nav plan-nav-next" type="button" aria-label="Next plan" data-plan-next>&#8250;</button>
+          <div class="plan-track" role="list">
+            <article class="plan-card" role="listitem">
+              <span class="plan-kicker">Grátis</span>
+              <h3>Newbie</h3>
+              <p>Bot completo, caos inicial.</p>
+              <strong>1x chats &middot; 1 bot personalizado</strong>
+            </article>
+            <article class="plan-card" role="listitem">
+              <span class="plan-kicker">Básico</span>
+              <h3>Sidekick</h3>
+              <p>Mais chats, menos dívida de aura.</p>
+              <strong>9x chats &middot; 10 bots personalizados &middot; Memória &middot; Temas do app &middot; Sem anúncios</strong>
+            </article>
+            <article class="plan-card" role="listitem" data-plan-default>
+              <span class="plan-kicker">Popular</span>
+              <h3>Wingman</h3>
+              <p>Toneladas de chats, memória, embalo.</p>
+              <strong>25x chats &middot; 30 bots personalizados &middot; Memória &middot; Temas do app &middot; Sem anúncios</strong>
+            </article>
+            <article class="plan-card recommended" role="listitem">
+              <span class="plan-kicker">Melhor</span>
+              <h3>MVP</h3>
+              <p>Para dias de chat pesado e yapping profissional.</p>
+              <strong>50x chats &middot; 100 bots personalizados &middot; Memória &middot; Temas do app &middot; Sem anúncios</strong>
+            </article>
+          </div>
+          <div class="plan-dots" aria-hidden="true"></div>
         </div>
       </section>
 
@@ -397,6 +440,10 @@
           <details>
             <summary>O site usa recursos reais do app?</summary>
             <p>Sim. A página usa o ícone do app, as imagens do avatar do Brainrot Bot, Poppins, Fredoka e as mesmas cores de marca do app.</p>
+          </details>
+          <details>
+            <summary>Posso criar o meu próprio bot?</summary>
+            <p>Sim. Além do Brainrot Bot, você pode criar o seu: dê um nome, uma personalidade, voz e avatar, e depois converse com ele. O grátis inclui um bot personalizado e os planos pagos guardam até cem. Cada bot passa por uma verificação de segurança antes de entrar no ar.</p>
           </details>
         </div>
       </section>
@@ -438,6 +485,91 @@
         els.forEach(function (el) {
           io.observe(el);
         });
+      })();
+    </script>
+
+    <!-- Plans carousel: flag the card nearest the middle (it scales up with a
+         faint glow) and build clickable position dots. Pure CSS scroll-snap
+         handles layout; without JS it stays a plain scrollable row. -->
+    <script>
+      (function () {
+        var carousel = document.querySelector("[data-plan-carousel]");
+        if (!carousel) return;
+        var track = carousel.querySelector(".plan-track");
+        var dotsWrap = carousel.querySelector(".plan-dots");
+        var prevBtn = carousel.querySelector("[data-plan-prev]");
+        var nextBtn = carousel.querySelector("[data-plan-next]");
+        var cards = Array.prototype.slice.call(track.querySelectorAll(".plan-card"));
+        if (!cards.length) return;
+
+        var current = 0;
+
+        function centerCard(card) {
+          track.scrollTo({
+            left: card.offsetLeft - (track.clientWidth - card.offsetWidth) / 2,
+            behavior: "smooth",
+          });
+        }
+
+        function go(i) {
+          centerCard(cards[Math.max(0, Math.min(cards.length - 1, i))]);
+        }
+
+        var dots = cards.map(function (card, i) {
+          var dot = document.createElement("button");
+          dot.type = "button";
+          dot.setAttribute("aria-label", "Show plan " + (i + 1));
+          dot.addEventListener("click", function () {
+            go(i);
+          });
+          dotsWrap.appendChild(dot);
+          return dot;
+        });
+
+        if (prevBtn) prevBtn.addEventListener("click", function () { go(current - 1); });
+        if (nextBtn) nextBtn.addEventListener("click", function () { go(current + 1); });
+
+        var raf = 0;
+        function update() {
+          raf = 0;
+          var mid = track.scrollLeft + track.clientWidth / 2;
+          var best = 0;
+          var bestDist = Infinity;
+          for (var i = 0; i < cards.length; i++) {
+            var center = cards[i].offsetLeft + cards[i].offsetWidth / 2;
+            var dist = Math.abs(center - mid);
+            if (dist < bestDist) {
+              bestDist = dist;
+              best = i;
+            }
+          }
+          current = best;
+          for (var j = 0; j < cards.length; j++) {
+            cards[j].classList.toggle("is-center", j === best);
+            dots[j].classList.toggle("is-active", j === best);
+          }
+          if (prevBtn) prevBtn.disabled = best === 0;
+          if (nextBtn) nextBtn.disabled = best === cards.length - 1;
+        }
+
+        track.addEventListener(
+          "scroll",
+          function () {
+            if (!raf) raf = requestAnimationFrame(update);
+          },
+          { passive: true }
+        );
+        window.addEventListener("resize", update);
+        window.addEventListener("load", update);
+
+        // Start centered on the popular plan, without animating on first paint.
+        var initial = track.querySelector("[data-plan-default]") || cards[0];
+        var prev = track.style.scrollBehavior;
+        track.style.scrollBehavior = "auto";
+        track.scrollLeft =
+          initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
+        track.style.scrollBehavior = prev;
+        update();
       })();
     </script>
     <script>try{localStorage.setItem("mcai_lang","pt");}catch(e){}</script>

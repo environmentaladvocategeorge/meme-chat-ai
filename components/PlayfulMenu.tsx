@@ -6,7 +6,8 @@
 // in sync without a parent/child relationship.
 
 import { AppPressable } from "@/components/AppPressable";
-import { MENU_BUTTON_SIZE } from "@/components/MenuButton";
+import { GlassSurface } from "@/components/GlassSurface";
+import { MENU_BUTTON_SIZE, MenuButton } from "@/components/MenuButton";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { Typography } from "@/components/Typography";
 import { tapHaptic } from "@/lib/haptics";
@@ -176,6 +177,37 @@ export function PlayfulMenu() {
           ))}
         </View>
       </View>
+
+      {/* The menu button, lifted ABOVE the dim so it stays bright and is the
+          obvious "tap to close" target while the menu is open. The header's own
+          button sits underneath the scrim in the exact same spot; this is the
+          same component (shared menu store), so its X icon + tap stay in sync.
+          Positioned to match the header: top = safe-area + TOP_GAP(4), aligned
+          to the left of the same max-width content column (paddingHorizontal
+          16) so it lines up on phone and iPad alike. */}
+      <View
+        pointerEvents="box-none"
+        style={{
+          position: "absolute",
+          top: insets.top + 4,
+          left: 0,
+          right: 0,
+          alignItems: "center",
+        }}
+      >
+        <View
+          pointerEvents="box-none"
+          style={{
+            width: "100%",
+            maxWidth: MAX_CONTENT_WIDTH,
+            paddingHorizontal: 16,
+          }}
+        >
+          <View style={{ alignSelf: "flex-start" }}>
+            <MenuButton />
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -218,9 +250,11 @@ function MenuPill({
     const translateX = interpolate(local, [0, 1], [-80, 0]);
     const rotate = interpolate(local, [0, 1], [-8, 0]);
     const scale = interpolate(local, [0, 1], [0.85, 1]);
-    const opacity = interpolate(local, [0, 1], [0, 1]);
+    // NOTE: deliberately NO opacity — these pills are glass, and opacity 0 on a
+    // glass view (or parent) permanently kills the native material (see
+    // GlassSurface's opacity-0 note). The slide + scale + rotate carry the
+    // staggered entrance instead; reversing `progress` still replays it.
     return {
-      opacity,
       transform: [
         { translateX },
         { rotate: `${rotate}deg` },
@@ -254,9 +288,6 @@ function MenuPill({
             paddingLeft: 10,
             paddingRight: 22,
             minWidth: 200,
-            backgroundColor: isActive ? "transparent" : theme["--color-card"],
-            borderWidth: isActive ? 0 : 1,
-            borderColor: theme["--color-border"],
             shadowColor: theme["--color-foreground"],
             shadowOpacity: 0.08,
             shadowRadius: 8,
@@ -267,12 +298,27 @@ function MenuPill({
           pillStyle,
         ]}
       >
-        {isActive && (
+        {isActive ? (
           <LinearGradient
             colors={gradient.colors}
             start={gradient.start}
             end={gradient.end}
             style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          // Inactive pills float over the dimmed live backdrop → Liquid Glass
+          // refracts it. The previous solid card + border is the fallback.
+          <GlassSurface
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFillObject,
+              { borderRadius: ITEM_HEIGHT / 2 },
+            ]}
+            fallbackStyle={{
+              backgroundColor: theme["--color-card"],
+              borderWidth: 1,
+              borderColor: theme["--color-border"],
+            }}
           />
         )}
         <View

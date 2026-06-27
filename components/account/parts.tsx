@@ -8,15 +8,8 @@ import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuthStore } from "@/store/auth";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
-import {
-  AppleLogo,
-  CaretRight,
-  CheckCircle,
-  Envelope,
-  WarningCircle,
-  type IconProps,
-} from "phosphor-react-native";
-import { type ComponentType, type ReactNode } from "react";
+import { CaretRight, CheckCircle } from "phosphor-react-native";
+import { Children, Fragment, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -124,51 +117,67 @@ export function SectionHeader({ title }: { title: string }) {
   );
 }
 
+// Groups a set of rows into a single card with hairline dividers between them —
+// the iOS-Settings list look. Rows draw no card of their own; the group owns the
+// surface, so a section reads as one clean block instead of a stack of chips.
+export function RowGroup({ children }: { children: ReactNode }) {
+  const theme = useTheme();
+  const items = Children.toArray(children).filter(Boolean);
+  return (
+    <View
+      style={{
+        borderRadius: 16,
+        backgroundColor: theme["--color-card"],
+        borderWidth: 1,
+        borderColor: theme["--color-border"],
+        overflow: "hidden",
+      }}
+    >
+      {items.map((child, i) => (
+        <Fragment key={i}>
+          {i > 0 ? (
+            <View
+              style={{
+                height: 1,
+                marginLeft: 16,
+                backgroundColor: theme["--color-border"],
+              }}
+            />
+          ) : null}
+          {child}
+        </Fragment>
+      ))}
+    </View>
+  );
+}
+
+// A single text-forward row inside a RowGroup. No icon chip — just the label and
+// a faint chevron. Press dims the row (scaling would clip against the group's
+// rounded, overflow-hidden card).
 export function ActionRow({
-  icon: Icon,
   label,
   onPress,
   danger = false,
 }: {
-  icon: ComponentType<IconProps>;
   label: string;
   onPress: () => void;
   danger?: boolean;
 }) {
   const theme = useTheme();
-  const accent = danger ? theme["--color-error"] : theme["--color-primary"];
 
   return (
     <AppPressable
       onPress={onPress}
       accessibilityLabel={label}
-      pressScale={0.02}
+      feedback="opacity"
       style={{
-        borderRadius: 16,
-        backgroundColor: theme["--color-card"],
-        borderWidth: 1,
-        borderColor: danger ? theme["--color-error"] : theme["--color-border"],
-        paddingVertical: 14,
+        paddingVertical: 16,
         paddingHorizontal: 16,
         flexDirection: "row",
         alignItems: "center",
         gap: 12,
       }}
     >
-      <View
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 12,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: danger
-            ? theme["--color-error-muted"]
-            : theme["--color-primary-muted"],
-        }}
-      >
-        <Icon size={20} weight="bold" color={accent} />
-      </View>
       <Typography
         variant="body"
         weight="semibold"
@@ -180,7 +189,7 @@ export function ActionRow({
         {label}
       </Typography>
       <CaretRight
-        size={18}
+        size={16}
         weight="bold"
         color={theme["--color-foreground-muted"]}
       />
@@ -188,38 +197,9 @@ export function ActionRow({
   );
 }
 
-function VerificationBadge({ verified }: { verified: boolean }) {
-  const { t } = useTranslation();
-  const theme = useTheme();
-  const color = verified ? theme["--color-success"] : theme["--color-warning"];
-
-  return (
-    <View
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 999,
-        borderWidth: 1,
-        borderColor: color,
-      }}
-    >
-      {verified ? (
-        <CheckCircle size={12} weight="fill" color={color} />
-      ) : (
-        <WarningCircle size={12} weight="fill" color={color} />
-      )}
-      <Typography variant="micro" style={{ color }}>
-        {verified ? t("account.status.verified") : t("account.status.pending")}
-      </Typography>
-    </View>
-  );
-}
-
-// Identity card — sign-in method + the email / Apple ID. We deliberately never
-// surface a username or the raw Firebase uid.
+// Identity card — the email / Apple ID and sign-in method, text-forward. We
+// deliberately never surface a username or the raw Firebase uid. Verification is
+// shown as a small colored dot + word rather than a bordered icon badge.
 export function IdentityCard() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -230,6 +210,9 @@ export function IdentityCard() {
   const hasPasswordProvider = providers.some(
     (p) => p.providerId === "password",
   );
+  const verifyColor = emailVerified
+    ? theme["--color-success"]
+    : theme["--color-warning"];
 
   return (
     <View
@@ -238,91 +221,61 @@ export function IdentityCard() {
         backgroundColor: theme["--color-card"],
         borderWidth: 1,
         borderColor: theme["--color-border"],
-        overflow: "hidden",
+        padding: 18,
+        gap: 6,
       }}
     >
-      <View
+      <Typography
+        variant="overline"
         style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 12,
-          padding: 16,
+          color: theme["--color-foreground-muted"],
+          letterSpacing: 1,
         }}
       >
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 14,
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: theme["--color-primary-muted"],
-          }}
-        >
-          {isAppleUser ? (
-            <AppleLogo size={22} weight="fill" color={theme["--color-primary"]} />
-          ) : (
-            <Envelope size={22} weight="bold" color={theme["--color-primary"]} />
-          )}
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Typography
-            variant="caption"
-            style={{ color: theme["--color-foreground-secondary"] }}
-          >
-            {t("account.status.methodLabel")}
-          </Typography>
-          <Typography
-            variant="body"
-            weight="semibold"
-            style={{ color: theme["--color-foreground"] }}
-          >
-            {isAppleUser
-              ? t("account.status.methodApple")
-              : t("account.status.methodPassword")}
-          </Typography>
-        </View>
-      </View>
+        {isAppleUser
+          ? t("account.status.appleEmailLabel")
+          : t("account.status.emailLabel")}
+      </Typography>
 
-      <View
-        style={{
-          height: 1,
-          backgroundColor: theme["--color-border"],
-          marginHorizontal: 16,
-        }}
-      />
-
-      <View style={{ padding: 16, gap: 4 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Typography
-          variant="caption"
-          style={{ color: theme["--color-foreground-secondary"] }}
+          variant="title-md"
+          numberOfLines={1}
+          style={{ flex: 1, color: theme["--color-foreground"] }}
         >
-          {isAppleUser
-            ? t("account.status.appleEmailLabel")
-            : t("account.status.emailLabel")}
+          {email ?? t("account.status.emailHidden")}
         </Typography>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Typography
-            variant="body"
-            weight="semibold"
-            numberOfLines={1}
-            style={{ flex: 1, color: theme["--color-foreground"] }}
-          >
-            {email ?? t("account.status.emailHidden")}
-          </Typography>
-          {hasPasswordProvider ? (
-            <VerificationBadge verified={emailVerified} />
-          ) : null}
-        </View>
-        {isAppleUser ? (
-          <Typography
-            variant="caption"
-            style={{ color: theme["--color-foreground-muted"], marginTop: 4 }}
-          >
-            {t("account.status.appleManaged")}
-          </Typography>
+        {hasPasswordProvider ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <View
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: 999,
+                backgroundColor: verifyColor,
+              }}
+            />
+            <Typography
+              variant="caption"
+              weight="semibold"
+              style={{ color: verifyColor }}
+            >
+              {emailVerified
+                ? t("account.status.verified")
+                : t("account.status.pending")}
+            </Typography>
+          </View>
         ) : null}
       </View>
+
+      {isAppleUser ? (
+        <Typography
+          variant="caption"
+          style={{ color: theme["--color-foreground-muted"], marginTop: 2 }}
+        >
+          {t("account.status.appleManaged")}
+        </Typography>
+      ) : null}
     </View>
   );
 }

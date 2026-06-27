@@ -1,5 +1,6 @@
 import {
   collection,
+  doc,
   getDocs,
   limit,
   onSnapshot,
@@ -130,6 +131,11 @@ export type ConversationSummary = {
   title: string;
   lastMessagePreview: string;
   updatedAt: Date | null;
+  // Persona ids of every bot that has taken part (backfilled to the default for
+  // pre-existing chats). Drives the history list's stacked avatars. Resolved to
+  // avatars client-side via the persona store (+ default); an unknown id is a
+  // since-deleted bot.
+  participantPersonaIds: string[];
 };
 
 export type StoredChatMessage = {
@@ -184,6 +190,9 @@ function mapConversation(id: string, data: DocumentData): ConversationSummary {
     lastMessagePreview:
       typeof data.lastMessagePreview === "string" ? data.lastMessagePreview : "",
     updatedAt: asDate(data.updatedAt),
+    participantPersonaIds: Array.isArray(data.participantPersonaIds)
+      ? data.participantPersonaIds.filter((x): x is string => typeof x === "string")
+      : [],
   };
 }
 
@@ -402,6 +411,29 @@ export function subscribeToMessages(
       });
     },
     handleSnapshotError("messages"),
+  );
+}
+
+// Live subscription to a conversation's `participantPersonaIds` — the
+// authoritative set of bots that have ever sent in this thread (maintained
+// server-side on every reply). Lets the chat surface per-message bot avatars
+// even for bots whose messages have scrolled out of the live window, which the
+// message-derived set alone can't see. Defaults to [] for a missing field.
+export function subscribeToConversationParticipants(
+  conversationId: string,
+  cb: (participantPersonaIds: string[]) => void,
+): Unsubscribe {
+  const db = requireFirestore();
+  return onSnapshot(
+    doc(db, "conversations", conversationId),
+    (snapshot) => {
+      const data = snapshot.data();
+      const ids = Array.isArray(data?.participantPersonaIds)
+        ? data.participantPersonaIds.filter((x): x is string => typeof x === "string")
+        : [];
+      cb(ids);
+    },
+    handleSnapshotError("conversationParticipants"),
   );
 }
 

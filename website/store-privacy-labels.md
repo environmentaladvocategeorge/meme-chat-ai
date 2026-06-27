@@ -1,4 +1,4 @@
-# MeMe Chat AI — App Store & Google Play Privacy Disclosure Sheet
+# Meme Chat AI — App Store & Google Play Privacy Disclosure Sheet
 
 Working draft to fill out Apple's **App Privacy** ("Privacy Nutrition Label") and Google Play's
 **Data safety** form. Designed to line up 1:1 with `website/public/privacy.html`. Items needing a
@@ -79,7 +79,7 @@ attribution SDKs in the dependency tree).
 | **User Content → Other User Content** | Chat messages, AI replies, titles/summaries, meme/GIF attachment refs + image inputs, message ratings (thumbs), alias/nickname, persona/rot context | App Functionality |
 | **User Content → Photos or Videos** | Photos taken/picked and attached to a chat message (uploaded to Cloud Storage `messageImages/{uid}`, sent to OpenAI) | App Functionality |
 | **User Content → Customer Support** | Emails you send support | App Functionality / Customer Support |
-| **Search History** | Klipy meme/GIF search queries — typed **and** AI-generated from the conversation | App Functionality |
+| **Search History** | Klipy meme/GIF search queries — typed **and** AI-generated from the conversation — plus AI-generated web-search queries sent to Tavily when a message needs current info | App Functionality |
 | **Purchases → Purchase History** | Subscription status, product IDs, entitlement, transaction metadata (RevenueCat/Apple/Google); retained first-party webhook audit records are de-identified | App Functionality |
 | **Usage Data → Product Interaction** | Usage events, credits/token metering, ratings, in-app actions | App Functionality |
 | **Diagnostics → Crash Data / Performance Data / Other Diagnostic Data** | Cloud Functions logs, error strings, IP/network + rate-limit data, attachment metadata | App Functionality |
@@ -125,7 +125,7 @@ downgrade to "not shared" per type only once processor status is confirmed. **[C
 | **Personal info → User IDs** | Yes | **Yes** (Klipy `customer_id`=UID; RevenueCat) | No | Required | App functionality; Account management; Fraud prevention/security |
 | **Financial info → Purchase history** | Yes | **Yes** (RevenueCat/Apple/Google) | No | Optional* | App functionality |
 | **Messages → Other in-app messages** | Yes | **Yes** (OpenAI) | No | Required | App functionality |
-| **App activity → In-app search history** | Yes | **Yes** (Klipy) | No | Optional | App functionality |
+| **App activity → In-app search history** | Yes | **Yes** (Klipy; Tavily web-search queries) | No | Optional | App functionality |
 | **App activity → App interactions** | Yes | No | No | Required | App functionality |
 | **App activity → Other user-generated content** | Yes | **Yes** (meme/GIF image inputs, titles/summaries to OpenAI) | No | Required | App functionality |
 | **Photos and videos → Photos** | Yes | **Yes** (uploaded chat photos sent to OpenAI) | No | Optional | App functionality |
@@ -174,6 +174,7 @@ is safer to declare it under **App info & performance → Diagnostics**. **[Conf
 | Message ratings (thumbs) | §7 | User Content → Other / Usage → Product Interaction | App activity → App interactions |
 | Alias / personalization | §7 | User Content → Other | App activity → Other UGC |
 | Klipy search (typed + AI-generated) | §8 | Search History | App activity → In-app search history |
+| Tavily web search (AI-generated query) | §5 | Search History | App activity → In-app search history |
 | Purchases | §10 | Purchases → Purchase History | Financial info → Purchase history |
 | Usage/credits metering | §13 | Usage Data → Product Interaction | App activity → App interactions |
 | Logs / errors / IP | §13 | Diagnostics | App info & performance (or security exemption) |

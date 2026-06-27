@@ -6,47 +6,52 @@ Meme Chat AI: Brainrot Bot
 
 ## Subtitle (Subtítulo, 30 caracteres máx.)
 
-Zoeira, roasts, GIFs e tiradas
+Crie personagens de IA e GIFs
 
 ## Keywords (Palavras-chave, 100 caracteres máx., separadas por vírgulas)
 
-gif,roast,legenda,resposta,humor,piada,sticker,reação,gíria,chatbot,reescrever,bio,genz
+legenda,resposta,humor,piada,gíria,chatbot,personagem,persona,companheiro,criar,reescrever,bio,genz
 
 ## What's New (Novidades)
 
-Dois bugs grandes a menos. Corrigimos um que deslogava alguns usuários (às vezes a cada hora) e outro que obrigava a repetir o onboarding ao entrar de novo. Agora a sessão fica ativa e o onboarding é feito uma vez só.
+• Crie os seus próprios bots: personagens de IA personalizados com nome, personalidade, voz e avatar próprios. Converse com eles como com qualquer outro bot e edite quando quiser. O grátis inclui 1; os pagos guardam de 10 a 100.
+• Avatares com IA: gere um a partir de uma breve descrição ou envie o seu.
+• Descrição com IA: deixe que ela escreva a personalidade de um bot com alguns detalhes.
+• Uma cara totalmente nova no app inteiro.
+• Nova tela de Plano e uso para ver o seu consumo e gerenciar o plano.
+• Pequenas melhorias nas notificações diárias e na exclusão de conta.
+• Além de melhorias de desempenho e estabilidade.
 
 ## Promotional Text (Texto promocional)
 
-Toda IA soa igual. O Brainrot Bot não. Ele responde com humor, manda memes e GIFs, e transforma seus pensamentos pela metade em legendas e respostas afiadas que funcionam.
+Toda IA soa igual. O Brainrot Bot não. Agora crie o seu. Ele responde com humor, manda memes e GIFs, e transforma ideias pela metade em legendas que funcionam.
 
 ## Description (Descrição)
 
-Brainrot Bot é um chatbot de IA com personalidade de verdade. Ele escreve como a pessoa mais engraçada do seu grupo: aquela que te zoа, manda o GIF perfeito e ainda dá bons conselhos.
+Brainrot Bot é um chatbot de IA com personalidade de verdade. Ele escreve como a pessoa mais engraçada do seu grupo: aquela que te zoa, manda o GIF perfeito e ainda dá bons conselhos. Não é um assistente sem alma nem um companheiro de RPG. É só a IA mais divertida do seu telefone.
 
-Travado numa resposta? Precisa de uma legenda que funcione, uma réplica afiada ou uma explicação que não pareça livro didático? Quer alguém para destruir sua ideia pela metade antes de você postar? É pra isso que existe o Brainrot Bot.
+Tem duas formas de usar.
 
-O QUE VOCÊ PODE FAZER
+CONVERSE COM O BRAINROT BOT
 
-• Conversar com uma IA fluente em memes
-O Brainrot Bot ajuda com respostas, legendas, réplicas, ideias, explicações e planos, com uma voz que soa como a internet e não como uma central de atendimento.
+Abra um chat e receba uma resposta quando travar, uma legenda que funcione, uma réplica afiada ou uma explicação que não pareça livro didático. Ajuste o Rot Level pra ir de assistente normal a completamente fora de controle, e o Brainrot Bot acompanha essa energia. Ele responde com memes e GIFs, não só com paredões de texto.
 
-• Ajustar o Rot Level
-Um botão controla o caos. Vá de assistente normal a completamente fora de controle, e o Brainrot Bot acompanha essa energia.
+CRIE OS SEUS PRÓPRIOS BRAINROT BOTS
 
-• Receber respostas com memes e GIFs integrados
-O Brainrot Bot joga memes e GIFs direto nas respostas. Você também pode buscar os que estão em alta e anexar os seus.
+Crie seus próprios personagens de IA do zero. Dê um nome, uma personalidade, uma voz, os emojis e um avatar que você pode enviar ou gerar a partir de uma breve descrição. Salve e converse com ele como com qualquer outro bot. O grátis inclui um; os pagos guardam de 10 a 100, e cada bot passa por uma verificação de segurança antes de ficar disponível.
+
+O QUE MAIS ELE FAZ
+
+• Memes e GIFs integrados
+Busque memes e GIFs em alta, jogue no chat, anexe os seus e salve os que você curtir na galeria.
 
 • Enviar fotos
-Anexe fotos da câmera ou da galeria e receba reações, legendas ou respostas com base no que você compartilhou.
+Anexe uma foto da câmera ou da galeria e receba uma reação, uma legenda ou uma resposta com base no que você compartilhou.
 
-• Ativar a memória
+• Memória que fica
 O Brainrot Bot lembra do seu estilo, das suas pessoas e dos assuntos que você sempre traz, pra as conversas continuarem de onde pararam em vez de começar do zero. É um recurso pago e você controla tudo nos Ajustes.
 
-• Salvar seus favoritos
-Baixe memes e GIFs com marca d'água direto para a galeria.
-
-• Manter seus chats organizados
+• Manter organizado
 Os chats salvos têm títulos e resumos gerados automaticamente, mais busca, seções por tempo e exclusão em massa.
 
 • Deixar do seu jeito
@@ -62,12 +67,11 @@ Disponível em 9 idiomas: inglês, espanhol, francês, português, alemão, chin
 • Réplicas e zoeiras
 • Explicar coisas confusas rápido
 • Bios, piadas e rascunhos de mensagens
-• Munição pro grupo do WhatsApp
-• Fazer as conversas com IA serem divertidas de verdade
+• Montar um elenco de bots que soam exatamente como você quer
 
 O MESMO BOT, GRÁTIS OU PAGO
 
-Você tem o Brainrot Bot completo em todos os planos. Os pagos só dão mais espaço pra ele: memória, muito mais uso, sem anúncios e personalização extra.
+Você tem o Brainrot Bot completo em todos os planos. Os pagos só dão mais espaço pra ele: memória, muito mais uso, mais bots personalizados, sem anúncios e personalização extra.
 
 PRIVACIDADE E CONTROLE
 

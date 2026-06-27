@@ -122,6 +122,94 @@ describe("runGetGif", () => {
     }
   });
 
+  it("never re-sends an excluded id (the user's own GIF), picking the next hit", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: {
+          data: [sampleGif(10), sampleGif(20), sampleGif(30)],
+          has_next: false,
+        },
+      }),
+    );
+    // factor 1 would normally lock to index 0 (id 10) — but 10 is excluded
+    // (the user just sent it), so the pool collapses to [20, 30] and the top
+    // hit becomes 20. The exact same asset is never re-sent.
+    const result = await runGetGif(JSON.stringify({ query: "happy dance" }), {
+      ...deps,
+      excludeIds: new Set(["10"]),
+    });
+    expect(result.gif?.id).toBe("20");
+  });
+
+  it("returns no gif when every hit is excluded (text-only beats an echo)", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: { data: [sampleGif(10), sampleGif(20)], has_next: false },
+      }),
+    );
+    const result = await runGetGif(JSON.stringify({ query: "happy dance" }), {
+      ...deps,
+      excludeIds: new Set(["10", "20"]),
+    });
+    expect(result.gif).toBeUndefined();
+    expect(JSON.parse(result.content)).toEqual({ found: false });
+  });
+
+  it("uses the injected look-&-pick selector when provided", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: {
+          data: [sampleGif(10), sampleGif(20), sampleGif(30)],
+          has_next: false,
+        },
+      }),
+    );
+    const selectIndex = jest.fn(async (titles: string[]) => ({
+      index: 2, // pick the third hit regardless of randomness
+      usage: {
+        model: "nano" as const,
+        inputTokens: 50,
+        cachedInputTokens: 0,
+        outputTokens: 3,
+        reasoningTokens: 0,
+      },
+    }));
+    const result = await runGetGif(
+      JSON.stringify({ query: "happy dance", randomness_factor: 5 }),
+      { ...deps, selectIndex },
+    );
+    expect(selectIndex).toHaveBeenCalledWith(["Happy Dance", "Happy Dance", "Happy Dance"]);
+    expect(result.gif?.id).toBe("30");
+    expect(result.selectUsage?.inputTokens).toBe(50);
+  });
+
+  it("clamps an out-of-range selector index to the top hit", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        result: true,
+        data: { data: [sampleGif(10), sampleGif(20)], has_next: false },
+      }),
+    );
+    const selectIndex = jest.fn(async () => ({
+      index: 99,
+      usage: {
+        model: "nano" as const,
+        inputTokens: 10,
+        cachedInputTokens: 0,
+        outputTokens: 1,
+        reasoningTokens: 0,
+      },
+    }));
+    const result = await runGetGif(JSON.stringify({ query: "x", randomness_factor: 5 }), {
+      ...deps,
+      selectIndex,
+    });
+    expect(result.gif?.id).toBe("10");
+  });
+
   it("hits the gifs/search endpoint with the model's query", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse({ result: true, data: { data: [SAMPLE_GIF], has_next: false } }),

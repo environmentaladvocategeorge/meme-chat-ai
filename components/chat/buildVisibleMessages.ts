@@ -20,6 +20,10 @@ export type BuildVisibleMessagesInput = {
   error: string | null;
   // The most recent user turn, used to anchor the synthesized error card.
   lastUserMessage: ChatMessage | undefined;
+  // The currently-selected persona id, stamped on the synthesized streaming /
+  // settled agent bubbles so a multi-bot thread shows the right sender avatar
+  // before the finalized Firestore message (which carries its own) arrives.
+  currentPersonaId?: string;
 };
 
 // Assemble the list the chat thread actually renders (newest-first, since the
@@ -40,6 +44,7 @@ export function buildVisibleMessages({
   settledReply,
   error,
   lastUserMessage,
+  currentPersonaId,
 }: BuildVisibleMessagesInput): RenderMessage[] {
   // Drop empty placeholders, but keep errored agent bubbles so the user
   // sees the failure state. Persisted messages pass through by reference —
@@ -67,6 +72,7 @@ export function buildVisibleMessages({
       text: "",
       status: "streaming",
       createdAt: null,
+      personaId: currentPersonaId,
     });
   } else if (settledReply) {
     // Bridge: the stream is done but the finalized Firestore message
@@ -90,6 +96,7 @@ export function buildVisibleMessages({
         gifs: settledReply.gifs,
         status: "complete",
         createdAt: null,
+        personaId: currentPersonaId,
       });
     }
   }

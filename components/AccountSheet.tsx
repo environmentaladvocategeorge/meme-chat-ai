@@ -7,7 +7,6 @@ import { SheetTouchableProvider } from "@/components/AppPressable";
 import { IconButton } from "@/components/IconButton";
 import { MAX_CONTENT_WIDTH } from "@/components/MaxWidthFrame";
 import { AccountHubContent } from "@/components/account/AccountHubContent";
-import { ChangeNameForm } from "@/components/account/ChangeNameForm";
 import { ChangeEmailForm } from "@/components/account/ChangeEmailForm";
 import { ChangePasswordForm } from "@/components/account/ChangePasswordForm";
 import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
@@ -75,7 +74,6 @@ export function AccountSheet() {
 
   const titles: Record<AccountSheetView, string> = {
     hub: t("account.title"),
-    "change-name": t("account.changeName.title"),
     "change-email": t("account.changeEmail.title"),
     "change-password": t("account.changePassword.title"),
     "reset-password": t("account.resetPassword.title"),
@@ -109,7 +107,7 @@ export function AccountSheet() {
         width: 40,
         height: 4,
         borderRadius: 999,
-        backgroundColor: theme["--color-border"],
+        backgroundColor: theme["--color-foreground-muted"],
       }}
     >
       {/* The sheet itself is full-width; on wide screens (iPad) constrain and
@@ -180,9 +178,6 @@ export function AccountSheet() {
 
         {view === "hub" ? (
           <AccountHubContent onSelect={navigate} onClose={close} />
-        ) : null}
-        {view === "change-name" ? (
-          <ChangeNameForm onDone={() => navigate("hub")} />
         ) : null}
         {view === "change-email" ? (
           <ChangeEmailForm onDone={() => navigate("hub")} />

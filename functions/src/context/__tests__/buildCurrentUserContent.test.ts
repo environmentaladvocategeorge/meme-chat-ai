@@ -83,4 +83,69 @@ describe("buildCurrentUserContent", () => {
     expect(parts[1]).toMatchObject({ type: "text" });
     expect(parts[2]).toMatchObject({ type: "image_url" });
   });
+
+  // ---- Klipy "meme name" metadata (newer clients) ----
+
+  it("does NOT add a meme/gif title note when titles are absent (back-compat)", () => {
+    // Older clients pass no attachmentTitles → output must be byte-identical to
+    // the pre-title behavior (just the image part).
+    const content = buildCurrentUserContent("", [KLIPY_URL], undefined, {
+      memes: [],
+      gif: undefined,
+    });
+    const parts = content as Array<Record<string, unknown>>;
+    expect(parts).toHaveLength(1);
+    expect(parts[0]).toMatchObject({ type: "image_url" });
+  });
+
+  it("names the meme(s) in a text part right after the image parts", () => {
+    const content = buildCurrentUserContent("lol", [KLIPY_URL], undefined, {
+      memes: ["Gigachad"],
+      gif: undefined,
+    });
+    const parts = content as Array<Record<string, unknown>>;
+    // text, image, meme-title note
+    expect(parts[0]).toEqual({ type: "text", text: "lol" });
+    expect(parts[1]).toMatchObject({ type: "image_url" });
+    expect(parts[2]).toMatchObject({ type: "text" });
+    expect(String((parts[2] as { text: string }).text)).toContain('"Gigachad"');
+  });
+
+  it("folds the gif title into the gif note instead of a separate part", () => {
+    const gifFrames: ExtractedGifFrames = {
+      frames: ["data:image/jpeg;base64,F1", "data:image/jpeg;base64,F2"],
+      frameCount: 12,
+      degraded: false,
+    };
+    const content = buildCurrentUserContent("", undefined, gifFrames, {
+      memes: [],
+      gif: "rat dancing",
+    });
+    const parts = content as Array<Record<string, unknown>>;
+    // gif-note (text), frame, frame
+    expect(parts[0]).toMatchObject({ type: "text" });
+    const note = String((parts[0] as { text: string }).text);
+    expect(note).toContain("ONE animated GIF");
+    expect(note).toContain('"rat dancing"');
+    expect(parts[1]).toMatchObject({ type: "image_url" });
+    expect(parts[2]).toMatchObject({ type: "image_url" });
+  });
+
+  it("does not add a meme note when only a gif (no meme images) is present", () => {
+    const gifFrames: ExtractedGifFrames = {
+      frames: ["data:image/jpeg;base64,F1"],
+      frameCount: 1,
+      degraded: false,
+    };
+    const content = buildCurrentUserContent("", undefined, gifFrames, {
+      memes: ["should-not-leak"],
+      gif: "rat dancing",
+    });
+    const parts = content as Array<Record<string, unknown>>;
+    // Only the gif note + frame — the meme note is gated on hasImages.
+    expect(parts).toHaveLength(2);
+    expect(String((parts[0] as { text: string }).text)).not.toContain(
+      "should-not-leak",
+    );
+  });
 });

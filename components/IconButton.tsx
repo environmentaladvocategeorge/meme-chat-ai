@@ -8,13 +8,16 @@
 // was actually dropping taps.
 
 import { AppPressable } from "@/components/AppPressable";
+import { GlassSurface } from "@/components/GlassSurface";
 import type { ReactNode } from "react";
 import {
   ActivityIndicator,
   type PressableProps,
+  StyleSheet,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 
 export interface IconButtonProps {
   onPress: () => void;
@@ -25,6 +28,18 @@ export interface IconButtonProps {
   // Surface look — backgroundColor / borderWidth / borderColor / borderRadius.
   // Defaults to a fully-rounded circle of `size`.
   surfaceStyle?: StyleProp<ViewStyle>;
+  // Render the surface as native Liquid Glass where supported. When set, put
+  // the solid fill/border on `fallbackStyle` (NOT surfaceStyle) — the glass
+  // layer owns the look, and a fill on surfaceStyle would paint over it.
+  glass?: boolean;
+  glassTint?: string;
+  // When this button is faded via opacity (a parent Animated.View), pass the
+  // same 0→1 SharedValue here so the glass layer flips to 'none' near 0 instead
+  // of being blanked by opacity 0 (expo-glass-effect opacity-0 bug). See
+  // GlassSurface's fadeProgress.
+  glassFadeProgress?: SharedValue<number>;
+  // Solid fill/border used on the non-glass path (Android, iOS < 26).
+  fallbackStyle?: StyleProp<ViewStyle>;
   disabled?: boolean;
   // Shows a spinner instead of children and disables the press.
   busy?: boolean;
@@ -42,6 +57,10 @@ export function IconButton({
   accessibilityLabel,
   size = 44,
   surfaceStyle,
+  glass = false,
+  glassTint,
+  glassFadeProgress,
+  fallbackStyle,
   disabled = false,
   busy = false,
   busyColor,
@@ -77,6 +96,18 @@ export function IconButton({
         surfaceStyle,
       ]}
     >
+      {/* Glass layer first so it sits behind the icon/spinner. Structural
+          (not part of `children`) so it persists while `busy` swaps the
+          icon for the spinner. */}
+      {glass ? (
+        <GlassSurface
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFillObject, { borderRadius: size / 2 }]}
+          tintColor={glassTint}
+          fadeProgress={glassFadeProgress}
+          fallbackStyle={fallbackStyle}
+        />
+      ) : null}
       {busy ? <ActivityIndicator size="small" color={busyColor} /> : children}
     </AppPressable>
   );

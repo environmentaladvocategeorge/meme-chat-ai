@@ -1,4 +1,3 @@
-import { AgentAvatar } from "@/components/AgentAvatar";
 import { useAttachmentViewer } from "@/components/AttachmentViewer";
 import { MemeAvatar } from "@/components/MemeAvatar";
 import {
@@ -7,16 +6,19 @@ import {
 } from "@/components/MessageActions";
 import { MessageGifAttachments } from "@/components/MessageGifAttachments";
 import { MessageImageAttachments } from "@/components/MessageImageAttachments";
+import { PersonaAvatar } from "@/components/PersonaAvatar";
+import { SelectableText } from "@/components/SelectableText";
 import { Typography } from "@/components/Typography";
 import { stripMemeArtifacts } from "@/domain/agentText";
+import { type ResolvedPersona } from "@/domain/personas";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import { useChatStore } from "@/store/chat";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowClockwise, WarningCircle } from "phosphor-react-native";
+import { ArrowClockwise, SmileyWink, WarningCircle } from "phosphor-react-native";
 import { useColorScheme } from "nativewind";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import Markdown, {
   type RenderRules,
@@ -25,14 +27,11 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  Text,
   useWindowDimensions,
   View,
 } from "react-native";
 import Animated, {
   Easing,
-  FadeIn,
-  FadeOut,
   runOnJS,
   useAnimatedReaction,
   useAnimatedStyle,
@@ -41,6 +40,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SCROLL_SIGN, useBubbleGradient } from "./BubbleGradientContext";
+import { TIME_REVEAL_WIDTH, useTimeReveal } from "./TimeRevealContext";
 import {
   formatMessageTimestamp,
   shouldRenderMarkdown,
@@ -57,6 +57,11 @@ const BUBBLE_RADIUS = 20;
 const BUBBLE_TAIL_RADIUS = 6;
 const AVATAR_SIZE = 36;
 const AVATAR_GUTTER = 10;
+// Persona identity now lives in the header, so agent messages no longer carry a
+// left avatar. We keep a modest inset on each speaker's FAR side (so bubbles
+// don't span fully edge-to-edge and the speech-side asymmetry survives) while
+// reclaiming the old avatar-column width for the message content.
+const MESSAGE_EDGE_INSET = 16;
 
 // Renders the playful in-flight label. A separate component so only the ONE
 // thinking bubble subscribes to ThinkingLabelContext — if MessageBubble itself
@@ -82,6 +87,8 @@ export const MessageBubble = memo(function MessageBubble({
   onEmoji,
   isLastAgent = false,
   onReplay,
+  showSenderAvatar = false,
+  resolveSender,
 }: {
   message: RenderMessage;
   retryLabel: string;
@@ -93,6 +100,12 @@ export const MessageBubble = memo(function MessageBubble({
   // replay is allowed to regenerate.
   isLastAgent?: boolean;
   onReplay: (serverId: string) => void;
+  // Multi-bot conversation: show which bot sent each agent reply, as a small
+  // avatar to the left of the bubble. A since-deleted bot shows a "?" coin.
+  showSenderAvatar?: boolean;
+  // Resolves a personaId to its bot slot. Provided by the parent (which holds
+  // the single persona-store subscription) so each bubble doesn't subscribe.
+  resolveSender: (personaId: string | undefined) => ResolvedPersona | "unknown";
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -103,6 +116,17 @@ export const MessageBubble = memo(function MessageBubble({
   const mine = message.role === "user";
   const errored = message.status === "error";
   const isErrorCard = message.role === "agent" && errored;
+
+  // In a multi-bot thread, resolve which bot sent this agent reply so its avatar
+  // can sit to the left. Resolution comes from the parent's single persona-store
+  // subscription. Missing personaId = a pre-tracking default reply.
+  const senderSlot = useMemo<ResolvedPersona | "unknown" | null>(
+    () =>
+      showSenderAvatar && !mine && !isErrorCard
+        ? resolveSender(message.personaId)
+        : null,
+    [showSenderAvatar, mine, isErrorCard, message.personaId, resolveSender],
+  );
 
   // The in-flight reply subscribes to the live stream itself, so delta flushes
   // re-render only this one bubble. For every other bubble the ternaries keep
@@ -131,7 +155,6 @@ export const MessageBubble = memo(function MessageBubble({
   const useGradient = mine && !errored && bubble.kind === "gradient";
   const useSolidBubble = mine && !errored && bubble.kind === "solid";
   const timestampLabel = formatMessageTimestamp(message.createdAt);
-  const [showTimestamp, setShowTimestamp] = useState(false);
 
   // Agent replies may carry meme markdown/attachment artifacts (stripped on the
   // backend now, but older stored messages and the live stream still need it).
@@ -370,45 +393,50 @@ export const MessageBubble = memo(function MessageBubble({
 
   const selectableMarkdownRules = useMemo<RenderRules>(
     () => ({
+      // Block-root inline containers (textgroup/inline) and standalone code
+      // blocks carry `uiTextView` so they become the native UITextView host on
+      // a real build; the inline runs nested inside them (strong/em/text/…)
+      // render as child text without it. In Expo Go SelectableText is a plain
+      // <Text> and `uiTextView` is dropped, so behavior is unchanged.
       strong: (node, children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={styles.strong}
         >
           {children}
-        </Text>
+        </SelectableText>
       ),
       em: (node, children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={styles.em}
         >
           {children}
-        </Text>
+        </SelectableText>
       ),
       s: (node, children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={styles.s}
         >
           {children}
-        </Text>
+        </SelectableText>
       ),
       code_inline: (node, _children, _parent, styles, inheritedStyles = {}) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={[inheritedStyles, styles.code_inline]}
         >
           {node.content}
-        </Text>
+        </SelectableText>
       ),
       code_block: (node, _children, _parent, styles, inheritedStyles = {}) => {
         const content =
@@ -417,14 +445,15 @@ export const MessageBubble = memo(function MessageBubble({
             : node.content;
 
         return (
-          <Text
+          <SelectableText
             key={node.key}
             selectable
+            uiTextView
             selectionColor={selectionColor}
             style={[inheritedStyles, styles.code_block]}
           >
             {content}
-          </Text>
+          </SelectableText>
         );
       },
       fence: (node, _children, _parent, styles, inheritedStyles = {}) => {
@@ -434,75 +463,78 @@ export const MessageBubble = memo(function MessageBubble({
             : node.content;
 
         return (
-          <Text
+          <SelectableText
             key={node.key}
             selectable
+            uiTextView
             selectionColor={selectionColor}
             style={[inheritedStyles, styles.fence]}
           >
             {content}
-          </Text>
+          </SelectableText>
         );
       },
       text: (node, _children, _parent, styles, inheritedStyles = {}) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={[inheritedStyles, styles.text]}
         >
           {node.content}
-        </Text>
+        </SelectableText>
       ),
       textgroup: (node, children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
+          uiTextView
           selectionColor={selectionColor}
           style={styles.textgroup}
         >
           {children}
-        </Text>
+        </SelectableText>
       ),
       hardbreak: (node, _children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={styles.hardbreak}
         >
           {"\n"}
-        </Text>
+        </SelectableText>
       ),
       softbreak: (node, _children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={styles.softbreak}
         >
           {"\n"}
-        </Text>
+        </SelectableText>
       ),
       inline: (node, children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
+          uiTextView
           selectionColor={selectionColor}
           style={styles.inline}
         >
           {children}
-        </Text>
+        </SelectableText>
       ),
       span: (node, children, _parent, styles) => (
-        <Text
+        <SelectableText
           key={node.key}
           selectable
           selectionColor={selectionColor}
           style={styles.span}
         >
           {children}
-        </Text>
+        </SelectableText>
       ),
     }),
     [selectionColor],
@@ -541,6 +573,21 @@ export const MessageBubble = memo(function MessageBubble({
   // springy "pop" on the message body without ever touching the avatar.
   const bubbleScaleStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+  }));
+
+  // iMessage-style swipe-to-reveal timestamps. The whole row slides left as the
+  // thread is dragged (shared progress from chat.tsx) and the timestamp pinned
+  // at the right margin fades in to fill the freed space. Both read the same
+  // shared value, so the swipe re-renders nothing; `?? 0` keeps the worklet
+  // safe when no provider is mounted (e.g. in isolation tests).
+  const timeReveal = useTimeReveal();
+  const rowRevealStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: -(timeReveal?.progress.value ?? 0) * TIME_REVEAL_WIDTH },
+    ],
+  }));
+  const timestampRevealStyle = useAnimatedStyle(() => ({
+    opacity: timeReveal?.progress.value ?? 0,
   }));
 
   // Page-level gradient anchoring (user bubbles only). We measure the bubble's
@@ -621,10 +668,10 @@ export const MessageBubble = memo(function MessageBubble({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: mine ? "flex-end" : "flex-start",
-    // Reserve avatar-width gutter on user messages too, so left/right
-    // alignment stays mirrored across the visual axis.
-    paddingLeft: mine ? AVATAR_SIZE + AVATAR_GUTTER : 0,
-    paddingRight: mine ? 0 : AVATAR_SIZE + AVATAR_GUTTER,
+    // Small far-side inset, mirrored across the visual axis, so neither
+    // speaker's bubbles run the full width (no avatar column to reserve now).
+    paddingLeft: mine ? MESSAGE_EDGE_INSET : 0,
+    paddingRight: mine ? 0 : MESSAGE_EDGE_INSET,
   };
 
   // Failed turn: a self-contained agent card with the worried mascot, a
@@ -734,15 +781,62 @@ export const MessageBubble = memo(function MessageBubble({
 
   return (
     <Animated.View style={[{ gap: 6 }, entranceStyle]}>
-      <View style={rowStyle}>
-        {!mine ? (
-          // Avatar lives outside the bubble, top-aligned with it. For the
-          // "thinking" indicator the avatar pulses.
-          <View style={{ marginRight: AVATAR_GUTTER, paddingTop: 2 }}>
-            <AgentAvatar size={AVATAR_SIZE} pulse={thinking} />
-          </View>
+      <View style={{ position: "relative" }}>
+        {/* Timestamp pinned at the right margin, revealed as the thread is
+            swiped left (TimeRevealContext) — the same right-edge stamp for both
+            speakers, iMessage-style. */}
+        {timestampLabel ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: "absolute",
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: TIME_REVEAL_WIDTH,
+                alignItems: "center",
+                justifyContent: "center",
+              },
+              timestampRevealStyle,
+            ]}
+          >
+            <Typography
+              variant="micro"
+              numberOfLines={1}
+              style={{ color: theme["--color-foreground-muted"] }}
+            >
+              {timestampLabel}
+            </Typography>
+          </Animated.View>
         ) : null}
 
+        <Animated.View style={[rowStyle, rowRevealStyle]}>
+        {/* Multi-bot: the sending bot's avatar to the left of the bubble. */}
+        {senderSlot ? (
+          <View style={{ width: AVATAR_SIZE, marginRight: AVATAR_GUTTER, paddingTop: 2 }}>
+            {senderSlot === "unknown" ? (
+              <View
+                style={{
+                  width: AVATAR_SIZE,
+                  height: AVATAR_SIZE,
+                  borderRadius: AVATAR_SIZE / 2,
+                  backgroundColor: theme["--color-card-muted"],
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <SmileyWink
+                  size={AVATAR_SIZE - 12}
+                  weight="fill"
+                  color={theme["--color-foreground-muted"]}
+                />
+              </View>
+            ) : (
+              <PersonaAvatar persona={senderSlot} size={AVATAR_SIZE} />
+            )}
+          </View>
+        ) : null}
         <Animated.View
           style={[
             {
@@ -786,19 +880,19 @@ export const MessageBubble = memo(function MessageBubble({
           ) : null}
 
           {hasTextBubble ? (
-            <Pressable
+            // A plain View, not a Pressable: a touchable here would claim the
+            // long-press and block native text selection. The message text owns
+            // its own gesture now (each Text is `selectable`), and timestamps
+            // moved to the thread-wide swipe reveal (TimeRevealContext).
+            <View
               ref={bubbleRef}
               onLayout={useGradient ? remeasureGradient : undefined}
-              accessibilityRole="button"
               accessibilityLabel={
                 timestampLabel
                   ? `${messageText}. ${timestampLabel}`
                   : messageText
               }
-              onPress={() => {
-                if (timestampLabel) setShowTimestamp((current) => !current);
-              }}
-              style={({ pressed }) => ({
+              style={{
                 maxWidth: "100%",
                 borderRadius: BUBBLE_RADIUS,
                 ...cornerStyle,
@@ -806,13 +900,12 @@ export const MessageBubble = memo(function MessageBubble({
                 paddingVertical: 10,
                 overflow: "hidden",
                 backgroundColor: bubbleBg,
-                opacity: pressed && timestampLabel ? 0.88 : 1,
-              })}
+              }}
             >
               {useGradient ? (
                 // One screen-tall gradient, slid so the slice behind this bubble
                 // matches its place on the page. `overflow: hidden` on the
-                // Pressable masks it to the bubble shape.
+                // bubble masks it to the bubble shape.
                 <Animated.View
                   pointerEvents="none"
                   style={[
@@ -855,29 +948,34 @@ export const MessageBubble = memo(function MessageBubble({
                   selectionColor={selectionColor}
                 />
               ) : (
-                <Typography
-                  variant="body"
+                // Finalized plain (non-markdown) message. SelectableText is the
+                // UITextView host on a real build (drag-to-highlight) and a plain
+                // <Text> in Expo Go. Mirrors Typography's body face by hand since
+                // it's no longer a Typography node.
+                <SelectableText
                   selectable
+                  uiTextView
                   selectionColor={selectionColor}
                   style={{
                     color: messageColor,
+                    fontFamily: "Poppins-Regular",
                     fontSize: 17,
                     lineHeight: 24,
+                    includeFontPadding: false,
                   }}
                 >
                   {messageText}
-                </Typography>
+                </SelectableText>
               )}
-            </Pressable>
+            </View>
           ) : null}
 
-          {isStreamingBubble ? (
-            // Small stand-in under the in-flight bubble. The dock's fade ramp
-            // ducks out during the stream (see chat.tsx dockFadeOpacity), so
-            // this no longer needs to clear it — it just softens the push when
-            // the full action row lands at finalize.
-            <View style={{ height: 10 }} />
-          ) : null}
+          {/* No stand-in under the in-flight bubble. The inverted list already
+              lifts the bubble's bottom by its 10px breathing room (chat.tsx
+              paddingTop = dockHeight + 10), which equals the streaming fade ramp
+              (DOCK_FADE_HEIGHT_STREAMING), so the last line rests exactly where
+              the fade begins. Any extra spacer here just floats it above that
+              line. The action row inserts on finalize. */}
 
           {showActions && message.serverId ? (
             <MessageActions
@@ -897,34 +995,11 @@ export const MessageBubble = memo(function MessageBubble({
                 replay: t("chat.actions.regenerate"),
                 react: t("chat.actions.react"),
               }}
-              timestamp={timestampLabel}
-              showTimestamp={showTimestamp}
             />
           ) : null}
         </Animated.View>
-      </View>
-
-      {/* Agent replies carry their timestamp inside the action row (right edge);
-          this standalone line covers user bubbles and any agent reply without
-          the action row. */}
-      {showTimestamp && timestampLabel && !showActions ? (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(160)}
-          style={{
-            paddingLeft: AVATAR_SIZE + AVATAR_GUTTER,
-            paddingRight: mine ? 0 : AVATAR_SIZE + AVATAR_GUTTER,
-            alignItems: mine ? "flex-end" : "flex-start",
-          }}
-        >
-          <Typography
-            variant="micro"
-            style={{ color: theme["--color-foreground-muted"] }}
-          >
-            {timestampLabel}
-          </Typography>
         </Animated.View>
-      ) : null}
+      </View>
     </Animated.View>
   );
 });

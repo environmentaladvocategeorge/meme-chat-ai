@@ -102,7 +102,7 @@ describe("streamAgent (no tools)", () => {
     expect(mockCreate.mock.calls[0][0]).not.toHaveProperty("tools");
   });
 
-  it("omits top_p/seed when no sampling overrides are given", async () => {
+  it("omits seed when no sampling overrides are given", async () => {
     mockCreate.mockReturnValueOnce(
       streamOf([textChunk("hi"), finishChunk("stop"), usageChunk(1, 1)]),
     );
@@ -110,23 +110,21 @@ describe("streamAgent (no tools)", () => {
     await collect(streamAgent(BASE));
 
     const call = mockCreate.mock.calls[0][0];
-    expect(call).not.toHaveProperty("top_p");
     expect(call).not.toHaveProperty("seed");
   });
 
-  it("forwards top_p and seed into the completion call when provided", async () => {
+  it("forwards seed into the completion call when provided", async () => {
     mockCreate.mockReturnValueOnce(
       streamOf([textChunk("hi"), finishChunk("stop"), usageChunk(1, 1)]),
     );
 
-    await collect(streamAgent({ ...BASE, sampling: { topP: 0.9, seed: 12345 } }));
+    await collect(streamAgent({ ...BASE, sampling: { seed: 12345 } }));
 
     const call = mockCreate.mock.calls[0][0];
-    expect(call.top_p).toBe(0.9);
     expect(call.seed).toBe(12345);
   });
 
-  it("forwards a partial sampling override (seed only) without adding top_p", async () => {
+  it("never forwards top_p — reasoning models reject a non-default value", async () => {
     mockCreate.mockReturnValueOnce(
       streamOf([textChunk("hi"), finishChunk("stop"), usageChunk(1, 1)]),
     );
