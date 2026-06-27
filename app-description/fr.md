@@ -14,7 +14,13 @@ légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,crée
 
 ## What's New (Nouveautés)
 
-Crée tes propres bots. Tu peux maintenant créer des personas sur mesure : donne-lui un nom, une personnalité, une voix et un avatar (téléverse-le ou génère-le à partir d'une brève description), puis discute avec lui comme avec n'importe quel autre. Le gratuit en inclut un ; les payants en gardent de 10 à 100. On a aussi entièrement relooké l'app.
+• Crée tes propres bots : des personnages d'IA sur mesure avec leur nom, leur personnalité, leur voix et leur avatar. Discute avec eux comme avec n'importe quel autre bot et modifie-les quand tu veux. Le gratuit en inclut 1 ; les payants en gardent de 10 à 100.
+• Avatars par IA : génère-en un à partir d'une brève description, ou téléverse le tien.
+• Description par IA : laisse-la rédiger la personnalité d'un bot à partir de quelques détails.
+• Un tout nouveau look dans toute l'app.
+• Nouvel écran Forfait et utilisation pour suivre ta consommation et gérer ton forfait.
+• Petites améliorations des notifications quotidiennes et de la suppression de compte.
+• Et des améliorations de performances et de stabilité.
 
 ## Promotional Text (Texte promotionnel)
 

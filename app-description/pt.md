@@ -14,7 +14,13 @@ legenda,resposta,humor,piada,gíria,chatbot,personagem,persona,companheiro,criar
 
 ## What's New (Novidades)
 
-Crie os seus próprios bots. Agora dá para criar personas personalizadas: dê um nome, uma personalidade, uma voz e um avatar (envie um ou gere a partir de uma breve descrição), e depois converse com ele como com qualquer outro. O grátis inclui um; os pagos guardam de 10 a 100. Também demos uma cara nova para o app inteiro.
+• Crie os seus próprios bots: personagens de IA personalizados com nome, personalidade, voz e avatar próprios. Converse com eles como com qualquer outro bot e edite quando quiser. O grátis inclui 1; os pagos guardam de 10 a 100.
+• Avatares com IA: gere um a partir de uma breve descrição ou envie o seu.
+• Descrição com IA: deixe que ela escreva a personalidade de um bot com alguns detalhes.
+• Uma cara totalmente nova no app inteiro.
+• Nova tela de Plano e uso para ver o seu consumo e gerenciar o plano.
+• Pequenas melhorias nas notificações diárias e na exclusão de conta.
+• Além de melhorias de desempenho e estabilidade.
 
 ## Promotional Text (Texto promocional)
 

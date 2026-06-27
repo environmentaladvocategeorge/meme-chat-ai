@@ -14,7 +14,13 @@ spruch,antwort,humor,witz,slang,chatbot,charakter,persona,begleiter,erstellen,um
 
 ## What's New (Neuigkeiten)
 
-Bau deine eigenen Bots. Du kannst jetzt eigene Personas erstellen: gib einem Namen, eine Persönlichkeit, eine Stimme und ein Avatar (lad eins hoch oder erstell es aus einer kurzen Beschreibung), und chatte dann mit ihm wie mit jedem anderen. Gratis enthält einen; Bezahlpläne speichern 10 bis 100. Außerdem hat die ganze App einen frischen neuen Look bekommen.
+• Bau deine eigenen Bots: eigene KI-Charaktere mit Namen, Persönlichkeit, Stimme und Avatar. Chatte mit ihnen wie mit jedem anderen Bot und bearbeite sie jederzeit. Gratis enthält 1; Bezahlpläne speichern 10 bis 100.
+• KI-Avatare: generier einen aus einer kurzen Beschreibung oder lad deinen eigenen hoch.
+• Beschreibung per KI: lass sie die Persönlichkeit eines Bots aus ein paar Angaben schreiben.
+• Ein frischer neuer Look in der ganzen App.
+• Neuer Bildschirm „Tarif & Nutzung“, um deinen Verbrauch zu sehen und deinen Tarif zu verwalten.
+• Kleine Verbesserungen bei den täglichen Benachrichtigungen und der Kontolöschung.
+• Dazu Verbesserungen bei Leistung und Stabilität.
 
 ## Promotional Text (Werbetext)
 

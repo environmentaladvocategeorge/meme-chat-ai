@@ -14,7 +14,13 @@ caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,
 
 ## What's New
 
-Build your own bots. You can now create custom personas: give one a name, a personality, a voice, and an avatar (upload one or generate it from a quick description), then chat with it like any other. Free includes one; paid plans hold from 10 up to 100. We also gave the whole app a fresh new look.
+• Build your own bots: create custom AI characters with their own name, personality, voice, and avatar. Chat with them like any other bot, and edit them anytime. Free includes 1; paid plans hold 10 to 100.
+• AI avatars: generate one from a short description, or upload your own.
+• Describe with AI: let it write a bot's personality from a few quick details.
+• A new look across the whole app.
+• New Plan & Usage screen to check your usage and manage your plan.
+• Minor improvements to daily notifications and account deletion.
+• Plus performance and stability fixes.
 
 ## Promotional Text
 
