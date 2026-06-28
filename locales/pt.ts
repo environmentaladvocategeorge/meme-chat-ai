@@ -655,6 +655,22 @@ const pt = {
       retry: "Tentar novamente",
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "Mídia",
+      keyboard: "Teclado",
+      tabs: {
+        gifs: "GIFs",
+        memes: "Memes",
+        stickers: "Figurinhas",
+      },
+    },
+    stickers: {
+      empty: "Nenhuma figurinha agora",
+      noResults: "Nenhuma figurinha corresponde",
+      error: "Não foi possível carregar as figurinhas",
+      retry: "Tentar novamente",
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Nível de Rot",
       title: "Quão rotted devem ser as respostas?",
@@ -699,6 +715,7 @@ const pt = {
       remove: "Remover meme",
       imageLabel: "Anexo de meme",
       gifLabel: "Anexo de GIF",
+      stickerLabel: "Anexo de figurinha",
       sentMeme: "Enviou um meme",
       invalid: "Não foi possível anexar esse meme",
       download: {

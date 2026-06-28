@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy Policy &middot; Meme Chat AI</title>
-    <meta name="description" content="Privacy policy for Meme Chat AI: what we collect, how OpenAI (including meme/GIF image inputs, photos you attach, and the custom personas and avatars you create, including AI-generated avatars and AI-written descriptions), Firebase, RevenueCat, Klipy, and Tavily (web search) process your data, the Memory feature and how to opt out, how we moderate custom personas, the date-of-birth age gate, device permissions, and how to delete your data." />
+    <meta name="description" content="Privacy policy for Meme Chat AI: what we collect, how OpenAI (including meme/GIF/sticker image inputs, photos you attach, and the custom personas and avatars you create, including AI-generated avatars and AI-written descriptions), Firebase, RevenueCat, Klipy, and Tavily (web search) process your data, the Memory feature and how to opt out, how we moderate custom personas, the date-of-birth age gate, device permissions, and how to delete your data." />
     <link rel="canonical" href="https://meme-chat-ai.com/privacy" />
     <link rel="stylesheet" href="/styles.css?v=3" />
     <style>
@@ -80,8 +80,8 @@
 
       <ul class="meta">
         <li><strong>App:</strong> Meme Chat AI</li>
-        <li><strong>Effective date:</strong> June 21, 2026</li>
-        <li><strong>Applies to app version:</strong> 1.1.0 and later</li>
+        <li><strong>Effective date:</strong> June 28, 2026</li>
+        <li><strong>Applies to app version:</strong> 1.2.0 and later</li>
         <li><strong>Applies to:</strong> the Meme Chat AI mobile app (iOS and Android), its backend services, and this website at https://meme-chat-ai.com</li>
         <li><strong>Minimum age:</strong> 16 and older</li>
         <li><strong>Contact:</strong> <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a></li>
@@ -90,10 +90,11 @@
       <p class="lead">
         Meme Chat AI is an AI chat app with meme and GIF media. You confirm your
         age, sign in, chat with an AI companion, and can browse, search, attach,
-        and download trending memes and GIFs. To make that work, your messages —
-        and the meme/GIF images involved in a chat — are sent to OpenAI to
-        generate replies and are stored in our Firebase backend; meme and GIF
-        media come from Klipy; when the AI determines a message needs current,
+        and download trending memes and GIFs, and send stickers you pick. To make
+        that work, your messages — and the meme, GIF, and sticker images involved
+        in a chat — are sent to OpenAI to
+        generate replies and are stored in our Firebase backend; meme, GIF, and
+        sticker media come from Klipy; when the AI determines a message needs current,
         real-world information, a short search query derived from your message is
         sent to Tavily (a web-search provider) and the results are used to inform
         the reply; and subscriptions run through RevenueCat with the app stores. You can also build your own custom chat personas: the text
@@ -124,7 +125,7 @@
       <ul>
         <li><strong>Firebase / Google Cloud</strong> — accounts, database, and backend logic.</li>
         <li><strong>OpenAI</strong> — generates AI chat replies, conversation titles, conversation summaries, and (optionally) persona avatar images from a short text description you provide; also used for content moderation, including moderation of the custom personas and avatars you create (see Section 18). <strong>The App sends OpenAI both text and image inputs</strong> (see Sections 5, 6, and 7).</li>
-        <li><strong>Klipy</strong> — supplies trending meme and GIF media and powers meme/GIF search.</li>
+        <li><strong>Klipy</strong> — supplies trending meme, GIF, and sticker media and powers meme/GIF/sticker search.</li>
         <li><strong>Tavily</strong> — a web-search provider used only when the AI determines a message needs current, real-world information; it receives a short search query derived from your message and returns web results that inform the reply (see Section 5).</li>
         <li><strong>RevenueCat</strong> — manages subscriptions and entitlements (with Apple App Store and Google Play as the payment rails).</li>
         <li><strong>Google AdMob</strong> — shows ads (and, where used, rewarded ads) to free users; paid plans are ad-free.</li>
@@ -169,8 +170,8 @@
             <td>Sent to OpenAI; stored in Firestore</td>
           </tr>
           <tr>
-            <td>Meme/GIF image inputs &amp; references</td>
-            <td>Meme image URLs and animated-GIF still frames involved in a turn; stored references/metadata for memes and GIFs attached to messages</td>
+            <td>Meme/GIF/sticker image inputs &amp; references</td>
+            <td>Meme image URLs, animated-GIF still frames, and the still image of any sticker you send involved in a turn; stored references/metadata (including a sticker's title and the search term you typed) for memes, GIFs, and stickers attached to messages</td>
             <td>Image inputs sent to OpenAI; references stored in Firestore; media fetched from Klipy</td>
           </tr>
           <tr>
@@ -229,8 +230,8 @@
             <td>RevenueCat, Apple App Store, Google Play; status mirrored in Firestore</td>
           </tr>
           <tr>
-            <td>Klipy meme/GIF request data</td>
-            <td><code>customer_id</code> (= your Firebase UID), page, results-per-page, locale/country, content-filter level, and a search query — which may be one you type <em>or</em> one the AI generates from the conversation</td>
+            <td>Klipy meme/GIF/sticker request data</td>
+            <td><code>customer_id</code> (= your Firebase UID), page, results-per-page, locale/country, content-filter level, and a search query. For memes and GIFs this query may be one you type <em>or</em> one the AI generates from the conversation; for stickers it is only a query you type, since stickers are send-only and the AI never picks them</td>
             <td>Sent to Klipy via our backend</td>
           </tr>
           <tr>
@@ -336,14 +337,16 @@
         <li>recent conversation history (your previous messages and the AI's previous replies), for context;</li>
         <li>for paid subscribers with Memory on, your <strong>memory notes</strong> as part of the system context (see Section 7);</li>
         <li>your current message; and</li>
-        <li><strong>image inputs</strong> for any meme or GIF involved in the turn (see Section 6).</li>
+        <li><strong>image inputs</strong> for any meme, GIF, or sticker involved in the turn (see Section 6).</li>
       </ul>
       <p>
         <strong>Conversation history is sent to OpenAI</strong> so the AI can
         respond with context. <strong>In addition to text, the App sends image
         inputs to OpenAI:</strong> meme images are sent as image URLs, animated
         GIFs are decoded by our backend into a few still frames that are sent as
-        image data, and <strong>photos you upload to a message</strong> (taken
+        image data, <strong>stickers you send</strong> are sent as their still
+        (transparent) image so the AI can react to them, and <strong>photos you
+        upload to a message</strong> (taken
         with the camera or chosen from your photo library) are sent as image data
         so the AI can respond to them. The App does <strong>not</strong> support
         other file uploads, audio, or microphone input, so those are not sent to
@@ -390,7 +393,7 @@
         Your messages and the AI's replies are stored in our Firestore
         database, along with conversation titles, a first-message snippet, a
         last-message preview, summaries, persona metadata, and references to any
-        attached memes/GIFs (see Sections 6 and 7).
+        attached memes, GIFs, and stickers (see Sections 6 and 7).
       </p>
 
       <h3>OpenAI training and retention</h3>
@@ -455,7 +458,7 @@
       </p>
 
       <!-- ===================================================== -->
-      <h2>6. Meme, GIF, and photo attachments in chat</h2>
+      <h2>6. Meme, GIF, sticker, and photo attachments in chat</h2>
       <p>
         Both you and the AI can attach Klipy memes and GIFs to messages. When a
         meme or GIF is part of a turn:
@@ -465,6 +468,18 @@
         <li>a <strong>reference to the meme/GIF</strong> (such as its media URLs and basic metadata) may be stored on the message in Firestore so the conversation renders correctly later; and</li>
         <li>the <strong>image is sent to OpenAI as an image input</strong> so the AI can reason about or respond with relevant media. A still meme is sent as an image; an animated GIF is first sampled into a few still frames by our backend, and those frames are sent as image data.</li>
       </ul>
+      <p>
+        You can also send <strong>stickers</strong> from Klipy. Stickers are a
+        send-only feature: you pick one from a trending strip or by searching, and
+        the AI never sends stickers back. You can send up to three stickers in a
+        turn, on their own or alongside memes and a GIF. When you send a sticker,
+        its still (transparent) image is sent to OpenAI as an image input so the AI
+        can react to it in character, and a reference to the sticker (its media
+        URLs, basic metadata, the sticker's short title, and the search term you
+        typed, if any) is stored on the message in Firestore so the conversation
+        renders correctly later. The title and search term are used only to give
+        the AI context about what you sent and are never shown to you.
+      </p>
       <p>
         You can also attach your own <strong>photos</strong> — taken with the
         camera or chosen from your photo library. An attached photo is compressed
@@ -484,7 +499,7 @@
         so your history is available across your sessions. We also store
         conversation titles, a first-message snippet, a last-message preview,
         AI-generated summaries, persona metadata, references to attached
-        memes/GIFs, and any <strong>thumbs up/down rating</strong> you give an
+        memes, GIFs, and stickers, and any <strong>thumbs up/down rating</strong> you give an
         AI reply.
       </p>
       <p>
@@ -553,12 +568,13 @@
       </ul>
 
       <!-- ===================================================== -->
-      <h2>8. Klipy meme and GIF media</h2>
+      <h2>8. Klipy meme, GIF, and sticker media</h2>
       <p>
-        The App uses the Klipy API to show trending memes and GIFs, to let you
-        search memes and GIFs by keyword, and to let the AI attach relevant
-        meme/GIF reactions. The Klipy app key is held only on our backend and is
-        never exposed to the App.
+        The App uses the Klipy API to show trending memes, GIFs, and stickers, to
+        let you search them by keyword, and to let the AI attach relevant
+        meme/GIF reactions. Stickers are send-only: you can search for and send
+        them, but the AI does not pick or send stickers. The Klipy app key is held
+        only on our backend and is never exposed to the App.
       </p>
       <p>When the App requests media, our backend sends Klipy:</p>
       <ul>
@@ -574,15 +590,17 @@
         GIF fits the moment, it forms a short search query based on the
         conversation context and our backend sends that query to Klipy. This
         means conversation-derived terms — not only text you type into a search
-        box — may be sent to Klipy.
+        box — may be sent to Klipy. <strong>Sticker searches are different:</strong>
+        because stickers are send-only, sticker search queries are only ones you
+        type, never ones the AI generates.
       </p>
       <p>
         According to Klipy's integration notes, <code>customer_id</code> is used
         for personalization and de-duplication and is expected to stay
         consistent for the same user, which is why the Firebase UID is passed.
         Meme/GIF results are shown in the App and are not stored long-term by us,
-        except that a reference to a meme/GIF you or the AI attach to a message
-        is stored on that message (see Section 6). Klipy's own handling,
+        except that a reference to a meme/GIF/sticker you or the AI attach to a
+        message is stored on that message (see Section 6). Klipy's own handling,
         retention, and analytics are governed by Klipy's policies.
         The current version does not use any Klipy advertising features or ad SDK.
       </p>
@@ -595,7 +613,7 @@
         <li>
           <strong>Cloud Firestore</strong> stores your profile, conversations
           and messages, AI replies, conversation metadata, message ratings,
-          persona metadata, meme/GIF references, usage events, billing fields,
+          persona metadata, meme/GIF/sticker references, usage events, billing fields,
           rate-limit documents, content moderation records (see Section 18), and
           revenue/audit records.
         </li>
@@ -833,7 +851,7 @@
         <li>store and show your conversation history, ratings, and personalization;</li>
         <li>provide the Memory feature (for paid subscribers who have it enabled), using memory notes as additional context in AI sessions;</li>
         <li>let you build, edit, and chat with custom personas, and moderate each one before it goes live;</li>
-        <li>show, search, attach, and let you download trending meme and GIF media;</li>
+        <li>show, search, attach, and let you download trending memes and GIFs, and let you send stickers;</li>
         <li>manage subscriptions, entitlements, and credits;</li>
         <li>show ads to free users through Google AdMob (paid plans are ad-free);</li>
         <li>meter usage and prevent abuse (including rate limiting and fraud prevention);</li>
@@ -846,9 +864,9 @@
       <h2>16. How we disclose information</h2>
       <p>We share information only as needed to run the App:</p>
       <ul>
-        <li><strong>OpenAI</strong> — chat content and conversation context, meme/GIF image inputs, photos you attach, the text and avatar of custom personas you create (for moderation and as the persona prompt), moderation checks, and the inputs for titles/summaries.</li>
+        <li><strong>OpenAI</strong> — chat content and conversation context, meme/GIF/sticker image inputs, photos you attach, the text and avatar of custom personas you create (for moderation and as the persona prompt), moderation checks, and the inputs for titles/summaries.</li>
         <li><strong>Firebase / Google Cloud</strong> — account, database, and backend processing.</li>
-        <li><strong>Klipy</strong> — meme/GIF media requests, including your UID as <code>customer_id</code> and any search query (typed or AI-generated).</li>
+        <li><strong>Klipy</strong> — meme/GIF/sticker media requests, including your UID as <code>customer_id</code> and any search query (meme/GIF queries may be typed or AI-generated; sticker queries are typed only).</li>
         <li><strong>Tavily</strong> — a short, AI-generated web-search query (no account identifier), when a message needs current information.</li>
         <li><strong>RevenueCat, Apple, and Google</strong> — purchase and subscription processing.</li>
         <li><strong>Google AdMob</strong> — ad requests and the technical / ad-delivery information listed in Section 14, for ads shown to free users.</li>
@@ -945,7 +963,7 @@
       <!-- ===================================================== -->
       <h2>20. Data retention</h2>
       <ul>
-        <li><strong>Conversations and messages</strong> (including ratings, persona metadata, and meme/GIF references) remain until you delete the conversation, delete your account, or we remove them for legal, safety, or operational reasons.</li>
+        <li><strong>Conversations and messages</strong> (including ratings, persona metadata, and meme/GIF/sticker references) remain until you delete the conversation, delete your account, or we remove them for legal, safety, or operational reasons.</li>
         <li><strong>Memory notes</strong> remain until you delete individual entries, wipe all memory from Settings &rarr; Memory, or delete your account.</li>
         <li><strong>Photos you upload as chat attachments</strong> (stored in Cloud Storage) are removed when you delete the conversation or your account.</li>
         <li><strong>Custom personas</strong> (their text in Firestore and any uploaded avatar in Cloud Storage) remain until you delete the persona or your account; an avatar is also removed when you replace or remove it.</li>
@@ -1006,7 +1024,7 @@
       <h3>Deleting conversations</h3>
       <p>
         You can delete selected conversations from within the App. This removes
-        those conversations and their messages (including ratings, meme/GIF
+        those conversations and their messages (including ratings, meme/GIF/sticker
         references, and any photos you uploaded to them in Cloud Storage) but does
         not delete your account, profile, or purchase data, and does not refund
         credits.
@@ -1054,11 +1072,11 @@
         <tbody>
           <tr><td>Contact info</td><td>Email address</td><td>Yes</td><td>Account management, app functionality</td></tr>
           <tr><td>Identifiers</td><td>Firebase UID, RevenueCat app user ID, Apple Sign In identifier</td><td>Yes</td><td>App functionality, purchases, security</td></tr>
-          <tr><td>User content</td><td>Chat messages, AI replies, titles/summaries, meme/GIF references and image inputs sent to OpenAI, photos you upload as attachments, custom personas you create and their avatars, message ratings/reactions, alias/personalization, Memory notes (paid plans, when enabled)</td><td>Yes</td><td>App functionality (sent to OpenAI / stored in Firebase)</td></tr>
+          <tr><td>User content</td><td>Chat messages, AI replies, titles/summaries, meme/GIF/sticker references and image inputs sent to OpenAI, photos you upload as attachments, custom personas you create and their avatars, message ratings/reactions, alias/personalization, Memory notes (paid plans, when enabled)</td><td>Yes</td><td>App functionality (sent to OpenAI / stored in Firebase)</td></tr>
           <tr><td>Purchases</td><td>Subscription status, product IDs, entitlement status, purchase/transaction metadata (via RevenueCat/Apple/Google)</td><td>Yes</td><td>App functionality, fraud prevention</td></tr>
           <tr><td>Usage data</td><td>Token counts, credits, plan/model, usage events, ratings/reactions</td><td>Yes</td><td>App functionality, billing</td></tr>
           <tr><td>Diagnostics</td><td>Logs, errors, IP/network data, attachment metadata, rate-limit data</td><td>Yes</td><td>Security, diagnostics, app functionality</td></tr>
-          <tr><td>Search history</td><td>Meme/GIF search queries sent to Klipy — typed by you or generated by the AI from the conversation — and AI-generated web-search queries sent to Tavily when a message needs current information</td><td>Yes</td><td>App functionality (meme/GIF search/attachment; web search)</td></tr>
+          <tr><td>Search history</td><td>Meme/GIF/sticker search queries sent to Klipy — meme/GIF queries are typed by you or generated by the AI from the conversation, and sticker queries are typed by you — and AI-generated web-search queries sent to Tavily when a message needs current information</td><td>Yes</td><td>App functionality (meme/GIF/sticker search/attachment; web search)</td></tr>
           <tr><td>Photos or videos</td><td>Photos you take or choose to attach to a message are uploaded and sent to OpenAI. (Separately, the App saves watermarked memes/GIFs to your gallery via add/save access and does not otherwise read your library.)</td><td>Yes</td><td>App functionality (chat attachments)</td></tr>
           <tr><td>Coarse location</td><td>Locale/country code (not collected as device location)</td><td>&mdash;</td><td>Meme/GIF localization</td></tr>
           <tr><td>Notifications</td><td>Permission requested; no push token collected in the current version</td><td>&mdash;</td><td>&mdash;</td></tr>

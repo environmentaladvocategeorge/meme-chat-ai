@@ -14,12 +14,10 @@ légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,crée
 
 ## What's New (Nouveautés)
 
-• Crée tes propres bots : des personnages d'IA sur mesure avec leur nom, leur personnalité, leur voix et leur avatar. Discute avec eux comme avec n'importe quel autre bot et modifie-les quand tu veux. Le gratuit en inclut 1 ; les payants en gardent de 10 à 100.
-• Avatars par IA : génère-en un à partir d'une brève description, ou téléverse le tien.
-• Description par IA : laisse-la rédiger la personnalité d'un bot à partir de quelques détails.
-• Un tout nouveau look dans toute l'app.
-• Nouvel écran Forfait et utilisation pour suivre ta consommation et gérer ton forfait.
-• Petites améliorations des notifications quotidiennes et de la suppression de compte.
+• Stickers : envoie des stickers Klipy en plein chat. Choisis-les dans les tendances ou cherche celui qu'il te faut, lâche-en jusqu'à trois dans un message, et Brainrot Bot y réagit sans sortir de son personnage.
+• Un bot par chat : chaque conversation garde un seul bot. Change de bot et tu démarres un nouveau chat, pour que tes conversations restent nettes.
+• Streaming plus fluide : les réponses arrivent de façon plus fiable, et le bouton stop annule désormais une réponse proprement.
+• Mèmes, GIFs et stickers partagent maintenant un seul tiroir média.
 • Et des améliorations de performances et de stabilité.
 
 ## Promotional Text (Texte promotionnel)
@@ -42,8 +40,8 @@ Crée tes propres personnages IA depuis zéro. Donne-lui un nom, une personnalit
 
 CE QU'IL FAIT D'AUTRE
 
-• Mèmes et GIFs intégrés
-Cherche des mèmes et GIFs tendance, glisse-les dans le chat, attache les tiens et enregistre ceux que tu aimes dans ta galerie.
+• Mèmes, GIFs et stickers intégrés
+Cherche des mèmes, GIFs et stickers tendance et glisse-les direct dans le chat. Enregistre les mèmes et GIFs que tu aimes dans ta galerie, et envoie jusqu'à trois stickers à la fois.
 
 • Envoyer des photos
 Joins une photo depuis ton appareil photo ou ta galerie et obtiens une réaction, une légende ou une réponse selon ce que tu partages.

@@ -7,6 +7,7 @@ import type { ChatMessage, ChatRole } from "../agent/types";
 import type { PlanId } from "../billing/plans";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
+import type { MessageSticker } from "../messages/messageSticker";
 
 type MessageStatus = "complete" | "streaming" | "error";
 
@@ -16,6 +17,7 @@ type StoredMessage = {
   status?: MessageStatus;
   images?: MessageImage[];
   gifs?: MessageGif[];
+  stickers?: MessageSticker[];
 };
 
 // Placeholder title shown for image-only conversations (no first-message text
@@ -54,24 +56,26 @@ function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
   const text = typeof data.text === "string" ? data.text : "";
   const images = Array.isArray(data.images) ? data.images : undefined;
   const gifs = Array.isArray(data.gifs) ? data.gifs : undefined;
+  const stickers = Array.isArray(data.stickers) ? data.stickers : undefined;
   const hasImages = Boolean(images && images.length > 0);
   const hasGifs = Boolean(gifs && gifs.length > 0);
-  if (text.length === 0 && !hasImages && !hasGifs) return null;
+  const hasStickers = Boolean(stickers && stickers.length > 0);
+  if (text.length === 0 && !hasImages && !hasGifs && !hasStickers) return null;
 
   const message: ChatMessage = { role: data.role, text };
   if (hasImages) message.images = images;
   if (hasGifs) message.gifs = gifs;
+  if (hasStickers) message.stickers = stickers;
   return message;
 }
 
-export async function createConversation(
+// The document fields for a freshly created conversation. Shared by
+// createConversation (server-assigned id) and ensureConversation (client id).
+function newConversationFields(
   uid: string,
   firstUserMessageText: string,
   options?: { hasImages?: boolean },
-): Promise<{ conversationId: string }> {
-  const db = getFirestore();
-  const conversationRef = db.collection("conversations").doc();
-
+) {
   const trimmedFirst = firstUserMessageText.trim();
   // Always a neutral placeholder until generateConversationTitle names the
   // exchange from the bot's first reply. Image-only openers get the meme
@@ -82,7 +86,7 @@ export async function createConversation(
       ? IMAGE_ONLY_TITLE_FALLBACK
       : NEW_CONVERSATION_TITLE_FALLBACK;
 
-  await conversationRef.set({
+  return {
     uid,
     // Placeholder title shown immediately; generateConversationTitle replaces it
     // with a meme title once the bot's first reply lands.
@@ -92,9 +96,47 @@ export async function createConversation(
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     lastMessagePreview: "",
-  });
+  };
+}
 
+export async function createConversation(
+  uid: string,
+  firstUserMessageText: string,
+  options?: { hasImages?: boolean },
+): Promise<{ conversationId: string }> {
+  const db = getFirestore();
+  const conversationRef = db.collection("conversations").doc();
+  await conversationRef.set(
+    newConversationFields(uid, firstUserMessageText, options),
+  );
   return { conversationId: conversationRef.id };
+}
+
+// Resolves a CLIENT-PROVIDED conversation id: creates the conversation with that
+// id if it doesn't exist yet (a brand-new chat whose id the app minted so it
+// could subscribe to the reply stream early), or asserts the caller owns it if
+// it does (continuing an existing conversation). Runs in a transaction so a
+// retry / double-send can't clobber an existing doc or create two. Throws
+// "conversation-not-found" when the id belongs to a different user — the caller
+// maps that to a 404, exactly like assertConversationOwner, so a provided id can
+// never touch another account's conversation.
+export async function ensureConversation(
+  conversationId: string,
+  uid: string,
+  firstUserMessageText: string,
+  options?: { hasImages?: boolean },
+): Promise<{ isNew: boolean }> {
+  const db = getFirestore();
+  const ref = db.collection("conversations").doc(conversationId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      if (snap.data()?.uid !== uid) throw new Error("conversation-not-found");
+      return { isNew: false };
+    }
+    tx.set(ref, newConversationFields(uid, firstUserMessageText, options));
+    return { isNew: true };
+  });
 }
 
 // Re-titles a conversation whose opening message was rejected by the moderation
@@ -143,6 +185,7 @@ export async function appendMessage(
     persona?: MessagePersonaMetadata;
     images?: MessageImage[];
     gifs?: MessageGif[];
+    stickers?: MessageSticker[];
     // Brainrot intensity selected for this turn (1–3). Stored as-is on the
     // message; nothing downstream consumes it yet.
     levelOfRot?: number;
@@ -170,6 +213,7 @@ export async function appendMessage(
 
   const hasImages = Boolean(message.images && message.images.length > 0);
   const hasGifs = Boolean(message.gifs && message.gifs.length > 0);
+  const hasStickers = Boolean(message.stickers && message.stickers.length > 0);
 
   const messageData: Record<string, unknown> = {
     role: message.role,
@@ -185,6 +229,10 @@ export async function appendMessage(
 
   if (hasGifs) {
     messageData.gifs = message.gifs;
+  }
+
+  if (hasStickers) {
+    messageData.stickers = message.stickers;
   }
 
   if (typeof message.levelOfRot === "number") {
@@ -238,7 +286,7 @@ export async function appendMessage(
 
   if (message.text.length > 0) {
     conversationUpdate.lastMessagePreview = message.text.slice(0, 160);
-  } else if (hasImages || hasGifs) {
+  } else if (hasImages || hasGifs || hasStickers) {
     // Attachment-only turn: keep the list preview non-blank. The client renders
     // the thumbnail itself; this is just the fallback label for the history
     // list.
@@ -351,6 +399,7 @@ export type ReplayMessageRecord = {
   inReplyToClientMessageId?: string;
   images?: MessageImage[];
   gifs?: MessageGif[];
+  stickers?: MessageSticker[];
   levelOfRot?: number;
   // The turn's local-only answering prefs, read back for replay. Absent fields
   // mean "on" (the default), since appendMessage only persists the OFF state.
@@ -403,6 +452,9 @@ function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null 
   }
   if (Array.isArray(data.gifs) && data.gifs.length > 0) {
     record.gifs = data.gifs;
+  }
+  if (Array.isArray(data.stickers) && data.stickers.length > 0) {
+    record.stickers = data.stickers;
   }
   if (typeof data.levelOfRot === "number") {
     record.levelOfRot = data.levelOfRot;

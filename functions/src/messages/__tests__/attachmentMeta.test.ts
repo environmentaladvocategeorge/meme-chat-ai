@@ -1,11 +1,25 @@
 import {
   buildDeciderAttachmentHint,
   buildMemeTitleNote,
+  buildStickerNote,
   collectCurrentAttachmentTitles,
   hasAttachmentTitles,
 } from "../attachmentMeta";
 import type { MessageGif } from "../messageGif";
 import type { MessageImage } from "../messageImage";
+import type { MessageSticker } from "../messageSticker";
+
+function klipySticker(
+  overrides: Partial<MessageSticker> = {},
+): MessageSticker {
+  return {
+    id: "s1",
+    source: "klipy-sticker",
+    url: "https://static.klipy.com/s.webp",
+    previewUrl: "https://static.klipy.com/s.png",
+    ...overrides,
+  };
+}
 
 function klipyImage(overrides: Partial<MessageImage> = {}): MessageImage {
   return {
@@ -47,7 +61,11 @@ describe("collectCurrentAttachmentTitles", () => {
       [klipyImage({ title: "Gigachad" }), klipyImage({ id: "m2", title: "Doge" })],
       [klipyGif("rat dancing")],
     );
-    expect(titles).toEqual({ memes: ["Gigachad", "Doge"], gif: "rat dancing" });
+    expect(titles).toEqual({
+      memes: ["Gigachad", "Doge"],
+      gif: "rat dancing",
+      stickers: [],
+    });
   });
 
   it("ignores uploads and untitled klipy attachments (back-compat)", () => {
@@ -55,7 +73,7 @@ describe("collectCurrentAttachmentTitles", () => {
       [uploadImage(), klipyImage({ id: "m3" })],
       [klipyGif()],
     );
-    expect(titles).toEqual({ memes: [], gif: undefined });
+    expect(titles).toEqual({ memes: [], gif: undefined, stickers: [] });
   });
 
   it("trims whitespace and drops blank titles", () => {
@@ -63,13 +81,32 @@ describe("collectCurrentAttachmentTitles", () => {
       [klipyImage({ title: "  Spaced  " }), klipyImage({ id: "m4", title: "   " })],
       [klipyGif("   ")],
     );
-    expect(titles).toEqual({ memes: ["Spaced"], gif: undefined });
+    expect(titles).toEqual({ memes: ["Spaced"], gif: undefined, stickers: [] });
+  });
+
+  it("collects sticker titles + the first non-empty search query", () => {
+    const titles = collectCurrentAttachmentTitles(
+      undefined,
+      undefined,
+      [
+        klipySticker({ title: "rawr", searchQuery: "dino" }),
+        klipySticker({ id: "s2", title: "   " }),
+        klipySticker({ id: "s3", title: "cool cat", searchQuery: "later" }),
+      ],
+    );
+    expect(titles).toEqual({
+      memes: [],
+      gif: undefined,
+      stickers: ["rawr", "cool cat"],
+      stickerQuery: "dino",
+    });
   });
 
   it("is safe on undefined inputs", () => {
     expect(collectCurrentAttachmentTitles(undefined, undefined)).toEqual({
       memes: [],
       gif: undefined,
+      stickers: [],
     });
   });
 });
@@ -79,12 +116,18 @@ describe("hasAttachmentTitles", () => {
     expect(hasAttachmentTitles({ memes: [], gif: undefined })).toBe(false);
     expect(hasAttachmentTitles({ memes: ["x"], gif: undefined })).toBe(true);
     expect(hasAttachmentTitles({ memes: [], gif: "y" })).toBe(true);
+    expect(hasAttachmentTitles({ memes: [], stickers: ["z"] })).toBe(true);
   });
 });
 
 describe("buildDeciderAttachmentHint", () => {
   it("returns null when there are no titles (payload unchanged for old clients)", () => {
     expect(buildDeciderAttachmentHint({ memes: [], gif: undefined })).toBeNull();
+    // A sticker-free turn from a newer client (empty stickers array) is also a
+    // no-op so the decider payload stays byte-identical.
+    expect(
+      buildDeciderAttachmentHint({ memes: [], gif: undefined, stickers: [] }),
+    ).toBeNull();
   });
 
   it("quotes every meme + gif name in one hint line", () => {
@@ -95,6 +138,58 @@ describe("buildDeciderAttachmentHint", () => {
     expect(hint).toContain('"Gigachad"');
     expect(hint).toContain('"rat dancing"');
     expect(hint).toContain("recognizable reference");
+  });
+
+  it("keeps the original meme/GIF wording byte-identical when no stickers", () => {
+    const withField = buildDeciderAttachmentHint({
+      memes: ["Gigachad"],
+      gif: undefined,
+      stickers: [],
+    });
+    const withoutField = buildDeciderAttachmentHint({
+      memes: ["Gigachad"],
+      gif: undefined,
+    });
+    expect(withField).toBe(withoutField);
+    expect(withField).toContain("meme/GIF named");
+    expect(withField).not.toContain("sticker");
+  });
+
+  it("folds sticker names + the search term into the hint when present", () => {
+    const hint = buildDeciderAttachmentHint({
+      memes: ["Gigachad"],
+      gif: undefined,
+      stickers: ["rawr"],
+      stickerQuery: "dino",
+    });
+    expect(hint).toContain('"Gigachad"');
+    expect(hint).toContain('"rawr"');
+    expect(hint).toContain('searched "dino"');
+    expect(hint).toContain("meme/GIF/sticker");
+  });
+});
+
+describe("buildStickerNote", () => {
+  it("returns null when there are no stickers (back-compat)", () => {
+    expect(buildStickerNote(0)).toBeNull();
+  });
+
+  it("names a single sticker with singular grammar + the search term", () => {
+    const note = buildStickerNote(1, {
+      memes: [],
+      stickers: ["rawr"],
+      stickerQuery: "dino",
+    });
+    expect(note).toContain("a sticker");
+    expect(note).toContain('"rawr"');
+    expect(note).toContain('searching "dino"');
+    expect(note).toContain("don't read any names aloud");
+  });
+
+  it("uses plural grammar for multiple stickers and works without titles", () => {
+    const note = buildStickerNote(2);
+    expect(note).toContain("following 2 images are stickers");
+    expect(note).not.toContain("named");
   });
 });
 

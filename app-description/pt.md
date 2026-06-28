@@ -14,12 +14,10 @@ legenda,resposta,humor,piada,gíria,chatbot,personagem,persona,companheiro,criar
 
 ## What's New (Novidades)
 
-• Crie os seus próprios bots: personagens de IA personalizados com nome, personalidade, voz e avatar próprios. Converse com eles como com qualquer outro bot e edite quando quiser. O grátis inclui 1; os pagos guardam de 10 a 100.
-• Avatares com IA: gere um a partir de uma breve descrição ou envie o seu.
-• Descrição com IA: deixe que ela escreva a personalidade de um bot com alguns detalhes.
-• Uma cara totalmente nova no app inteiro.
-• Nova tela de Plano e uso para ver o seu consumo e gerenciar o plano.
-• Pequenas melhorias nas notificações diárias e na exclusão de conta.
+• Figurinhas: mande figurinhas do Klipy no meio do chat. Escolha entre as que estão em alta ou busque a que você quer, solte até três numa mensagem, e o Brainrot Bot reage a elas sem sair do personagem.
+• Um bot por chat: cada conversa agora fica com um único bot. Trocou de bot, começa um chat novo, então suas conversas ficam organizadas.
+• Streaming mais suave: as respostas chegam de forma mais estável, e o botão de parar agora cancela uma resposta sem complicação.
+• Memes, GIFs e figurinhas agora dividem uma mesma gaveta de mídia.
 • Além de melhorias de desempenho e estabilidade.
 
 ## Promotional Text (Texto promocional)
@@ -42,8 +40,8 @@ Crie seus próprios personagens de IA do zero. Dê um nome, uma personalidade, u
 
 O QUE MAIS ELE FAZ
 
-• Memes e GIFs integrados
-Busque memes e GIFs em alta, jogue no chat, anexe os seus e salve os que você curtir na galeria.
+• Memes, GIFs e figurinhas integrados
+Busque memes, GIFs e figurinhas em alta e solte direto no chat. Salve os memes e GIFs que você curtir na galeria, e mande até três figurinhas de uma vez.
 
 • Enviar fotos
 Anexe uma foto da câmera ou da galeria e receba uma reação, uma legenda ou uma resposta com base no que você compartilhou.

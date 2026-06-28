@@ -687,6 +687,24 @@ const en = {
       // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
       searchPlaceholder: "Search KLIPY",
     },
+    // The unified media drawer (GIFs · Memes · Stickers under one composer chip).
+    media: {
+      button: "Media",
+      keyboard: "Keyboard",
+      tabs: {
+        gifs: "GIFs",
+        memes: "Memes",
+        stickers: "Stickers",
+      },
+    },
+    stickers: {
+      empty: "No stickers right now",
+      noResults: "No stickers match that",
+      error: "Couldn't load stickers",
+      retry: "Retry",
+      // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Rot Level",
       title: "How rotted should replies be?",
@@ -736,6 +754,7 @@ const en = {
       remove: "Remove meme",
       imageLabel: "Meme attachment",
       gifLabel: "GIF attachment",
+      stickerLabel: "Sticker attachment",
       // Client-side localized label for an image-only message, where surfaced.
       sentMeme: "Sent a meme",
       invalid: "Couldn't attach that meme",

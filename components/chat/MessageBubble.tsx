@@ -6,6 +6,7 @@ import {
 } from "@/components/MessageActions";
 import { MessageGifAttachments } from "@/components/MessageGifAttachments";
 import { MessageImageAttachments } from "@/components/MessageImageAttachments";
+import { MessageStickerAttachments } from "@/components/MessageStickerAttachments";
 import { PersonaAvatar } from "@/components/PersonaAvatar";
 import { SelectableText } from "@/components/SelectableText";
 import { Typography } from "@/components/Typography";
@@ -178,6 +179,10 @@ export const MessageBubble = memo(function MessageBubble({
       : []
     : (message.gifs ?? []);
   const hasGifs = messageGifs.length > 0;
+  // Stickers are user-send-only (the bot never sends them), so they only ever
+  // appear on a persisted user turn — never on the streaming agent bubble.
+  const messageStickers = isStreamingBubble ? [] : (message.stickers ?? []);
+  const hasStickers = messageStickers.length > 0;
   const hasTextBubble = thinking || messageText.length > 0;
 
   // The copy/thumbs action row shows only on a finalized agent reply (one
@@ -874,6 +879,22 @@ export const MessageBubble = memo(function MessageBubble({
                   displayUrl: gif.url,
                   // Static watermarked download uses the GIF's still poster.
                   sourceUrl: gif.previewUrl,
+                })
+              }
+            />
+          ) : null}
+
+          {hasStickers ? (
+            <MessageStickerAttachments
+              stickers={messageStickers}
+              align={mine ? "end" : "start"}
+              stickerLabel={t("chat.attachments.stickerLabel")}
+              onPressSticker={(sticker) =>
+                attachmentViewer.open({
+                  kind: "meme",
+                  displayUrl: sticker.url,
+                  // Static watermarked download uses the sticker's png still.
+                  sourceUrl: sticker.previewUrl,
                 })
               }
             />

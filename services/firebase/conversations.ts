@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import type { MessageGif } from "@/domain/gifs";
 import type { KlipyMessageImage, MessageImage } from "@/domain/memes";
+import type { MessageSticker } from "@/domain/stickers";
 import { getFirebaseServices } from "./app";
 
 const ALLOWED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
@@ -113,6 +114,39 @@ function mapGifs(value: unknown): MessageGif[] | undefined {
   return gifs.length > 0 ? gifs : undefined;
 }
 
+// Defensive read-back of persisted sticker attachments. Mirrors mapGifs, minus
+// frameSourceUrl (stickers feed the model a static png — no frame extraction).
+function mapStickers(value: unknown): MessageSticker[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const stickers = value.flatMap((raw): MessageSticker[] => {
+    if (!raw || typeof raw !== "object") return [];
+    const data = raw as Record<string, unknown>;
+    if (
+      data.source !== "klipy-sticker" ||
+      typeof data.id !== "string" ||
+      typeof data.url !== "string" ||
+      typeof data.previewUrl !== "string"
+    ) {
+      return [];
+    }
+    const sticker: MessageSticker = {
+      id: data.id,
+      source: "klipy-sticker",
+      url: data.url,
+      previewUrl: data.previewUrl,
+    };
+    if (typeof data.width === "number") sticker.width = data.width;
+    if (typeof data.height === "number") sticker.height = data.height;
+    if (typeof data.attribution === "string") {
+      sticker.attribution = data.attribution;
+    }
+    if (typeof data.stickerId === "string") sticker.stickerId = data.stickerId;
+    if (typeof data.title === "string") sticker.title = data.title;
+    return [sticker];
+  });
+  return stickers.length > 0 ? stickers : undefined;
+}
+
 // A snapshot listener fires `permission-denied` when its query stops being
 // readable while still attached — most commonly in the brief window during
 // account deletion (the auth user is removed server-side first) or on sign-out
@@ -144,6 +178,7 @@ export type StoredChatMessage = {
   text: string;
   images?: MessageImage[];
   gifs?: MessageGif[];
+  stickers?: MessageSticker[];
   reaction?: "up" | "down";
   // Emoji reaction stored on an agent reply (independent of the thumbs rating).
   emojiReaction?: string;
@@ -213,9 +248,17 @@ export function mapMessage(id: string, data: DocumentData): StoredChatMessage | 
   const text = typeof data.text === "string" ? data.text : "";
   const images = mapImages(data.images);
   const gifs = mapGifs(data.gifs);
+  const stickers = mapStickers(data.stickers);
   // Drop only empty *streaming* placeholders; an attachment-only complete
   // message legitimately has empty text but real attachments.
-  if (status === "streaming" && text.length === 0 && !images && !gifs) return null;
+  if (
+    status === "streaming" &&
+    text.length === 0 &&
+    !images &&
+    !gifs &&
+    !stickers
+  )
+    return null;
   const persona =
     data.persona &&
     typeof data.persona === "object" &&
@@ -250,6 +293,7 @@ export function mapMessage(id: string, data: DocumentData): StoredChatMessage | 
     text,
     images,
     gifs,
+    stickers,
     reaction,
     emojiReaction,
     levelOfRot,
@@ -387,6 +431,25 @@ export type MessagesSnapshotMeta = {
 // limit(N) — `asc + limit` would pin the window to the *oldest* N docs and new
 // messages would never enter it — and the docs are reversed before the
 // callback so consumers keep receiving oldest-first.
+// Mints a fresh, Firestore-valid conversation id WITHOUT writing anything. The
+// app uses this to pick a brand-new conversation's id up front, so it can both
+// subscribe to the reply stream immediately and hand the id to the backend (the
+// backend creates the doc with this id — see ensureConversation). This removes
+// the window where a backgrounded first message left the reply orphaned because
+// the client never learned the server-assigned id.
+export function newConversationId(): string {
+  const db = requireFirestore();
+  return doc(collection(db, "conversations")).id;
+}
+
+// Backoff schedule for re-subscribing after a permission-denied error. When the
+// app subscribes to a conversation it just minted client-side, the backend
+// hasn't written the conversation doc yet, so the messages read rule (which
+// needs the parent's uid) denies the read and the listener terminates. The doc
+// lands within ~1s, so we re-attach a few times before giving up — after that a
+// denial is treated as a real access error.
+const PERM_DENIED_RETRY_DELAYS_MS = [300, 600, 1200, 2400, 4000];
+
 export function subscribeToMessages(
   conversationId: string,
   cb: (messages: StoredChatMessage[], meta: MessagesSnapshotMeta) => void,
@@ -398,23 +461,55 @@ export function subscribeToMessages(
     limit(MESSAGES_LIVE_LIMIT),
   );
 
-  return onSnapshot(
-    messagesQuery,
-    (snapshot) => {
-      const messages = snapshot.docs
-        .flatMap((doc) => {
-          const message = mapMessage(doc.id, doc.data());
-          return message ? [message] : [];
-        })
-        .reverse();
-      cb(messages, {
-        // Last doc of the desc query = oldest message in the window.
-        oldestDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
-        hasMore: snapshot.docs.length >= MESSAGES_LIVE_LIMIT,
-      });
-    },
-    handleSnapshotError("messages"),
-  );
+  let active = true;
+  let inner: Unsubscribe | null = null;
+  let retry = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  const attach = () => {
+    if (!active) return;
+    inner = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        // A successful read means the doc exists now; reset the backoff so a
+        // later transient denial gets the full retry budget again.
+        retry = 0;
+        const messages = snapshot.docs
+          .flatMap((document) => {
+            const message = mapMessage(document.id, document.data());
+            return message ? [message] : [];
+          })
+          .reverse();
+        cb(messages, {
+          // Last doc of the desc query = oldest message in the window.
+          oldestDoc: snapshot.docs[snapshot.docs.length - 1] ?? null,
+          hasMore: snapshot.docs.length >= MESSAGES_LIVE_LIMIT,
+        });
+      },
+      (error: FirestoreError) => {
+        if (
+          active &&
+          error.code === "permission-denied" &&
+          retry < PERM_DENIED_RETRY_DELAYS_MS.length
+        ) {
+          const delay = PERM_DENIED_RETRY_DELAYS_MS[retry];
+          retry += 1;
+          inner = null;
+          timer = setTimeout(attach, delay);
+          return;
+        }
+        handleSnapshotError("messages")(error);
+      },
+    );
+  };
+
+  attach();
+
+  return () => {
+    active = false;
+    if (timer !== null) clearTimeout(timer);
+    inner?.();
+  };
 }
 
 // Live subscription to a conversation's `participantPersonaIds` — the

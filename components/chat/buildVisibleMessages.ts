@@ -54,6 +54,9 @@ export function buildVisibleMessages({
       message.text.length > 0 ||
       (message.images?.length ?? 0) > 0 ||
       (message.gifs?.length ?? 0) > 0 ||
+      // A sticker-only user turn has no text/images/gifs — keep it so the sent
+      // sticker(s) render instead of the whole bubble being dropped.
+      (message.stickers?.length ?? 0) > 0 ||
       (message.role === "agent" && message.status === "error"),
   );
 

@@ -656,6 +656,23 @@ const hi = {
       // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "Media",
+      keyboard: "Keyboard",
+      tabs: {
+        gifs: "GIFs",
+        memes: "Memes",
+        stickers: "Stickers",
+      },
+    },
+    stickers: {
+      empty: "अभी कोई stickers नहीं",
+      noResults: "कोई sticker match नहीं हुआ",
+      error: "Stickers load नहीं हुए",
+      retry: "Retry",
+      // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Rot Level",
       title: "Replies कितनी rotted हों?",
@@ -700,6 +717,7 @@ const hi = {
       remove: "Meme हटाओ",
       imageLabel: "Meme attachment",
       gifLabel: "GIF attachment",
+      stickerLabel: "Sticker attachment",
       sentMeme: "एक meme भेजा",
       invalid: "वो meme attach नहीं हो सका",
       download: {

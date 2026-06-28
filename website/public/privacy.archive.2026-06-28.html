@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy &middot; Meme Chat AI</title>
+    <meta name="description" content="Privacy policy for Meme Chat AI: what we collect, how OpenAI (including meme/GIF image inputs, photos you attach, and the custom personas and avatars you create, including AI-generated avatars and AI-written descriptions), Firebase, RevenueCat, Klipy, and Tavily (web search) process your data, the Memory feature and how to opt out, how we moderate custom personas, the date-of-birth age gate, device permissions, and how to delete your data." />
+    <link rel="canonical" href="https://meme-chat-ai.com/privacy" />
+    <link rel="stylesheet" href="/styles.css?v=3" />
+    <style>
+      /* Page-local helpers — the shared styles.css doesn't style tables. */
+      .legal h3 {
+        margin-top: 24px;
+        color: var(--color-foreground);
+        font-size: 19px;
+      }
+      .legal .lead {
+        font-size: 16px;
+        color: var(--color-foreground);
+        font-weight: 600;
+      }
+      .legal table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0 8px;
+        font-size: 14px;
+      }
+      .legal th,
+      .legal td {
+        text-align: left;
+        vertical-align: top;
+        padding: 10px 12px;
+        border: 1px solid var(--color-border);
+      }
+      .legal th {
+        color: var(--color-foreground);
+        background: var(--color-card-muted);
+        font-family: "Fredoka", "Poppins", sans-serif;
+      }
+      .legal .meta {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 8px;
+        display: grid;
+        gap: 6px;
+      }
+      .legal .meta li {
+        border-left: 4px solid var(--color-primary);
+        background: var(--color-card-muted);
+        padding: 8px 14px;
+      }
+      .legal .confirm {
+        background: rgba(15, 123, 133, 0.12);
+        border-radius: 6px;
+        padding: 1px 6px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .legal .callout {
+        border: 1px solid var(--color-border);
+        border-left: 4px solid var(--color-primary);
+        background: var(--color-card-muted);
+        border-radius: var(--radius-card, 12px);
+        padding: 14px 18px;
+        margin: 18px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container legal">
+      <header class="site-header">
+        <div class="brand"><a href="/">Meme Chat AI</a></div>
+        <nav class="nav">
+          <a href="/support.html">Support</a>
+          <a href="/privacy.html">Privacy</a>
+        </nav>
+      </header>
+
+      <h1>Privacy Policy</h1>
+
+      <ul class="meta">
+        <li><strong>App:</strong> Meme Chat AI</li>
+        <li><strong>Effective date:</strong> June 21, 2026</li>
+        <li><strong>Applies to app version:</strong> 1.1.0 and later</li>
+        <li><strong>Applies to:</strong> the Meme Chat AI mobile app (iOS and Android), its backend services, and this website at https://meme-chat-ai.com</li>
+        <li><strong>Minimum age:</strong> 16 and older</li>
+        <li><strong>Contact:</strong> <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a></li>
+      </ul>
+
+      <p class="lead">
+        Meme Chat AI is an AI chat app with meme and GIF media. You confirm your
+        age, sign in, chat with an AI companion, and can browse, search, attach,
+        and download trending memes and GIFs. To make that work, your messages —
+        and the meme/GIF images involved in a chat — are sent to OpenAI to
+        generate replies and are stored in our Firebase backend; meme and GIF
+        media come from Klipy; when the AI determines a message needs current,
+        real-world information, a short search query derived from your message is
+        sent to Tavily (a web-search provider) and the results are used to inform
+        the reply; and subscriptions run through RevenueCat with the app stores. You can also build your own custom chat personas: the text
+        you write and any avatar you upload are screened by automated moderation
+        before the persona goes live, the persona's text is sent to OpenAI as
+        part of its prompt when you chat with it, and the personas you make are
+        private to your account. You can optionally generate a persona avatar from a
+        short text description, which is sent to OpenAI's image generation to create
+        the picture. Free users see ads served by Google AdMob (we request
+        non-personalized ads); paid plans are ad-free. We do not sell your
+        personal information, and the app does not use third-party analytics,
+        crash-reporting SDKs, attribution SDKs, or cross-app tracking.
+      </p>
+
+      <p>
+        This policy explains, in plain English, what data Meme Chat AI handles,
+        who processes it, how long it is kept, and the choices you have.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>1. Overview</h2>
+      <p>
+        Meme Chat AI ("the App") is published by MemeChatAI ("we", "us").
+        The App is built with Expo and React Native, and its backend runs on
+        Google Firebase (Authentication, Cloud Firestore, and Cloud Functions).
+      </p>
+      <p>The main services that process your data are:</p>
+      <ul>
+        <li><strong>Firebase / Google Cloud</strong> — accounts, database, and backend logic.</li>
+        <li><strong>OpenAI</strong> — generates AI chat replies, conversation titles, conversation summaries, and (optionally) persona avatar images from a short text description you provide; also used for content moderation, including moderation of the custom personas and avatars you create (see Section 18). <strong>The App sends OpenAI both text and image inputs</strong> (see Sections 5, 6, and 7).</li>
+        <li><strong>Klipy</strong> — supplies trending meme and GIF media and powers meme/GIF search.</li>
+        <li><strong>Tavily</strong> — a web-search provider used only when the AI determines a message needs current, real-world information; it receives a short search query derived from your message and returns web results that inform the reply (see Section 5).</li>
+        <li><strong>RevenueCat</strong> — manages subscriptions and entitlements (with Apple App Store and Google Play as the payment rails).</li>
+        <li><strong>Google AdMob</strong> — shows ads (and, where used, rewarded ads) to free users; paid plans are ad-free.</li>
+      </ul>
+      <p>
+        <strong>We do not sell your personal information.</strong> Free users
+        see ads served by Google AdMob, for which we request non-personalized
+        ads (see Section 14); paid plans are ad-free. Aside from AdMob, we do not
+        use third-party analytics SDKs, crash-reporting SDKs, attribution SDKs,
+        or cross-app tracking. Backend logs and diagnostics are still processed
+        by Firebase / Google Cloud as part of running the service (see Section 13).
+      </p>
+      <div class="callout">
+        <strong>Chat content and meme/GIF images may be processed by OpenAI.</strong>
+        Your messages, recent conversation context, and the meme/GIF images
+        involved in a turn are sent to OpenAI to generate replies. Please don't
+        enter highly sensitive personal, financial, health, legal, or otherwise
+        confidential information into chats unless you are comfortable having it
+        processed this way.
+      </div>
+
+      <!-- ===================================================== -->
+      <h2>2. Data categories at a glance</h2>
+      <table>
+        <thead>
+          <tr><th>Category</th><th>Examples</th><th>Where it goes</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Account &amp; authentication</td>
+            <td>Email address, Firebase user ID (UID), email-verification status, sign-in provider, Apple Sign In identifier</td>
+            <td>Firebase Authentication, Firestore profile</td>
+          </tr>
+          <tr>
+            <td>Age-gate data</td>
+            <td>Date of birth you enter and the resulting pass/block decision</td>
+            <td>Stored locally on your device (AsyncStorage); see Sections 4 and 11</td>
+          </tr>
+          <tr>
+            <td>AI conversation content</td>
+            <td>Your messages and the AI's replies (text)</td>
+            <td>Sent to OpenAI; stored in Firestore</td>
+          </tr>
+          <tr>
+            <td>Meme/GIF image inputs &amp; references</td>
+            <td>Meme image URLs and animated-GIF still frames involved in a turn; stored references/metadata for memes and GIFs attached to messages</td>
+            <td>Image inputs sent to OpenAI; references stored in Firestore; media fetched from Klipy</td>
+          </tr>
+          <tr>
+            <td>User-uploaded chat photos</td>
+            <td>Photos you take with the camera or pick from your library to attach to a message (compressed on-device before upload)</td>
+            <td>Stored in Firebase (Cloud) Storage under messageImages/{uid}; sent to OpenAI as image inputs; deleted on conversation/account deletion</td>
+          </tr>
+          <tr>
+            <td>Custom persona content (Persona Creator)</td>
+            <td>The personas you build: name, description/tagline, identity, example reply, humor and slang notes, greeting styles, emoji set, optional word bank, and meme/GIF preferences</td>
+            <td>Stored in Firestore (<code>user_personas</code>, linked to your UID) and private to your account; the persona text is sent to OpenAI for moderation when you save or edit it, and as part of the system prompt when you chat with that persona; see Sections 5, 7, and 18</td>
+          </tr>
+          <tr>
+            <td>Persona avatars</td>
+            <td>An optional image you upload for a persona you create, or one generated for you from a short text description</td>
+            <td>Stored in Firebase (Cloud) Storage under personaAvatars/{uid}; sent to OpenAI's moderation as an image input when you save the persona; deleted on persona/account deletion; see Sections 7, 9, and 18</td>
+          </tr>
+          <tr>
+            <td>Persona avatar generation prompt</td>
+            <td>The short text description you type to generate a persona avatar</td>
+            <td>Sent to OpenAI's image generation API to create candidate avatar images and screened by moderation; not stored after generation (only an image you choose and save is kept, as a Persona avatar above); see Sections 5 and 18</td>
+          </tr>
+          <tr>
+            <td>Persona description generation input</td>
+            <td>When you ask AI to write a persona's description: the creator fields you have entered (name, tagline, vibe, humor) plus the persona's avatar image</td>
+            <td>Sent to OpenAI to generate a short description and screened by moderation; not stored after generation (only the description you keep is saved, as Custom persona content above); see Sections 5 and 18</td>
+          </tr>
+          <tr>
+            <td>Conversation metadata</td>
+            <td>Conversation titles, first-message snippet, last-message preview, summaries, persona metadata, timestamps</td>
+            <td>Firestore (titles/summaries are generated by OpenAI)</td>
+          </tr>
+          <tr>
+            <td>Message ratings / reactions</td>
+            <td>Thumbs up/down you give an AI reply</td>
+            <td>Firestore (stored on the message)</td>
+          </tr>
+          <tr>
+            <td>Memory notes (paid plans)</td>
+            <td>Short notes the AI writes about you during conversations, such as your general vibe, people you mention, and topics you return to; only written when Memory is enabled</td>
+            <td>Stored in Firestore on your account (linked to your Firebase UID); included in AI context sent to OpenAI when Memory is on; manageable in-app (see Section 7)</td>
+          </tr>
+          <tr>
+            <td>Profile &amp; personalization</td>
+            <td>Alias/nickname, display name, rot-level preference, chat appearance customization</td>
+            <td>Firestore profile and/or local device; rot level may influence AI prompts</td>
+          </tr>
+          <tr>
+            <td>Usage, credit &amp; billing metadata</td>
+            <td>Token counts, cost estimates, credits, plan/model, usage events</td>
+            <td>Firestore; visible in backend logs</td>
+          </tr>
+          <tr>
+            <td>Purchase &amp; subscription data</td>
+            <td>Subscription status, product IDs, entitlement/expiry, receipts/purchase tokens, transaction metadata, and RevenueCat app user ID (= your Firebase UID)</td>
+            <td>RevenueCat, Apple App Store, Google Play; status mirrored in Firestore</td>
+          </tr>
+          <tr>
+            <td>Klipy meme/GIF request data</td>
+            <td><code>customer_id</code> (= your Firebase UID), page, results-per-page, locale/country, content-filter level, and a search query — which may be one you type <em>or</em> one the AI generates from the conversation</td>
+            <td>Sent to Klipy via our backend</td>
+          </tr>
+          <tr>
+            <td>Web search query data</td>
+            <td>A short search query the AI generates from your message (and recent conversation context) when it determines the turn needs current, real-world information; no account identifier is sent</td>
+            <td>Sent to Tavily via our backend; results inform the AI reply and are not stored long-term (see Section 5)</td>
+          </tr>
+          <tr>
+            <td>Content moderation records</td>
+            <td>When a message or name is flagged: your user ID, conversation ID (if applicable), message reference (if applicable), flag reason, and timestamp</td>
+            <td>Stored in our backend (Firestore) for safety and audit purposes; not readable through the App or accessible to other users; see Section 18</td>
+          </tr>
+          <tr>
+            <td>Local device data</td>
+            <td>Theme/appearance, language, onboarding flag/step, alias, chat customization, age-gate status &amp; date of birth, rot level, last-open conversation, Firebase Auth session/cache</td>
+            <td>Stays on your device (AsyncStorage)</td>
+          </tr>
+          <tr>
+            <td>Technical, log &amp; rate-limit data</td>
+            <td>Diagnostic logs, error strings, IP address / network data, attachment metadata, hashed IP rate-limit buckets</td>
+            <td>Cloud Functions logs (Google Cloud); Firestore (hashed IP)</td>
+          </tr>
+          <tr>
+            <td>Device permissions / OS surfaces</td>
+            <td>Camera and photo/media library access (to take or pick a photo to attach), media-library save access, notification permission, clipboard (when you copy a reply)</td>
+            <td>Your device; see Section 12</td>
+          </tr>
+          <tr>
+            <td>Support communications</td>
+            <td>Emails you send us and their contents</td>
+            <td>Our support inbox</td>
+          </tr>
+          <tr>
+            <td>Advertising data (free users)</td>
+            <td>IP address, device information, advertising or app identifiers (where available and permitted), coarse location derived from IP, ad interactions, and diagnostics — used to serve non-personalized ads; paid plans are ad-free</td>
+            <td>Google AdMob; see Section 14</td>
+          </tr>
+          <tr>
+            <td><strong>Not collected (current version)</strong></td>
+            <td>No microphone, precise location, contacts, calendar; no file or audio uploads; no third-party analytics, crash-reporting, or attribution SDKs; no cross-app tracking (free users do see ads via Google AdMob — see Section 14)</td>
+            <td>&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ===================================================== -->
+      <h2>3. Account creation and authentication</h2>
+      <p>
+        An account is required to chat and to keep your conversation history.
+        You must be signed in and have a verified email address to use the chat
+        features. Anonymous sign-in is not permitted.
+      </p>
+      <p>You can sign in with:</p>
+      <ul>
+        <li><strong>Email and password</strong> (handled by Firebase Authentication), or</li>
+        <li><strong>Sign in with Apple.</strong></li>
+      </ul>
+      <p>For your account we store your email address, your Firebase-generated
+        user ID (UID), your email-verification status, and which sign-in
+        provider(s) you used. If you use Sign in with Apple, we receive an
+        Apple identifier and the email Apple shares with us — if you choose
+        Apple's <em>Hide My Email</em>, that may be an Apple private relay
+        address rather than your real email.</p>
+      <p>
+        We do not store raw passwords. Password-based sign-in is handled
+        entirely by Firebase Authentication.
+      </p>
+      <p>
+        During onboarding you may also set a personalization <strong>alias /
+        nickname</strong> and a display name; see Section 7.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>4. Age eligibility and date-of-birth gate</h2>
+      <p>
+        Meme Chat AI is intended for users <strong>16 and older</strong>. The App includes a
+        mandatory date-of-birth age gate. Before you can use the App, you enter
+        your date of birth; the App computes your age and either lets you
+        continue or blocks access if you are under the minimum age.
+      </p>
+      <p>
+        Your <strong>date of birth and the resulting pass/block decision are
+        stored locally on your device</strong> (see Section 11). This record is
+        <strong>intentionally retained on the device after you delete your
+        account</strong>, so that someone under the minimum age cannot bypass
+        the check by deleting and re-creating an account. It is cleared by
+        reinstalling or removing the App.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>5. AI features and OpenAI</h2>
+      <p>
+        Meme Chat AI uses OpenAI to generate AI chat replies and to create
+        conversation titles and conversation summaries. The App may use
+        different OpenAI models depending on your plan.
+      </p>
+
+      <h3>What is sent to OpenAI</h3>
+      <p>When you send a chat message, our backend may send OpenAI:</p>
+      <ul>
+        <li>the system / persona prompt that defines the AI character, including the text of any custom persona you built and rot-level context;</li>
+        <li>an optional summary of earlier parts of the conversation;</li>
+        <li>recent conversation history (your previous messages and the AI's previous replies), for context;</li>
+        <li>for paid subscribers with Memory on, your <strong>memory notes</strong> as part of the system context (see Section 7);</li>
+        <li>your current message; and</li>
+        <li><strong>image inputs</strong> for any meme or GIF involved in the turn (see Section 6).</li>
+      </ul>
+      <p>
+        <strong>Conversation history is sent to OpenAI</strong> so the AI can
+        respond with context. <strong>In addition to text, the App sends image
+        inputs to OpenAI:</strong> meme images are sent as image URLs, animated
+        GIFs are decoded by our backend into a few still frames that are sent as
+        image data, and <strong>photos you upload to a message</strong> (taken
+        with the camera or chosen from your photo library) are sent as image data
+        so the AI can respond to them. The App does <strong>not</strong> support
+        other file uploads, audio, or microphone input, so those are not sent to
+        OpenAI.
+      </p>
+      <p>
+        We also use OpenAI's moderation API as part of our content moderation
+        pipeline (see Section 18), including when you create or edit a custom
+        persona, where the persona's text and any avatar image (uploaded or
+        AI-generated) are sent to OpenAI for moderation. Moderation calls are
+        separate from chat calls and are subject to the same OpenAI data-handling
+        terms.
+      </p>
+      <p>
+        <strong>AI-generated persona avatars.</strong> In the Persona Creator you
+        can optionally generate an avatar instead of uploading one: you type a short
+        description (up to 100 characters) and we send it to OpenAI's image
+        generation API (gpt-image-1-mini) to create two candidate images. The
+        description is screened by moderation before generation, and the candidate
+        images are discarded unless you select one — a selected image is then
+        treated exactly like an uploaded avatar (moderated and stored under
+        personaAvatars/{uid}). Generating avatars draws from the same usage
+        allowance as chat. AI-generated images can be imperfect or unexpected.
+      </p>
+      <p>
+        <strong>AI-written persona descriptions.</strong> In the Persona Creator
+        you can optionally have us draft a persona's description for you. When you
+        do, the details you have already entered (such as the name, tagline, vibe,
+        and humor) and the persona's avatar image — the photo you uploaded or the
+        avatar you generated — are sent to OpenAI to write a short description.
+        The result is screened by moderation and placed in the field for you to
+        keep or edit. This draws from the same usage allowance as chat. The
+        request is not retained beyond generating the text, and the avatar image
+        follows the same storage and deletion rules as any other persona avatar.
+      </p>
+      <p>Separately, and at our own cost (never billed to you):</p>
+      <ul>
+        <li><strong>Conversation titles</strong> are generated by sending your first message in a conversation to OpenAI.</li>
+        <li><strong>Conversation summaries</strong> are generated by sending a transcript of the conversation to OpenAI; the resulting summary is stored.</li>
+      </ul>
+
+      <h3>What is stored</h3>
+      <p>
+        Your messages and the AI's replies are stored in our Firestore
+        database, along with conversation titles, a first-message snippet, a
+        last-message preview, summaries, persona metadata, and references to any
+        attached memes/GIFs (see Sections 6 and 7).
+      </p>
+
+      <h3>OpenAI training and retention</h3>
+      <p>
+        OpenAI states that data submitted through its API is not used to train
+        its models by default, unless the developer explicitly opts in (we do
+        not), and that OpenAI may retain limited API logs for abuse monitoring
+        for up to 30 days unless a longer period is required by law or another
+        exception applies. We have not entered into a Zero Data Retention
+        arrangement with OpenAI. OpenAI's own
+        <a href="https://openai.com/policies/privacy-policy/">privacy policy</a>
+        and API data-use terms govern its processing.
+      </p>
+
+      <div class="callout">
+        <strong>Please don't share highly sensitive information.</strong>
+        Because your messages and meme/GIF image inputs are processed by OpenAI
+        and stored as described, you should not enter highly sensitive personal,
+        financial, health, legal, or otherwise confidential information into
+        chats unless you are comfortable having it processed this way.
+      </div>
+
+      <h3>Web search (Tavily)</h3>
+      <p>
+        To answer questions that depend on current, real-world information (for
+        example recent events, news, scores, prices, or anything that changes
+        over time and may be beyond the AI's training knowledge), the App can
+        perform a web search on your behalf. This happens automatically and only
+        when it is needed:
+      </p>
+      <ul>
+        <li>For each message, a lightweight OpenAI model (a "router") looks at
+            your message and recent conversation context and decides whether a
+            web search is required. Most messages — jokes, chit-chat, opinions,
+            general knowledge — do <strong>not</strong> trigger a search.</li>
+        <li>When a search is warranted, that model rewrites your message into a
+            short, clean search query (for example, turning a casual question
+            into a few keywords). <strong>This query is generated from your
+            message and recent context, so conversation-derived terms — not only
+            text you type — may be included in it.</strong></li>
+        <li>Our backend sends that query to <strong>Tavily</strong>, a web-search
+            provider, which returns a brief set of results (a short answer and a
+            few source snippets and links).</li>
+        <li>Those results are added to the context sent to OpenAI for that one
+            reply, so the AI can answer accurately. The fetched results are
+            <strong>not stored long-term</strong> by us; only the AI's resulting
+            reply is saved as part of your conversation (see Section 7).</li>
+      </ul>
+      <p>
+        We send Tavily only the search query and the parameters needed to run the
+        search. <strong>We do not send Tavily your account identifier, your email,
+        or your full conversation</strong> — just the short query. Tavily's
+        processing, retention, and any logging are governed by Tavily's own
+        <a href="https://tavily.com/privacy">privacy policy</a>. Web search uses
+        the same usage allowance as chat (the search and the extra context are
+        metered like any other AI usage; see Section 13). Results returned from
+        the web can be inaccurate, incomplete, or out of date.
+      </p>
+      <p>
+        AI responses can be inaccurate, incomplete, or out of date. Do not rely
+        on them as professional advice.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>6. Meme, GIF, and photo attachments in chat</h2>
+      <p>
+        Both you and the AI can attach Klipy memes and GIFs to messages. When a
+        meme or GIF is part of a turn:
+      </p>
+      <ul>
+        <li>the media is fetched from Klipy (see Section 8);</li>
+        <li>a <strong>reference to the meme/GIF</strong> (such as its media URLs and basic metadata) may be stored on the message in Firestore so the conversation renders correctly later; and</li>
+        <li>the <strong>image is sent to OpenAI as an image input</strong> so the AI can reason about or respond with relevant media. A still meme is sent as an image; an animated GIF is first sampled into a few still frames by our backend, and those frames are sent as image data.</li>
+      </ul>
+      <p>
+        You can also attach your own <strong>photos</strong> — taken with the
+        camera or chosen from your photo library. An attached photo is compressed
+        on your device, uploaded to our Cloud Storage under a path scoped to your
+        account (<code>messageImages/{uid}/{conversationId}</code>), referenced on
+        the message in Firestore, and sent to OpenAI as an image input. The App
+        does not support uploading other files or audio. Uploaded photos are
+        deleted when you delete the conversation or your account (see Sections
+        20–21).
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>7. Conversations, titles, summaries, ratings, and chat history</h2>
+      <p>
+        Your conversations — including the full text of your messages and the
+        AI's replies — are stored in Firestore and linked to your Firebase UID,
+        so your history is available across your sessions. We also store
+        conversation titles, a first-message snippet, a last-message preview,
+        AI-generated summaries, persona metadata, references to attached
+        memes/GIFs, and any <strong>thumbs up/down rating</strong> you give an
+        AI reply.
+      </p>
+      <p>
+        You may set a personalization <strong>alias/nickname</strong> and a
+        <strong>display name</strong>, which are stored in your Firestore
+        profile (and mirrored locally). Your <strong>rot-level</strong>
+        preference is stored locally and on your messages and may influence the
+        style of the AI's responses (see Section 5). Optional <strong>chat
+        appearance customization</strong> (such as bubble style and background,
+        which may be tied to paid features) is stored locally on your device.
+      </p>
+      <p>
+        You can delete individual conversations from within the App. Deleting a
+        conversation removes that conversation and its messages, but it does not
+        delete your account or profile, does not delete your purchase data, and
+        does not refund credits. Your conversation data remains until you delete
+        the conversation, delete your account, or we remove it for operational,
+        safety, or legal reasons.
+      </p>
+
+      <h3>Memory notes (paid plans)</h3>
+      <p>
+        Paid subscribers (Sidekick, Wingman, and MVP plans) get a
+        <strong>Memory</strong> feature that lets the AI write short notes about
+        you over time, such as your general vibe, the people you mention, and
+        topics you keep returning to, so it does not ask the same things twice.
+      </p>
+      <ul>
+        <li>Memory is <strong>only available on paid plans</strong> and is <strong>not available to free (Newbie) users</strong>.</li>
+        <li>For paid subscribers, Memory is <strong>on by default</strong>. You can turn it off (opt out) at any time from <strong>Settings &rarr; Memory</strong>, and the chat screen shows a small "Memory is on" indicator on a new chat so you always know its state.</li>
+        <li>When Memory is on, the AI writes short notes about you during chats. You cannot edit these notes by hand, but you can <strong>delete individual entries or wipe all memory</strong> at any time from <strong>Settings &rarr; Memory</strong>.</li>
+        <li>Memory notes are stored in your Firestore account, linked to your Firebase UID, and are kept deliberately short.</li>
+        <li>When Memory is on, the relevant notes are included in the system context sent to OpenAI along with your message, so OpenAI processes them as part of each request (see Section 5).</li>
+        <li>Turning Memory <strong>off</strong> stops new notes from being written and stops existing notes from being used. Using <strong>Wipe</strong> removes all existing notes from your account immediately.</li>
+        <li>Memory notes are deleted when you delete your account (see Section 21).</li>
+      </ul>
+
+      <h3>Custom personas you create (Persona Creator)</h3>
+      <p>
+        The App lets you build your own chat personas. When you create or edit a
+        persona you provide text such as its name, a short description/tagline,
+        an identity, an example reply, humor and slang notes, greeting styles, an
+        emoji set, an optional word bank, and meme/GIF preferences, and you may
+        upload an optional avatar image.
+      </p>
+      <ul>
+        <li>What you author is stored in Firestore (in <code>user_personas</code>,
+            linked to your Firebase UID), together with the prompt the App
+            renders from it. An uploaded avatar is stored in Cloud Storage under
+            <code>personaAvatars/{uid}</code> (see Section 9).</li>
+        <li>The personas you create are <strong>private to your account</strong>.
+            They are not shown to, or shared with, other users.</li>
+        <li>Every persona is <strong>moderated when you save or edit it</strong>,
+            before it can be used. The persona's text and any uploaded avatar are
+            sent to OpenAI as part of that check (see Sections 5 and 18). A
+            persona that does not pass is rejected and is not saved.</li>
+        <li>When you chat with one of your personas, <strong>its text is sent to
+            OpenAI as part of the system prompt</strong> for that conversation,
+            the same way the built-in persona is (see Section 5).</li>
+        <li>How many personas you can store depends on your plan: the free plan
+            allows one custom persona, and paid plans allow up to 100. You can
+            <strong>edit or delete a persona at any time</strong> from within the
+            App; deleting it also deletes its stored avatar.</li>
+        <li>Your personas and their avatars are deleted when you delete your
+            account (see Section 21).</li>
+      </ul>
+
+      <!-- ===================================================== -->
+      <h2>8. Klipy meme and GIF media</h2>
+      <p>
+        The App uses the Klipy API to show trending memes and GIFs, to let you
+        search memes and GIFs by keyword, and to let the AI attach relevant
+        meme/GIF reactions. The Klipy app key is held only on our backend and is
+        never exposed to the App.
+      </p>
+      <p>When the App requests media, our backend sends Klipy:</p>
+      <ul>
+        <li><code>customer_id</code>, which is set to your Firebase UID;</li>
+        <li>the page and results-per-page;</li>
+        <li>your locale/country code, when available;</li>
+        <li>a content-filter level (defaulting to a conservative setting); and</li>
+        <li>for searches, a search query.</li>
+      </ul>
+      <p>
+        <strong>Search queries sent to Klipy may be ones you type or ones the AI
+        generates from the conversation.</strong> When the AI decides a meme or
+        GIF fits the moment, it forms a short search query based on the
+        conversation context and our backend sends that query to Klipy. This
+        means conversation-derived terms — not only text you type into a search
+        box — may be sent to Klipy.
+      </p>
+      <p>
+        According to Klipy's integration notes, <code>customer_id</code> is used
+        for personalization and de-duplication and is expected to stay
+        consistent for the same user, which is why the Firebase UID is passed.
+        Meme/GIF results are shown in the App and are not stored long-term by us,
+        except that a reference to a meme/GIF you or the AI attach to a message
+        is stored on that message (see Section 6). Klipy's own handling,
+        retention, and analytics are governed by Klipy's policies.
+        The current version does not use any Klipy advertising features or ad SDK.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>9. Firebase and Google Cloud</h2>
+      <p>We use Google Firebase to run the App:</p>
+      <ul>
+        <li><strong>Firebase Authentication</strong> for account creation and sign-in.</li>
+        <li>
+          <strong>Cloud Firestore</strong> stores your profile, conversations
+          and messages, AI replies, conversation metadata, message ratings,
+          persona metadata, meme/GIF references, usage events, billing fields,
+          rate-limit documents, content moderation records (see Section 18), and
+          revenue/audit records.
+        </li>
+        <li>
+          <strong>Cloud Functions</strong> run our backend logic, including the
+          AI streaming proxy and OpenAI calls, the Klipy proxy, the web-search
+          proxy (Tavily), account and
+          conversation deletion, the RevenueCat webhook, title generation,
+          summarization, usage aggregation, rate limiting, content moderation
+          (see Section 18), and server-side watermarking of downloaded media
+          (see Section 12).
+        </li>
+      </ul>
+      <p>
+        <strong>Cloud Storage for Firebase</strong> stores the photos you upload
+        as chat attachments, under a path scoped to your account
+        (<code>messageImages/{uid}/{conversationId}</code>), and any avatar image
+        you upload for a custom persona, under <code>personaAvatars/{uid}</code>.
+        Storage access is locked down so you can only read and write within your
+        own namespace. Chat-photo objects are deleted when you delete the
+        conversation or your account, and a persona avatar is deleted when you
+        remove or replace it, delete the persona, or delete your account (see
+        Sections 20–21). The App does not store any other user uploads (no other
+        files or audio) in Cloud Storage.
+      </p>
+      <p>
+        Our Cloud Functions logs may contain technical metadata such as your
+        UID, conversation and message IDs, token counts, cost/credit figures,
+        plan/model, attachment metadata, rate-limit details, IP/network data,
+        and error strings. We do not intentionally log the text of your prompts
+        or the AI's replies (see Section 13). Our Cloud Functions run in Google's
+        <code>us-central1</code> region.
+      </p>
+      <p>
+        Firebase / Google Cloud processes this data on our behalf as a service
+        provider/processor under its own
+        <a href="https://firebase.google.com/support/privacy">terms</a>.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>10. Purchases, subscriptions, free trials, RevenueCat, Apple, and Google</h2>
+      <p>
+        Subscriptions, entitlements, and purchase restoration are managed
+        through RevenueCat, with Apple App Store and Google Play as the payment
+        processors. Your RevenueCat "app user ID" is set to your Firebase UID.
+      </p>
+
+      <h3>Free trial / introductory offer</h3>
+      <p>
+        New subscribers may be offered a <strong>7-day free trial</strong> of the
+        Wingman (Plus) plan as a one-time introductory offer. The following terms
+        apply to the free trial:
+      </p>
+      <ul>
+        <li>The trial is available only to users who have never previously
+            subscribed to that plan tier (one introductory offer per Apple ID or
+            Google account, enforced by the App Store / Google Play).</li>
+        <li>Full plan features are available immediately when the trial starts.</li>
+        <li><strong>Your subscription auto-renews at the regular monthly price
+            at the end of the 7-day trial period unless you cancel at least
+            24 hours before the trial ends.</strong></li>
+        <li>No charge is made during the trial period. Your payment method is
+            collected when you start the trial and charged only if you do not
+            cancel before the trial period ends.</li>
+        <li>To cancel: open the App Store (iOS) or Google Play (Android) →
+            Subscriptions → Meme Chat AI → Cancel.</li>
+        <li>We record whether your active subscription is in a trial period
+            (<code>rcIsInTrial</code>) and the trial end date
+            (<code>rcTrialExpiresAt</code>) in your Firestore profile. These
+            fields are cleared when the trial converts to a paid subscription
+            or when the subscription is cancelled or expires.</li>
+      </ul>
+
+      <p>
+        RevenueCat and the app stores may process purchase history, product
+        identifiers, subscription status, receipts or purchase tokens,
+        transaction metadata, the app user ID / purchase identifier, entitlement
+        status, trial period information, and renewal/expiration/cancellation
+        events, along with related device/technical information.
+        <strong>We never receive your full payment card number.</strong>
+      </p>
+      <p>
+        In your Firestore profile we store billing fields such as your plan,
+        active product ID, entitlement expiry, trial status and trial end date,
+        credit balance, RevenueCat app user ID, and related status while your
+        account exists. We also keep a compact webhook/audit record
+        (<code>revenueCatEvents</code>) of purchase events for accounting,
+        fraud-prevention, and legal purposes; that audit record does not store
+        your Firebase UID or RevenueCat app user ID.
+      </p>
+      <div class="callout">
+        <strong>Deleting your Meme Chat AI account does not cancel an active
+        subscription or free trial.</strong> To cancel, manage your subscription
+        through the Apple App Store or Google Play subscription settings.
+        App-store and RevenueCat purchase/audit records may be retained after you
+        delete your account (see Sections 20–21).
+      </div>
+      <p>
+        RevenueCat's processing is governed by its
+        <a href="https://www.revenuecat.com/privacy/">privacy policy</a>, and
+        purchases are also governed by Apple's and Google's respective policies.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>11. Local device storage</h2>
+      <p>
+        The App stores a small amount of data locally on your device using
+        AsyncStorage:
+      </p>
+      <ul>
+        <li>app settings such as theme/appearance and language;</li>
+        <li>an onboarding status/step flag;</li>
+        <li>your alias/nickname (a local copy of the personalization value);</li>
+        <li>chat appearance customization (bubble style, background);</li>
+        <li>your <strong>age-gate status and date of birth</strong> (see Section 4);</li>
+        <li>your rot-level preference;</li>
+        <li>the last conversation you had open; and</li>
+        <li>session tokens and a user cache managed by the Firebase Auth SDK.</li>
+      </ul>
+      <p>
+        Chats, prompts, AI responses, purchases, downloaded media, and logs are
+        <strong>not</strong> persisted locally by the App's own code beyond what
+        is listed above. Local app data is cleared as part of the sign-out and
+        account-deletion flow, <strong>except the age-gate status and date of
+        birth</strong>, which are intentionally retained on the device after
+        account deletion (see Section 4). You can remove everything, including
+        the age-gate record, by deleting the App from your device.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>12. Device permissions, notifications, gallery saves, and media downloads</h2>
+      <p>The current version of the App:</p>
+      <ul>
+        <li>uses <strong>Sign in with Apple</strong>;</li>
+        <li>requires <strong>internet / network access</strong> to function;</li>
+        <li>requests <strong>camera</strong> and <strong>photo-library</strong> access so you can take or choose a photo to attach to a message;</li>
+        <li>requests <strong>permission to save to your photo/media library</strong> so you can download memes/GIFs to your device gallery;</li>
+        <li>requests <strong>notification permission</strong> during onboarding; and</li>
+        <li>may use the <strong>clipboard</strong> when you copy an AI reply.</li>
+      </ul>
+      <p>
+        The current version does <strong>not</strong> request access to your
+        microphone, precise location, contacts, calendar, Bluetooth, or speech
+        recognition, and does not support file or audio uploads.
+      </p>
+
+      <h3>Notifications</h3>
+      <p>
+        We ask for notification permission during onboarding. In the current
+        version, granting permission does not result in a push token being
+        collected or sent to us, and we do not currently send push notifications.
+      </p>
+
+      <h3>Media downloads and watermarking</h3>
+      <p>
+        When you download a meme or GIF you've seen in chat, our backend fetches
+        the Klipy media asset, composites a watermark onto it, and returns the
+        watermarked image to the App. The App then saves the watermarked image
+        to your device's photo/media library using the save permission above.
+        We do not read or scan the rest of your photo library — the permission
+        is used only to add the file you chose to save.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>13. Usage, credits, rate limits, and technical logs</h2>
+      <p>
+        The App meters AI usage with a credit ledger. To do this we store token
+        counts, cost estimates, the model/plan used, credit balances, and usage
+        events linked to your UID. We may also keep anonymized daily usage
+        aggregates that are not tied to an individual user.
+      </p>
+      <p>
+        To protect the service from abuse, our backend applies a per-IP rate
+        limit. We store a hashed, truncated form of your IP address in a
+        short-lived rate-limit record (swept automatically by a time-to-live
+        policy) rather than your raw IP. However, your raw IP address or network
+        information may appear in our Cloud Functions diagnostic logs — for
+        example, in a rate-limit warning.
+      </p>
+      <p>
+        We do not intentionally log the text of your prompts or the AI's
+        replies. Backend logs are used for operating the App, billing, security,
+        rate limiting, and debugging, and may include metadata (including
+        attachment metadata such as counts/hosts/types, never asset URLs) and
+        error strings as described above.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>14. Analytics, ads, and tracking</h2>
+      <p>
+        <strong>Ads.</strong> The App shows ads to free users through Google
+        AdMob, and requests non-personalized ads where supported. Paid plans are
+        ad-free. The App may also use rewarded ads for optional features —
+        rewarded ads let you choose to watch or interact with an ad in exchange
+        for an in-app reward — though rewarded ads are not shown in the current
+        version.
+      </p>
+      <p>Ad providers may process information such as:</p>
+      <ul>
+        <li>IP address</li>
+        <li>Device information</li>
+        <li>Advertising or app identifiers, where available and permitted</li>
+        <li>Coarse location derived from technical information such as IP address</li>
+        <li>Ad interactions</li>
+        <li>App interactions related to ad delivery</li>
+        <li>Video views</li>
+        <li>Reward completion events</li>
+        <li>Diagnostics and performance information</li>
+        <li>Fraud-prevention and frequency-capping information</li>
+      </ul>
+      <p>
+        Non-personalized ads are not based on your past behavior, but they may
+        still use contextual information, general location, device information,
+        and technical data for ad delivery and measurement. Where required by law
+        or platform rules, we or our ad partners may ask for consent before using
+        certain identifiers or ad technologies.
+      </p>
+      <p>
+        Aside from Google AdMob, and based on the current version of the App, we
+        do <strong>not</strong> use Google Analytics or Firebase Analytics,
+        Crashlytics, Sentry, attribution SDKs, or any cross-app tracking. The
+        only internal events we record are our own usage events and server logs,
+        used for app functionality, billing, security, rate limiting, and
+        debugging. Backend logs and diagnostics are still processed by Firebase /
+        Google Cloud as part of running the service.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>15. How we use information</h2>
+      <p>We use the data described above to:</p>
+      <ul>
+        <li>confirm your age eligibility;</li>
+        <li>create and authenticate your account and keep you signed in;</li>
+        <li>provide AI chat, including titles, summaries, meme/GIF reactions, and web search for current information when a message needs it;</li>
+        <li>store and show your conversation history, ratings, and personalization;</li>
+        <li>provide the Memory feature (for paid subscribers who have it enabled), using memory notes as additional context in AI sessions;</li>
+        <li>let you build, edit, and chat with custom personas, and moderate each one before it goes live;</li>
+        <li>show, search, attach, and let you download trending meme and GIF media;</li>
+        <li>manage subscriptions, entitlements, and credits;</li>
+        <li>show ads to free users through Google AdMob (paid plans are ad-free);</li>
+        <li>meter usage and prevent abuse (including rate limiting and fraud prevention);</li>
+        <li>screen content for safety and enforce our Terms of Use (see Section 18);</li>
+        <li>operate, debug, secure, and improve the App; and</li>
+        <li>comply with legal obligations and respond to your support requests.</li>
+      </ul>
+
+      <!-- ===================================================== -->
+      <h2>16. How we disclose information</h2>
+      <p>We share information only as needed to run the App:</p>
+      <ul>
+        <li><strong>OpenAI</strong> — chat content and conversation context, meme/GIF image inputs, photos you attach, the text and avatar of custom personas you create (for moderation and as the persona prompt), moderation checks, and the inputs for titles/summaries.</li>
+        <li><strong>Firebase / Google Cloud</strong> — account, database, and backend processing.</li>
+        <li><strong>Klipy</strong> — meme/GIF media requests, including your UID as <code>customer_id</code> and any search query (typed or AI-generated).</li>
+        <li><strong>Tavily</strong> — a short, AI-generated web-search query (no account identifier), when a message needs current information.</li>
+        <li><strong>RevenueCat, Apple, and Google</strong> — purchase and subscription processing.</li>
+        <li><strong>Google AdMob</strong> — ad requests and the technical / ad-delivery information listed in Section 14, for ads shown to free users.</li>
+        <li><strong>Legal/safety</strong> — where required by law, to enforce our terms, or to protect users and the service.</li>
+      </ul>
+      <p>We do not sell your personal information. Free users see non-personalized ads through Google AdMob as described in Section 14; we do not otherwise share your data for cross-app tracking.</p>
+
+      <!-- ===================================================== -->
+      <h2>17. Security</h2>
+      <p>
+        We use measures such as Firebase Authentication, server-side
+        authorization checks, restricted database rules, backend-only API keys,
+        host allowlisting for media, rate limiting, and automated content
+        moderation to help protect your data and the safety of the App. No
+        method of transmission or storage is completely secure, so we cannot
+        guarantee absolute security.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>18. Content moderation</h2>
+      <p>
+        Meme Chat AI uses automated content moderation to screen message text
+        and display names for hateful terminology and hate speech before they
+        are processed by the AI or stored in your conversation. This helps keep
+        the App a safer space for everyone and is part of how we enforce our
+        Terms of Use.
+      </p>
+
+      <h3>What is screened</h3>
+      <p>
+        Before a chat message is sent to the AI, your message text is checked
+        for hateful content using a combination of local keyword detection and
+        OpenAI's moderation API. Similarly, when you set or update your
+        alias/nickname or display name (during onboarding or in account
+        settings), those values are checked before being saved.
+      </p>
+
+      <h3>What happens when content is flagged</h3>
+      <ul>
+        <li><strong>Flagged messages</strong> are not sent to the AI and are not stored in your conversation history. You will see an in-app notice explaining that the message was flagged.</li>
+        <li><strong>Flagged names</strong> are rejected before they are saved. You will be prompted to choose a different alias or display name.</li>
+      </ul>
+      <p>
+        In both cases, a <strong>moderation record</strong> is written to our
+        backend containing: your user ID, the conversation ID (if applicable),
+        a message reference (if applicable), the reason for the flag, and a
+        timestamp. This record is stored for safety and audit purposes and is
+        not readable through the App or accessible to other users.
+      </p>
+
+      <h3>Custom persona moderation</h3>
+      <p>
+        Because a custom persona shapes every future reply, we moderate it more
+        strictly than a single chat message, and the check must pass before the
+        persona can be saved or used. When you save or edit a persona, its text,
+        together with any avatar image you uploaded, is run through several
+        checks in order:
+      </p>
+      <ul>
+        <li>an automated check using OpenAI's moderation model over the full persona text and the avatar image, covering categories such as sexual content, hate, illicit or violent content, and self-harm;</li>
+        <li>the same hate-speech check used for chat messages and names; and</li>
+        <li>an automated reviewer that looks at intent — for example, personas built to be sexual or romantic companions, to impersonate or target a real, identifiable person, to bypass or disable the App's safety rules, to push slurs or dogwhistles, or to encourage self-harm.</li>
+      </ul>
+      <p>
+        These checks <strong>fail closed</strong>: if a check cannot complete,
+        the save is rejected and you can try again, rather than the persona going
+        live unchecked. A persona that does not pass is rejected (you are told it
+        was rejected, and roughly why) and is not saved, and a moderation record
+        is written as described above. Personas that pass are private to your
+        account and are not shown to other users.
+      </p>
+
+      <h3>Reporting and feedback</h3>
+      <p>
+        If you believe your content was incorrectly flagged, or if you want to
+        report content that you think should have been moderated but was not,
+        contact us at
+        <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a>.
+        Please include as much context as possible so we can review the situation.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>19. Children / minimum age</h2>
+      <p>
+        Meme Chat AI is intended for users 16 and older. It is not directed
+        to children, and we do not knowingly collect personal information from
+        anyone under the minimum age. The App uses a date-of-birth age gate to
+        enforce this (see Section 4). If you believe someone under the minimum
+        age has provided us personal information, contact us at
+        <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a> and we will take
+        appropriate steps.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>20. Data retention</h2>
+      <ul>
+        <li><strong>Conversations and messages</strong> (including ratings, persona metadata, and meme/GIF references) remain until you delete the conversation, delete your account, or we remove them for legal, safety, or operational reasons.</li>
+        <li><strong>Memory notes</strong> remain until you delete individual entries, wipe all memory from Settings &rarr; Memory, or delete your account.</li>
+        <li><strong>Photos you upload as chat attachments</strong> (stored in Cloud Storage) are removed when you delete the conversation or your account.</li>
+        <li><strong>Custom personas</strong> (their text in Firestore and any uploaded avatar in Cloud Storage) remain until you delete the persona or your account; an avatar is also removed when you replace or remove it.</li>
+        <li><strong>Profile / account data</strong> (including alias/display name and billing fields) remains while your account exists.</li>
+        <li><strong>Usage events</strong> tied to your UID are removed when you delete your account.</li>
+        <li><strong>Anonymized daily usage aggregates</strong> may be retained.</li>
+        <li><strong>Content moderation records</strong> (see Section 18) are retained for safety and audit purposes and may be kept for a reasonable period after your account is deleted.</li>
+        <li><strong>De-identified RevenueCat webhook / audit records</strong> may be retained for accounting, fraud-prevention, and legal purposes, including after account deletion.</li>
+        <li><strong>Hashed IP rate-limit records</strong> are short-lived and swept automatically by a time-to-live policy. Raw IP that appears in our Cloud Functions diagnostic logs is retained for up to 30 days under Google Cloud Logging's default retention.</li>
+        <li><strong>Local device data</strong> (settings, onboarding flag, alias, customization, rot level, session, persona selection, persona drafts, review-prompt state, and scheduled daily notifications) is removed on sign-out, account deletion, or App deletion — <strong>except the age-gate status and date of birth</strong>, which are intentionally retained on the device after account deletion and cleared only by deleting the App.</li>
+        <li><strong>Web search results</strong> fetched from Tavily are used only to inform a single AI reply and are not stored long-term by us (the resulting reply is saved as part of your conversation).</li>
+        <li><strong>Third parties</strong> (OpenAI, Klipy, Tavily, RevenueCat, Apple, Google) retain data under their own policies.</li>
+      </ul>
+
+      <!-- ===================================================== -->
+      <h2>21. Account deletion, conversation deletion, and local data deletion</h2>
+      <h3>Deleting your account</h3>
+      <p>
+        You can delete your account from within the App. For your security, this
+        requires recent re-authentication. Once you confirm, the App shows a
+        non-cancellable progress screen while the deletion runs, so it cannot be
+        interrupted partway through. When you delete your account, the App
+        is designed to delete your Firebase Authentication user, your profile
+        and its subcollections, the conversations and messages you own, your
+        Memory notes, the custom personas you created and their avatars, the
+        photos you uploaded as chat attachments (in Cloud
+        Storage), and the usage events linked to your UID. After deleting these,
+        the server re-checks that no per-user records or uploaded objects remain
+        before reporting success. The App then signs you out and wipes local app
+        data — settings, onboarding flag, alias, chat customization, chat
+        session, persona selection, persona drafts, review-prompt state, and any
+        scheduled daily notifications — other than the retained age-gate/DOB
+        record described above.
+      </p>
+      <p>
+        Account deletion is performed across separate systems, so it cannot be
+        perfectly atomic. We delete your sign-in record first; if a later
+        cleanup step (or the post-deletion verification described above) fails,
+        some records may briefly remain. The App is designed to report that
+        failure instead of telling you deletion fully completed, so the issue can
+        be retried or remediated. We attempt to delete all of the data described
+        above, but cannot guarantee that every copy is removed instantly.
+      </p>
+      <p>The following are <strong>not</strong> deleted by account deletion:</p>
+      <ul>
+        <li>content moderation records (see Section 18 and Section 20);</li>
+        <li>de-identified RevenueCat webhook / audit records (<code>revenueCatEvents</code>);</li>
+        <li>anonymized daily usage aggregates;</li>
+        <li>hashed IP rate-limit records (until their time-to-live sweep);</li>
+        <li>the local age-gate status and date of birth on your device;</li>
+        <li>purchase/transaction records held by RevenueCat, Apple, or Google;</li>
+        <li>any API logs OpenAI retains, and any records held by Klipy or Tavily.</li>
+      </ul>
+      <p>
+        <strong>Deleting your account does not cancel your subscription</strong>
+        — cancel through the App Store or Google Play (see Section 10).
+      </p>
+      <h3>Deleting conversations</h3>
+      <p>
+        You can delete selected conversations from within the App. This removes
+        those conversations and their messages (including ratings, meme/GIF
+        references, and any photos you uploaded to them in Cloud Storage) but does
+        not delete your account, profile, or purchase data, and does not refund
+        credits.
+      </p>
+      <h3>Deleting local data</h3>
+      <p>Deleting the App from your device removes the local settings, onboarding flag, personalization, age-gate/DOB record, and session data stored on it.</p>
+
+      <!-- ===================================================== -->
+      <h2>22. Your choices and privacy rights</h2>
+      <p>You can:</p>
+      <ul>
+        <li>create, sign in to, or delete your account;</li>
+        <li>use Sign in with Apple, including <em>Hide My Email</em>, where available;</li>
+        <li>delete conversations within the App;</li>
+        <li>create, edit, or delete your custom personas from within the App;</li>
+        <li>enable, disable, or wipe your Memory notes from <strong>Settings &rarr; Memory</strong> (paid plans only);</li>
+        <li>manage notification and photo/media-library permissions in your device settings;</li>
+        <li>manage or cancel subscriptions through your App Store or Google Play subscription settings;</li>
+        <li>delete local app data (including the age-gate record) by deleting the App;</li>
+        <li>choose not to enter sensitive content into chats; and</li>
+        <li>contact us at <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a> with any privacy request.</li>
+      </ul>
+      <p>
+        Depending on where you live, you may also have the right to request
+        access to, correction of, deletion of, or a copy/export of your personal
+        data; to object to or restrict certain processing; to withdraw consent;
+        and to lodge a complaint with, or appeal to, your data-protection
+        authority. We may need to verify your identity before acting on a
+        request. The App does not currently offer an in-app data export, but you
+        can request a copy of your personal data by emailing us (see Section 26).
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>23. App Store and Google Play privacy information</h2>
+      <p>
+        The privacy disclosures we provide in Apple's App Store ("App Privacy")
+        and Google Play's ("Data safety") are intended to match this policy and
+        the App's actual behavior. The mapping below is a draft to be confirmed
+        against the final store listings.
+      </p>
+      <table>
+        <thead>
+          <tr><th>Data type</th><th>Examples</th><th>Linked to you?</th><th>Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Contact info</td><td>Email address</td><td>Yes</td><td>Account management, app functionality</td></tr>
+          <tr><td>Identifiers</td><td>Firebase UID, RevenueCat app user ID, Apple Sign In identifier</td><td>Yes</td><td>App functionality, purchases, security</td></tr>
+          <tr><td>User content</td><td>Chat messages, AI replies, titles/summaries, meme/GIF references and image inputs sent to OpenAI, photos you upload as attachments, custom personas you create and their avatars, message ratings/reactions, alias/personalization, Memory notes (paid plans, when enabled)</td><td>Yes</td><td>App functionality (sent to OpenAI / stored in Firebase)</td></tr>
+          <tr><td>Purchases</td><td>Subscription status, product IDs, entitlement status, purchase/transaction metadata (via RevenueCat/Apple/Google)</td><td>Yes</td><td>App functionality, fraud prevention</td></tr>
+          <tr><td>Usage data</td><td>Token counts, credits, plan/model, usage events, ratings/reactions</td><td>Yes</td><td>App functionality, billing</td></tr>
+          <tr><td>Diagnostics</td><td>Logs, errors, IP/network data, attachment metadata, rate-limit data</td><td>Yes</td><td>Security, diagnostics, app functionality</td></tr>
+          <tr><td>Search history</td><td>Meme/GIF search queries sent to Klipy — typed by you or generated by the AI from the conversation — and AI-generated web-search queries sent to Tavily when a message needs current information</td><td>Yes</td><td>App functionality (meme/GIF search/attachment; web search)</td></tr>
+          <tr><td>Photos or videos</td><td>Photos you take or choose to attach to a message are uploaded and sent to OpenAI. (Separately, the App saves watermarked memes/GIFs to your gallery via add/save access and does not otherwise read your library.)</td><td>Yes</td><td>App functionality (chat attachments)</td></tr>
+          <tr><td>Coarse location</td><td>Locale/country code (not collected as device location)</td><td>&mdash;</td><td>Meme/GIF localization</td></tr>
+          <tr><td>Notifications</td><td>Permission requested; no push token collected in the current version</td><td>&mdash;</td><td>&mdash;</td></tr>
+          <tr><td>Advertising data (free users)</td><td>IP address, device info, advertising/app identifiers where available, coarse location from IP, ad interactions, and diagnostics — processed by Google AdMob for non-personalized ads; paid plans are ad-free</td><td>Yes</td><td>Third-party advertising (Google AdMob)</td></tr>
+          <tr><td>Data used to track you</td><td>None identified in the current version (AdMob requests are for non-personalized ads and are not used for cross-app tracking)</td><td>&mdash;</td><td>&mdash;</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Free users see ads through Google AdMob, which requests non-personalized
+        ads and may process advertising or app identifiers where available and
+        permitted (see Section 14). The App does not present an App Tracking
+        Transparency prompt or use cross-app tracking in the current version.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>24. International processing</h2>
+      <p>
+        Your data may be processed in the United States and other countries by
+        us and our service providers, including Firebase / Google Cloud, OpenAI,
+        Klipy, Tavily, RevenueCat, Apple, and Google. Where required, transfers are
+        intended to rely on appropriate safeguards such as Standard Contractual
+        Clauses or equivalent mechanisms.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>25. Changes to this policy</h2>
+      <p>
+        We may update this policy from time to time. When we do, we will update
+        the effective date above and, where appropriate, provide additional
+        notice.
+      </p>
+
+      <!-- ===================================================== -->
+      <h2>26. Contact</h2>
+      <p>
+        Questions or privacy requests? Email
+        <a href="mailto:memechataisupport@gmail.com">memechataisupport@gmail.com</a>.
+      </p>
+
+      <footer>
+        <span>&copy; MemeChatAI</span>
+        <span><a href="/">Back to home</a></span>
+      </footer>
+    </div>
+  </body>
+</html>

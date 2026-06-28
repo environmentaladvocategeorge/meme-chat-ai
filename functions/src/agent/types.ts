@@ -1,5 +1,6 @@
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
+import type { MessageSticker } from "../messages/messageSticker";
 
 export type ChatRole = "user" | "agent";
 
@@ -14,6 +15,11 @@ export type ChatMessage = {
   // into sampled frames for the model; historical turns collapse to a text
   // placeholder, same as images.
   gifs?: MessageGif[];
+  // Sticker attachments on a user turn (up to MAX_STICKERS). User-send-only —
+  // the model never sends stickers back. On the current turn each sticker's
+  // static png is fed to the model (no frame extraction); historical turns
+  // collapse to a text placeholder, same as images/gifs.
+  stickers?: MessageSticker[];
 };
 
 export type AgentUsage = {

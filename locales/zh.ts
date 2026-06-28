@@ -654,6 +654,22 @@ const zh = {
       retry: "重试",
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "媒体",
+      keyboard: "键盘",
+      tabs: {
+        gifs: "GIF",
+        memes: "表情包",
+        stickers: "贴纸",
+      },
+    },
+    stickers: {
+      empty: "暂时没有贴纸",
+      noResults: "没有匹配的贴纸",
+      error: "无法加载贴纸",
+      retry: "重试",
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Rot等级",
       title: "回复应该有多烂？",
@@ -698,6 +714,7 @@ const zh = {
       remove: "移除表情包",
       imageLabel: "表情包附件",
       gifLabel: "GIF附件",
+      stickerLabel: "贴纸附件",
       sentMeme: "发送了一个表情包",
       invalid: "无法附加该表情包",
       download: {

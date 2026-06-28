@@ -93,9 +93,9 @@
       "card3Body": "Upload an avatar or generate one from a quick description, write its one-line tagline, and save. It lands in your bot picker, ready to go."
     },
     "meme": {
-      "eyebrow": "Memes on tap",
+      "eyebrow": "Memes, GIFs & stickers",
       "h2": "When words fail, send the meme.",
-      "p": "Mid-chat, pull up a strip of trending memes or search for the exact reaction, then drop it straight into the convo. Some moments deserve a face, not a paragraph."
+      "p": "Mid-chat, pull up a strip of trending memes and GIFs or search for the exact reaction, then drop it straight into the convo. Stickers work the same way: find one and send it. Some moments deserve a face, not a paragraph."
     },
     "memory": {
       "eyebrow": "Memory",

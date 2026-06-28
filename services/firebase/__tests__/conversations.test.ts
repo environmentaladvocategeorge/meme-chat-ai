@@ -76,6 +76,74 @@ describe("mapMessage", () => {
     expect(m?.images).toHaveLength(1);
   });
 
+  it("maps persisted stickers and carries optional title", () => {
+    const m = mapMessage("s1", {
+      role: "user",
+      text: "",
+      status: "complete",
+      stickers: [
+        {
+          id: "st-1",
+          source: "klipy-sticker",
+          url: "https://static.klipy.com/s.webp",
+          previewUrl: "https://static.klipy.com/s.png",
+          title: "rawr",
+          stickerId: "st-1",
+        },
+      ],
+    });
+    expect(m?.stickers).toHaveLength(1);
+    expect(m?.stickers?.[0]).toMatchObject({
+      id: "st-1",
+      source: "klipy-sticker",
+      title: "rawr",
+    });
+  });
+
+  it("filters out malformed sticker entries", () => {
+    const m = mapMessage("s1", {
+      role: "user",
+      text: "look",
+      status: "complete",
+      stickers: [
+        {
+          id: "st-1",
+          source: "klipy-sticker",
+          url: "https://static.klipy.com/s.webp",
+          previewUrl: "https://static.klipy.com/s.png",
+        },
+        { id: 5 },
+        { source: "klipy-sticker" },
+        // Wrong discriminant — a GIF must not slip into stickers.
+        {
+          id: "g1",
+          source: "klipy-gif",
+          url: "https://static.klipy.com/g.webp",
+          previewUrl: "https://static.klipy.com/g.jpg",
+        },
+      ],
+    });
+    expect(m?.stickers).toHaveLength(1);
+  });
+
+  it("keeps a sticker-only complete message with empty text", () => {
+    const m = mapMessage("s1", {
+      role: "user",
+      text: "",
+      status: "complete",
+      stickers: [
+        {
+          id: "st-1",
+          source: "klipy-sticker",
+          url: "https://static.klipy.com/s.webp",
+          previewUrl: "https://static.klipy.com/s.png",
+        },
+      ],
+    });
+    expect(m).not.toBeNull();
+    expect(m?.stickers).toHaveLength(1);
+  });
+
   it("shapes a valid persona and ignores a partial one", () => {
     const full = {
       id: "p1",

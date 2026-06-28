@@ -40,6 +40,7 @@ import {
 } from "./messages/messageImage";
 import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
+import { summarizeStickersForLog } from "./messages/messageSticker";
 import {
   buildDeciderAttachmentHint,
   collectCurrentAttachmentTitles,
@@ -166,9 +167,14 @@ export const streamReplayTurn = onRequest(
     const images = userTurn.images ?? [];
     const gifs = userTurn.gifs ?? [];
     const currentGif = gifs[0];
+    // Stickers persisted on the replayed user turn (empty for older turns →
+    // no-op downstream). Each still png is re-fed to the regenerated reply so it
+    // reacts to the same stickers; stickers are input-only here too.
+    const stickers = userTurn.stickers ?? [];
+    const currentStickerUrls = stickers.map((s) => s.previewUrl);
     // Klipy "meme name" metadata persisted on the replayed turn's attachments
     // (empty for uploads/older turns → no-op downstream).
-    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs, stickers);
     // Reconstruct the original turn's dials: reuse the persona the deleted reply
     // was generated with so the same character answers; default rot to 2 to
     // match the request schema's default for turns stored before the dial.
@@ -187,6 +193,11 @@ export const streamReplayTurn = onRequest(
     if (gifs.length > 0) {
       logger.info("[streamReplayTurn] replaying gif turn", {
         ...summarizeGifsForLog(gifs),
+      });
+    }
+    if (stickers.length > 0) {
+      logger.info("[streamReplayTurn] replaying sticker turn", {
+        ...summarizeStickersForLog(stickers),
       });
     }
 
@@ -319,6 +330,12 @@ export const streamReplayTurn = onRequest(
             if (i.memeId) excludeIds.add(i.memeId);
           }
         }
+        // Stickers are input-only, but drop their ids too so the regenerated
+        // reaction can never coincide with a Klipy asset the user sent.
+        for (const s of stickers) {
+          if (s.id) excludeIds.add(s.id);
+          if (s.stickerId) excludeIds.add(s.stickerId);
+        }
         // Append the Klipy "meme name" hint (when present) so the regenerated
         // reaction can recognize the named reference the user originally sent.
         const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
@@ -328,7 +345,9 @@ export const streamReplayTurn = onRequest(
               ? "[user sent an image]"
               : gifs.length > 0
                 ? "[user sent a GIF]"
-                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
+                : stickers.length > 0
+                  ? "[user sent a sticker]"
+                  : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the replayed turn's GIF once, reused by the decider and
         // assembleContext below.
         const currentGifFrames = currentGif
@@ -350,8 +369,13 @@ export const streamReplayTurn = onRequest(
           currentMessage: currentForDecider,
           recentReactions,
           // Hand the decider the actual pixels of the replayed turn's attachments
-          // so the regenerated reaction matches what the user originally sent.
-          imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
+          // (memes/uploads + GIF frames + sticker stills) so the regenerated
+          // reaction matches what the user originally sent.
+          imageUrls: [
+            ...currentImageUrls,
+            ...(currentGifFrames?.frames ?? []),
+            ...currentStickerUrls,
+          ],
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -418,6 +442,7 @@ export const streamReplayTurn = onRequest(
         plan: entitlement.plan,
         currentUserMessage: userText,
         currentImageUrls,
+        currentStickerUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
         currentAttachmentTitles: attachmentTitles,

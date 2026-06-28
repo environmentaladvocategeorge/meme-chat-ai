@@ -14,12 +14,10 @@ leyenda,respuesta,humor,chiste,jerga,chatbot,personaje,persona,compañero,crear,
 
 ## What's New (Novedades)
 
-• Crea tus propios bots: personajes de IA personalizados con su propio nombre, personalidad, voz y avatar. Chatea con ellos como con cualquier otro bot y edítalos cuando quieras. El plan gratis incluye 1; los de pago guardan de 10 a 100.
-• Avatares con IA: genera uno a partir de una breve descripción o sube el tuyo.
-• Descripción con IA: deja que escriba la personalidad de un bot con unos pocos datos.
-• Un aspecto totalmente renovado en toda la app.
-• Nueva pantalla de Plan y uso para ver tu consumo y gestionar tu plan.
-• Pequeñas mejoras en las notificaciones diarias y en la eliminación de cuenta.
+• Stickers: manda stickers de Klipy a mitad del chat. Elígelos de las tendencias o busca el que quieras, suelta hasta tres en un mensaje y el Brainrot Bot reacciona a ellos sin salirse de personaje.
+• Un bot por chat: cada conversación se queda con un solo bot. Si cambias de bot, empiezas un chat nuevo, así tus conversaciones se mantienen ordenadas.
+• Streaming más fluido: las respuestas llegan de forma más estable y el botón de parar ahora cancela una respuesta sin líos.
+• Memes, GIFs y stickers ahora comparten un mismo cajón de medios.
 • Además, mejoras de rendimiento y estabilidad.
 
 ## Promotional Text (Texto promocional)
@@ -42,8 +40,8 @@ Crea tus propios personajes de IA desde cero. Ponle nombre, una personalidad, un
 
 MÁS COSAS QUE HACE
 
-• Memes y GIFs incluidos
-Busca memes y GIFs en tendencia, mételos en el chat, adjunta los tuyos y guarda los que te gusten en tu galería.
+• Memes, GIFs y stickers incluidos
+Busca memes, GIFs y stickers en tendencia y suéltalos directo en el chat. Guarda los memes y GIFs que te gusten en tu galería, y manda hasta tres stickers a la vez.
 
 • Enviar fotos
 Adjunta una foto de tu cámara o galería y recibe una reacción, un caption o una respuesta según lo que compartes.

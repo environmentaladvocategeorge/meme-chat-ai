@@ -5,6 +5,7 @@ import {
   type TrendingMemesResult,
 } from "@/domain/memes";
 import { type TrendingGifsResult } from "@/domain/gifs";
+import { type TrendingStickersResult } from "@/domain/stickers";
 import { getFirebaseServices } from "./app";
 
 export async function deleteMyAccountCallable(): Promise<{ success: true }> {
@@ -388,6 +389,44 @@ export async function searchGifsCallable(
   const callable = httpsCallable<SearchGifsParams, TrendingGifsResult>(
     firebase.services.functions,
     "searchGifs",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+export type TrendingStickersParams = TrendingMemesParams;
+export type SearchStickersParams = SearchMemesParams;
+
+// Fetches a page of trending stickers from Klipy via the backend. Mirrors
+// getTrendingGifsCallable; the backend holds the (shared) app key.
+export async function getTrendingStickersCallable(
+  params: TrendingStickersParams = {},
+): Promise<TrendingStickersResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<TrendingStickersParams, TrendingStickersResult>(
+    firebase.services.functions,
+    "getTrendingStickers",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+// Searches Klipy stickers by keyword via the backend.
+export async function searchStickersCallable(
+  params: SearchStickersParams,
+): Promise<TrendingStickersResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<SearchStickersParams, TrendingStickersResult>(
+    firebase.services.functions,
+    "searchStickers",
   );
   const result = await callable(params);
   return result.data;

@@ -1,18 +1,41 @@
 import { z } from "zod";
 import { MAX_GIFS, messageGifSchema } from "./messages/messageGif";
 import { MAX_IMAGES, messageImageSchema } from "./messages/messageImage";
+import { MAX_STICKERS, messageStickerSchema } from "./messages/messageSticker";
 
 // Request body for the streamAgentAnswer SSE endpoint. Text is optional (an
-// attachment-only turn is valid), images are capped at MAX_IMAGES and gifs at
-// MAX_GIFS (independent caps — a turn may carry both), and the refine rejects a
-// turn that has neither text nor any attachment. Extracted from the function
-// handler so the validation contract can be unit-tested directly.
+// attachment-only turn is valid), images are capped at MAX_IMAGES, gifs at
+// MAX_GIFS, and stickers at MAX_STICKERS (independent caps — a turn may carry
+// any combination), and the refine rejects a turn that has neither text nor any
+// attachment. Extracted from the function handler so the validation contract can
+// be unit-tested directly.
+//
+// `stickers` is `.optional().default([])`: older clients that never send the
+// field parse to `[]` and hit the exact same code path as today, so the backend
+// can deploy ahead of the sticker-capable client without affecting live users.
 export const streamAgentRequestSchema = z
   .object({
     message: z.string().max(4000).optional().default(""),
     images: z.array(messageImageSchema).max(MAX_IMAGES).optional().default([]),
     gifs: z.array(messageGifSchema).max(MAX_GIFS).optional().default([]),
-    conversationId: z.string().min(1).optional(),
+    stickers: z
+      .array(messageStickerSchema)
+      .max(MAX_STICKERS)
+      .optional()
+      .default([]),
+    // Optional. Existing conversations send their server-assigned id; a
+    // brand-new chat may now send a CLIENT-GENERATED id so the app can subscribe
+    // to the reply stream before the first reply lands (the backend creates the
+    // doc with this id if it doesn't exist — see ensureConversation). Constrained
+    // to a safe Firestore document-id charset so a provided id can never inject a
+    // path segment. Server auto-ids (20-char alphanumeric) satisfy this, so older
+    // clients passing an existing id are unaffected.
+    conversationId: z
+      .string()
+      .min(1)
+      .max(128)
+      .regex(/^[A-Za-z0-9_-]+$/)
+      .optional(),
     clientMessageId: z.string().trim().min(1).max(128).optional(),
     personaId: z.string().trim().min(1).max(128).optional(),
     // Brainrot intensity dial (1 = Lightly Cooked, 2 = Rotted, 3 = Goblin Mode).
@@ -38,7 +61,8 @@ export const streamAgentRequestSchema = z
     (body) =>
       body.message.trim().length > 0 ||
       body.images.length > 0 ||
-      body.gifs.length > 0,
+      body.gifs.length > 0 ||
+      body.stickers.length > 0,
     {
       message: "Message text or at least one attachment is required",
     },

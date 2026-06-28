@@ -1,75 +1,74 @@
 import {
   anyPickerOpen,
+  DEFAULT_MEDIA_TAB,
   dismissPickers,
   PICKERS_CLOSED,
-  toggleGifs,
-  toggleMemes,
+  selectMediaTab,
+  toggleMedia,
   type PickerVisibility,
 } from "@/components/chat/pickerVisibility";
 
-const CLOSED: PickerVisibility = { memesOpen: false, gifsOpen: false };
-const MEMES_OPEN: PickerVisibility = { memesOpen: true, gifsOpen: false };
-const GIFS_OPEN: PickerVisibility = { memesOpen: false, gifsOpen: true };
+const CLOSED: PickerVisibility = { mediaOpen: false, mediaTab: "gifs" };
+const GIFS_OPEN: PickerVisibility = { mediaOpen: true, mediaTab: "gifs" };
+const STICKERS_OPEN: PickerVisibility = { mediaOpen: true, mediaTab: "stickers" };
 
-describe("toggleMemes", () => {
-  it("opens the meme strip from closed", () => {
-    expect(toggleMemes(CLOSED)).toEqual(MEMES_OPEN);
-  });
-
-  it("closes the meme strip when it's already open", () => {
-    expect(toggleMemes(MEMES_OPEN)).toEqual(CLOSED);
-  });
-
-  it("closes the GIF drawer when opening the meme strip (mutual exclusion)", () => {
-    expect(toggleMemes(GIFS_OPEN)).toEqual(MEMES_OPEN);
+describe("PICKERS_CLOSED", () => {
+  it("is shut and defaults to the GIFs tab", () => {
+    expect(PICKERS_CLOSED).toEqual({ mediaOpen: false, mediaTab: DEFAULT_MEDIA_TAB });
+    expect(DEFAULT_MEDIA_TAB).toBe("gifs");
   });
 });
 
-describe("toggleGifs", () => {
-  it("opens the GIF drawer from closed", () => {
-    expect(toggleGifs(CLOSED)).toEqual(GIFS_OPEN);
+describe("toggleMedia", () => {
+  it("opens the drawer from closed, preserving the active tab", () => {
+    expect(toggleMedia(CLOSED)).toEqual(GIFS_OPEN);
+    expect(toggleMedia({ mediaOpen: false, mediaTab: "stickers" })).toEqual(
+      STICKERS_OPEN,
+    );
   });
 
-  it("closes the GIF drawer when it's already open", () => {
-    expect(toggleGifs(GIFS_OPEN)).toEqual(CLOSED);
-  });
-
-  it("closes the meme strip when opening the GIF drawer (mutual exclusion)", () => {
-    expect(toggleGifs(MEMES_OPEN)).toEqual(GIFS_OPEN);
+  it("closes the drawer when it's already open, preserving the tab", () => {
+    expect(toggleMedia(STICKERS_OPEN)).toEqual({
+      mediaOpen: false,
+      mediaTab: "stickers",
+    });
   });
 });
 
-describe("mutual exclusion invariant", () => {
-  it("never leaves both surfaces open after any toggle", () => {
-    const states: PickerVisibility[] = [CLOSED, MEMES_OPEN, GIFS_OPEN];
-    for (const state of states) {
-      for (const next of [toggleMemes(state), toggleGifs(state)]) {
-        expect(next.memesOpen && next.gifsOpen).toBe(false);
-      }
-    }
+describe("selectMediaTab", () => {
+  it("opens the drawer on the chosen tab from closed", () => {
+    expect(selectMediaTab(CLOSED, "memes")).toEqual({
+      mediaOpen: true,
+      mediaTab: "memes",
+    });
+  });
+
+  it("switches the active tab while staying open", () => {
+    expect(selectMediaTab(GIFS_OPEN, "stickers")).toEqual(STICKERS_OPEN);
+  });
+
+  it("is a no-op (stays open on the same tab) for the active tab", () => {
+    expect(selectMediaTab(STICKERS_OPEN, "stickers")).toEqual(STICKERS_OPEN);
   });
 });
 
 describe("dismissPickers", () => {
-  it("closes both surfaces (tap-away / send / open-rot / focus)", () => {
-    expect(dismissPickers()).toEqual(CLOSED);
+  it("closes the drawer but preserves the active tab so reopening returns to it", () => {
+    expect(dismissPickers(STICKERS_OPEN)).toEqual({
+      mediaOpen: false,
+      mediaTab: "stickers",
+    });
   });
 
-  it("closes whichever surface was open", () => {
-    expect(dismissPickers()).toEqual(PICKERS_CLOSED);
+  it("is idempotent on an already-closed drawer", () => {
+    expect(dismissPickers(CLOSED)).toEqual(CLOSED);
   });
 });
 
 describe("anyPickerOpen", () => {
-  it("is false when both surfaces are shut", () => {
+  it("reflects the drawer's open flag", () => {
     expect(anyPickerOpen(CLOSED)).toBe(false);
-  });
-
-  it("is true when the meme strip is open", () => {
-    expect(anyPickerOpen(MEMES_OPEN)).toBe(true);
-  });
-
-  it("is true when the GIF drawer is open", () => {
     expect(anyPickerOpen(GIFS_OPEN)).toBe(true);
+    expect(anyPickerOpen(STICKERS_OPEN)).toBe(true);
   });
 });

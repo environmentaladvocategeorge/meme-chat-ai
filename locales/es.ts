@@ -671,6 +671,23 @@ const es = {
       // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "Medios",
+      keyboard: "Teclado",
+      tabs: {
+        gifs: "GIFs",
+        memes: "Memes",
+        stickers: "Stickers",
+      },
+    },
+    stickers: {
+      empty: "No hay stickers ahora mismo",
+      noResults: "No hay stickers para eso",
+      error: "No se pudieron cargar los stickers",
+      retry: "Reintentar",
+      // "Search KLIPY" es un requisito de atribución de marca de KLIPY — literal.
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Nivel de Rot",
       title: "¿Qué tan rotted deben ser las respuestas?",
@@ -716,6 +733,7 @@ const es = {
       remove: "Quitar meme",
       imageLabel: "Meme adjunto",
       gifLabel: "GIF adjunto",
+      stickerLabel: "Sticker adjunto",
       // Etiqueta localizada para un mensaje solo con imagen, donde aplique.
       sentMeme: "Envió un meme",
       invalid: "No se pudo adjuntar ese meme",

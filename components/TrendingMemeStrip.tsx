@@ -80,9 +80,16 @@ type TrendingMemeStripProps<T extends StripMedia> = {
   onEndReached?: () => void;
   onRetry?: () => void;
   onSelectItem?: (item: T) => void;
-  // When true, cards render the animated asset (GIFs) via expo-image instead of
-  // a static still.
+  // When true, cards render the animated asset (GIFs/stickers) via expo-image
+  // instead of a static still.
   animated?: boolean;
+  // How each card's image fills its box. Memes/GIFs fill edge-to-edge ("cover",
+  // the default); transparent stickers use "contain" so their alpha reads
+  // cleanly instead of being cropped.
+  contentFit?: "cover" | "contain";
+  // Drop the card surface (background + border) so transparent stickers float on
+  // the drawer instead of sitting in a grey tile. Memes/GIFs keep the surface.
+  transparent?: boolean;
   // Horizontal padding of the parent container. The scrolling row breaks out of
   // it with a negative margin and re-adds it as leading/trailing content padding
   // — so the first card lines up with the search box at rest, but cards scroll
@@ -216,11 +223,15 @@ function MemeCard<T extends StripMedia>({
   meme,
   index,
   animated,
+  contentFit = "cover",
+  transparent = false,
   onSelect,
 }: {
   meme: T;
   index: number;
   animated?: boolean;
+  contentFit?: "cover" | "contain";
+  transparent?: boolean;
   onSelect?: (meme: T) => void;
 }) {
   const theme = useTheme();
@@ -257,18 +268,22 @@ function MemeCard<T extends StripMedia>({
           height: STRIP_HEIGHT,
           borderRadius: 14,
           overflow: "hidden",
-          backgroundColor: theme["--color-card-muted"],
-          borderWidth: 1,
+          // Transparent stickers float with no tile; memes/GIFs keep the card
+          // surface so a still poster has a frame while it loads.
+          backgroundColor: transparent
+            ? "transparent"
+            : theme["--color-card-muted"],
+          borderWidth: transparent ? 0 : 1,
           borderColor: theme["--color-border"],
         }}
       >
         {animated ? (
-          // GIFs: expo-image plays animated webp/gif and shows the tiny base64
-          // placeholder while the CDN asset streams in.
+          // GIFs/stickers: expo-image plays the animated webp/gif and shows the
+          // tiny base64 placeholder while the CDN asset streams in.
           <ExpoImage
             source={{ uri: meme.url }}
             placeholder={meme.blurPreview ? { uri: meme.blurPreview } : undefined}
-            contentFit="cover"
+            contentFit={contentFit}
             cachePolicy="memory-disk"
             recyclingKey={meme.id}
             style={{ width: "100%", height: "100%" }}
@@ -282,7 +297,7 @@ function MemeCard<T extends StripMedia>({
             placeholder={
               meme.blurPreview ? { uri: meme.blurPreview } : undefined
             }
-            contentFit="cover"
+            contentFit={contentFit}
             cachePolicy="memory-disk"
             transition={150}
             recyclingKey={meme.id}
@@ -376,6 +391,8 @@ export function TrendingMemeStrip<T extends StripMedia>({
   onRetry,
   onSelectItem,
   animated,
+  contentFit = "cover",
+  transparent = false,
   bleed = 0,
   labels,
 }: TrendingMemeStripProps<T>) {
@@ -468,6 +485,8 @@ export function TrendingMemeStrip<T extends StripMedia>({
             meme={item}
             index={index}
             animated={animated}
+            contentFit={contentFit}
+            transparent={transparent}
             onSelect={onSelectItem}
           />
         )}

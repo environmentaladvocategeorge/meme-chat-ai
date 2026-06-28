@@ -24,4 +24,5 @@ export { generatePersonaAvatar } from "./personas/generatePersonaAvatar";
 export { generatePersonaDescription } from "./personas/generatePersonaDescription";
 export { getTrendingMemes, searchMemes } from "./memes/getTrendingMemes";
 export { getTrendingGifs, searchGifs } from "./gifs/getGifs";
+export { getTrendingStickers, searchStickers } from "./stickers/getStickers";
 export { watermarkAttachment } from "./watermark/watermarkAttachment";

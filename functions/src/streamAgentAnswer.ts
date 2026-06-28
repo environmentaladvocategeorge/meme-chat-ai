@@ -12,6 +12,7 @@ import { runGetGif } from "./gifs/getGifTool";
 import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
+import { summarizeStickersForLog } from "./messages/messageSticker";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
 import { lintAgentReply } from "./monitoring/outputLinters";
 import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger";
@@ -24,8 +25,8 @@ import { Agent, type ReplyContext } from "./agent/Agent";
 import { MemoryService } from "./agent/memory";
 import {
   appendMessage,
-  assertConversationOwner,
   createConversation,
+  ensureConversation,
   finalizeAgentMessage,
   loadRecentMessages,
   markAgentMessageErrored,
@@ -140,10 +141,16 @@ export const streamAgentAnswer = onRequest(
     const images = parsed.data.images;
     const gifs = parsed.data.gifs;
     const currentGif = gifs[0];
+    // User-send-only stickers (up to MAX_STICKERS). `stickers` defaults to [] for
+    // older clients, so every downstream use is a no-op for them (back-compat).
+    // Each sticker's static png still doubles as the model input — no frame
+    // extraction, no bot-send path.
+    const stickers = parsed.data.stickers;
+    const currentStickerUrls = stickers.map((s) => s.previewUrl);
     // Klipy "meme name" metadata for the current turn's attachments. Empty for
     // uploads and for older clients that don't send `title`, in which case every
     // downstream use is a no-op (back-compat).
-    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs, stickers);
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
@@ -165,18 +172,35 @@ export const streamAgentAnswer = onRequest(
         ...summarizeGifsForLog(gifs),
       });
     }
+    if (stickers.length > 0) {
+      logger.info("[streamAgentAnswer] received sticker attachments", {
+        ...summarizeStickersForLog(stickers),
+      });
+    }
 
     // ---------- resolve conversation ----------
     let conversationId = parsed.data.conversationId;
-    const newConversation = !conversationId;
+    let newConversation: boolean;
     try {
       if (conversationId) {
-        await assertConversationOwner(conversationId, uid);
+        // A provided id is EITHER an existing conversation we continue OR a
+        // brand-new one whose id the client minted so it could subscribe to the
+        // reply stream before the first reply lands. ensureConversation creates
+        // it with that id if absent, or asserts ownership if present; isNew tells
+        // the rest of the handler which it was (titling, the `conversation` SSE
+        // event). Either way the id is now valid and owned by this caller.
+        const resolved = await ensureConversation(conversationId, uid, userText, {
+          hasImages:
+            images.length > 0 || gifs.length > 0 || stickers.length > 0,
+        });
+        newConversation = resolved.isNew;
       } else {
         const created = await createConversation(uid, userText, {
-          hasImages: images.length > 0 || gifs.length > 0,
+          hasImages:
+            images.length > 0 || gifs.length > 0 || stickers.length > 0,
         });
         conversationId = created.conversationId;
+        newConversation = true;
       }
     } catch {
       res.status(404).json({ code: "not_found" });
@@ -386,6 +410,13 @@ export const streamAgentAnswer = onRequest(
             if (i.memeId) excludeIds.add(i.memeId);
           }
         }
+        // Stickers are input-only (never the bot's output), but drop their ids
+        // too so a reaction can never coincide with a Klipy asset the user just
+        // sent.
+        for (const s of stickers) {
+          if (s.id) excludeIds.add(s.id);
+          if (s.stickerId) excludeIds.add(s.stickerId);
+        }
         // Append the Klipy "meme name" hint (when present) so the decider can
         // recognize a named reference the user sent, not just react to pixels.
         const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
@@ -395,7 +426,9 @@ export const streamAgentAnswer = onRequest(
               ? "[user sent an image]"
               : gifs.length > 0
                 ? "[user sent a GIF]"
-                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
+                : stickers.length > 0
+                  ? "[user sent a sticker]"
+                  : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
@@ -415,8 +448,14 @@ export const streamAgentAnswer = onRequest(
           currentMessage: currentForDecider,
           recentReactions,
           // Hand the decider the actual pixels of the current turn's attachments
-          // so its reaction matches what the user sent.
-          imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
+          // (memes/uploads + GIF frames + sticker stills) so its reaction matches
+          // what the user sent. Stickers are input here only — the decider still
+          // emits gif/meme exclusively.
+          imageUrls: [
+            ...currentImageUrls,
+            ...(currentGifFrames?.frames ?? []),
+            ...currentStickerUrls,
+          ],
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -514,6 +553,7 @@ export const streamAgentAnswer = onRequest(
         conversationId,
         currentUserMessage: userText,
         currentImageUrls,
+        currentStickerUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
         currentAttachmentTitles: attachmentTitles,
@@ -687,6 +727,7 @@ export const streamAgentAnswer = onRequest(
         clientMessageId,
         images: images.length > 0 ? images : undefined,
         gifs: gifs.length > 0 ? gifs : undefined,
+        stickers: stickers.length > 0 ? stickers : undefined,
         levelOfRot,
         // Denormalized so turn replay can rebuild the same prefs (only the OFF
         // state is actually written — see appendMessage).

@@ -360,8 +360,31 @@ export function PersonaSheet() {
             ) : null}
           </View>
 
+          {/* System bot(s) — shown at the top with NO section title, above the
+              "Your Brainrot Bots" header. The default Brainrot Bot is always
+              available so the user can switch back from a custom bot; it's a
+              system bot, never deletable, and not part of the "your bots"
+              selection below. */}
+          <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 10 }}>
+            <PersonaRow
+              name={t("chat.agentName")}
+              description={t("personas.defaultDescription")}
+              avatar={<PersonaAvatar persona={{ kind: "default" }} size={44} />}
+              active={selectedPersonaId === DEFAULT_PERSONA_ID}
+              selectionMode={selectionMode}
+              deletable={false}
+              onPress={() => {
+                if (!selectionMode) handleSelect(DEFAULT_PERSONA_ID);
+              }}
+              selectA11y={t("personas.selectA11y", {
+                name: t("chat.agentName"),
+              })}
+            />
+          </View>
+
           {/* Section header: "Your Brainrot Bots" + (Drafts pill) + a glass + to
-              create. The row's measured bottom anchors the drafts popover. */}
+              create — now labels only the user's own bots below it. The row's
+              measured bottom anchors the drafts popover. */}
           <View
             ref={headerRowRef}
             onLayout={measureHeaderRow}
@@ -464,33 +487,6 @@ export function PersonaSheet() {
             }}
             showsVerticalScrollIndicator={false}
           >
-            {/* The default Brainrot Bot, always first and always selectable so
-                a user can switch back from a custom bot. It's never deletable,
-                so it doesn't participate in selection (dimmed + inert there).
-                layout transition lets it slide up as user rows above it leave. */}
-            <Animated.View
-              layout={LinearTransition.duration(220).easing(
-                Easing.out(Easing.cubic),
-              )}
-            >
-              <PersonaRow
-                name={t("chat.agentName")}
-                description={t("personas.defaultDescription")}
-                avatar={
-                  <PersonaAvatar persona={{ kind: "default" }} size={44} />
-                }
-                active={selectedPersonaId === DEFAULT_PERSONA_ID}
-                selectionMode={selectionMode}
-                deletable={false}
-                onPress={() => {
-                  if (!selectionMode) handleSelect(DEFAULT_PERSONA_ID);
-                }}
-                selectA11y={t("personas.selectA11y", {
-                  name: t("chat.agentName"),
-                })}
-              />
-            </Animated.View>
-
             {personas.map((persona) => (
               // On delete the row is removed and the siblings' layout transition
               // slides up to fill the gap. NOTE: no opacity `exiting` fade — the

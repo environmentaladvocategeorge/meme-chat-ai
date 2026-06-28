@@ -14,12 +14,10 @@ caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,
 
 ## What's New
 
-• Build your own bots: create custom AI characters with their own name, personality, voice, and avatar. Chat with them like any other bot, and edit them anytime. Free includes 1; paid plans hold 10 to 100.
-• AI avatars: generate one from a short description, or upload your own.
-• Describe with AI: let it write a bot's personality from a few quick details.
-• A new look across the whole app.
-• New Plan & Usage screen to check your usage and manage your plan.
-• Minor improvements to daily notifications and account deletion.
+• Stickers: send Klipy stickers mid-chat. Pick from trending or search for the one you want, drop up to three in a message, and Brainrot Bot reacts to them in character.
+• One bot per chat: each conversation now sticks to a single bot. Switch bots and you start a fresh chat, so your threads stay clean.
+• Smoother streaming: replies come through more reliably, and the stop button now cancels a reply cleanly.
+• Memes, GIFs, and stickers now share one media drawer.
 • Plus performance and stability fixes.
 
 ## Promotional Text
@@ -42,8 +40,8 @@ Make your own AI characters from scratch. Give one a name, a personality, a voic
 
 MORE THINGS IT DOES
 
-• Memes and GIFs, built in
-Search trending memes and GIFs, drop them into the chat, attach your own, and save the ones you like to your gallery.
+• Memes, GIFs, and stickers, built in
+Search trending memes, GIFs, and stickers and drop them straight into the chat. Save the memes and GIFs you like to your gallery, and send up to three stickers at once.
 
 • Send photos
 Attach a photo from your camera or gallery and get a reaction, a caption, or an answer based on what you share.

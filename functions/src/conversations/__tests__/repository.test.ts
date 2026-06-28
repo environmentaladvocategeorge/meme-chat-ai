@@ -10,6 +10,7 @@ import {
   appendMessage,
   createConversation,
   deleteMessage,
+  ensureConversation,
   finalizeAgentMessage,
   loadRecentMessages,
   loadReplayTargets,
@@ -35,7 +36,10 @@ type Recorded = {
   convSet?: Record<string, unknown>;
 };
 
-function makeDb(messageDocs: Array<Record<string, unknown>> = []) {
+function makeDb(
+  messageDocs: Array<Record<string, unknown>> = [],
+  existingConversation: Record<string, unknown> | null = null,
+) {
   const recorded: Recorded = {};
 
   const messageRef = {
@@ -61,11 +65,26 @@ function makeDb(messageDocs: Array<Record<string, unknown>> = []) {
     update: jest.fn(async (d: Record<string, unknown>) => {
       recorded.convUpdate = d;
     }),
+    get: jest.fn(async () => ({
+      exists: existingConversation !== null,
+      data: () => existingConversation ?? undefined,
+    })),
     collection: jest.fn(() => messagesCollection),
   };
 
   const conversationsCollection = { doc: jest.fn(() => conversationRef) };
-  const db = { collection: jest.fn(() => conversationsCollection) };
+  // A minimal transaction: get/set delegate straight to the ref mocks, so
+  // ensureConversation's read-then-create runs against the seeded doc.
+  const tx = {
+    get: jest.fn((ref: { get: () => unknown }) => ref.get()),
+    set: jest.fn((ref: { set: (d: Record<string, unknown>) => void }, d: Record<string, unknown>) =>
+      ref.set(d),
+    ),
+  };
+  const db = {
+    collection: jest.fn(() => conversationsCollection),
+    runTransaction: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+  };
 
   return { db, recorded, conversationRef, messageRef };
 }
@@ -168,6 +187,46 @@ describe("createConversation title fallback", () => {
     expect(recorded.convSet?.title).toBe("New Chat 💬");
     // ...but the raw text is still kept for AI titling input.
     expect(recorded.convSet?.firstUserMessage).toBe("hello world");
+  });
+});
+
+describe("ensureConversation (client-provided id)", () => {
+  it("creates the conversation with the given id when it doesn't exist (isNew)", async () => {
+    const { db, recorded, conversationRef } = makeDb([], null);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await ensureConversation("client-cid", "user-1", "hi", {
+      hasImages: false,
+    });
+
+    expect(result).toEqual({ isNew: true });
+    // Looked up by the provided id, then created with it.
+    expect((db.collection() as { doc: jest.Mock }).doc).toHaveBeenCalledWith(
+      "client-cid",
+    );
+    expect(conversationRef.set).toHaveBeenCalledTimes(1);
+    expect(recorded.convSet?.uid).toBe("user-1");
+    expect(recorded.convSet?.title).toBe("New Chat 💬");
+  });
+
+  it("returns isNew=false and writes nothing when the caller already owns it", async () => {
+    const { db, conversationRef } = makeDb([], { uid: "user-1" });
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await ensureConversation("client-cid", "user-1", "hi");
+
+    expect(result).toEqual({ isNew: false });
+    expect(conversationRef.set).not.toHaveBeenCalled();
+  });
+
+  it("throws (→ 404) when the id belongs to a different user", async () => {
+    const { db, conversationRef } = makeDb([], { uid: "someone-else" });
+    mockedGetFirestore.mockReturnValue(db);
+
+    await expect(
+      ensureConversation("client-cid", "user-1", "hi"),
+    ).rejects.toThrow("conversation-not-found");
+    expect(conversationRef.set).not.toHaveBeenCalled();
   });
 });
 

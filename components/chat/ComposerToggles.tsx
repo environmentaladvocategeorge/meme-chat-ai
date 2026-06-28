@@ -5,9 +5,8 @@ import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import {
   Camera as CameraIcon,
-  Gif as GifIcon,
+  Images as ImagesIcon,
   Keyboard as KeyboardIcon,
-  Sticker,
 } from "phosphor-react-native";
 import { useEffect, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
@@ -35,10 +34,10 @@ import Animated, {
 export const COMPOSER_CHIP_HEIGHT = 36;
 const GLYPH_SIZE = 18;
 
-// Shared chip body. Grows to share the row evenly when there's room, but won't
-// shrink below its content — so when all four don't fit (narrow screens, long
-// locales) the row scrolls instead of cropping a label. See the ScrollView in
-// chat.tsx that hosts these.
+// Shared chip body. Sized to its content (not stretched to fill the row) so the
+// compact Photo · Media · Rot cluster reads as tidy chat affordances rather than
+// big slabs. When the chips don't fit (narrow screens / long locales) the row
+// scrolls instead of cropping a label. See the ScrollView in chat.tsx.
 function ComposerPill({
   leading,
   label,
@@ -73,7 +72,7 @@ function ComposerPill({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={expanded === undefined ? undefined : { expanded }}
       containerStyle={{
-        flexGrow: 1,
+        flexGrow: 0,
         flexShrink: 0,
         flexBasis: "auto",
       }}
@@ -218,9 +217,11 @@ export function PhotoButton({
   );
 }
 
-// GIF drawer toggle. When the drawer is open the chip fills solid and its
-// label flips to "Keyboard", so the glyph becomes a keyboard to match.
-export function GifToggleButton({
+// Media drawer toggle — one chip for the tabbed GIFs · Memes · Stickers drawer.
+// (Replaced the separate GIF + meme chips so a third sticker chip wouldn't
+// overflow the row.) When the drawer is open the chip takes the tinted selection
+// and its label flips to "Keyboard", so the glyph becomes a keyboard to match.
+export function MediaToggleButton({
   label,
   open,
   onPress,
@@ -242,49 +243,7 @@ export function GifToggleButton({
         <CrossFadeGlyph
           open={open}
           closedIcon={
-            <GifIcon
-              size={GLYPH_SIZE}
-              color={theme["--color-primary"]}
-              weight="fill"
-            />
-          }
-          openIcon={
-            <KeyboardIcon
-              size={GLYPH_SIZE}
-              color={theme["--color-primary"]}
-              weight="fill"
-            />
-          }
-        />
-      }
-    />
-  );
-}
-
-// Meme strip toggle — same language as the GIF chip with a sticker glyph.
-export function MemeToggleButton({
-  label,
-  open,
-  onPress,
-}: {
-  label: string;
-  open: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <ComposerPill
-      label={label}
-      active={open}
-      expanded={open}
-      onPress={onPress}
-      accessibilityLabel={label}
-      leading={
-        <CrossFadeGlyph
-          open={open}
-          closedIcon={
-            <Sticker
+            <ImagesIcon
               size={GLYPH_SIZE}
               color={theme["--color-primary"]}
               weight="fill"

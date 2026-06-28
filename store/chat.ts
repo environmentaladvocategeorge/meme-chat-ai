@@ -1,5 +1,6 @@
 import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
+import type { MessageSticker } from "@/domain/stickers";
 import {
   cancelAgentReplyCallable,
   rateMessageCallable,
@@ -7,6 +8,7 @@ import {
 } from "@/services/firebase/callables";
 import {
   fetchOlderMessages,
+  newConversationId,
   subscribeToConversationParticipants,
   subscribeToMessages,
   type MessageCursor,
@@ -37,6 +39,9 @@ export type ChatMessage = {
   // GIF attachment on a turn (max one). On a user turn it's a sent GIF; on an
   // agent turn it's a get_gif result.
   gifs?: MessageGif[];
+  // Sticker attachments on a user turn (up to MAX_MESSAGE_STICKERS). User-send-
+  // only — agent turns never carry stickers. Combinable with images + a gif.
+  stickers?: MessageSticker[];
   // Thumbs rating on an agent reply (persisted server-side).
   reaction?: MessageReaction;
   // Emoji reaction on an agent reply (persisted server-side). Independent of the
@@ -126,6 +131,14 @@ type ChatState = {
     clientMessageId: string | null;
     agentServerId: string | null;
   } | null;
+  // clientMessageId of a user turn whose reply errored LOCALLY (a transport
+  // drop / background kill before we learned the reply's server id, so it never
+  // entered awaitingPersistedReply). The finish-&-save backend can still
+  // finalize that reply; when it lands in the snapshot we heal the stuck error
+  // instead of showing both the reply and "that didn't go through". Set only by
+  // the catch error branch; null whenever status is anything other than the
+  // error it armed.
+  erroredReplyClientId: string | null;
   // clientMessageId of the user turn whose agent reply is currently
   // streaming. Used to give the in-flight agent bubble a STABLE identity
   // (`agent:<clientMessageId>`) that matches the stored Firestore message
@@ -156,6 +169,7 @@ type ChatState = {
     text: string,
     images?: MessageImage[],
     gif?: MessageGif | null,
+    stickers?: MessageSticker[],
     levelOfRot?: number,
   ) => Promise<void>;
   // Regenerate an agent reply: delete it server-side and stream a fresh answer
@@ -223,6 +237,29 @@ function isTransportDrop(code: string): boolean {
   return TRANSPORT_DROP_CODES.has(code);
 }
 
+// True when a content-bearing agent reply for `clientMessageId` is present in
+// `messages` — matched by the reply's server id when we know it, else by the
+// user turn it answers (inReplyToClientMessageId, which the backend stamps onto
+// every reply). Shared by the stream-drop catch and the snapshot heal so both
+// agree on what "the reply actually landed" means. An empty placeholder or a
+// status:"error" reply has no content and does NOT count as landed.
+function replyLanded(
+  messages: ChatMessage[],
+  clientMessageId: string,
+  agentServerId: string | null,
+): boolean {
+  return messages.some(
+    (message) =>
+      message.role === "agent" &&
+      ((agentServerId != null && message.serverId === agentServerId) ||
+        message.inReplyToClientMessageId === clientMessageId) &&
+      (message.status === "complete" ||
+        message.text.length > 0 ||
+        (message.images?.length ?? 0) > 0 ||
+        (message.gifs?.length ?? 0) > 0),
+  );
+}
+
 type SetState = (
   partial: Partial<ChatState> | ((state: ChatState) => Partial<ChatState>),
 ) => void;
@@ -236,6 +273,7 @@ function startAwaitTimer(set: SetState, get: () => ChatState) {
     if (!get().awaitingPersistedReply) return;
     set({
       awaitingPersistedReply: null,
+      erroredReplyClientId: null,
       status: "error",
       streamingText: "",
       streamingMeme: null,
@@ -383,7 +421,8 @@ export function shallowEqualMessage(a: ChatMessage, b: ChatMessage): boolean {
     // Both-null/absent counts as equal; otherwise compare the instant.
     (a.createdAt?.getTime() ?? null) === (b.createdAt?.getTime() ?? null) &&
     sameAttachments(a.images, b.images) &&
-    sameAttachments(a.gifs, b.gifs)
+    sameAttachments(a.gifs, b.gifs) &&
+    sameAttachments(a.stickers, b.stickers)
   );
 }
 
@@ -465,6 +504,7 @@ function applySnapshotMessages(
       clearAwaitTimer();
       awaitingResolution = {
         awaitingPersistedReply: null,
+        erroredReplyClientId: null,
         status: "error",
         activeReplyClientId: null,
         settledReply: null,
@@ -494,6 +534,26 @@ function applySnapshotMessages(
     }
   }
 
+  // A turn that errored locally (a transport drop / background kill before we
+  // learned the reply's server id, so it never entered awaitingPersistedReply)
+  // can still have its reply finalized by the finish-&-save backend. When that
+  // finished, content-bearing reply lands here, clear the stuck error so the
+  // feed doesn't show both the reply and "that didn't go through". A persisted
+  // *error* reply (empty, status "error") doesn't match, so a genuine failure
+  // keeps its error card.
+  const erroredClientId = get().erroredReplyClientId;
+  let erroredHeal: Partial<ChatState> | null = null;
+  if (get().status === "error" && erroredClientId) {
+    const healed = replyLanded(storedMessages, erroredClientId, null);
+    if (healed) {
+      erroredHeal = {
+        status: "idle",
+        error: null,
+        erroredReplyClientId: null,
+      };
+    }
+  }
+
   // Drop the local suppression of a Paused reply once its server-side delete has
   // reached this snapshot (the doc is no longer present).
   const clearCancelled =
@@ -505,6 +565,7 @@ function applySnapshotMessages(
     ...(settledLanded ? { settledReply: null } : null),
     ...(clearCancelled ? { cancelledServerId: null } : null),
     ...(awaitingResolution ?? null),
+    ...(erroredHeal ?? null),
   });
 }
 
@@ -544,6 +605,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   streamingAgentServerId: null,
   cancelledServerId: null,
   awaitingPersistedReply: null,
+  erroredReplyClientId: null,
   activeReplyClientId: null,
   settledReply: null,
   replacingServerId: null,
@@ -553,11 +615,15 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   abortController: null,
   error: null,
 
-  sendMessage: async (text, images = [], gif = null, levelOfRot) => {
+  sendMessage: async (text, images = [], gif = null, stickers = [], levelOfRot) => {
     const trimmed = text.trim();
-    // Attachment-only turns are allowed: require text OR a meme OR a gif.
+    // Attachment-only turns are allowed: require text OR a meme OR a gif OR a
+    // sticker.
     if (
-      (trimmed.length === 0 && images.length === 0 && !gif) ||
+      (trimmed.length === 0 &&
+        images.length === 0 &&
+        !gif &&
+        stickers.length === 0) ||
       get().status === "streaming"
     ) {
       return;
@@ -572,20 +638,37 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       text: trimmed,
       images: images.length > 0 ? images : undefined,
       gifs: gif ? [gif] : undefined,
+      stickers: stickers.length > 0 ? stickers : undefined,
       levelOfRot,
       status: "complete",
       createdAt: new Date(),
       optimistic: true,
     };
 
+    // For a BRAND-NEW chat, mint the conversation id up front instead of waiting
+    // for the backend's `conversation` event. This lets us subscribe to the reply
+    // stream immediately AND persist the id now, so a first message that gets
+    // backgrounded mid-flight is never orphaned: the live listener (or a relaunch
+    // via the saved session) still finds the finished reply once the finish-&-save
+    // backend writes it. The backend creates the conversation with this exact id
+    // (see ensureConversation); older behavior (null id → server-assigned) is gone
+    // from the client but still supported server-side.
+    const mintedConversationId =
+      get().conversationId == null ? newConversationId() : null;
+    const conversationId = get().conversationId ?? mintedConversationId;
+
     clearAwaitTimer();
     set((state) => ({
       messages: [...state.messages, localUserMessage],
+      ...(mintedConversationId
+        ? { conversationId: mintedConversationId }
+        : null),
       streamingText: "",
       streamingMeme: null,
       streamingGif: null,
       streamingAgentServerId: null,
       awaitingPersistedReply: null,
+      erroredReplyClientId: null,
       activeReplyClientId: clientMessageId,
       settledReply: null,
       currentModel: null,
@@ -594,6 +677,25 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       abortController: controller,
       error: null,
     }));
+
+    if (mintedConversationId) {
+      // Remember the session now so a cold relaunch reopens this conversation.
+      void ChatSessionStorage.write({ conversationId: mintedConversationId });
+      // Subscribe to the reply stream immediately. The doc doesn't exist yet, so
+      // the first read is denied; subscribeToMessages retries through that until
+      // the backend creates it (see its permission-denied backoff). Participants
+      // stay on the `conversation`-event path — that listener isn't retry-wrapped,
+      // and it's cosmetic (per-message avatars), so subscribing it before the doc
+      // exists would just kill it silently.
+      if (!unsubscribeMessages) {
+        unsubscribeMessages = subscribeToMessages(
+          mintedConversationId,
+          (messages, meta) => {
+            handleMessagesSnapshot(messages, meta, get, set);
+          },
+        );
+      }
+    }
 
     try {
       // Send the user's selected language resolved to a concrete code (never
@@ -612,7 +714,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         message: trimmed,
         images,
         gif,
-        conversationId: get().conversationId,
+        stickers,
+        conversationId,
         clientMessageId,
         personaId,
         levelOfRot,
@@ -712,6 +815,8 @@ export const useChatStore = create<ChatState>()((set, get) => ({
             streamingText: "",
             streamingMeme: null,
             streamingGif: null,
+            awaitingPersistedReply: null,
+            erroredReplyClientId: null,
             activeReplyClientId: null,
             settledReply: null,
             status: "error",
@@ -837,16 +942,50 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       const code = error instanceof Error ? error.message : "generic";
       const agentServerId = get().streamingAgentServerId;
 
-      // The backend already created + is finalizing the reply (we saw its
-      // `message` event) and this was a transport drop (network/background/
-      // timeout), not a real failure. Don't show an error: keep the typing
-      // bubble and defer to the Firestore listener, which delivers the finished
-      // reply (or its error) — the finish-&-save backend guarantees it lands.
-      if (isTransportDrop(code) && agentServerId) {
+      // On resume from background, the Firestore listener routinely re-delivers
+      // the finished reply BEFORE this dead-XHR error even surfaces. If the reply
+      // for this turn is already in our local messages, the turn SUCCEEDED — just
+      // settle to idle with no error. This is the ordering a snapshot-only heal
+      // misses: once we'd set status "error" here, no further snapshot arrives to
+      // undo it, so the card sticks even though the reply is sitting right there.
+      if (replyLanded(get().messages, clientMessageId, agentServerId)) {
+        clearAwaitTimer();
+        set({
+          streamingText: "",
+          streamingMeme: null,
+          streamingGif: null,
+          streamingAgentServerId: null,
+          awaitingPersistedReply: null,
+          erroredReplyClientId: null,
+          activeReplyClientId: null,
+          settledReply: null,
+          status: "idle",
+          abortController: null,
+          error: null,
+        });
+        return;
+      }
+
+      // A transport drop (network/background/timeout), not a real failure, while
+      // the backend is still finalizing the reply. Don't show an error: keep the
+      // typing bubble and defer to the Firestore listener, which delivers the
+      // finished reply (finish-&-save guarantees it lands). We defer whenever the
+      // turn actually REACHED the backend — either we already saw the reply's
+      // `message` event (agentServerId), OR the user turn was committed
+      // server-side (its optimistic copy now carries a serverId). The old
+      // agentServerId-only gate missed a background kill that happened after the
+      // user turn committed but before the agent `message` event, dropping it
+      // into a stuck error even though the reply was on its way.
+      const userTurnCommitted = get().messages.some(
+        (message) =>
+          message.clientMessageId === clientMessageId &&
+          message.serverId != null,
+      );
+      if (isTransportDrop(code) && (agentServerId || userTurnCommitted)) {
         set({
           awaitingPersistedReply: {
             clientMessageId,
-            agentServerId,
+            agentServerId: agentServerId ?? null,
           },
           // The XHR is dead; drop the controller but keep status "streaming" and
           // activeReplyClientId so the typing bubble stays up.
@@ -857,14 +996,18 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         return;
       }
 
-      // A genuine failure (agent_error) or a drop before the reply was ever
-      // committed server-side → there's nothing to wait for; show the error.
+      // A genuine failure (agent_error) or a drop before the turn ever reached
+      // the backend (e.g. offline at send) → there's nothing to wait for; show a
+      // retryable error. erroredReplyClientId is the snapshot-heal backstop for
+      // the rare case where a reply still lands after this (see
+      // applySnapshotMessages).
       clearAwaitTimer();
       set({
         streamingMeme: null,
         streamingGif: null,
         streamingAgentServerId: null,
         awaitingPersistedReply: null,
+        erroredReplyClientId: clientMessageId,
         activeReplyClientId: null,
         settledReply: null,
         status: "error",
@@ -1078,6 +1221,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         streamingGif: null,
         streamingAgentServerId: null,
         awaitingPersistedReply: null,
+        erroredReplyClientId: null,
         activeReplyClientId: null,
         settledReply: null,
         status: "error",
@@ -1200,6 +1344,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       streamingGif: null,
       streamingAgentServerId: null,
       awaitingPersistedReply: null,
+      erroredReplyClientId: null,
       cancelledServerId: null,
       activeReplyClientId: null,
       settledReply: null,
@@ -1232,6 +1377,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
       streamingGif: null,
       streamingAgentServerId: null,
       awaitingPersistedReply: null,
+      erroredReplyClientId: null,
       cancelledServerId: null,
       activeReplyClientId: null,
       settledReply: null,

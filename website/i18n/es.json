@@ -93,9 +93,9 @@
       "card3Body": "Sube un avatar o genéralo a partir de una breve descripción, escribe su eslogan de una línea y guárdalo. Aparece en tu selector de bots, listo para usar."
     },
     "meme": {
-      "eyebrow": "Memes al instante",
+      "eyebrow": "Memes, GIFs y stickers",
       "h2": "Cuando las palabras fallan, manda el meme.",
-      "p": "A mitad del chat, abre una tira de memes en tendencia o busca la reacción exacta, y suéltala directo en la conversación. Algunos momentos merecen una cara, no un párrafo."
+      "p": "A mitad del chat, abre una tira de memes y GIFs en tendencia o busca la reacción exacta, y suéltala directo en la conversación. Los stickers funcionan igual: busca uno y envíalo. Algunos momentos merecen una cara, no un párrafo."
     },
     "memory": {
       "eyebrow": "Memoria",
