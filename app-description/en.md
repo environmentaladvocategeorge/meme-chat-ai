@@ -14,6 +14,7 @@ caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,
 
 ## What's New
 
+• Meet Luna: a new bot to chat with, your delulu astrology bestie who hypes you up and still gives you a real answer, for a totally different vibe than Brainrot Bot.
 • Stickers: send Klipy stickers mid-chat. Pick from trending or search for the one you want, drop up to three in a message, and Brainrot Bot reacts to them in character.
 • One bot per chat: each conversation now sticks to a single bot. Switch bots and you start a fresh chat, so your threads stay clean.
 • Smoother streaming: replies come through more reliably, and the stop button now cancels a reply cleanly.
@@ -33,6 +34,10 @@ There are two ways to use it.
 TALK TO BRAINROT BOT
 
 Open a chat and get a reply when you're stuck, a caption that lands, a comeback, or an explanation that skips the textbook fog. Set the Rot Level to slide it from normal assistant to completely unhinged, and Brainrot Bot matches that energy. It answers in memes and GIFs, not just walls of text.
+
+MEET LUNA
+
+Want a different energy? Luna is a second built-in bot: your delulu astrology bestie who reads your birth chart, hypes you up, and still gives you a real answer. She has her own voice, her own emojis, and her own cosmic GIFs, for a softer vibe than Brainrot Bot. Switch between them whenever you want.
 
 BUILD YOUR OWN BRAINROT BOTS
 

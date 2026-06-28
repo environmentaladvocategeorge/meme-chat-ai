@@ -14,6 +14,7 @@ spruch,antwort,humor,witz,slang,chatbot,charakter,persona,begleiter,erstellen,um
 
 ## What's New (Neuigkeiten)
 
+• Lern Luna kennen: ein neuer Bot zum Chatten, deine delulu Astro-Bestie, die dich pusht und dir trotzdem echte Antworten gibt, mit einer völlig anderen Vibe als Brainrot Bot.
 • Sticker: schick mitten im Chat Klipy-Sticker. Wähl sie aus den Trends oder such den passenden, pack bis zu drei in eine Nachricht, und Brainrot Bot reagiert darauf, ohne aus der Rolle zu fallen.
 • Ein Bot pro Chat: jede Unterhaltung bleibt jetzt bei einem einzigen Bot. Wechselst du den Bot, startest du einen neuen Chat, damit deine Verläufe übersichtlich bleiben.
 • Flüssigeres Streaming: Antworten kommen zuverlässiger an, und der Stopp-Button bricht eine Antwort jetzt sauber ab.
@@ -33,6 +34,10 @@ Es gibt zwei Wege, ihn zu nutzen.
 CHATTE MIT BRAINROT BOT
 
 Öffne einen Chat und hol dir eine Antwort, wenn du feststeckst, eine Caption, die sitzt, ein Comeback oder eine Erklärung, die nicht wie ein Lehrbuch klingt. Stell das Rot Level ein, um von normalem Assistenten bis völlig durchgeknallt zu schalten, und Brainrot Bot macht mit. Er antwortet mit Memes und GIFs, nicht nur mit Textwänden.
+
+LERN LUNA KENNEN
+
+Lust auf eine andere Energie? Luna ist ein zweiter eingebauter Bot: deine delulu Astro-Bestie, die dein Geburtshoroskop liest, dich pusht und dir trotzdem echte Antworten gibt. Sie hat ihre eigene Stimme, ihre eigenen Emojis und ihre eigenen kosmischen GIFs, mit einer sanfteren Vibe als Brainrot Bot. Wechsle zwischen beiden, wann immer du willst.
 
 BAU DEINE EIGENEN BRAINROT BOTS
 

@@ -67,10 +67,36 @@ export type UserPersonaSummary = {
   toneTags: string[];
 };
 
-// What the header pill + hero render: either the localized default, or a
-// concrete user persona.
+// Curated first-party personas BEYOND the implicit default (Brainrot Bot). These
+// are app-shipped bots every user can chat as — additive, never the auto-default
+// — so they're hardcoded here (like DEFAULT_PERSONA_ID) rather than fetched: the
+// set only changes with an app release, and hardcoding avoids a Firestore read,
+// new rules/indexes, and an offline gap. Each id has a matching enabled
+// `personas/<id>` doc + active `persona_prompts/<id>_prompt` on the backend, so
+// the stream path resolves it the moment the client sends the id. The display
+// copy is rendered as-is (same as a user persona's name/description), so it
+// lives here as a literal, not behind i18n.
+export const FIRST_PARTY_PERSONAS: UserPersonaSummary[] = [
+  {
+    id: "luna_default",
+    displayName: "Luna",
+    avatarKey: "luna",
+    shortDescription: "Your delulu astrology bestie",
+    toneTags: ["warm", "astrology", "manifesting", "soft", "dramatic"],
+  },
+];
+
+export function isFirstPartyPersonaId(id: string): boolean {
+  return FIRST_PARTY_PERSONAS.some((p) => p.id === id);
+}
+
+// What the header pill + hero render: the localized default, a curated
+// first-party bot (Luna), or a concrete user-built persona. firstParty and user
+// share the same summary shape; they differ only in being app-shipped vs.
+// user-owned (so first-party bots are never editable/deletable in the picker).
 export type ResolvedPersona =
   | { kind: "default" }
+  | { kind: "firstParty"; persona: UserPersonaSummary }
   | { kind: "user"; persona: UserPersonaSummary };
 
 // Resolves the selected id against the hydrated list. A non-default id that
@@ -82,6 +108,8 @@ export function resolveSelectedPersona(
   personas: UserPersonaSummary[],
 ): ResolvedPersona {
   if (selectedId !== DEFAULT_PERSONA_ID) {
+    const firstParty = FIRST_PARTY_PERSONAS.find((p) => p.id === selectedId);
+    if (firstParty) return { kind: "firstParty", persona: firstParty };
     const match = personas.find((p) => p.id === selectedId);
     if (match) return { kind: "user", persona: match };
   }
@@ -97,6 +125,8 @@ export function resolvePersonaSlot(
   personas: UserPersonaSummary[],
 ): ResolvedPersona | "unknown" {
   if (!id || id === DEFAULT_PERSONA_ID) return { kind: "default" };
+  const firstParty = FIRST_PARTY_PERSONAS.find((p) => p.id === id);
+  if (firstParty) return { kind: "firstParty", persona: firstParty };
   const match = personas.find((p) => p.id === id);
   return match ? { kind: "user", persona: match } : "unknown";
 }

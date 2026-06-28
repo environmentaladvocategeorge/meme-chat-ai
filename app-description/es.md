@@ -14,6 +14,7 @@ leyenda,respuesta,humor,chiste,jerga,chatbot,personaje,persona,compañero,crear,
 
 ## What's New (Novedades)
 
+• Conoce a Luna: un nuevo bot con el que chatear, tu bestie astróloga y delulu que te sube el ánimo y aun así te da respuestas de verdad, con una vibra totalmente distinta a la del Brainrot Bot.
 • Stickers: manda stickers de Klipy a mitad del chat. Elígelos de las tendencias o busca el que quieras, suelta hasta tres en un mensaje y el Brainrot Bot reacciona a ellos sin salirse de personaje.
 • Un bot por chat: cada conversación se queda con un solo bot. Si cambias de bot, empiezas un chat nuevo, así tus conversaciones se mantienen ordenadas.
 • Streaming más fluido: las respuestas llegan de forma más estable y el botón de parar ahora cancela una respuesta sin líos.
@@ -33,6 +34,10 @@ Hay dos formas de usarlo.
 HABLA CON BRAINROT BOT
 
 Abre un chat y consigue una respuesta cuando te atascas, un caption que funciona, una contestación ingeniosa o una explicación que no parezca un libro de texto. Ajusta el Rot Level para pasar de asistente normal a completamente desquiciado, y el Brainrot Bot va a ese ritmo. Responde con memes y GIFs, no solo con muros de texto.
+
+CONOCE A LUNA
+
+¿Buscas otra energía? Luna es un segundo bot incluido: tu bestie astróloga y delulu que te lee la carta natal, te sube el ánimo y aun así te da respuestas de verdad. Tiene su propia voz, sus propios emojis y sus propios GIFs cósmicos, con una vibra más suave que la del Brainrot Bot. Cambia entre los dos cuando quieras.
 
 CREA TUS PROPIOS BRAINROT BOTS
 

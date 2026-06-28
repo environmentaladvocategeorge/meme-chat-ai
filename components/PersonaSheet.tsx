@@ -33,6 +33,7 @@ import { SheetBackdrop } from "@/components/SheetBackdrop";
 import { Typography } from "@/components/Typography";
 import {
   DEFAULT_PERSONA_ID,
+  FIRST_PARTY_PERSONAS,
   personaCap,
   type ResolvedPersona,
 } from "@/domain/personas";
@@ -361,9 +362,10 @@ export function PersonaSheet() {
           </View>
 
           {/* System bot(s) — shown at the top with NO section title, above the
-              "Your Brainrot Bots" header. The default Brainrot Bot is always
-              available so the user can switch back from a custom bot; it's a
-              system bot, never deletable, and not part of the "your bots"
+              "Your Brainrot Bots" header. The default Brainrot Bot plus any
+              curated first-party bots (e.g. Luna) are always available so the
+              user can switch between them and back from a custom bot; they're
+              system bots, never deletable, and not part of the "your bots"
               selection below. */}
           <View style={{ paddingHorizontal: 16, paddingBottom: 14, gap: 10 }}>
             <PersonaRow
@@ -380,6 +382,26 @@ export function PersonaSheet() {
                 name: t("chat.agentName"),
               })}
             />
+            {FIRST_PARTY_PERSONAS.map((p) => (
+              <PersonaRow
+                key={p.id}
+                name={p.displayName}
+                description={p.shortDescription}
+                avatar={
+                  <PersonaAvatar
+                    persona={{ kind: "firstParty", persona: p }}
+                    size={44}
+                  />
+                }
+                active={selectedPersonaId === p.id}
+                selectionMode={selectionMode}
+                deletable={false}
+                onPress={() => {
+                  if (!selectionMode) handleSelect(p.id);
+                }}
+                selectA11y={t("personas.selectA11y", { name: p.displayName })}
+              />
+            ))}
           </View>
 
           {/* Section header: "Your Brainrot Bots" + (Drafts pill) + a glass + to

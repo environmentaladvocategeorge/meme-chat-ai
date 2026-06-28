@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { create } from "zustand";
 import {
   DEFAULT_PERSONA_ID,
+  isFirstPartyPersonaId,
   resolveSelectedPersona,
   type ResolvedPersona,
   type UserPersonaSummary,
@@ -119,6 +120,9 @@ export function usePersonaSelectionReady(): boolean {
   const status = usePersonaStore((s) => s.status);
   if (!selectionHydrated) return false;
   if (selectedPersonaId === DEFAULT_PERSONA_ID) return true;
+  // Curated first-party bots (e.g. Luna) are statically known, so they resolve
+  // immediately like the default — no need to wait on the user-list fetch.
+  if (isFirstPartyPersonaId(selectedPersonaId)) return true;
   // The selected bot is already loaded — resolvable now, even if a background
   // re-hydrate is in flight (so creating/editing a bot or a foreground refresh
   // never flashes the skeleton back over an already-known pick).

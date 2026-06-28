@@ -14,6 +14,7 @@ légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,crée
 
 ## What's New (Nouveautés)
 
+• Rencontre Luna : un nouveau bot avec qui discuter, ta bestie astro un peu delulu qui te booste tout en te donnant de vraies réponses, pour une ambiance totalement différente de Brainrot Bot.
 • Stickers : envoie des stickers Klipy en plein chat. Choisis-les dans les tendances ou cherche celui qu'il te faut, lâche-en jusqu'à trois dans un message, et Brainrot Bot y réagit sans sortir de son personnage.
 • Un bot par chat : chaque conversation garde un seul bot. Change de bot et tu démarres un nouveau chat, pour que tes conversations restent nettes.
 • Streaming plus fluide : les réponses arrivent de façon plus fiable, et le bouton stop annule désormais une réponse proprement.
@@ -34,14 +35,18 @@ DISCUTE AVEC BRAINROT BOT
 
 Ouvre un chat et obtiens une réponse quand tu bloques, une légende qui fait mouche, une réplique ou une explication qui ne ressemble pas à un manuel. Règle le Rot Level pour passer d'assistant normal à complètement déjanté, et Brainrot Bot suit cette énergie. Il répond en mèmes et en GIFs, pas seulement en pavés de texte.
 
+RENCONTRE LUNA
+
+Envie d'une autre énergie ? Luna est un deuxième bot intégré : ta bestie astro un peu delulu qui lit ton thème astral, te booste et te donne quand même de vraies réponses. Elle a sa propre voix, ses propres emojis et ses propres GIFs cosmiques, pour une ambiance plus douce que Brainrot Bot. Passe de l'un à l'autre quand tu veux.
+
 CRÉE TES PROPRES BRAINROT BOTS
 
 Crée tes propres personnages IA depuis zéro. Donne-lui un nom, une personnalité, une voix, ses emojis et un avatar à téléverser ou à générer à partir d'une brève description. Sauvegarde-le et discute avec lui comme avec n'importe quel autre bot. Le gratuit en inclut un ; les payants en gardent de 10 à 100, et chaque bot passe un contrôle de sécurité avant d'être disponible.
 
 CE QU'IL FAIT D'AUTRE
 
-• Mèmes, GIFs et stickers intégrés
-Cherche des mèmes, GIFs et stickers tendance et glisse-les direct dans le chat. Enregistre les mèmes et GIFs que tu aimes dans ta galerie, et envoie jusqu'à trois stickers à la fois.
+• Mèmes et GIFs intégrés
+Cherche des mèmes et GIFs tendance, glisse-les dans le chat, attache les tiens et enregistre ceux que tu aimes dans ta galerie.
 
 • Envoyer des photos
 Joins une photo depuis ton appareil photo ou ta galerie et obtiens une réaction, une légende ou une réponse selon ce que tu partages.

@@ -1,6 +1,8 @@
 import {
   collectParticipantPersonaIds,
   DEFAULT_PERSONA_ID,
+  FIRST_PARTY_PERSONAS,
+  isFirstPartyPersonaId,
   isPersonaLimitReached,
   MAX_PERSONAS_PER_CONVERSATION,
   MAX_USER_PERSONAS,
@@ -10,6 +12,8 @@ import {
   resolveSelectedPersona,
   type UserPersonaSummary,
 } from "../personas";
+
+const LUNA = FIRST_PARTY_PERSONAS.find((p) => p.id === "luna_default")!;
 
 function summary(overrides: Partial<UserPersonaSummary> = {}): UserPersonaSummary {
   return {
@@ -29,6 +33,29 @@ describe("personaCap", () => {
     expect(personaCap("plus")).toBe(MAX_USER_PERSONAS);
     expect(personaCap("power")).toBe(MAX_USER_PERSONAS);
     expect(MAX_USER_PERSONAS).toBe(10);
+  });
+});
+
+describe("first-party personas (Luna)", () => {
+  it("ships Luna as a curated first-party bot", () => {
+    expect(LUNA).toBeDefined();
+    expect(isFirstPartyPersonaId("luna_default")).toBe(true);
+    expect(isFirstPartyPersonaId(DEFAULT_PERSONA_ID)).toBe(false);
+    expect(isFirstPartyPersonaId("user_uid-1_a1")).toBe(false);
+  });
+
+  it("resolves a selected first-party id to the firstParty kind (not the default)", () => {
+    expect(resolveSelectedPersona("luna_default", [])).toEqual({
+      kind: "firstParty",
+      persona: LUNA,
+    });
+  });
+
+  it("resolves a first-party slot id even when it isn't in the user list", () => {
+    expect(resolvePersonaSlot("luna_default", [])).toEqual({
+      kind: "firstParty",
+      persona: LUNA,
+    });
   });
 });
 
