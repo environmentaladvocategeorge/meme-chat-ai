@@ -218,7 +218,7 @@ export function TrialOfferScreen({ onDecline }: TrialOfferScreenProps) {
                   paddingHorizontal: 12,
                   paddingVertical: 8,
                   borderRadius: 999,
-                  backgroundColor: theme["--color-primary-subtle"],
+                  backgroundColor: theme["--color-card"],
                   borderWidth: 1,
                   borderColor: theme["--color-primary-muted"],
                 }}
