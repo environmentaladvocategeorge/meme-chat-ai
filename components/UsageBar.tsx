@@ -9,7 +9,7 @@
 // with the warning color so a binding limit reads at a glance.
 
 import { Typography } from "@/components/Typography";
-import { NEAR_LIMIT_RATIO } from "@/domain/usage";
+import { usageTier } from "@/domain/usage";
 import { useResetCountdown } from "@/hooks/useResetCountdown";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
@@ -48,12 +48,27 @@ export function UsageBar({
   const { t } = useTranslation();
   const theme = useTheme();
   const { colorScheme } = useColorScheme();
-  const gradient = gradients[colorScheme ?? "light"].primary;
+  const scheme = colorScheme ?? "light";
 
   const safeTotal = total > 0 ? total : 1;
   const ratio = Math.max(0, Math.min(1, remaining / safeTotal));
   const percent = Math.round(ratio * 100);
-  const nearLimit = ratio <= 1 - NEAR_LIMIT_RATIO;
+
+  // The fill + percentage tint both step from brand → amber → red as the
+  // remaining allowance shrinks, so the bar signals "running low" on its own.
+  const tier = usageTier(ratio);
+  const gradient =
+    tier === "danger"
+      ? gradients[scheme].danger
+      : tier === "warning"
+        ? gradients[scheme].warning
+        : gradients[scheme].primary;
+  const percentColor =
+    tier === "danger"
+      ? theme["--color-error"]
+      : tier === "warning"
+        ? theme["--color-warning"]
+        : theme["--color-primary"];
 
   const progress = useSharedValue(0);
 
@@ -91,7 +106,7 @@ export function UsageBar({
         <Typography
           variant="title-md"
           style={{
-            color: nearLimit ? theme["--color-warning"] : theme["--color-primary"],
+            color: percentColor,
             fontWeight: "800",
           }}
         >

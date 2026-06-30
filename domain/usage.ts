@@ -12,6 +12,23 @@ const SIX_HOURS_MS = 6 * HOUR_MS;
 // Threshold at which we start nudging the user toward an upgrade in-chat.
 export const NEAR_LIMIT_RATIO = 0.9;
 
+// Visual thresholds for the usage bars, keyed off the *remaining* ratio (0..1).
+// At/under 30% left the fill turns amber; at/under 15% it turns red — so a
+// shrinking allowance reads at a glance without any copy.
+export const USAGE_WARNING_RATIO = 0.3;
+export const USAGE_DANGER_RATIO = 0.15;
+
+export type UsageTier = "normal" | "warning" | "danger";
+
+// Maps a remaining ratio to the bar's color tier. Shared by every usage bar
+// (the settings card mini-bar + the monthly/daily bars on the plan page) so
+// they all flip colors at the same points.
+export function usageTier(ratioRemaining: number): UsageTier {
+  if (ratioRemaining <= USAGE_DANGER_RATIO) return "danger";
+  if (ratioRemaining <= USAGE_WARNING_RATIO) return "warning";
+  return "normal";
+}
+
 // ---------- reset-time formatting ----------
 
 // Returns the human phrase for *when* an allowance resets, e.g.

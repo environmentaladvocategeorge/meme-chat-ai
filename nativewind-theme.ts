@@ -173,6 +173,16 @@ export const gradients = {
       colors: ["#F2B23D", "#E8894A"] as const,
       ...DIAGONAL_135,
     },
+    // Usage bars dipping under ~30% remaining — amber "running low" warning.
+    warning: {
+      colors: ["#F5C24B", "#E8943C"] as const,
+      ...DIAGONAL_135,
+    },
+    // Usage bars under ~15% remaining — red "almost out" alert.
+    danger: {
+      colors: ["#F2683D", "#E0322E"] as const,
+      ...DIAGONAL_135,
+    },
   },
   dark: {
     brand: {
@@ -192,6 +202,14 @@ export const gradients = {
       colors: ["#E8B45A", "#D9824A"] as const,
       ...DIAGONAL_135,
     },
+    warning: {
+      colors: ["#E8B45A", "#D9863C"] as const,
+      ...DIAGONAL_135,
+    },
+    danger: {
+      colors: ["#E66A45", "#D6322E"] as const,
+      ...DIAGONAL_135,
+    },
   },
 } as const satisfies Record<"light" | "dark", Record<string, GradientStops>>;
 
@@ -204,4 +222,6 @@ export const cssGradients = {
   primary: "linear-gradient(135deg, #0F7B85 0%, #38A9AE 100%)",
   bubble: "linear-gradient(135deg, #FFFFFF 0%, #E8F4F5 100%)",
   accent: "linear-gradient(135deg, #F2B23D 0%, #E8894A 100%)",
+  warning: "linear-gradient(135deg, #F5C24B 0%, #E8943C 100%)",
+  danger: "linear-gradient(135deg, #F2683D 0%, #E0322E 100%)",
 } as const;

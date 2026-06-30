@@ -3,6 +3,7 @@ import { AdBanner } from "@/components/ads/AdBanner";
 import { AppCustomizationSection } from "@/components/AppCustomizationSection";
 import { AppHeader, useAppHeaderHeight } from "@/components/AppHeader";
 import { AppPressable } from "@/components/AppPressable";
+import { DailyLimitMiniBar } from "@/components/DailyLimitMiniBar";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { SettingsRow } from "@/components/SettingsRow";
 import { Typography } from "@/components/Typography";
@@ -245,26 +246,37 @@ export default function SettingsScreen() {
           onPress={openPlan}
           feedback="opacity"
           accessibilityLabel={t("settings.plan.heading")}
-          style={rowStyle}
+          style={{
+            borderRadius: 16,
+            backgroundColor: theme["--color-card"],
+            borderWidth: 1,
+            borderColor: theme["--color-border"],
+            padding: 16,
+            gap: 12,
+          }}
         >
-          <Typography
-            variant="title-sm"
-            style={{ flex: 1, color: theme["--color-foreground"] }}
-          >
-            {t("settings.plan.heading")}
-          </Typography>
-          <Typography
-            variant="caption"
-            weight="semibold"
-            style={{ color: theme["--color-foreground-muted"] }}
-          >
-            {t(`settings.plan.planNames.${plan}` as const)}
-          </Typography>
-          <CaretRight
-            size={18}
-            weight="bold"
-            color={theme["--color-foreground-muted"]}
-          />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Typography
+              variant="title-sm"
+              style={{ flex: 1, color: theme["--color-foreground"] }}
+            >
+              {t("settings.plan.heading")}
+            </Typography>
+            <Typography
+              variant="caption"
+              weight="semibold"
+              style={{ color: theme["--color-foreground-muted"] }}
+            >
+              {t(`settings.plan.planNames.${plan}` as const)}
+            </Typography>
+            <CaretRight
+              size={18}
+              weight="bold"
+              color={theme["--color-foreground-muted"]}
+            />
+          </View>
+          {/* Subtle "today's limit" teaser — taps open the full plan sheet. */}
+          <DailyLimitMiniBar />
         </AppPressable>
 
         {/* Preferences */}
