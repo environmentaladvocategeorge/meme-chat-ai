@@ -14,10 +14,10 @@ legenda,resposta,humor,piada,gíria,chatbot,personagem,persona,companheiro,criar
 
 ## What's New (Novidades)
 
+• Conheça a Luna: um novo bot para conversar, sua bestie da astrologia e meio delulu que te anima e ainda dá respostas de verdade, com uma vibe totalmente diferente da do Brainrot Bot.
 • Big Brain Mode: ative para uma resposta mais inteligente e afiada quando a pergunta realmente importa. Ele gasta seu limite diário mais rápido, então guarde para as que valem a pena.
 • Uma recepção mais fresca: a configuração agora é um bate-volta rápido que te coloca no primeiro chat em segundos.
 • Mais bots próprios: o grátis agora inclui três, os pagos guardam até cem e o plano top é ilimitado.
-• Conheça a Luna: um novo bot para conversar, sua bestie da astrologia e meio delulu que te anima e ainda dá respostas de verdade, com uma vibe totalmente diferente da do Brainrot Bot.
 • Figurinhas: mande figurinhas do Klipy no meio do chat. Escolha entre as que estão em alta ou busque a que você quer, solte até três numa mensagem, e o Brainrot Bot reage a elas sem sair do personagem.
 • Um bot por chat: cada conversa agora fica com um único bot. Trocou de bot, começa um chat novo, então suas conversas ficam organizadas.
 • Streaming mais suave: as respostas chegam de forma mais estável, e o botão de parar agora cancela uma resposta sem complicação.

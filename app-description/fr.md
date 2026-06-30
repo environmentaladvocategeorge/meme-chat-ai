@@ -14,10 +14,10 @@ légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,crée
 
 ## What's New (Nouveautés)
 
+• Rencontre Luna : un nouveau bot avec qui discuter, ta bestie astro un peu delulu qui te booste tout en te donnant de vraies réponses, pour une ambiance totalement différente de Brainrot Bot.
 • Big Brain Mode : active-le pour une réponse plus futée et plus tranchante quand la question compte vraiment. Il consomme ta limite quotidienne plus vite, alors garde-le pour celles qui comptent.
 • Un accueil plus frais : la mise en route est maintenant un court échange qui te lance dans ton premier chat en quelques secondes.
 • Plus de bots perso : le gratuit en inclut trois, les payants en gardent jusqu'à cent, et le forfait max est illimité.
-• Rencontre Luna : un nouveau bot avec qui discuter, ta bestie astro un peu delulu qui te booste tout en te donnant de vraies réponses, pour une ambiance totalement différente de Brainrot Bot.
 • Stickers : envoie des stickers Klipy en plein chat. Choisis-les dans les tendances ou cherche celui qu'il te faut, lâche-en jusqu'à trois dans un message, et Brainrot Bot y réagit sans sortir de son personnage.
 • Un bot par chat : chaque conversation garde un seul bot. Change de bot et tu démarres un nouveau chat, pour que tes conversations restent nettes.
 • Streaming plus fluide : les réponses arrivent de façon plus fiable, et le bouton stop annule désormais une réponse proprement.
