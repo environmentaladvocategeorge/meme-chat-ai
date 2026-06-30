@@ -17,6 +17,11 @@ leyenda,respuesta,humor,chiste,jerga,chatbot,personaje,persona,compañero,crear,
 • Big Brain Mode: actívalo para una respuesta más inteligente y afilada cuando la pregunta de verdad importa. Gasta tu límite diario más rápido, así que guárdalo para las que cuentan.
 • Una bienvenida más fresca: la configuración ahora es un ida y vuelta rápido que te mete en tu primer chat en segundos.
 • Más bots propios: el plan gratis ahora incluye tres, los de pago guardan hasta cien y el plan top es ilimitado.
+• Conoce a Luna: un nuevo bot con el que chatear, tu bestie astróloga y delulu que te sube el ánimo y aun así te da respuestas de verdad, con una vibra totalmente distinta a la del Brainrot Bot.
+• Stickers: manda stickers de Klipy a mitad del chat. Elígelos de las tendencias o busca el que quieras, suelta hasta tres en un mensaje y el Brainrot Bot reacciona a ellos sin salirse de personaje.
+• Un bot por chat: cada conversación se queda con un solo bot. Si cambias de bot, empiezas un chat nuevo, así tus conversaciones se mantienen ordenadas.
+• Streaming más fluido: las respuestas llegan de forma más estable y el botón de parar ahora cancela una respuesta sin líos.
+• Memes, GIFs y stickers ahora comparten un mismo cajón de medios.
 • Además, mejoras de rendimiento y estabilidad.
 
 ## Promotional Text (Texto promocional)

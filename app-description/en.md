@@ -17,6 +17,11 @@ caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,
 • Big Brain Mode: turn it on for a smarter, sharper reply when a question really matters. It spends your daily limit faster, so save it for the ones that count.
 • A fresher welcome: setup is now a quick back-and-forth that drops you into your first chat in seconds.
 • More custom bots: free now includes three, paid plans hold up to a hundred, and the top plan is unlimited.
+• Meet Luna: a new bot to chat with, your delulu astrology bestie who hypes you up and still gives you a real answer, for a totally different vibe than Brainrot Bot.
+• Stickers: send Klipy stickers mid-chat. Pick from trending or search for the one you want, drop up to three in a message, and Brainrot Bot reacts to them in character.
+• One bot per chat: each conversation now sticks to a single bot. Switch bots and you start a fresh chat, so your threads stay clean.
+• Smoother streaming: replies come through more reliably, and the stop button now cancels a reply cleanly.
+• Memes, GIFs, and stickers now share one media drawer.
 • Plus performance and stability fixes.
 
 ## Promotional Text

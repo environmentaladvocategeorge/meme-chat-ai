@@ -17,6 +17,11 @@ spruch,antwort,humor,witz,slang,chatbot,charakter,persona,begleiter,erstellen,um
 • Big Brain Mode: schalt ihn ein für eine klügere, schärfere Antwort, wenn eine Frage wirklich zählt. Er verbraucht dein Tageslimit schneller, also heb ihn dir für die wichtigen auf.
 • Ein frischerer Einstieg: die Einrichtung ist jetzt ein kurzes Hin und Her, das dich in Sekunden in deinen ersten Chat bringt.
 • Mehr eigene Bots: Gratis enthält jetzt drei, Bezahlpläne speichern bis zu hundert, und der Top-Tarif ist unbegrenzt.
+• Lern Luna kennen: ein neuer Bot zum Chatten, deine delulu Astro-Bestie, die dich pusht und dir trotzdem echte Antworten gibt, mit einer völlig anderen Vibe als Brainrot Bot.
+• Sticker: schick mitten im Chat Klipy-Sticker. Wähl sie aus den Trends oder such den passenden, pack bis zu drei in eine Nachricht, und Brainrot Bot reagiert darauf, ohne aus der Rolle zu fallen.
+• Ein Bot pro Chat: jede Unterhaltung bleibt jetzt bei einem einzigen Bot. Wechselst du den Bot, startest du einen neuen Chat, damit deine Verläufe übersichtlich bleiben.
+• Flüssigeres Streaming: Antworten kommen zuverlässiger an, und der Stopp-Button bricht eine Antwort jetzt sauber ab.
+• Memes, GIFs und Sticker teilen sich jetzt eine Medienleiste.
 • Dazu Verbesserungen bei Leistung und Stabilität.
 
 ## Promotional Text (Werbetext)
