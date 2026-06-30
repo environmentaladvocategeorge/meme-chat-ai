@@ -7,6 +7,7 @@ import {
   toPersonaSpec,
   toResolvedPersonaForStream,
   userPersonaCap,
+  isUserPersonaCapUnlimited,
   userPersonaInputSchema,
   MAX_USER_PERSONAS,
   type UserPersonaDoc,
@@ -175,12 +176,20 @@ describe("userPersonaInputSchema", () => {
 });
 
 describe("userPersonaCap", () => {
-  it("scales the cap per tier: free 1, basic 10, plus 30, power 100", () => {
-    expect(userPersonaCap("free")).toBe(1);
+  it("scales the cap per tier: free 3, basic 10, plus 100, power unlimited", () => {
+    expect(userPersonaCap("free")).toBe(3);
     expect(userPersonaCap("basic")).toBe(10);
-    expect(userPersonaCap("plus")).toBe(30);
-    expect(userPersonaCap("power")).toBe(100);
+    expect(userPersonaCap("plus")).toBe(100);
+    expect(userPersonaCap("power")).toBe(Number.POSITIVE_INFINITY);
+    // MAX_USER_PERSONAS is the largest FINITE cap (power is unlimited).
     expect(MAX_USER_PERSONAS).toBe(100);
+  });
+
+  it("flags only the power tier as unlimited", () => {
+    expect(isUserPersonaCapUnlimited("free")).toBe(false);
+    expect(isUserPersonaCapUnlimited("basic")).toBe(false);
+    expect(isUserPersonaCapUnlimited("plus")).toBe(false);
+    expect(isUserPersonaCapUnlimited("power")).toBe(true);
   });
 });
 

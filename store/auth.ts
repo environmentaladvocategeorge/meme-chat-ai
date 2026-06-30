@@ -27,6 +27,7 @@ import { DEFAULT_PERSONA_ID } from "@/domain/personas";
 import { useChatStore } from "@/store/chat";
 import { useEntitlementStore } from "@/store/entitlement";
 import { teardownUserNotifications } from "@/store/notifications";
+import { useAdGateStore } from "@/store/adGate";
 import { useOnboardingStore } from "@/store/onboarding";
 import { usePersonaStore } from "@/store/personas";
 import { useReviewPromptStore } from "@/store/reviewPrompt";
@@ -583,6 +584,7 @@ async function clearSignedOutLocalData(): Promise<void> {
     useOnboardingStore.getState().reset().catch(() => {}),
     useSettingsStore.getState().reset().catch(() => {}),
     useReviewPromptStore.getState().reset().catch(() => {}),
+    useAdGateStore.getState().reset().catch(() => {}),
     // Cancel scheduled rot-check notifications carrying the user's bots and drop
     // the in-memory opt-in. OS-level permission is left as-is (device state).
     teardownUserNotifications().catch(() => {}),

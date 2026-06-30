@@ -283,17 +283,22 @@ describe("savePersonaForUser", () => {
     expect(setCalls).toHaveLength(0);
   });
 
-  it("enforces the free-tier cap of 1 without burning a moderation call", async () => {
-    const { deps, moderate } = makeDeps({
-      existing: storedPersona("user_uid-1_old", "uid-1"),
-    });
+  it("enforces the free-tier cap of 3 without burning a moderation call", async () => {
+    // Three stored — free (cap 3) is full and rejects the 4th.
+    const three = Object.fromEntries(
+      Array.from({ length: 3 }, (_, i) => [
+        `user_uid-1_${i}`,
+        storedPersona(`user_uid-1_${i}`, "uid-1"),
+      ]),
+    );
+    const { deps, moderate } = makeDeps(three);
 
     const err = await expectHttpsError(
       savePersonaForUser("uid-1", "free", { persona: validInput() }, deps),
       "resource-exhausted",
       "persona_limit_reached",
     );
-    expect((err.details as { cap: number }).cap).toBe(1);
+    expect((err.details as { cap: number }).cap).toBe(3);
     expect(moderate).not.toHaveBeenCalled();
   });
 
@@ -309,7 +314,7 @@ describe("savePersonaForUser", () => {
       savePersonaForUser("uid-1", "basic", { persona: validInput() }, makeDeps(nine).deps),
     ).resolves.toBeDefined();
 
-    // Ten stored — basic is full and rejects, but plus (cap 30) still creates.
+    // Ten stored — basic is full and rejects, but plus (cap 100) still creates.
     const ten = Object.fromEntries(
       Array.from({ length: 10 }, (_, i) => [
         `user_uid-1_${i}`,
@@ -377,7 +382,7 @@ describe("savePersonaForUser", () => {
       },
     });
 
-    // Free user at their cap of 1 — editing the existing persona must pass.
+    // Editing an existing persona is exempt from the cap, so it must pass.
     const result = await savePersonaForUser(
       "uid-1",
       "free",

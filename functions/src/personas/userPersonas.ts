@@ -31,15 +31,21 @@ export const USER_PERSONA_ID_PREFIX = "user_";
 
 // Per-tier ceiling on stored personas, enforced at save time (count check),
 // never at read time — lowering a cap must not break personas users already
-// chat with. MAX_USER_PERSONAS is the top-tier ceiling (the largest cap any
-// plan grants), used wherever code needs an absolute upper bound.
+// chat with. The top tier (power) is UNLIMITED: Infinity makes the save-time
+// `owned.size >= cap` check simply never trip.
 const USER_PERSONA_CAP: Record<PlanId, number> = {
-  free: 1,
+  free: 3,
   basic: 10,
-  plus: 30,
-  power: 100,
+  plus: 100,
+  power: Number.POSITIVE_INFINITY,
 };
-export const MAX_USER_PERSONAS = USER_PERSONA_CAP.power;
+// The largest FINITE per-plan cap, for anywhere code needs a concrete upper
+// bound (the unlimited power tier can't serve as one).
+export const MAX_USER_PERSONAS = USER_PERSONA_CAP.plus;
+
+export function isUserPersonaCapUnlimited(plan: PlanId): boolean {
+  return !Number.isFinite(USER_PERSONA_CAP[plan] ?? USER_PERSONA_CAP.free);
+}
 
 export function userPersonaCap(plan: PlanId): number {
   return USER_PERSONA_CAP[plan] ?? USER_PERSONA_CAP.free;

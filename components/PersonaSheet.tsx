@@ -39,6 +39,7 @@ import {
 } from "@/domain/personas";
 import { useTheme } from "@/hooks/useTheme";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
+import { useAdGateStore } from "@/store/adGate";
 import { useDisplayPlan } from "@/store/entitlement";
 import { usePersonaDraftStore, useSavedDrafts } from "@/store/personaDraft";
 import { usePersonaSheetStore } from "@/store/personaSheet";
@@ -240,6 +241,12 @@ export function PersonaSheet() {
       Alert.alert(t("personasCreator.capReached"));
       return;
     }
+    // Advance the free-tier ad cadence for the "create a bot" trigger. Counts
+    // only this genuine create path — the at-cap paywall bounce above returns
+    // before here. The ad itself is gated to confirmed-free users in
+    // useInterstitialAdGate, so paid users never see it even though the count
+    // advances.
+    void useAdGateStore.getState().recordNewBotClick();
     close();
     router.push("/persona-creator");
   }, [atCap, isFree, close, openPlan, router, t]);

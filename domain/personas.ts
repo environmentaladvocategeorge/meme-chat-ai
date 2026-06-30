@@ -13,12 +13,27 @@ import type { PlanId } from "@/domain/billing";
 // and only deals in the id + the default/user distinction.
 export const DEFAULT_PERSONA_ID = "brainrot_bot_default";
 
-// Hard ceiling on a user's saved personas. Mirrors the backend
-// MAX_USER_PERSONAS; the free tier gets 1, every paid tier gets the full 10.
-export const MAX_USER_PERSONAS = 10;
+// Per-plan ceiling on a user's saved bots. Mirrors the backend
+// USER_PERSONA_CAP. The top tier (power) is UNLIMITED (Infinity) — a
+// `count >= cap` check simply never trips — so the UI shows "Unlimited" there
+// instead of a number (see isPersonaCapUnlimited).
+export const PERSONA_CAPS: Record<PlanId, number> = {
+  free: 3,
+  basic: 10,
+  plus: 100,
+  power: Number.POSITIVE_INFINITY,
+};
+
+// The largest FINITE per-plan cap, for anywhere code needs a concrete upper
+// bound (the unlimited power tier can't serve as one).
+export const MAX_USER_PERSONAS = PERSONA_CAPS.plus;
 
 export function personaCap(plan: PlanId): number {
-  return plan === "free" ? 1 : MAX_USER_PERSONAS;
+  return PERSONA_CAPS[plan];
+}
+
+export function isPersonaCapUnlimited(plan: PlanId): boolean {
+  return !Number.isFinite(PERSONA_CAPS[plan]);
 }
 
 // The most distinct bots one conversation may hold. Past this, switching to a

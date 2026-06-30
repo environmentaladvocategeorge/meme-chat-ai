@@ -3,6 +3,7 @@ import {
   DEFAULT_PERSONA_ID,
   FIRST_PARTY_PERSONAS,
   isFirstPartyPersonaId,
+  isPersonaCapUnlimited,
   isPersonaLimitReached,
   MAX_PERSONAS_PER_CONVERSATION,
   MAX_USER_PERSONAS,
@@ -27,12 +28,20 @@ function summary(overrides: Partial<UserPersonaSummary> = {}): UserPersonaSummar
 }
 
 describe("personaCap", () => {
-  it("caps free at 1 and every paid tier at MAX_USER_PERSONAS (10)", () => {
-    expect(personaCap("free")).toBe(1);
-    expect(personaCap("basic")).toBe(MAX_USER_PERSONAS);
-    expect(personaCap("plus")).toBe(MAX_USER_PERSONAS);
-    expect(personaCap("power")).toBe(MAX_USER_PERSONAS);
-    expect(MAX_USER_PERSONAS).toBe(10);
+  it("scales the cap per tier: free 3, basic 10, plus 100, power unlimited", () => {
+    expect(personaCap("free")).toBe(3);
+    expect(personaCap("basic")).toBe(10);
+    expect(personaCap("plus")).toBe(100);
+    expect(personaCap("power")).toBe(Number.POSITIVE_INFINITY);
+    // MAX_USER_PERSONAS is the largest FINITE cap (power is unlimited).
+    expect(MAX_USER_PERSONAS).toBe(100);
+  });
+
+  it("flags only the power tier as unlimited", () => {
+    expect(isPersonaCapUnlimited("free")).toBe(false);
+    expect(isPersonaCapUnlimited("basic")).toBe(false);
+    expect(isPersonaCapUnlimited("plus")).toBe(false);
+    expect(isPersonaCapUnlimited("power")).toBe(true);
   });
 });
 
