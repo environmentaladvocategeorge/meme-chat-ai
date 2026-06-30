@@ -209,6 +209,81 @@ const de = {
         "Kostenlos gibt dir einen Vorgeschmack. Premium gibt Brainrot Bot viel mehr Raum zum Reden, Braten, Erklären, Memen und verantwortungsvoll Spiralieren. Jeder Plan nutzt den echten Brainrot Bot. Kein verwässerter Gratis-Goblin.",
       continueFree: "kostenlos weitermachen",
     },
+
+    chat: {
+      gifLabel: "GIF von Brainrot Bot",
+      greet: {
+        bot: "yo. brainrot bot hier 👋",
+        bot2: "bevor's losgeht, 3 schnelle sachen, damit ich dir wirklich was bringe. passt?",
+        cta: "passt",
+      },
+      intent: {
+        bot: "was hat dich hergebracht?",
+        options: {
+          school: {
+            label: "schule / arbeit",
+            reaction:
+              "hausaufgaben-dämon-modus an. ich erklär's und halt dich nebenbei wach.",
+          },
+          texts: {
+            label: "hilf mir, leuten zu antworten",
+            reaction:
+              "sag nichts mehr. ich lass dich normal klingen, oder völlig drüber, deine wahl.",
+          },
+          memes: {
+            label: "memes machen, rumalbern",
+            reaction: "oh wir werden uns super verstehen 😈",
+          },
+          bored: {
+            label: "mir ist nur langweilig",
+            reaction: "bei allem respekt, mir auch. lass uns das ändern.",
+          },
+          other: {
+            label: "was anderes",
+            reaction: "mysteriös. feier ich. wir sehen's unterwegs.",
+          },
+        },
+      },
+      name: {
+        bot: "wie soll ich dich nennen?",
+        placeholder: "digga, menace, dein echter name, egal",
+        reaction: "{{name}}. ok guter name, ist gespeichert 🔒",
+        skip: "überspringen, bleib mysteriös",
+        skipReaction: "anonym also. respekt.",
+      },
+      rot: {
+        bot: "kurz noch. du kannst einstellen, wie durchgedreht meine antworten sind, und das jederzeit in der app ändern.",
+        bot2: "Leicht Durchgegart bleibt entspannt. Goblin-Modus dreht die gifs und emojis voll auf. was ist dein vibe?",
+        options: {
+          lightlyCooked: {
+            reaction: "okay, ich bleib klar und entspannt. lustig, aber nicht komplett drüber.",
+          },
+          rotted: {
+            reaction: "perfekt. erwarte witze direkt neben deinen antworten 😤",
+          },
+          goblin: {
+            reaction:
+              "GOBLIN-MODUS. drüber aber seltsam hilfreich. du bist gewarnt 💀",
+          },
+        },
+      },
+      ready: {
+        bot: "ok das war's 🎉",
+        bot2: "du bist startklar. echte antworten, meme-antworten und das rot-level, das du grad gewählt hast. los geht's.",
+        cta: "rein ins chaos",
+      },
+      notif: {
+        bot: "willst du benachrichtigungen an? ist hauptsächlich ein täglicher anstupser, um vorbeizurotten.",
+        allow: "ja, an damit",
+        allowReaction: "okay, benachrichtigungen an 🔔",
+        decline: "nee, passt schon",
+        declineReaction: "kein ding. du kannst sie später in den einstellungen anmachen.",
+      },
+      paywall: {
+        bot: "noch eine letzte sache, ganz kurz 👇",
+      },
+    },
+
     trial: {
       badge: "EINMALIGES ANGEBOT",
       headline: "Teste Wingman 7 Tage\nkostenlos 🔥",
@@ -243,7 +318,7 @@ const de = {
     selectA11y: "{{name}} auswählen",
     maxReached: "Du hast das Maximum von {{count}} Bots erreicht.",
     upgradeTitle: "Mehr Bots gefällig?",
-    upgradeBody: "Upgrade, um bis zu {{count}} Bots zu erstellen.",
+    upgradeBody: "Mit einem Upgrade bekommst du bis zu {{count}} Bots – im Top-Plan unbegrenzt.",
     upgradeCta: "Upgraden",
     select: {
       count: "{{count}} ausgewählt",
@@ -565,6 +640,29 @@ const de = {
         "lass das weniger cringe klingen",
         "bin ich am Ende?",
       ],
+      chipsByIntent: {
+        school: [
+          "erklär meine hausaufgaben wie für einen 5-jährigen",
+          "schreib mir die einleitung für diesen aufsatz",
+          "frag mich vor meiner prüfung ab",
+        ],
+        texts: [
+          "hilf mir, auf diese nachricht zu antworten",
+          "mach diese nachricht weniger trocken",
+          "was soll ich überhaupt zurückschreiben??",
+        ],
+        memes: [
+          "schick mir jetzt ein meme",
+          "mach ein meme über meinen tag",
+          "gib mir eine verfluchte reaktion darauf",
+        ],
+        bored: [
+          "unterhalt mich",
+          "erzähl mir was völlig drüber",
+          "hau einen random hot take raus",
+        ],
+        other: ["was kannst du überhaupt?", "überrasch mich", "lass uns einfach reden"],
+      },
     },
     input: {
       placeholder: "Nachricht an {{name}}",
@@ -660,6 +758,13 @@ const de = {
         memes: "Memes",
         stickers: "Sticker",
       },
+    },
+    bigBrain: {
+      button: "Genie-Modus",
+      bannerOn:
+        "Die Antworten sind schärfer, aber dein Limit ist schneller weg.",
+      bannerA11y:
+        "Genie-Modus. Hebt die Antworten auf ein schlaueres Modell, das dein Limit schneller verbraucht.",
     },
     stickers: {
       empty: "Gerade keine Sticker",
@@ -873,10 +978,10 @@ const de = {
       },
       featureValues: {
         bots: {
-          free: "1",
+          free: "3",
           basic: "10",
-          plus: "30",
-          power: "100",
+          plus: "100",
+          power: "∞",
         },
         chats: {
           free: "1×",

@@ -209,6 +209,78 @@ const zh = {
         "免费让你尝一口。高级版给 Brainrot Bot 更多空间来聊天、整活、解释、发梗和负责任地螺旋下降。每个计划都使用真正的 Brainrot Bot。没有稀释版免费小妖精。",
       continueFree: "免费继续",
     },
+
+    chat: {
+      gifLabel: "来自 Brainrot Bot 的 GIF",
+      greet: {
+        bot: "哟。brainrot bot 在此 👋",
+        bot2: "开始之前先问你 3 个小问题，这样我才能真的帮到你。可以吗？",
+        cta: "可以",
+      },
+      intent: {
+        bot: "什么风把你吹来的？",
+        options: {
+          school: {
+            label: "学校 / 工作的事",
+            reaction: "作业恶魔模式开启。我给你讲明白，顺便让你别睡着。",
+          },
+          texts: {
+            label: "帮我回复别人",
+            reaction: "懂了。让你听起来正常，或者完全发癫，你选。",
+          },
+          memes: {
+            label: "做表情包、闲逛",
+            reaction: "哦我们会处得很好 😈",
+          },
+          bored: {
+            label: "我就是无聊",
+            reaction: "恕我直言，我也是。咱们来解决一下。",
+          },
+          other: {
+            label: "别的",
+            reaction: "神秘。我喜欢。边走边看。",
+          },
+        },
+      },
+      name: {
+        bot: "我该怎么称呼你？",
+        placeholder: "哥们、menace、你的真名，随便",
+        reaction: "{{name}}。好名字，锁定了 🔒",
+        skip: "跳过，保持神秘",
+        skipReaction: "那就匿名。尊重。",
+      },
+      rot: {
+        bot: "快问一下。你可以调我的回复有多上头，随时能在 app 里改。",
+        bot2: "轻度熟透 保持放松。Goblin模式 把 gif 和表情包拉满。你的风格是哪种？",
+        options: {
+          lightlyCooked: {
+            reaction: "行，我保持清楚又放松。有趣，但不发狂。",
+          },
+          rotted: {
+            reaction: "完美。回答里会顺便带上段子 😤",
+          },
+          goblin: {
+            reaction: "小妖精模式。发癫但莫名其妙有用。提前警告你 💀",
+          },
+        },
+      },
+      ready: {
+        bot: "好了，就这些 🎉",
+        bot2: "你准备好了。真实回答、表情包回复，还有你刚选的上头等级。走起。",
+        cta: "进入混乱",
+      },
+      notif: {
+        bot: "要开通知吗？基本上就是每天提醒你来跟我一起摆烂。",
+        allow: "好，开吧",
+        allowReaction: "成，通知已开 🔔",
+        decline: "不用，我没事",
+        declineReaction: "没事。以后可以在设置里打开。",
+      },
+      paywall: {
+        bot: "最后一件事，很快 👇",
+      },
+    },
+
     trial: {
       badge: "一次性优惠",
       headline: "免费试用 Wingman\n7 天 🔥",
@@ -243,7 +315,7 @@ const zh = {
     selectA11y: "选择 {{name}}",
     maxReached: "你已达到最多 {{count}} 个机器人。",
     upgradeTitle: "想要更多机器人？",
-    upgradeBody: "升级即可创建多达 {{count}} 个机器人。",
+    upgradeBody: "升级即可创建多达 {{count}} 个机器人，顶级套餐无限量。",
     upgradeCta: "升级",
     select: {
       count: "已选择 {{count}} 个",
@@ -567,6 +639,29 @@ const zh = {
         "让这个听起来不那么cringe",
         "我完了吗？",
       ],
+      chipsByIntent: {
+        school: [
+          "把我的作业讲得像给5岁小孩听",
+          "帮我写这篇作文的开头",
+          "考试前考考我",
+        ],
+        texts: [
+          "帮我回复这条消息",
+          "让这条消息别那么干",
+          "我到底该回啥??",
+        ],
+        memes: [
+          "现在发我一个表情包",
+          "做一个关于我今天的表情包",
+          "给这个来个诅咒反应",
+        ],
+        bored: [
+          "逗逗我",
+          "跟我说点发癫的",
+          "随便来个暴论",
+        ],
+        other: ["你到底会啥？", "给我个惊喜", "就随便聊聊"],
+      },
     },
     input: {
       placeholder: "发消息给 {{name}}",
@@ -662,6 +757,11 @@ const zh = {
         memes: "表情包",
         stickers: "贴纸",
       },
+    },
+    bigBrain: {
+      button: "超脑模式",
+      bannerOn: "回复更精准，但额度会消耗得更快。",
+      bannerA11y: "超脑模式。将回复升级为更聪明的模型，会更快用掉你的额度。",
     },
     stickers: {
       empty: "暂时没有贴纸",
@@ -874,10 +974,10 @@ const zh = {
       },
       featureValues: {
         bots: {
-          free: "1",
+          free: "3",
           basic: "10",
-          plus: "30",
-          power: "100",
+          plus: "100",
+          power: "∞",
         },
         chats: {
           free: "1×",

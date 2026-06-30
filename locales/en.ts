@@ -239,6 +239,92 @@ const en = {
       continueFree: "continue free",
     },
 
+    // Conversational onboarding — the scripted chat with Brainrot Bot. Copy is
+    // in-voice (lowercase, brainrot slang) but written to read like a real
+    // person, not AI filler. Reactions are keyed per answer in the script.
+    chat: {
+      // Accessibility label for the watermarked onboarding GIFs.
+      gifLabel: "GIF from Brainrot Bot",
+
+      greet: {
+        bot: "yo. brainrot bot here 👋",
+        bot2: "before we get into it, 3 quick things so i'm actually useful to you. cool?",
+        cta: "bet",
+      },
+
+      intent: {
+        bot: "what dragged you here?",
+        options: {
+          school: {
+            label: "school / work stuff",
+            reaction:
+              "homework demon mode unlocked. i'll explain it and keep you awake while i do it.",
+          },
+          texts: {
+            label: "help me reply to ppl",
+            reaction:
+              "say less. i'll help you sound normal, or unhinged, your call.",
+          },
+          memes: {
+            label: "make memes, mess around",
+            reaction: "oh we're gonna get along great 😈",
+          },
+          bored: {
+            label: "i'm just bored",
+            reaction: "respectfully, same. let's fix that.",
+          },
+          other: {
+            label: "something else",
+            reaction: "mysterious. i fw it. we'll figure it out as we go.",
+          },
+        },
+      },
+
+      name: {
+        bot: "what should i call you?",
+        placeholder: "gng, menace, your actual name, whatever",
+        reaction: "{{name}}. ok that's a solid name, locking it in 🔒",
+        skip: "skip, stay mysterious",
+        skipReaction: "anonymous it is. respect.",
+      },
+
+      rot: {
+        bot: "quick one. you can dial how rotted my replies get, and change it anytime in the app.",
+        bot2: "lightly cooked stays chill. goblin mode cranks the gifs and emojis all the way up. what's your vibe?",
+        options: {
+          lightlyCooked: {
+            reaction:
+              "cool, i'll keep it clear and chill. still fun, just not feral.",
+          },
+          rotted: {
+            reaction: "perfect. expect jokes riding shotgun with your answers 😤",
+          },
+          goblin: {
+            reaction:
+              "GOBLIN MODE. unhinged but weirdly helpful. you've been warned 💀",
+          },
+        },
+      },
+
+      notif: {
+        bot: "want notifications on? mostly a daily nudge to come rot with me.",
+        allow: "yeah, turn it on",
+        allowReaction: "bet, notifications on 🔔",
+        decline: "nah, i'm good",
+        declineReaction: "no worries. you can flip them on later in settings.",
+      },
+
+      ready: {
+        bot: "ok that's everything 🎉",
+        bot2: "you're set. real answers, meme replies, and whatever rot level you just picked. let's go.",
+        cta: "enter the chaos",
+      },
+
+      paywall: {
+        bot: "one last thing real quick 👇",
+      },
+    },
+
     // Trial offer — shown when user taps "continue free" on the paywall
     trial: {
       badge: "ONE-TIME OFFER",
@@ -274,7 +360,7 @@ const en = {
     selectA11y: "Select {{name}}",
     maxReached: "You’ve reached the maximum of {{count}} bots.",
     upgradeTitle: "Want more bots?",
-    upgradeBody: "Upgrade to create up to {{count}} bots.",
+    upgradeBody: "Upgrade for up to {{count}} bots, or go unlimited on the top plan.",
     upgradeCta: "Upgrade",
     select: {
       count: "{{count}} selected",
@@ -596,6 +682,36 @@ const en = {
         "make this sound less cringe",
         "am I cooked?",
       ],
+      // Seeded starters keyed to the onboarding "what brought you here" intent,
+      // so day one lands on prompts that match why the user showed up. Falls back
+      // to `chips` when no intent was captured.
+      chipsByIntent: {
+        school: [
+          "explain my homework like i'm 5",
+          "write this essay intro for me",
+          "quiz me before my test",
+        ],
+        texts: [
+          "help me reply to this text",
+          "make this message less dry",
+          "what do i even say back??",
+        ],
+        memes: [
+          "send me a meme rn",
+          "make a meme about my day",
+          "what's a cursed reaction to this",
+        ],
+        bored: [
+          "entertain me",
+          "tell me something unhinged",
+          "give me a random hot take",
+        ],
+        other: [
+          "what can you even do?",
+          "surprise me",
+          "let's just talk",
+        ],
+      },
     },
     input: {
       placeholder: "Message {{name}}",
@@ -696,6 +812,13 @@ const en = {
         memes: "Memes",
         stickers: "Stickers",
       },
+    },
+    bigBrain: {
+      button: "Big Brain",
+      bannerOn:
+        "Replies are sharper, but they'll use up your limit faster.",
+      bannerA11y:
+        "Big Brain mode. Upgrades replies to a smarter model that uses your limit faster.",
     },
     stickers: {
       empty: "No stickers right now",
@@ -922,10 +1045,10 @@ const en = {
           power: "50×",
         },
         bots: {
-          free: "1",
+          free: "3",
           basic: "10",
-          plus: "30",
-          power: "100",
+          plus: "100",
+          power: "∞",
         },
         memory: {
           free: "—",

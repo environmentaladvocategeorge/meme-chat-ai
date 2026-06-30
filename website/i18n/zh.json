@@ -84,7 +84,7 @@
     "personas": {
       "eyebrow": "打造你自己的",
       "h2": "打造一个完全属于你的 brainrot bot。",
-      "p": "Brainrot Bot 只是开始。从零打造你自己的：起个名字、写段背景、定下说话的方式，然后像和别的 bot 一样跟它聊。免费套餐含一个自定义 bot；付费套餐可存 10 到 100 个，还能随时在它们之间切换。每个 bot 上线前都会通过一次安全检查。",
+      "p": "Brainrot Bot 只是开始。从零打造你自己的：起个名字、写段背景、定下说话的方式，然后像和别的 bot 一样跟它聊。免费套餐含三个自定义 bot；付费套餐可存 10 到 100 个（顶级套餐无限量），还能随时在它们之间切换。每个 bot 上线前都会通过一次安全检查。",
       "card1Title": "给它一个性格",
       "card1Body": "起名、写清它是谁、定下调调：温柔、面瘫，还是彻底放飞，随你。",
       "card2Title": "教它说话",
@@ -130,16 +130,16 @@
       "p": "每个套餐都是同一个聪明的 Brainrot Bot。档位决定你的每月额度、能存多少个自定义 bot、Brainrot Bot 是否记得你，以及你能不能给聊天换风格。Wingman 最受欢迎，MVP 最强。",
       "plan1Kicker": "免费",
       "plan1Desc": "完整机器人，入门级混乱。",
-      "plan1Meta": "1x 聊天 &middot; 1 个自定义 bot",
+      "plan1Meta": "1x 聊天 &middot; 3 个自定义 bot",
       "plan2Kicker": "基础",
       "plan2Desc": "更多聊天，更少气场欠债。",
       "plan2Meta": "9x 聊天 &middot; 10 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告",
       "plan3Kicker": "热门",
       "plan3Desc": "海量聊天、记忆、势头。",
-      "plan3Meta": "25x 聊天 &middot; 30 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告",
+      "plan3Meta": "25x 聊天 &middot; 100 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告",
       "plan4Kicker": "最佳",
       "plan4Desc": "为高强度聊天日和专业级唠嗑而生。",
-      "plan4Meta": "50x 聊天 &middot; 100 个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告"
+      "plan4Meta": "50x 聊天 &middot; 无限个自定义 bot &middot; 记忆 &middot; App 主题 &middot; 无广告"
     },
     "iosCallout": {
       "eyebrow": "iOS — 现已上线",
@@ -156,7 +156,7 @@
       "q3": "网站用的是真实的 App 素材吗?",
       "a3": "是的。首页用的是 App 图标、Brainrot Bot 头像图、Poppins、Fredoka，以及和 App 一样的品牌配色。",
       "q4": "我能做自己的 bot 吗?",
-      "a4": "可以。除了 Brainrot Bot，你还能打造自己的：起名，赋予性格、语气和头像，然后跟它聊。免费套餐含一个自定义 bot，付费套餐最多存一百个。每个 bot 上线前都会经过安全检查。"
+      "a4": "可以。除了 Brainrot Bot，你还能打造自己的：起名，赋予性格、语气和头像，然后跟它聊。免费套餐含三个自定义 bot，付费套餐最多存一百个，顶级套餐无限量。每个 bot 上线前都会经过安全检查。"
     }
   },
   "ios": {

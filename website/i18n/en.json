@@ -84,7 +84,7 @@
     "personas": {
       "eyebrow": "Make your own",
       "h2": "Build a brainrot bot that's all yours.",
-      "p": "Brainrot Bot is just the start. Build your own from scratch: give it a name, a backstory, and its own way of talking, then chat with it like any other. Free comes with one custom bot; paid plans hold from 10 up to 100 and let you switch between them anytime. Every bot passes a safety check before it goes live.",
+      "p": "Brainrot Bot is just the start. Build your own from scratch: give it a name, a backstory, and its own way of talking, then chat with it like any other. Free comes with three custom bots; paid plans hold from 10 up to 100 (unlimited on the top tier) and let you switch between them anytime. Every bot passes a safety check before it goes live.",
       "card1Title": "Give it a personality",
       "card1Body": "Name it, write who it is, and set the vibe: sweet, deadpan, or completely unhinged.",
       "card2Title": "Teach it to talk",
@@ -130,16 +130,16 @@
       "p": "Same smart Brainrot Bot on every plan. The tiers set your monthly allowance, how many custom bots you can save, whether Brainrot Bot remembers you, and whether you can restyle the chat. Wingman is the popular pick; MVP is the most powerful.",
       "plan1Kicker": "Free",
       "plan1Desc": "Full bot, starter chaos.",
-      "plan1Meta": "1x chats &middot; 1 custom bot",
+      "plan1Meta": "1x chats &middot; 3 custom bots",
       "plan2Kicker": "Basic",
       "plan2Desc": "More chats, less aura debt.",
       "plan2Meta": "9x chats &middot; 10 custom bots &middot; Memory &middot; App themes &middot; Ad-free",
       "plan3Kicker": "Popular",
       "plan3Desc": "Tons of chats, memory, momentum.",
-      "plan3Meta": "25x chats &middot; 30 custom bots &middot; Memory &middot; App themes &middot; Ad-free",
+      "plan3Meta": "25x chats &middot; 100 custom bots &middot; Memory &middot; App themes &middot; Ad-free",
       "plan4Kicker": "Best",
       "plan4Desc": "For heavy chat days and professional yapping.",
-      "plan4Meta": "50x chats &middot; 100 custom bots &middot; Memory &middot; App themes &middot; Ad-free"
+      "plan4Meta": "50x chats &middot; unlimited custom bots &middot; Memory &middot; App themes &middot; Ad-free"
     },
     "iosCallout": {
       "eyebrow": "iOS — out now",
@@ -156,7 +156,7 @@
       "q3": "Does the website use real app assets?",
       "a3": "Yes. The homepage uses the app icon, Brainrot Bot avatar images, Poppins, Fredoka, and the same brand colors as the app.",
       "q4": "Can I make my own bot?",
-      "a4": "Yes. Alongside Brainrot Bot you can build your own: name it, give it a personality, voice, and avatar, then chat with it. Free includes one custom bot and paid plans hold up to a hundred. Every bot is checked for safety before it goes live."
+      "a4": "Yes. Alongside Brainrot Bot you can build your own: name it, give it a personality, voice, and avatar, then chat with it. Free includes three custom bots, and paid plans go up to a hundred (unlimited on the top tier). Every bot is checked for safety before it goes live."
     }
   },
   "ios": {

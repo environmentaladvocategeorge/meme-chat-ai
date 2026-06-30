@@ -84,7 +84,7 @@
     "personas": {
       "eyebrow": "Crée le tien",
       "h2": "Crée un brainrot bot rien qu'à toi.",
-      "p": "Brainrot Bot n'est que le début. Crée le tien à partir de zéro : donne-lui un nom, une histoire et sa propre façon de parler, puis discute avec lui comme avec n'importe quel autre. Le forfait gratuit inclut un bot personnalisé ; les forfaits payants en gardent de 10 à 100 et te laissent passer de l'un à l'autre quand tu veux. Chaque bot passe un contrôle de sécurité avant sa mise en ligne.",
+      "p": "Brainrot Bot n'est que le début. Crée le tien à partir de zéro : donne-lui un nom, une histoire et sa propre façon de parler, puis discute avec lui comme avec n'importe quel autre. Le forfait gratuit inclut trois bots personnalisés ; les forfaits payants en gardent de 10 à 100 (illimités sur le forfait max) et te laissent passer de l'un à l'autre quand tu veux. Chaque bot passe un contrôle de sécurité avant sa mise en ligne.",
       "card1Title": "Donne-lui une personnalité",
       "card1Body": "Donne-lui un nom, écris qui il est et fixe le vibe : doux, pince-sans-rire ou complètement déjanté.",
       "card2Title": "Apprends-lui à parler",
@@ -130,16 +130,16 @@
       "p": "Le même Brainrot Bot futé sur tous les forfaits. Les niveaux fixent ton quota mensuel, combien de bots personnalisés tu peux garder, si Brainrot Bot se souvient de toi et si tu peux restyler le chat. Wingman est le préféré ; MVP est le plus puissant.",
       "plan1Kicker": "Gratuit",
       "plan1Desc": "Bot complet, chaos de départ.",
-      "plan1Meta": "1x chats &middot; 1 bot personnalisé",
+      "plan1Meta": "1x chats &middot; 3 bots personnalisés",
       "plan2Kicker": "Basique",
       "plan2Desc": "Plus de chats, moins de dette d'aura.",
       "plan2Meta": "9x chats &middot; 10 bots personnalisés &middot; Mémoire &middot; Thèmes de l'app &middot; Sans pub",
       "plan3Kicker": "Populaire",
       "plan3Desc": "Tonnes de chats, mémoire, élan.",
-      "plan3Meta": "25x chats &middot; 30 bots personnalisés &middot; Mémoire &middot; Thèmes de l'app &middot; Sans pub",
+      "plan3Meta": "25x chats &middot; 100 bots personnalisés &middot; Mémoire &middot; Thèmes de l'app &middot; Sans pub",
       "plan4Kicker": "Meilleur",
       "plan4Desc": "Pour les journées de chat intense et le yapping professionnel.",
-      "plan4Meta": "50x chats &middot; 100 bots personnalisés &middot; Mémoire &middot; Thèmes de l'app &middot; Sans pub"
+      "plan4Meta": "50x chats &middot; bots personnalisés illimités &middot; Mémoire &middot; Thèmes de l'app &middot; Sans pub"
     },
     "iosCallout": {
       "eyebrow": "iOS — disponible",
@@ -156,7 +156,7 @@
       "q3": "Le site utilise-t-il les vrais éléments de l'app ?",
       "a3": "Oui. La page d'accueil utilise l'icône de l'app, les images de l'avatar Brainrot Bot, Poppins, Fredoka et les mêmes couleurs de marque que l'app.",
       "q4": "Puis-je créer mon propre bot ?",
-      "a4": "Oui. À côté de Brainrot Bot, tu peux créer le tien : donne-lui un nom, une personnalité, une voix et un avatar, puis discute avec lui. Le gratuit inclut un bot personnalisé et les forfaits payants en gardent jusqu'à cent. Chaque bot est vérifié pour la sécurité avant sa mise en ligne."
+      "a4": "Oui. À côté de Brainrot Bot, tu peux créer le tien : donne-lui un nom, une personnalité, une voix et un avatar, puis discute avec lui. Le gratuit inclut trois bots personnalisés et les forfaits payants en gardent jusqu'à cent, ou un nombre illimité sur le forfait max. Chaque bot est vérifié pour la sécurité avant sa mise en ligne."
     }
   },
   "ios": {

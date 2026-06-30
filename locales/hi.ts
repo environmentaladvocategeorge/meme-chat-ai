@@ -208,6 +208,78 @@ const hi = {
         "Free में taste मिलता है। Premium में Brainrot Bot को yap, roast, explain, meme करने की बहुत ज़्यादा जगह मिलती है। हर plan में असली Brainrot Bot है। कोई watered-down free goblin नहीं।",
       continueFree: "free रहो",
     },
+
+    chat: {
+      gifLabel: "Brainrot Bot का GIF",
+      greet: {
+        bot: "yo. brainrot bot यहां 👋",
+        bot2: "शुरू करने से पहले 3 छोटी चीज़ें, ताकि मैं सच में काम आऊं। ठीक है?",
+        cta: "ठीक है",
+      },
+      intent: {
+        bot: "तुम्हें यहां क्या लाया?",
+        options: {
+          school: {
+            label: "school / work की चीज़ें",
+            reaction: "homework demon mode on. समझाऊंगा भी और जगाए भी रखूंगा।",
+          },
+          texts: {
+            label: "लोगों को reply करने में हेल्प",
+            reaction: "बस इतना ही। normal साउंड कराऊं या पूरा unhinged, तुम्हारी मर्ज़ी।",
+          },
+          memes: {
+            label: "memes बनाना, टाइमपास",
+            reaction: "ओह हम बढ़िया दोस्त बनेंगे 😈",
+          },
+          bored: {
+            label: "बस bore हो रहा हूं",
+            reaction: "respect के साथ, मैं भी। चलो इसे ठीक करते हैं।",
+          },
+          other: {
+            label: "कुछ और",
+            reaction: "mysterious. पसंद आया। आगे देखते हैं।",
+          },
+        },
+      },
+      name: {
+        bot: "तुम्हें क्या कहकर बुलाऊं?",
+        placeholder: "bhai, menace, तुम्हारा असली नाम, कुछ भी",
+        reaction: "{{name}}. ओके बढ़िया नाम, lock कर दिया 🔒",
+        skip: "skip करो, mysterious रहो",
+        skipReaction: "तो anonymous. respect.",
+      },
+      rot: {
+        bot: "एक quick बात। तुम adjust कर सकते हो कि मेरे replies कितने rotted हों, और इसे app में कभी भी बदल सकते हो।",
+        bot2: "Lightly Cooked chill रहता है। Goblin Mode gifs और emojis को पूरा ऊपर कर देता है। तुम्हारी vibe क्या है?",
+        options: {
+          lightlyCooked: {
+            reaction: "ठीक है, clear और chill रखूंगा। मज़ेदार, पर feral नहीं।",
+          },
+          rotted: {
+            reaction: "perfect. जवाबों के साथ jokes भी expect करो 😤",
+          },
+          goblin: {
+            reaction: "GOBLIN MODE. unhinged पर अजीब तरह से helpful. तुम्हें warn कर दिया 💀",
+          },
+        },
+      },
+      ready: {
+        bot: "ओके बस इतना ही 🎉",
+        bot2: "तुम तैयार हो। असली जवाब, meme replies, और जो rot level तुमने अभी चुना। चलो।",
+        cta: "chaos में घुसो",
+      },
+      notif: {
+        bot: "notifications on करना है? ज़्यादातर बस एक daily reminder है मेरे साथ rot करने आने का।",
+        allow: "हां, on करो",
+        allowReaction: "बढ़िया, notifications on 🔔",
+        decline: "नहीं, मैं ठीक हूं",
+        declineReaction: "कोई बात नहीं। बाद में settings में on कर सकते हो।",
+      },
+      paywall: {
+        bot: "बस एक आखिरी चीज़, जल्दी 👇",
+      },
+    },
+
     trial: {
       badge: "एक बार का ऑफ़र",
       headline: "Wingman को 7 दिन\nमुफ़्त आज़माओ 🔥",
@@ -242,7 +314,7 @@ const hi = {
     selectA11y: "{{name}} चुनें",
     maxReached: "आप {{count}} बॉट्स की अधिकतम सीमा तक पहुँच गए हैं।",
     upgradeTitle: "और बॉट्स चाहिए?",
-    upgradeBody: "{{count}} बॉट्स तक बनाने के लिए अपग्रेड करें।",
+    upgradeBody: "{{count}} बॉट्स तक के लिए अपग्रेड करें — टॉप प्लान पर अनलिमिटेड।",
     upgradeCta: "अपग्रेड करें",
     select: {
       count: "{{count}} चुने गए",
@@ -567,6 +639,29 @@ const hi = {
         "यह कम cringe बनाओ",
         "क्या मैं cooked हूं?",
       ],
+      chipsByIntent: {
+        school: [
+          "मेरा homework ऐसे समझाओ जैसे मैं 5 साल का हूं",
+          "इस essay का intro लिखो",
+          "test से पहले मुझसे quiz लो",
+        ],
+        texts: [
+          "इस text का reply करने में हेल्प करो",
+          "इस message को कम dry बनाओ",
+          "मैं आखिर reply क्या करूं??",
+        ],
+        memes: [
+          "अभी एक meme भेजो",
+          "मेरे दिन पर एक meme बनाओ",
+          "इस पर कोई cursed reaction दो",
+        ],
+        bored: [
+          "मुझे entertain करो",
+          "कुछ unhinged बताओ",
+          "कोई random hot take दो",
+        ],
+        other: ["तुम कर क्या सकते हो?", "मुझे surprise करो", "बस बातें करते हैं"],
+      },
     },
     input: {
       placeholder: "{{name}} को message करो",
@@ -664,6 +759,13 @@ const hi = {
         memes: "Memes",
         stickers: "Stickers",
       },
+    },
+    bigBrain: {
+      button: "बिग ब्रेन",
+      bannerOn:
+        "जवाब ज़्यादा तेज़ होंगे, पर आपकी लिमिट तेज़ी से खर्च होगी।",
+      bannerA11y:
+        "बिग ब्रेन मोड। जवाबों को ज़्यादा स्मार्ट मॉडल पर अपग्रेड करता है जो आपकी लिमिट तेज़ी से इस्तेमाल करता है।",
     },
     stickers: {
       empty: "अभी कोई stickers नहीं",
@@ -877,10 +979,10 @@ const hi = {
       },
       featureValues: {
         bots: {
-          free: "1",
+          free: "3",
           basic: "10",
-          plus: "30",
-          power: "100",
+          plus: "100",
+          power: "∞",
         },
         chats: {
           free: "1×",
