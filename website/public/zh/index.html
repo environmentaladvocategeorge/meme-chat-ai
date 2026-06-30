@@ -298,6 +298,40 @@
         </div>
       </section>
 
+      <section class="section bots-section reveal" id="bots">
+        <div class="section-heading">
+          <p class="eyebrow">认识这些 bot</p>
+          <h2>两个内置 bot，随时切换。</h2>
+          <p>每次下载都自带两个能聊天的 bot，和你自己创建的 bot 并排排列。点一下来认识它们。</p>
+        </div>
+        <div class="bot-switch" data-bot-switch>
+          <div class="bot-tabs" role="tablist" aria-label="认识这些 bot">
+            <button class="bot-tab is-active" type="button" role="tab" aria-selected="true" id="bot-tab-brainrot" aria-controls="bot-panel-brainrot" data-bot-tab="brainrot">Brainrot Bot</button>
+            <button class="bot-tab" type="button" role="tab" aria-selected="false" id="bot-tab-luna" aria-controls="bot-panel-luna" data-bot-tab="luna">Luna</button>
+          </div>
+          <div class="bot-panels">
+            <article class="bot-panel is-active" role="tabpanel" id="bot-panel-brainrot" aria-labelledby="bot-tab-brainrot" data-bot-panel="brainrot">
+              <img class="bot-avatar" src="/assets/images/meme-level-up.png?v=2" alt="Brainrot Bot avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline">初代</span>
+                <h3>Brainrot Bot</h3>
+                <p>群里最有梗的那个：吐槽你、甩出完美 GIF，还顺手给你靠谱回答。用 Rot Level 调高或调低混乱程度。</p>
+                <p class="bot-sample">那个计划全靠氛围和一个回形针撑着 💀</p>
+              </div>
+            </article>
+            <article class="bot-panel" role="tabpanel" id="bot-panel-luna" aria-labelledby="bot-tab-luna" data-bot-panel="luna" hidden>
+              <img class="bot-avatar" src="/assets/images/luna-avatar.png?v=2" alt="Luna avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline bot-tagline-new">全新</span>
+                <h3>Luna</h3>
+                <p>你那位有点 delulu 的占星闺蜜：会读你的星盘、给你打气，还能正经回答你的问题。和 Brainrot Bot 一样聪明，氛围更柔和、更宇宙系。</p>
+                <p class="bot-sample">水星逆行中，守住你的内心平静，千万别回他 🔮</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="section split-section reveal" id="personas">
         <div>
           <p class="eyebrow">打造你自己的</p>
@@ -570,6 +604,35 @@
           initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
         track.style.scrollBehavior = prev;
         update();
+      })();
+    </script>
+    <!-- Meet-the-bots tabs: swap the Brainrot Bot / Luna panel on click. Pure
+         progressive enhancement — with no JS, the default Brainrot Bot panel
+         shows (Luna's panel stays in the DOM for crawlers, just hidden). -->
+    <script>
+      (function () {
+        var sw = document.querySelector("[data-bot-switch]");
+        if (!sw) return;
+        var tabs = [].slice.call(sw.querySelectorAll("[data-bot-tab]"));
+        var panels = [].slice.call(sw.querySelectorAll("[data-bot-panel]"));
+        function select(name) {
+          tabs.forEach(function (t) {
+            var on = t.getAttribute("data-bot-tab") === name;
+            t.classList.toggle("is-active", on);
+            t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          panels.forEach(function (p) {
+            var on = p.getAttribute("data-bot-panel") === name;
+            p.classList.toggle("is-active", on);
+            if (on) p.removeAttribute("hidden");
+            else p.setAttribute("hidden", "");
+          });
+        }
+        tabs.forEach(function (t) {
+          t.addEventListener("click", function () {
+            select(t.getAttribute("data-bot-tab"));
+          });
+        });
       })();
     </script>
     <script>try{localStorage.setItem("mcai_lang","zh");}catch(e){}</script>

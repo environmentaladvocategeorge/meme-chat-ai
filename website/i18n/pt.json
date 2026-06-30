@@ -92,6 +92,19 @@
       "card3Title": "Escolha o visual",
       "card3Body": "Suba um avatar ou gere um a partir de uma breve descrição, escreva o slogan de uma linha e salve. Ele aparece no seu seletor de bots, pronto pra usar."
     },
+    "bots": {
+      "eyebrow": "Conheça os bots",
+      "h2": "Dois bots já inclusos. Troque quando quiser.",
+      "p": "Cada download vem com dois bots prontos pra conversar, lado a lado com os que você cria. Toque pra conhecer.",
+      "brainrotName": "Brainrot Bot",
+      "brainrotTagline": "O original",
+      "brainrotBody": "O mais engraçado do grupo: te zoa, manda o GIF perfeito e ainda dá uma resposta de verdade. Aumente ou diminua o caos com o Rot Level.",
+      "brainrotSample": "esse plano se segura na vibe e num clipe de papel 💀",
+      "lunaName": "Luna",
+      "lunaTagline": "Novo",
+      "lunaBody": "Sua bestie da astrologia e meio delulu: lê seu mapa astral, te anima e ainda responde o que você perguntou. A mesma inteligência do Brainrot Bot, com uma vibe cósmica mais suave.",
+      "lunaSample": "mercúrio está retrógrado, proteja sua paz e NÃO responda 🔮"
+    },
     "meme": {
       "eyebrow": "Memes, GIFs e figurinhas",
       "h2": "Quando faltam palavras, manda o meme.",

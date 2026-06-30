@@ -298,6 +298,40 @@
         </div>
       </section>
 
+      <section class="section bots-section reveal" id="bots">
+        <div class="section-heading">
+          <p class="eyebrow">Meet the bots</p>
+          <h2>Two bots built in. Switch anytime.</h2>
+          <p>Every download comes with two ready-to-chat bots, right alongside any custom ones you build. Tap to meet them.</p>
+        </div>
+        <div class="bot-switch" data-bot-switch>
+          <div class="bot-tabs" role="tablist" aria-label="Meet the bots">
+            <button class="bot-tab is-active" type="button" role="tab" aria-selected="true" id="bot-tab-brainrot" aria-controls="bot-panel-brainrot" data-bot-tab="brainrot">Brainrot Bot</button>
+            <button class="bot-tab" type="button" role="tab" aria-selected="false" id="bot-tab-luna" aria-controls="bot-panel-luna" data-bot-tab="luna">Luna</button>
+          </div>
+          <div class="bot-panels">
+            <article class="bot-panel is-active" role="tabpanel" id="bot-panel-brainrot" aria-labelledby="bot-tab-brainrot" data-bot-panel="brainrot">
+              <img class="bot-avatar" src="/assets/images/meme-level-up.png?v=2" alt="Brainrot Bot avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline">The original</span>
+                <h3>Brainrot Bot</h3>
+                <p>The funniest one in your group chat: roasts you, sends the perfect GIF, and somehow still gives a real answer. Dial the chaos up or down with the Rot Level.</p>
+                <p class="bot-sample">that plan is held together by vibes and one paperclip 💀</p>
+              </div>
+            </article>
+            <article class="bot-panel" role="tabpanel" id="bot-panel-luna" aria-labelledby="bot-tab-luna" data-bot-panel="luna" hidden>
+              <img class="bot-avatar" src="/assets/images/luna-avatar.png?v=2" alt="Luna avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline bot-tagline-new">New</span>
+                <h3>Luna</h3>
+                <p>Your delulu astrology bestie: she reads your birth chart, hypes you up, and still answers the actual question. Same smarts as Brainrot Bot, a softer cosmic vibe.</p>
+                <p class="bot-sample">mercury's in retrograde, protect your peace and do NOT text back 🔮</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="section split-section reveal" id="personas">
         <div>
           <p class="eyebrow">Make your own</p>
@@ -570,6 +604,35 @@
           initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
         track.style.scrollBehavior = prev;
         update();
+      })();
+    </script>
+    <!-- Meet-the-bots tabs: swap the Brainrot Bot / Luna panel on click. Pure
+         progressive enhancement — with no JS, the default Brainrot Bot panel
+         shows (Luna's panel stays in the DOM for crawlers, just hidden). -->
+    <script>
+      (function () {
+        var sw = document.querySelector("[data-bot-switch]");
+        if (!sw) return;
+        var tabs = [].slice.call(sw.querySelectorAll("[data-bot-tab]"));
+        var panels = [].slice.call(sw.querySelectorAll("[data-bot-panel]"));
+        function select(name) {
+          tabs.forEach(function (t) {
+            var on = t.getAttribute("data-bot-tab") === name;
+            t.classList.toggle("is-active", on);
+            t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          panels.forEach(function (p) {
+            var on = p.getAttribute("data-bot-panel") === name;
+            p.classList.toggle("is-active", on);
+            if (on) p.removeAttribute("hidden");
+            else p.setAttribute("hidden", "");
+          });
+        }
+        tabs.forEach(function (t) {
+          t.addEventListener("click", function () {
+            select(t.getAttribute("data-bot-tab"));
+          });
+        });
       })();
     </script>
     <script>try{localStorage.setItem("mcai_lang","en");}catch(e){}</script>

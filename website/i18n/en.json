@@ -92,6 +92,19 @@
       "card3Title": "Pick its look",
       "card3Body": "Upload an avatar or generate one from a quick description, write its one-line tagline, and save. It lands in your bot picker, ready to go."
     },
+    "bots": {
+      "eyebrow": "Meet the bots",
+      "h2": "Two bots built in. Switch anytime.",
+      "p": "Every download comes with two ready-to-chat bots, right alongside any custom ones you build. Tap to meet them.",
+      "brainrotName": "Brainrot Bot",
+      "brainrotTagline": "The original",
+      "brainrotBody": "The funniest one in your group chat: roasts you, sends the perfect GIF, and somehow still gives a real answer. Dial the chaos up or down with the Rot Level.",
+      "brainrotSample": "that plan is held together by vibes and one paperclip 💀",
+      "lunaName": "Luna",
+      "lunaTagline": "New",
+      "lunaBody": "Your delulu astrology bestie: she reads your birth chart, hypes you up, and still answers the actual question. Same smarts as Brainrot Bot, a softer cosmic vibe.",
+      "lunaSample": "mercury's in retrograde, protect your peace and do NOT text back 🔮"
+    },
     "meme": {
       "eyebrow": "Memes, GIFs & stickers",
       "h2": "When words fail, send the meme.",
