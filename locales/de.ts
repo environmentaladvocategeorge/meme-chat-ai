@@ -652,6 +652,22 @@ const de = {
       retry: "Erneut versuchen",
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "Medien",
+      keyboard: "Tastatur",
+      tabs: {
+        gifs: "GIFs",
+        memes: "Memes",
+        stickers: "Sticker",
+      },
+    },
+    stickers: {
+      empty: "Gerade keine Sticker",
+      noResults: "Keine passenden Sticker",
+      error: "Sticker konnten nicht geladen werden",
+      retry: "Erneut versuchen",
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Rot-Level",
       title: "Wie verrottet sollen die Antworten sein?",
@@ -696,6 +712,7 @@ const de = {
       remove: "Meme entfernen",
       imageLabel: "Meme-Anhang",
       gifLabel: "GIF-Anhang",
+      stickerLabel: "Sticker-Anhang",
       sentMeme: "Hat ein Meme gesendet",
       invalid: "Dieses Meme konnte nicht angehängt werden",
       download: {

@@ -68,6 +68,21 @@ describe("buildVisibleMessages — filtering & ordering", () => {
     expect(result.map((m) => m.id)).toEqual(["u1"]);
   });
 
+  it("keeps a sticker-only user turn that has no text/images/gifs", () => {
+    const sticker = {
+      id: "s1",
+      source: "klipy-sticker" as const,
+      url: "https://static.klipy.com/s.webp",
+      previewUrl: "https://static.klipy.com/s.png",
+    };
+    const result = buildVisibleMessages(
+      baseInput({
+        messages: [chatMessage({ id: "u1", role: "user", stickers: [sticker] })],
+      }),
+    );
+    expect(result.map((m) => m.id)).toEqual(["u1"]);
+  });
+
   it("keeps an errored agent bubble even with empty text", () => {
     const result = buildVisibleMessages(
       baseInput({
@@ -123,6 +138,26 @@ describe("buildVisibleMessages — streaming reply", () => {
       activeReplyClientId: null,
     });
     expect(result.map((m) => m.id)).toEqual(["u1"]);
+  });
+
+  it("does not double-render when the finalized reply already landed (awaiting handoff)", () => {
+    // A dropped stream's reply lands in the snapshot while status is briefly
+    // still "streaming": the synthetic typing bubble must yield to the real one.
+    const result = buildVisibleMessages({
+      ...streamingBase,
+      messages: [
+        chatMessage({ id: "u1", role: "user", text: "hey", clientMessageId: "c1" }),
+        chatMessage({
+          id: "server1",
+          role: "agent",
+          text: "the full reply",
+          inReplyToClientMessageId: "c1",
+        }),
+      ],
+    });
+
+    // Only the real reply + user turn — no synthetic "agent:c1".
+    expect(result.map((m) => m.id)).toEqual(["server1", "u1"]);
   });
 });
 

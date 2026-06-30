@@ -92,10 +92,23 @@
       "card3Title": "Wähl sein Aussehen",
       "card3Body": "Lad ein Avatar hoch oder erstelle eins aus einer kurzen Beschreibung, schreib seinen Einzeiler und speichere. Er taucht in deiner Bot-Auswahl auf, startklar."
     },
+    "bots": {
+      "eyebrow": "Lern die Bots kennen",
+      "h2": "Zwei Bots eingebaut. Wechsle jederzeit.",
+      "p": "Jeder Download bringt zwei chatbereite Bots mit, neben den selbst gebauten. Tipp drauf, um sie kennenzulernen.",
+      "brainrotName": "Brainrot Bot",
+      "brainrotTagline": "Das Original",
+      "brainrotBody": "Der Lustigste im Gruppenchat: roastet dich, schickt das perfekte GIF und gibt trotzdem eine echte Antwort. Dreh das Chaos mit dem Rot Level hoch oder runter.",
+      "brainrotSample": "der Plan hält mit Vibes und einer Büroklammer zusammen 💀",
+      "lunaName": "Luna",
+      "lunaTagline": "Neu",
+      "lunaBody": "Deine delulu Astro-Bestie: sie liest dein Geburtshoroskop, pusht dich und beantwortet trotzdem deine Frage. Genauso schlau wie Brainrot Bot, nur mit sanfterer kosmischer Vibe.",
+      "lunaSample": "Merkur ist rückläufig, schütz deinen Frieden und schreib BLOSS nicht zurück 🔮"
+    },
     "meme": {
-      "eyebrow": "Memes auf Abruf",
+      "eyebrow": "Memes, GIFs & Sticker",
       "h2": "Wenn Worte fehlen, schick das Meme.",
-      "p": "Mitten im Chat holst du eine Reihe angesagter Memes hoch oder suchst die exakte Reaktion und wirfst sie direkt in die Unterhaltung. Manche Momente verdienen ein Gesicht, keinen Absatz."
+      "p": "Mitten im Chat holst du eine Reihe angesagter Memes und GIFs hoch oder suchst die exakte Reaktion und wirfst sie direkt in die Unterhaltung. Sticker gehen genauso: einen finden und abschicken. Manche Momente verdienen ein Gesicht, keinen Absatz."
     },
     "memory": {
       "eyebrow": "Memory",

@@ -10,8 +10,11 @@ import {
   appendMessage,
   createConversation,
   deleteMessage,
+  ensureConversation,
+  finalizeAgentMessage,
   loadRecentMessages,
   loadReplayTargets,
+  watchMessageDeleted,
 } from "../repository";
 import type { MessageImage } from "../../messages/messageImage";
 
@@ -33,7 +36,10 @@ type Recorded = {
   convSet?: Record<string, unknown>;
 };
 
-function makeDb(messageDocs: Array<Record<string, unknown>> = []) {
+function makeDb(
+  messageDocs: Array<Record<string, unknown>> = [],
+  existingConversation: Record<string, unknown> | null = null,
+) {
   const recorded: Recorded = {};
 
   const messageRef = {
@@ -59,11 +65,26 @@ function makeDb(messageDocs: Array<Record<string, unknown>> = []) {
     update: jest.fn(async (d: Record<string, unknown>) => {
       recorded.convUpdate = d;
     }),
+    get: jest.fn(async () => ({
+      exists: existingConversation !== null,
+      data: () => existingConversation ?? undefined,
+    })),
     collection: jest.fn(() => messagesCollection),
   };
 
   const conversationsCollection = { doc: jest.fn(() => conversationRef) };
-  const db = { collection: jest.fn(() => conversationsCollection) };
+  // A minimal transaction: get/set delegate straight to the ref mocks, so
+  // ensureConversation's read-then-create runs against the seeded doc.
+  const tx = {
+    get: jest.fn((ref: { get: () => unknown }) => ref.get()),
+    set: jest.fn((ref: { set: (d: Record<string, unknown>) => void }, d: Record<string, unknown>) =>
+      ref.set(d),
+    ),
+  };
+  const db = {
+    collection: jest.fn(() => conversationsCollection),
+    runTransaction: jest.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+  };
 
   return { db, recorded, conversationRef, messageRef };
 }
@@ -166,6 +187,46 @@ describe("createConversation title fallback", () => {
     expect(recorded.convSet?.title).toBe("New Chat 💬");
     // ...but the raw text is still kept for AI titling input.
     expect(recorded.convSet?.firstUserMessage).toBe("hello world");
+  });
+});
+
+describe("ensureConversation (client-provided id)", () => {
+  it("creates the conversation with the given id when it doesn't exist (isNew)", async () => {
+    const { db, recorded, conversationRef } = makeDb([], null);
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await ensureConversation("client-cid", "user-1", "hi", {
+      hasImages: false,
+    });
+
+    expect(result).toEqual({ isNew: true });
+    // Looked up by the provided id, then created with it.
+    expect((db.collection() as { doc: jest.Mock }).doc).toHaveBeenCalledWith(
+      "client-cid",
+    );
+    expect(conversationRef.set).toHaveBeenCalledTimes(1);
+    expect(recorded.convSet?.uid).toBe("user-1");
+    expect(recorded.convSet?.title).toBe("New Chat 💬");
+  });
+
+  it("returns isNew=false and writes nothing when the caller already owns it", async () => {
+    const { db, conversationRef } = makeDb([], { uid: "user-1" });
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await ensureConversation("client-cid", "user-1", "hi");
+
+    expect(result).toEqual({ isNew: false });
+    expect(conversationRef.set).not.toHaveBeenCalled();
+  });
+
+  it("throws (→ 404) when the id belongs to a different user", async () => {
+    const { db, conversationRef } = makeDb([], { uid: "someone-else" });
+    mockedGetFirestore.mockReturnValue(db);
+
+    await expect(
+      ensureConversation("client-cid", "user-1", "hi"),
+    ).rejects.toThrow("conversation-not-found");
+    expect(conversationRef.set).not.toHaveBeenCalled();
   });
 });
 
@@ -325,6 +386,117 @@ describe("loadReplayTargets", () => {
     expect(result.found).toBe(true);
     if (!result.found) return;
     expect(result.user?.images).toEqual([mkImage()]);
+  });
+});
+
+// Fake for finalizeAgentMessage: the message doc supports .update() (optionally
+// throwing), and the conversation doc records its own update. Mirrors the
+// real call order: messages/{id}.update(...) then conversations/{id}.update(...).
+function makeFinalizeDb(opts: { messageUpdateError?: unknown } = {}) {
+  const recorded: {
+    messageUpdate?: Record<string, unknown>;
+    convUpdate?: Record<string, unknown>;
+  } = {};
+  const messageRef = {
+    update: jest.fn(async (d: Record<string, unknown>) => {
+      if (opts.messageUpdateError) throw opts.messageUpdateError;
+      recorded.messageUpdate = d;
+    }),
+  };
+  const messagesCollection = { doc: jest.fn(() => messageRef) };
+  const conversationRef = {
+    update: jest.fn(async (d: Record<string, unknown>) => {
+      recorded.convUpdate = d;
+    }),
+    collection: jest.fn(() => messagesCollection),
+  };
+  const conversationsCollection = { doc: jest.fn(() => conversationRef) };
+  const db = { collection: jest.fn(() => conversationsCollection) };
+  return { db, recorded, conversationRef, messageRef };
+}
+
+describe("finalizeAgentMessage", () => {
+  it("writes the final text + complete status + preview and returns saved:true", async () => {
+    const { db, recorded } = makeFinalizeDb();
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await finalizeAgentMessage("conv-1", "a1", "the final reply");
+
+    expect(result).toEqual({ saved: true });
+    expect(recorded.messageUpdate).toMatchObject({
+      text: "the final reply",
+      status: "complete",
+    });
+    expect(recorded.convUpdate?.lastMessagePreview).toBe("the final reply");
+  });
+
+  it("persists attachments + a 'Sent a meme' preview for an attachment-only reply", async () => {
+    const { db, recorded } = makeFinalizeDb();
+    mockedGetFirestore.mockReturnValue(db);
+
+    await finalizeAgentMessage("conv-1", "a1", "", [mkImage()]);
+
+    expect(recorded.messageUpdate?.images).toHaveLength(1);
+    expect(recorded.convUpdate?.lastMessagePreview).toBe("Sent a meme");
+  });
+
+  it("returns saved:false on NOT_FOUND (an explicit pause deleted the doc) and touches nothing else", async () => {
+    const notFound = Object.assign(new Error("NOT_FOUND"), { code: 5 });
+    const { db, recorded, conversationRef } = makeFinalizeDb({
+      messageUpdateError: notFound,
+    });
+    mockedGetFirestore.mockReturnValue(db);
+
+    const result = await finalizeAgentMessage("conv-1", "a1", "ignored");
+
+    expect(result).toEqual({ saved: false });
+    // The conversation preview/timestamp must NOT be written for a vanished doc.
+    expect(conversationRef.update).not.toHaveBeenCalled();
+    expect(recorded.convUpdate).toBeUndefined();
+  });
+
+  it("rethrows a non-NOT_FOUND write failure", async () => {
+    const boom = Object.assign(new Error("internal"), { code: 13 });
+    const { db } = makeFinalizeDb({ messageUpdateError: boom });
+    mockedGetFirestore.mockReturnValue(db);
+
+    await expect(finalizeAgentMessage("conv-1", "a1", "x")).rejects.toThrow("internal");
+  });
+});
+
+// Fake for watchMessageDeleted: captures the onSnapshot callback so a test can
+// emit snapshots, and returns a recognizable unsubscribe.
+function makeWatchDb() {
+  let onNext: ((snap: { exists: boolean }) => void) | null = null;
+  const unsub = jest.fn();
+  const messageRef = {
+    onSnapshot: jest.fn((next: (snap: { exists: boolean }) => void) => {
+      onNext = next;
+      return unsub;
+    }),
+  };
+  const messagesCollection = { doc: jest.fn(() => messageRef) };
+  const conversationRef = { collection: jest.fn(() => messagesCollection) };
+  const conversationsCollection = { doc: jest.fn(() => conversationRef) };
+  const db = { collection: jest.fn(() => conversationsCollection) };
+  return { db, emit: (snap: { exists: boolean }) => onNext?.(snap), unsub };
+}
+
+describe("watchMessageDeleted", () => {
+  it("fires onDeleted only when the doc stops existing, and returns the unsubscribe", () => {
+    const { db, emit, unsub } = makeWatchDb();
+    mockedGetFirestore.mockReturnValue(db);
+    const onDeleted = jest.fn();
+
+    const stop = watchMessageDeleted("conv-1", "a1", onDeleted);
+
+    emit({ exists: true }); // initial snapshot: the doc we just created
+    expect(onDeleted).not.toHaveBeenCalled();
+
+    emit({ exists: false }); // the pause deleted it — the cancel signal
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+
+    expect(stop).toBe(unsub);
   });
 });
 

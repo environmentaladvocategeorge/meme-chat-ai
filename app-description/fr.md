@@ -14,12 +14,11 @@ légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,crée
 
 ## What's New (Nouveautés)
 
-• Crée tes propres bots : des personnages d'IA sur mesure avec leur nom, leur personnalité, leur voix et leur avatar. Discute avec eux comme avec n'importe quel autre bot et modifie-les quand tu veux. Le gratuit en inclut 1 ; les payants en gardent de 10 à 100.
-• Avatars par IA : génère-en un à partir d'une brève description, ou téléverse le tien.
-• Description par IA : laisse-la rédiger la personnalité d'un bot à partir de quelques détails.
-• Un tout nouveau look dans toute l'app.
-• Nouvel écran Forfait et utilisation pour suivre ta consommation et gérer ton forfait.
-• Petites améliorations des notifications quotidiennes et de la suppression de compte.
+• Rencontre Luna : un nouveau bot avec qui discuter, ta bestie astro un peu delulu qui te booste tout en te donnant de vraies réponses, pour une ambiance totalement différente de Brainrot Bot.
+• Stickers : envoie des stickers Klipy en plein chat. Choisis-les dans les tendances ou cherche celui qu'il te faut, lâche-en jusqu'à trois dans un message, et Brainrot Bot y réagit sans sortir de son personnage.
+• Un bot par chat : chaque conversation garde un seul bot. Change de bot et tu démarres un nouveau chat, pour que tes conversations restent nettes.
+• Streaming plus fluide : les réponses arrivent de façon plus fiable, et le bouton stop annule désormais une réponse proprement.
+• Mèmes, GIFs et stickers partagent maintenant un seul tiroir média.
 • Et des améliorations de performances et de stabilité.
 
 ## Promotional Text (Texte promotionnel)
@@ -35,6 +34,10 @@ Il y a deux façons de l'utiliser.
 DISCUTE AVEC BRAINROT BOT
 
 Ouvre un chat et obtiens une réponse quand tu bloques, une légende qui fait mouche, une réplique ou une explication qui ne ressemble pas à un manuel. Règle le Rot Level pour passer d'assistant normal à complètement déjanté, et Brainrot Bot suit cette énergie. Il répond en mèmes et en GIFs, pas seulement en pavés de texte.
+
+RENCONTRE LUNA
+
+Envie d'une autre énergie ? Luna est un deuxième bot intégré : ta bestie astro un peu delulu qui lit ton thème astral, te booste et te donne quand même de vraies réponses. Elle a sa propre voix, ses propres emojis et ses propres GIFs cosmiques, pour une ambiance plus douce que Brainrot Bot. Passe de l'un à l'autre quand tu veux.
 
 CRÉE TES PROPRES BRAINROT BOTS
 

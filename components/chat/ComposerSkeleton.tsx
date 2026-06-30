@@ -2,10 +2,11 @@
 // state is still loading (chat.tsx renders neither the composer nor the
 // upgrade block until it knows which one applies).
 //
-// Mirrors the real layout's exact geometry — the input pill (PILL_RADIUS * 2
-// tall) and the accessory chip row (circle + three lozenges) — so when the
-// real composer mounts it lands pixel-for-pixel on the skeleton's shapes and
-// the swap reads as "the UI filled in," not "a loader was replaced."
+// Mirrors the real layout's geometry — the input pill (PILL_RADIUS * 2 tall) and
+// the accessory chip row (camera circle + the content-sized Media + Rot pills,
+// packed left) — so when the real composer mounts it lands close to the
+// skeleton's shapes and the swap reads as "the UI filled in," not "a loader was
+// replaced."
 //
 // All shapes share ONE loop (a single `progress`) so the row breathes in unison.
 
@@ -35,10 +36,13 @@ export function ComposerSkeleton() {
     );
   }, [progress]);
 
-  const chip = (flex: boolean): StyleProp<ViewStyle> => ({
+  // Content-sized lozenges (the real chips no longer stretch). Approximate
+  // widths for the camera circle, the "Media" pill, and the wider "Rot Level"
+  // pill (label + intensity meter).
+  const chip = (width: number): StyleProp<ViewStyle> => ({
     height: COMPOSER_CHIP_HEIGHT,
     borderRadius: COMPOSER_CHIP_HEIGHT / 2,
-    ...(flex ? { flex: 1 } : { width: COMPOSER_CHIP_HEIGHT }),
+    width,
   });
 
   return (
@@ -53,7 +57,7 @@ export function ComposerSkeleton() {
         progress={progress}
         style={{ height: PILL_RADIUS * 2, borderRadius: PILL_RADIUS }}
       />
-      {/* Accessory row: camera circle + three flexible chips. */}
+      {/* Accessory row: camera circle + the Media and Rot pills, packed left. */}
       <View
         style={{
           flexDirection: "row",
@@ -62,10 +66,9 @@ export function ComposerSkeleton() {
           marginTop: 8,
         }}
       >
-        <Shimmer progress={progress} style={chip(false)} />
-        <Shimmer progress={progress} style={chip(true)} />
-        <Shimmer progress={progress} style={chip(true)} />
-        <Shimmer progress={progress} style={chip(true)} />
+        <Shimmer progress={progress} style={chip(COMPOSER_CHIP_HEIGHT)} />
+        <Shimmer progress={progress} style={chip(104)} />
+        <Shimmer progress={progress} style={chip(120)} />
       </View>
     </View>
   );

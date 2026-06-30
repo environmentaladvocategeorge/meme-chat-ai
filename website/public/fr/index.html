@@ -298,6 +298,40 @@
         </div>
       </section>
 
+      <section class="section bots-section reveal" id="bots">
+        <div class="section-heading">
+          <p class="eyebrow">Découvre les bots</p>
+          <h2>Deux bots intégrés. Change quand tu veux.</h2>
+          <p>Chaque téléchargement inclut deux bots prêts à discuter, en plus de ceux que tu crées. Touche pour les rencontrer.</p>
+        </div>
+        <div class="bot-switch" data-bot-switch>
+          <div class="bot-tabs" role="tablist" aria-label="Découvre les bots">
+            <button class="bot-tab is-active" type="button" role="tab" aria-selected="true" id="bot-tab-brainrot" aria-controls="bot-panel-brainrot" data-bot-tab="brainrot">Brainrot Bot</button>
+            <button class="bot-tab" type="button" role="tab" aria-selected="false" id="bot-tab-luna" aria-controls="bot-panel-luna" data-bot-tab="luna">Luna</button>
+          </div>
+          <div class="bot-panels">
+            <article class="bot-panel is-active" role="tabpanel" id="bot-panel-brainrot" aria-labelledby="bot-tab-brainrot" data-bot-panel="brainrot">
+              <img class="bot-avatar" src="/assets/images/meme-level-up.png?v=2" alt="Brainrot Bot avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline">L'original</span>
+                <h3>Brainrot Bot</h3>
+                <p>Le plus drôle du groupe : il te clashe, envoie le GIF parfait et te donne quand même une vraie réponse. Monte ou baisse le chaos avec le Rot Level.</p>
+                <p class="bot-sample">ce plan tient avec de l'ambiance et un trombone 💀</p>
+              </div>
+            </article>
+            <article class="bot-panel" role="tabpanel" id="bot-panel-luna" aria-labelledby="bot-tab-luna" data-bot-panel="luna" hidden>
+              <img class="bot-avatar" src="/assets/images/luna-avatar.png?v=2" alt="Luna avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline bot-tagline-new">Nouveau</span>
+                <h3>Luna</h3>
+                <p>Ta bestie astro un peu delulu : elle lit ton thème astral, te booste et répond quand même à ta question. La même intelligence que Brainrot Bot, dans une ambiance cosmique plus douce.</p>
+                <p class="bot-sample">mercure est rétrograde, protège ta paix et ne réponds SURTOUT pas 🔮</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="section split-section reveal" id="personas">
         <div>
           <p class="eyebrow">Crée le tien</p>
@@ -323,9 +357,9 @@
       <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
-            <p class="eyebrow">Des mèmes à la demande</p>
+            <p class="eyebrow">Mèmes, GIFs et stickers</p>
             <h2>Quand les mots manquent, envoie le mème.</h2>
-            <p>En plein chat, ouvre une série de mèmes tendance ou cherche la réaction exacte, puis lâche-la direct dans la conversation. Certains moments méritent une tête, pas un paragraphe.</p>
+            <p>En plein chat, ouvre une série de mèmes et de GIFs tendance ou cherche la réaction exacte, puis lâche-la direct dans la conversation. Les stickers, c'est pareil : trouves-en un et envoie-le. Certains moments méritent une tête, pas un paragraphe.</p>
             <p class="meme-card-emojis" aria-hidden="true">😎 🔥 💀 ✨</p>
           </div>
           <a
@@ -570,6 +604,35 @@
           initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
         track.style.scrollBehavior = prev;
         update();
+      })();
+    </script>
+    <!-- Meet-the-bots tabs: swap the Brainrot Bot / Luna panel on click. Pure
+         progressive enhancement — with no JS, the default Brainrot Bot panel
+         shows (Luna's panel stays in the DOM for crawlers, just hidden). -->
+    <script>
+      (function () {
+        var sw = document.querySelector("[data-bot-switch]");
+        if (!sw) return;
+        var tabs = [].slice.call(sw.querySelectorAll("[data-bot-tab]"));
+        var panels = [].slice.call(sw.querySelectorAll("[data-bot-panel]"));
+        function select(name) {
+          tabs.forEach(function (t) {
+            var on = t.getAttribute("data-bot-tab") === name;
+            t.classList.toggle("is-active", on);
+            t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          panels.forEach(function (p) {
+            var on = p.getAttribute("data-bot-panel") === name;
+            p.classList.toggle("is-active", on);
+            if (on) p.removeAttribute("hidden");
+            else p.setAttribute("hidden", "");
+          });
+        }
+        tabs.forEach(function (t) {
+          t.addEventListener("click", function () {
+            select(t.getAttribute("data-bot-tab"));
+          });
+        });
       })();
     </script>
     <script>try{localStorage.setItem("mcai_lang","fr");}catch(e){}</script>

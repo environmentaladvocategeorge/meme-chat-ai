@@ -54,6 +54,9 @@ export function buildVisibleMessages({
       message.text.length > 0 ||
       (message.images?.length ?? 0) > 0 ||
       (message.gifs?.length ?? 0) > 0 ||
+      // A sticker-only user turn has no text/images/gifs — keep it so the sent
+      // sticker(s) render instead of the whole bubble being dropped.
+      (message.stickers?.length ?? 0) > 0 ||
       (message.role === "agent" && message.status === "error"),
   );
 
@@ -65,15 +68,30 @@ export function buildVisibleMessages({
     // when the stream finishes. A fixed placeholder: the bubble itself
     // pulls the live streaming text/meme/gif from the store and derives
     // the "thinking" state.
-    base.push({
-      id: `agent:${activeReplyClientId}`,
-      role: "agent",
-      inReplyToClientMessageId: activeReplyClientId,
-      text: "",
-      status: "streaming",
-      createdAt: null,
-      personaId: currentPersonaId,
-    });
+    //
+    // Guard against a double-render during the awaiting→resolved handoff (a
+    // dropped stream whose finalized reply has just landed in the snapshot
+    // while status is briefly still "streaming"): if the real complete reply
+    // for this turn is already present, don't also synthesize the typing bubble.
+    const realReplyPresent = base.some(
+      (message) =>
+        message.role === "agent" &&
+        message.inReplyToClientMessageId === activeReplyClientId &&
+        (message.text.length > 0 ||
+          (message.images?.length ?? 0) > 0 ||
+          (message.gifs?.length ?? 0) > 0),
+    );
+    if (!realReplyPresent) {
+      base.push({
+        id: `agent:${activeReplyClientId}`,
+        role: "agent",
+        inReplyToClientMessageId: activeReplyClientId,
+        text: "",
+        status: "streaming",
+        createdAt: null,
+        personaId: currentPersonaId,
+      });
+    }
   } else if (settledReply) {
     // Bridge: the stream is done but the finalized Firestore message
     // hasn't arrived in the snapshot yet. Only synthesize it if the real

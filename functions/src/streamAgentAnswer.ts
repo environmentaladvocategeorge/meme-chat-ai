@@ -12,6 +12,7 @@ import { runGetGif } from "./gifs/getGifTool";
 import { runGetMeme } from "./memes/getMemeTool";
 import type { MessageGif } from "./messages/messageGif";
 import type { MessageImage } from "./messages/messageImage";
+import { summarizeStickersForLog } from "./messages/messageSticker";
 import { stripMemeArtifacts } from "./messages/sanitizeAgentText";
 import { lintAgentReply } from "./monitoring/outputLinters";
 import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger";
@@ -24,12 +25,13 @@ import { Agent, type ReplyContext } from "./agent/Agent";
 import { MemoryService } from "./agent/memory";
 import {
   appendMessage,
-  assertConversationOwner,
   createConversation,
+  ensureConversation,
   finalizeAgentMessage,
   loadRecentMessages,
   markAgentMessageErrored,
   markConversationFiltered,
+  watchMessageDeleted,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
 import {
@@ -139,10 +141,16 @@ export const streamAgentAnswer = onRequest(
     const images = parsed.data.images;
     const gifs = parsed.data.gifs;
     const currentGif = gifs[0];
+    // User-send-only stickers (up to MAX_STICKERS). `stickers` defaults to [] for
+    // older clients, so every downstream use is a no-op for them (back-compat).
+    // Each sticker's static png still doubles as the model input — no frame
+    // extraction, no bot-send path.
+    const stickers = parsed.data.stickers;
+    const currentStickerUrls = stickers.map((s) => s.previewUrl);
     // Klipy "meme name" metadata for the current turn's attachments. Empty for
     // uploads and for older clients that don't send `title`, in which case every
     // downstream use is a no-op (back-compat).
-    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs, stickers);
     const personaId = parsed.data.personaId;
     const clientMessageId = parsed.data.clientMessageId;
     const levelOfRot = parsed.data.levelOfRot;
@@ -164,18 +172,35 @@ export const streamAgentAnswer = onRequest(
         ...summarizeGifsForLog(gifs),
       });
     }
+    if (stickers.length > 0) {
+      logger.info("[streamAgentAnswer] received sticker attachments", {
+        ...summarizeStickersForLog(stickers),
+      });
+    }
 
     // ---------- resolve conversation ----------
     let conversationId = parsed.data.conversationId;
-    const newConversation = !conversationId;
+    let newConversation: boolean;
     try {
       if (conversationId) {
-        await assertConversationOwner(conversationId, uid);
+        // A provided id is EITHER an existing conversation we continue OR a
+        // brand-new one whose id the client minted so it could subscribe to the
+        // reply stream before the first reply lands. ensureConversation creates
+        // it with that id if absent, or asserts ownership if present; isNew tells
+        // the rest of the handler which it was (titling, the `conversation` SSE
+        // event). Either way the id is now valid and owned by this caller.
+        const resolved = await ensureConversation(conversationId, uid, userText, {
+          hasImages:
+            images.length > 0 || gifs.length > 0 || stickers.length > 0,
+        });
+        newConversation = resolved.isNew;
       } else {
         const created = await createConversation(uid, userText, {
-          hasImages: images.length > 0 || gifs.length > 0,
+          hasImages:
+            images.length > 0 || gifs.length > 0 || stickers.length > 0,
         });
         conversationId = created.conversationId;
+        newConversation = true;
       }
     } catch {
       res.status(404).json({ code: "not_found" });
@@ -385,6 +410,13 @@ export const streamAgentAnswer = onRequest(
             if (i.memeId) excludeIds.add(i.memeId);
           }
         }
+        // Stickers are input-only (never the bot's output), but drop their ids
+        // too so a reaction can never coincide with a Klipy asset the user just
+        // sent.
+        for (const s of stickers) {
+          if (s.id) excludeIds.add(s.id);
+          if (s.stickerId) excludeIds.add(s.stickerId);
+        }
         // Append the Klipy "meme name" hint (when present) so the decider can
         // recognize a named reference the user sent, not just react to pixels.
         const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
@@ -394,7 +426,9 @@ export const streamAgentAnswer = onRequest(
               ? "[user sent an image]"
               : gifs.length > 0
                 ? "[user sent a GIF]"
-                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
+                : stickers.length > 0
+                  ? "[user sent a sticker]"
+                  : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the GIF once here and reuse it for both the decider (so it can
         // see what was sent) and assembleContext (so the reply model sees it too)
         // — avoids fetching/decoding the same GIF twice.
@@ -414,8 +448,14 @@ export const streamAgentAnswer = onRequest(
           currentMessage: currentForDecider,
           recentReactions,
           // Hand the decider the actual pixels of the current turn's attachments
-          // so its reaction matches what the user sent.
-          imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
+          // (memes/uploads + GIF frames + sticker stills) so its reaction matches
+          // what the user sent. Stickers are input here only — the decider still
+          // emits gif/meme exclusively.
+          imageUrls: [
+            ...currentImageUrls,
+            ...(currentGifFrames?.frames ?? []),
+            ...currentStickerUrls,
+          ],
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -513,6 +553,7 @@ export const streamAgentAnswer = onRequest(
         conversationId,
         currentUserMessage: userText,
         currentImageUrls,
+        currentStickerUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
         currentAttachmentTitles: attachmentTitles,
@@ -556,6 +597,31 @@ export const streamAgentAnswer = onRequest(
     let agentMeme: MessageImage | null = pendingMeme;
     let agentGif: MessageGif | null = pendingGif;
     const abortController = new AbortController();
+    // Explicit-pause signal: cancelAgentReply deletes the agent doc and the
+    // watcher below flips this + aborts. Distinct from clientClosed (socket gone
+    // but the turn should still finish + persist).
+    let cancelled = false;
+    let unsubscribeCancelWatch: (() => void) | null = null;
+
+    // Guarded SSE write: once the socket is gone, skip writes and never let a
+    // write failure abort generation — the persisted message is the source of
+    // truth, so the turn still finalizes (finish & save on background).
+    const emit = (event: string, data: unknown) => {
+      if (clientClosed) return;
+      try {
+        writeSse(res, event, data);
+      } catch {
+        clientClosed = true;
+      }
+    };
+    const endResponse = () => {
+      if (clientClosed) return;
+      try {
+        res.end();
+      } catch {
+        clientClosed = true;
+      }
+    };
 
     // Charge the turn's real cost once the stream's final usage is known. Sums
     // both calls that ran: the media decider (mini, always) + the mini reply —
@@ -638,11 +704,13 @@ export const streamAgentAnswer = onRequest(
       }
     };
 
+    // Socket closed (background / navigate-away / network drop). Do NOT abort or
+    // mark errored: the turn finishes and persists so the reply is there, clean
+    // and complete, when the user returns. Writes to the dead socket are skipped
+    // (see emit). Only an explicit pause (the agent doc deleted, watched below)
+    // stops generation.
     req.on("close", () => {
-      if (!finalized) {
-        clientClosed = true;
-        abortController.abort();
-      }
+      if (!finalized) clientClosed = true;
     });
 
     try {
@@ -659,6 +727,7 @@ export const streamAgentAnswer = onRequest(
         clientMessageId,
         images: images.length > 0 ? images : undefined,
         gifs: gifs.length > 0 ? gifs : undefined,
+        stickers: stickers.length > 0 ? stickers : undefined,
         levelOfRot,
         // Denormalized so turn replay can rebuild the same prefs (only the OFF
         // state is actually written — see appendMessage).
@@ -670,9 +739,9 @@ export const streamAgentAnswer = onRequest(
       });
 
       if (newConversation) {
-        writeSse(res, "conversation", { id: conversationId });
+        emit("conversation", { id: conversationId });
       }
-      writeSse(res, "message", {
+      emit("message", {
         role: "user",
         id: userMessage.messageId,
         clientMessageId,
@@ -696,17 +765,30 @@ export const streamAgentAnswer = onRequest(
           : undefined,
       });
       agentMessageId = agentMessage.messageId;
-      writeSse(res, "message", {
+      // Watch our own agent doc for deletion — the durable cancel signal a pause
+      // sends via cancelAgentReply. The initial snapshot is the doc we just
+      // created (never fires); a later delete aborts generation. The delete is
+      // authoritative regardless (finalize can't resurrect a deleted doc).
+      unsubscribeCancelWatch = watchMessageDeleted(
+        conversationId,
+        agentMessageId,
+        () => {
+          if (finalized) return;
+          cancelled = true;
+          abortController.abort();
+        },
+      );
+      emit("message", {
         role: "agent",
         id: agentMessageId,
         inReplyToClientMessageId: clientMessageId,
       });
 
-      writeSse(res, "model", { id: internalModel });
+      emit("model", { id: internalModel });
       if (resolvedPersona) {
         // Only safe public metadata goes over SSE. Prompt content stays
         // backend-only inside assembleResult.messages[0].
-        writeSse(res, "persona", {
+        emit("persona", {
           id: resolvedPersona.id,
           name: resolvedPersona.name,
           displayName: resolvedPersona.publicConfig.displayName,
@@ -716,9 +798,9 @@ export const streamAgentAnswer = onRequest(
       // Media-first, like texting: surface the chosen GIF/meme before the reply
       // streams so it lands above the text bubble. At most one is set.
       if (agentGif) {
-        writeSse(res, "gif", { gif: agentGif });
+        emit("gif", { gif: agentGif });
       } else if (agentMeme) {
-        writeSse(res, "meme", { image: agentMeme });
+        emit("meme", { image: agentMeme });
       }
 
       let fullText = "";
@@ -735,17 +817,14 @@ export const streamAgentAnswer = onRequest(
         // fully cacheable.
         signal: abortController.signal,
       })) {
-        if (clientClosed) {
-          await markErroredSafely(conversationId, agentMessageId);
-          finalized = true;
-          await chargeForUsage("client-closed");
-          return;
-        }
+        // Explicit pause: the agent doc was deleted out from under us. Stop now —
+        // no finalize (the doc is gone), no markErrored, no charge (free pause).
+        if (cancelled) return;
 
         if (delta.type === "delta") {
           sawDelta = true;
           fullText += delta.text;
-          writeSse(res, "delta", { text: delta.text });
+          emit("delta", { text: delta.text });
           continue;
         }
 
@@ -755,14 +834,17 @@ export const streamAgentAnswer = onRequest(
         }
 
         if (delta.type === "error") {
+          // The abort we fire on cancel surfaces here as a stream error — treat
+          // it as the (already-handled) pause, not a real failure.
+          if (cancelled) return;
           logger.error("[streamAgentAnswer] agent stream failed", {
             // Renamed off `message` — the logger reserves that field and was
             // overwriting the real agent error with the log title.
             agentError: delta.message,
             sawDelta,
           });
-          writeSse(res, "error", { code: "agent_error" });
-          res.end();
+          emit("error", { code: "agent_error" });
+          endResponse();
           finalized = true;
           await markErroredSafely(conversationId, agentMessageId);
           await chargeForUsage("agent-error");
@@ -770,9 +852,12 @@ export const streamAgentAnswer = onRequest(
         }
       }
 
-      writeSse(res, "done", {});
+      // Paused as the stream wrapped up — nothing to save or charge.
+      if (cancelled) return;
+
+      emit("done", {});
       finalized = true;
-      res.end();
+      endResponse();
 
       // Post-hoc output lint: the no-eval behavior dashboard. Advisory only —
       // the reply already streamed; findings land in Cloud Logging as warns
@@ -797,8 +882,9 @@ export const streamAgentAnswer = onRequest(
         logger.error("[outputLint] linter threw", { err });
       }
 
+      let savedOk = true;
       try {
-        await finalizeAgentMessage(
+        const result = await finalizeAgentMessage(
           conversationId,
           agentMessageId,
           // Scrub any meme markdown/attachment artifacts the model may have
@@ -807,6 +893,7 @@ export const streamAgentAnswer = onRequest(
           agentMeme ? [agentMeme] : undefined,
           agentGif ? [agentGif] : undefined,
         );
+        savedOk = result.saved;
       } catch (err) {
         logger.error("[streamAgentAnswer] failed to finalize agent message", {
           conversationId,
@@ -815,8 +902,16 @@ export const streamAgentAnswer = onRequest(
         });
         await markErroredSafely(conversationId, agentMessageId);
       }
-      await chargeForUsage("done");
+      // A pause whose delete raced in after the stream finished leaves no doc to
+      // save — skip the charge (free pause).
+      if (savedOk) {
+        await chargeForUsage("done");
+      }
     } catch (err) {
+      // Explicit pause aborted us mid-flight — the doc is already deleted, so
+      // there's nothing to error or charge. Bail quietly.
+      if (cancelled) return;
+
       logger.error("[streamAgentAnswer] request failed", {
         conversationId,
         agentMessageId,
@@ -824,8 +919,8 @@ export const streamAgentAnswer = onRequest(
       });
 
       if (res.headersSent) {
-        writeSse(res, "error", { code: "agent_error" });
-        res.end();
+        emit("error", { code: "agent_error" });
+        endResponse();
         if (conversationId && agentMessageId) {
           await markErroredSafely(conversationId, agentMessageId);
         }
@@ -836,6 +931,8 @@ export const streamAgentAnswer = onRequest(
 
       res.status(500).json({ code: "internal" });
       await chargeForUsage("exception-before-headers");
+    } finally {
+      unsubscribeCancelWatch?.();
     }
   },
 );

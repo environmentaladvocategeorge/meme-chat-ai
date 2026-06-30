@@ -41,6 +41,9 @@ export type BuildReplyContextArgs = {
   conversationId: string;
   currentUserMessage: string;
   currentImageUrls?: string[];
+  // Static png still URLs for the current turn's stickers (Klipy CDN). Fed to
+  // the model as low-detail images. Empty/omitted on sticker-free turns.
+  currentStickerUrls?: string[];
   currentGif?: MessageGif;
   currentGifFrames?: ExtractedGifFrames;
   // Klipy titles of the current turn's attachments (newer clients only).
@@ -97,6 +100,7 @@ export class Agent {
       memoryBlock,
       currentUserMessage: args.currentUserMessage,
       currentImageUrls: args.currentImageUrls,
+      currentStickerUrls: args.currentStickerUrls,
       currentGif: args.currentGif,
       currentGifFrames: args.currentGifFrames,
       currentAttachmentTitles: args.currentAttachmentTitles,

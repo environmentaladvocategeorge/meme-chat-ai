@@ -79,8 +79,9 @@ export const AVATAR_VARIATIONS = [
 // Wraps the user's description in avatar framing, ordered so their wording wins
 // on look while the avatar shape stays put. First the format that always holds: a
 // single centered subject that still reads once it's shrunk to a circle in the
-// chat list. Then a default style — the sticker/emote look plus a `variant`-picked
-// composition — but only when the user hasn't asked for a style of their own.
+// chat list. Then a default style — a polished semi-realistic stylized
+// illustration plus a `variant`-picked composition — but only when the user
+// hasn't asked for a style of their own.
 // Last, a line telling the model that if the description names a style, medium,
 // background, or mood, it should follow that and drop the defaults. Letting the
 // description steer the art is safe here: the text is moderated before this runs,
@@ -95,11 +96,19 @@ export function buildAvatarPrompt(description: string, variant = 0): string {
     "centered, that reads instantly at small sizes in a message list and crops",
     "cleanly to a circle. No text, no watermark, no logos, no signature, no border.",
     // Default look — applies ONLY when the description sets no style of its own.
-    "Unless the description below specifies an art style, render it as a bold",
-    "sticker / emote: thick clean outline, flat vibrant colors with simple cel",
-    "shading, a strong recognizable silhouette, a limited palette of 3 to 5 colors,",
-    "head-and-shoulders and filling the frame, with playfully exaggerated features",
-    "and one clear expressive emotion that shows personality.",
+    // A polished, semi-realistic stylized illustration (modern animated-feature /
+    // storybook quality), NOT a flat sticker or caricature: thick cartoon
+    // outlines and exaggerated features made avatars read as cheap and cartoonish.
+    "Unless the description below specifies an art style, render it as a polished,",
+    "semi-realistic stylized character illustration with natural, believable",
+    "proportions (not chibi, not a caricature, no exaggerated or oversized",
+    "features). Soft painterly shading with smooth gradients, gentle highlights,",
+    "and warm, even soft lighting; fine detail in the hair, eyes, and skin;",
+    "expressive but proportionate features. Aim for premium contemporary",
+    "animated-feature or storybook concept-art quality, head-and-shoulders and",
+    "filling the frame, with one clear, genuine expression that shows personality.",
+    "Avoid a flat sticker look, thick hard outlines, heavy cel shading, and any",
+    "exaggerated cartoon proportions.",
     `Composition (default, when the description sets none of its own): ${variation}.`,
     // Precedence — the user's words win on style, medium, background, and mood.
     "The description takes precedence over these defaults: if it names an art style",

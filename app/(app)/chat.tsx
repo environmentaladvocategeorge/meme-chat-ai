@@ -19,11 +19,11 @@ import {
 import { ChatLoading } from "@/components/chat/ChatLoading";
 import { CollapsiblePicker } from "@/components/chat/CollapsiblePicker";
 import {
-  GifToggleButton,
-  MemeToggleButton,
+  MediaToggleButton,
   PhotoButton,
   RotLevelButton,
 } from "@/components/chat/ComposerToggles";
+import { MediaTabBar } from "@/components/chat/MediaTabBar";
 import { EdgeFadedScrollRow } from "@/components/chat/EdgeFadedScrollRow";
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
 import { MemoryOnBanner } from "@/components/chat/MemoryOnBanner";
@@ -32,15 +32,16 @@ import { NewConversationButton } from "@/components/chat/NewConversationButton";
 import {
   anyPickerOpen,
   dismissPickers,
-  toggleGifs,
-  toggleMemes,
+  PICKERS_CLOSED,
+  selectMediaTab,
+  toggleMedia,
+  type MediaTab,
   type PickerVisibility,
 } from "@/components/chat/pickerVisibility";
 import { QuotaModal } from "@/components/chat/QuotaModal";
 import { StagedAttachmentTray } from "@/components/chat/StagedAttachmentTray";
 import { messageKey, type RenderMessage } from "@/components/chat/types";
 import {
-  PersonaLimitBlock,
   UsageLimitBlock,
   UsageNudge,
 } from "@/components/chat/UsageNotices";
@@ -58,10 +59,17 @@ import {
   type MessageImage,
   type TrendingMeme,
 } from "@/domain/memes";
+import {
+  MAX_MESSAGE_STICKERS,
+  trendingStickerToMessageSticker,
+  type MessageSticker,
+  type TrendingSticker,
+} from "@/domain/stickers";
 import { computeUsageState, type UsageState } from "@/domain/usage";
 import { useChatAppearance } from "@/hooks/useChatAppearance";
 import { useKlipy } from "@/hooks/useKlipy";
 import { useKlipyGifs } from "@/hooks/useKlipyGifs";
+import { useKlipyStickers } from "@/hooks/useKlipyStickers";
 import { useOnSendEffects } from "@/hooks/useOnSendEffects";
 import { useMemoryMeta } from "@/hooks/useMemory";
 import { useOpenPlan } from "@/hooks/useOpenPlan";
@@ -77,12 +85,7 @@ import {
   usePersonaSelectionReady,
   usePersonaStore,
 } from "@/store/personas";
-import {
-  collectParticipantPersonaIds,
-  DEFAULT_PERSONA_ID,
-  isPersonaLimitReached,
-  resolvePersonaSlot,
-} from "@/domain/personas";
+import { DEFAULT_PERSONA_ID, resolvePersonaSlot } from "@/domain/personas";
 import { useRotLevelSheetStore } from "@/store/rotLevelSheet";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -151,8 +154,12 @@ export default function ChatScreen() {
   // Measured height of the pinned ad band just below the header (0 for Pro,
   // where AdBanner renders nothing). Feeds the list's visual-top inset.
   const [adTopInset, setAdTopInset] = useState(0);
-  const [memesOpen, setMemesOpen] = useState(false);
-  const [gifsOpen, setGifsOpen] = useState(false);
+  // The unified media drawer's visibility + active tab (GIFs · Memes ·
+  // Stickers). One drawer replaced the separate meme/GIF surfaces so a third
+  // sticker chip wouldn't overflow the composer row (see pickerVisibility).
+  const [pickers, setPickers] = useState<PickerVisibility>(PICKERS_CLOSED);
+  const mediaOpen = pickers.mediaOpen;
+  const mediaTab = pickers.mediaTab;
   const chatInputRef = useRef<ChatInputRef>(null);
   // Thread list ref — jump-to-latest button and the send path both scroll
   // the inverted list back to offset 0 (the visual bottom).
@@ -164,23 +171,37 @@ export default function ChatScreen() {
   // The single GIF the user has staged but not yet sent. Independent of the
   // meme cap — a turn may carry memes AND one GIF.
   const [stagedGif, setStagedGif] = useState<MessageGif | null>(null);
+  // Stickers the user has staged but not yet sent (up to MAX_MESSAGE_STICKERS).
+  // Independent of the meme + GIF caps — a turn may combine all three.
+  const [stagedStickers, setStagedStickers] = useState<MessageSticker[]>([]);
   // True while a captured/picked photo is being compressed + uploaded to
   // Storage, so the photo button can show a spinner and block re-taps.
   const [uploadingImage, setUploadingImage] = useState(false);
-  // Brief "you can only attach N" notice, shown when a 4th meme is tapped.
+  // Brief "you can only attach N" notice, shown when a cap is exceeded. The
+  // count tracks which cap was hit (memes share MAX_MESSAGE_IMAGES; stickers use
+  // MAX_MESSAGE_STICKERS) so the notice reads the right number.
   const [maxNotice, setMaxNotice] = useState(false);
+  const [maxNoticeCount, setMaxNoticeCount] = useState(MAX_MESSAGE_IMAGES);
   const maxNoticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Memes for the composer strip (trending + debounced KLIPY search). Modular —
   // the same hook can power a meme picker anywhere else in the app. `enabled`
   // defers the first network call until the strip is actually opened.
-  const klipy = useKlipy({ perPage: 24, enabled: memesOpen });
-  // GIFs for the composer strip — same engine, GIF endpoints. Deferred until the
-  // GIF drawer is opened.
-  const klipyGifs = useKlipyGifs({ perPage: 24, enabled: gifsOpen });
+  const klipy = useKlipy({
+    perPage: 24,
+    enabled: mediaOpen && mediaTab === "memes",
+  });
+  // GIFs + stickers for the composer strip — same engine, different Klipy
+  // endpoints. Each is deferred until the drawer is open on its tab, so only the
+  // active tab fetches.
+  const klipyGifs = useKlipyGifs({
+    perPage: 24,
+    enabled: mediaOpen && mediaTab === "gifs",
+  });
+  const klipyStickers = useKlipyStickers({
+    perPage: 24,
+    enabled: mediaOpen && mediaTab === "stickers",
+  });
   const conversationId = useChatStore((s) => s.conversationId);
-  // Authoritative set of bots ever in this conversation (live from the
-  // conversation doc) — see multiBot below.
-  const participantPersonaIds = useChatStore((s) => s.participantPersonaIds);
   // Brainrot intensity dial. Sticky and persisted in the chat store, applied to
   // every turn; defaults to "Rotted". Edited via the RotLevelSheet (mounted in
   // the root layout, opened here through useRotLevelSheetStore).
@@ -205,7 +226,7 @@ export default function ChatScreen() {
   const replayTurn = useChatStore((s) => s.replayTurn);
   const loadConversation = useChatStore((s) => s.loadConversation);
   const startNewConversation = useChatStore((s) => s.startNewConversation);
-  const cancelStreaming = useChatStore((s) => s.cancelStreaming);
+  const pauseStreaming = useChatStore((s) => s.pauseStreaming);
   const dismissQuota = useChatStore((s) => s.dismissQuota);
   const entitlement = useEntitlementStore((s) => s.entitlement);
   const currentPlan = useDisplayPlan();
@@ -340,38 +361,30 @@ export default function ChatScreen() {
   const currentPersonaId =
     selectedPersona.kind === "default" ? DEFAULT_PERSONA_ID : selectedPersona.persona.id;
 
-  // The distinct bots that have ALREADY taken part in this conversation — the
-  // conversation doc's authoritative set (it includes bots whose replies have
-  // scrolled out of the live window) unioned with the loaded replies' personas.
-  // Deliberately does NOT include the currently-selected bot: this is the
-  // "prior crew", which both the multi-bot avatar toggle and the per-thread bot
-  // cap derive from. Pre-tracking replies have no personaId → counted as default.
-  const priorPersonaIds = useMemo(
-    () =>
-      collectParticipantPersonaIds(
-        participantPersonaIds,
-        allMessages.filter((m) => m.role === "agent").map((m) => m.personaId),
-      ),
-    [allMessages, participantPersonaIds],
-  );
+  // One bot per conversation (we don't support group chat): the persona shown is
+  // the conversation's own bot, and switching bots forks a new conversation. The
+  // backend still records `participantPersonaIds` + per-message `personaId`
+  // (kept for data continuity / legacy threads), but the chat UI no longer
+  // surfaces more than one bot per session.
+  //
+  // The conversation's bot is the most recent agent reply's persona (a reply
+  // with no stored personaId is a default-bot / legacy reply → the default).
+  // null until the conversation has any agent reply (a brand-new chat simply
+  // adopts whatever persona is selected).
+  const conversationBotId = useMemo<string | null>(() => {
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      if (allMessages[i].role === "agent") {
+        return allMessages[i].personaId ?? DEFAULT_PERSONA_ID;
+      }
+    }
+    return null;
+  }, [allMessages]);
 
-  // Show a per-message bot avatar once 2+ bots are in play. We union the
-  // currently-selected bot into the prior crew so it flips on immediately when
-  // switching to a second bot, before the doc round-trips.
-  const multiBot = useMemo(() => {
-    const distinct = priorPersonaIds.has(currentPersonaId)
-      ? priorPersonaIds.size
-      : priorPersonaIds.size + 1;
-    return distinct >= 2;
-  }, [priorPersonaIds, currentPersonaId]);
-
-  // True when the user has switched to a brand-new bot in a thread that already
-  // holds the max distinct bots — sending would make it one too many. We block
-  // the send and swap the composer for a "pick another / start fresh" prompt.
-  const personaLimitReached = useMemo(
-    () => isPersonaLimitReached(priorPersonaIds, currentPersonaId),
-    [priorPersonaIds, currentPersonaId],
-  );
+  // Raw persisted selection (NOT the resolved default-fallback) — stable across
+  // persona-list hydration, so the fork effect below only fires on a real user
+  // switch, never when a previously-unresolvable bot becomes resolvable.
+  const selectedPersonaId = usePersonaStore((s) => s.selectedPersonaId);
+  const selectPersona = usePersonaStore((s) => s.select);
 
   // Resolve a message's sender bot once, in the parent, rather than each bubble
   // subscribing to the persona store. Stable across renders unless the saved
@@ -420,10 +433,6 @@ export default function ChatScreen() {
 
   const handleSubmit = () => {
     if (atLimit) return;
-    // A brand-new bot can't join a thread that's already at the cap — the
-    // composer is swapped for the PersonaLimitBlock, but guard the send path
-    // too in case a draft was in flight when the gate flipped.
-    if (personaLimitReached) return;
     // Typing is allowed during a reply, sending is not. Guarded here (before
     // the draft is optimistically cleared — otherwise a bypassed send would
     // eat the message) and again inside sendMessage itself.
@@ -431,19 +440,27 @@ export default function ChatScreen() {
     const text = draft.trim();
     const images = stagedImages;
     const gif = stagedGif;
+    const stickers = stagedStickers;
     // Allow text-only, attachment-only, or text + attachments.
-    if (text.length === 0 && images.length === 0 && !gif) return;
+    if (
+      text.length === 0 &&
+      images.length === 0 &&
+      !gif &&
+      stickers.length === 0
+    )
+      return;
     // Clear the composer optimistically (mirrors text-draft behavior). The
     // attachments ride along on the optimistic user bubble, and the error
     // card's retry resends them, so a failed send never loses them.
     setDraft("");
     setStagedImages([]);
     setStagedGif(null);
+    setStagedStickers([]);
     // Collapse the pickers on send so they don't linger empty above a
     // freshly-cleared composer. The keyboard is intentionally left up (we
     // don't blur) so rapid follow-up messages stay frictionless.
-    applyPickers(dismissPickers());
-    void sendMessage(text, images, gif, rotLevel);
+    applyPickers(dismissPickers(pickers));
+    void sendMessage(text, images, gif, stickers, rotLevel);
     // If the user sent from up in their history, glide back to the live
     // edge so the optimistic bubble (and the incoming reply) are in view.
     // Next frame, so the optimistic message has rendered before the scroll.
@@ -456,7 +473,7 @@ export default function ChatScreen() {
   // rather than firing the message off. The user can tweak it (or just hit
   // send), so a starter is a head-start, not an irreversible send.
   const handleStarterPress = (text: string) => {
-    if (atLimit || personaLimitReached) return;
+    if (atLimit) return;
     setDraft(text);
     chatInputRef.current?.focus();
   };
@@ -480,49 +497,47 @@ export default function ChatScreen() {
       lastUser.text,
       lastUser.images,
       lastUser.gifs?.[0] ?? null,
+      lastUser.stickers,
       lastUser.levelOfRot ?? state.rotLevel,
     );
   }, []);
 
-  // Apply a computed picker-visibility transition to the two backing flags.
-  // The pure transitions in pickerVisibility.ts own the mutual-exclusion logic;
-  // this just commits their result to state.
+  // Apply a computed picker-visibility transition to the drawer state. The pure
+  // transitions in pickerVisibility.ts own the open/tab logic; this just commits
+  // their result.
   const applyPickers = (next: PickerVisibility) => {
-    setMemesOpen(next.memesOpen);
-    setGifsOpen(next.gifsOpen);
+    setPickers(next);
   };
 
-  // Toggle the meme strip. The hook's `enabled` flag (wired to memesOpen) is
-  // what triggers the first fetch. The picker and the system keyboard occupy
-  // the same conceptual slot, so we keep them mutually exclusive: opening the
-  // strip dismisses the keyboard; closing it hands focus back to the composer
-  // (which raises the keyboard) — a clean keyboard ⇄ memes swap.
-  const handleToggleMemes = () => {
-    const wasOpen = memesOpen;
-    applyPickers(toggleMemes({ memesOpen, gifsOpen }));
+  // Toggle the whole media drawer. Each tab's hook `enabled` flag (wired to
+  // mediaOpen + mediaTab) triggers its first fetch. The drawer and the system
+  // keyboard occupy the same slot, so they're mutually exclusive: opening
+  // dismisses the keyboard; closing hands focus back to the composer (which
+  // raises the keyboard) — a clean keyboard ⇄ drawer swap.
+  const handleToggleMedia = () => {
+    const wasOpen = mediaOpen;
+    applyPickers(toggleMedia(pickers));
     if (wasOpen) chatInputRef.current?.focus();
     else Keyboard.dismiss();
   };
 
-  // Same keyboard ⇄ picker swap for the GIF drawer; opening it closes the meme
-  // strip so only one picker is ever showing.
-  const handleToggleGifs = () => {
-    const wasOpen = gifsOpen;
-    applyPickers(toggleGifs({ memesOpen, gifsOpen }));
-    if (wasOpen) chatInputRef.current?.focus();
-    else Keyboard.dismiss();
+  // Switch tabs inside the (already-open) drawer. No keyboard change — the
+  // drawer stays put; only its content swaps.
+  const handleSelectTab = (tab: MediaTab) => {
+    applyPickers(selectMediaTab(pickers, tab));
   };
 
   // Opening the Rot Level sheet: dismiss the keyboard first so the 46% sheet
-  // doesn't animate up behind it (otherwise it lands occluded), and close both
-  // pickers so only one bottom surface is ever showing.
+  // doesn't animate up behind it (otherwise it lands occluded), and close the
+  // drawer so only one bottom surface is ever showing.
   const handleOpenRot = () => {
     Keyboard.dismiss();
-    applyPickers(dismissPickers());
+    applyPickers(dismissPickers(pickers));
     openRotSheet();
   };
 
-  const flashMaxNotice = useCallback(() => {
+  const flashMaxNotice = useCallback((count: number) => {
+    setMaxNoticeCount(count);
     setMaxNotice(true);
     if (maxNoticeTimer.current) clearTimeout(maxNoticeTimer.current);
     maxNoticeTimer.current = setTimeout(() => setMaxNotice(false), 2400);
@@ -541,7 +556,7 @@ export default function ChatScreen() {
     setStagedImages((current) => {
       if (current.some((image) => image.id === meme.id)) return current;
       if (current.length >= MAX_MESSAGE_IMAGES) {
-        flashMaxNotice();
+        flashMaxNotice(MAX_MESSAGE_IMAGES);
         return current;
       }
       return [...current, trendingMemeToMessageImage(meme)];
@@ -553,15 +568,40 @@ export default function ChatScreen() {
   };
 
   // Tapping a GIF stages it (max one — a new pick replaces the current one).
-  // Independent of the meme cap. Closes the GIF drawer so the staged thumbnail
-  // is immediately visible above the composer.
+  // Independent of the meme cap. Closes the drawer so the staged thumbnail is
+  // immediately visible above the composer (a GIF is a single pick, unlike
+  // memes/stickers which stay open to stack more).
   const handleSelectGif = (gif: TrendingGif) => {
     setStagedGif(trendingGifToMessageGif(gif));
-    setGifsOpen(false);
+    applyPickers(dismissPickers(pickers));
   };
 
   const handleRemoveStagedGif = () => {
     setStagedGif(null);
+  };
+
+  // Tapping a sticker stages it (up to MAX_MESSAGE_STICKERS). Deduped by id;
+  // keeps the drawer open so the user can stack more. Stamps the active search
+  // term (when picked from a search) so the backend can tell the model what the
+  // user was looking for.
+  const handleSelectSticker = (sticker: TrendingSticker) => {
+    const searchQuery =
+      klipyStickers.mode === "search" ? klipyStickers.query.trim() : undefined;
+    setStagedStickers((current) => {
+      if (current.some((s) => s.id === sticker.id)) return current;
+      if (current.length >= MAX_MESSAGE_STICKERS) {
+        flashMaxNotice(MAX_MESSAGE_STICKERS);
+        return current;
+      }
+      return [
+        ...current,
+        trendingStickerToMessageSticker(sticker, searchQuery),
+      ];
+    });
+  };
+
+  const handleRemoveStagedSticker = (id: string) => {
+    setStagedStickers((current) => current.filter((s) => s.id !== id));
   };
 
   // Capture or pick a photo, compress + upload it, and stage it as an upload
@@ -570,7 +610,7 @@ export default function ChatScreen() {
   const stageUploadedPhoto = useCallback(
     async (source: PickSource) => {
       if (stagedImages.length >= MAX_MESSAGE_IMAGES) {
-        flashMaxNotice();
+        flashMaxNotice(MAX_MESSAGE_IMAGES);
         return;
       }
       setUploadingImage(true);
@@ -610,7 +650,9 @@ export default function ChatScreen() {
   const handleAddPhoto = useCallback(() => {
     if (uploadingImage) return;
     Keyboard.dismiss();
-    applyPickers(dismissPickers());
+    // Functional update — this callback doesn't close over `pickers`, and a
+    // dismiss only needs to flip the drawer shut (the active tab is preserved).
+    setPickers((p) => dismissPickers(p));
     Alert.alert(
       t("chat.photo.title", { defaultValue: "Add a photo" }),
       undefined,
@@ -751,11 +793,12 @@ export default function ChatScreen() {
     [timeReveal],
   );
 
-  const handleNewConversation = () => {
+  const handleNewConversation = useCallback(() => {
     const reset = () => {
       startNewConversation();
       setStagedImages([]);
       setStagedGif(null);
+      setStagedStickers([]);
       // Clear any conversationId route param so the load effect doesn't
       // immediately re-hydrate the conversation we just cleared.
       if (params.conversationId) {
@@ -775,7 +818,45 @@ export default function ChatScreen() {
       reset();
       contentOpacity.value = withTiming(1, { duration: 240 });
     }, 170);
-  };
+  }, [startNewConversation, params.conversationId, router, contentOpacity]);
+
+  // One bot per conversation, part 1 — adopt the conversation's bot on open.
+  // When an existing conversation (with at least one reply) is loaded, sync the
+  // active persona to that conversation's bot exactly once, so opening a session
+  // from history / a deep link / the resumed last session shows that session's
+  // bot. A brand-new conversation has no bot yet (conversationBotId === null) and
+  // simply keeps whatever's selected. Guarded per-conversation so it never fights
+  // a later user switch.
+  const syncedConvoRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!conversationId) {
+      syncedConvoRef.current = null;
+      return;
+    }
+    if (conversationBotId == null) return;
+    if (syncedConvoRef.current === conversationId) return;
+    syncedConvoRef.current = conversationId;
+    if (conversationBotId !== selectedPersonaId) {
+      selectPersona(conversationBotId);
+    }
+  }, [conversationId, conversationBotId, selectedPersonaId, selectPersona]);
+
+  // One bot per conversation, part 2 — switching bots forks a new chat. When the
+  // user changes the active persona while in a conversation whose established bot
+  // differs, start a fresh conversation (with the newly-picked bot) rather than
+  // letting a second bot into the thread. The prev-ref guard means this fires
+  // only on an actual selection change; the `=== conversationBotId` guard means
+  // the part-1 sync above (which also calls selectPersona) never triggers a fork.
+  const prevSelectedRef = useRef(selectedPersonaId);
+  useEffect(() => {
+    const prev = prevSelectedRef.current;
+    prevSelectedRef.current = selectedPersonaId;
+    if (prev === selectedPersonaId) return;
+    if (!conversationId) return; // nothing to fork from on a blank new chat
+    if (conversationBotId == null) return; // no established bot → it adopts the pick
+    if (selectedPersonaId === conversationBotId) return; // load-sync, not a switch
+    handleNewConversation();
+  }, [selectedPersonaId, conversationId, conversationBotId, handleNewConversation]);
 
   // If the app resumes from background while contentOpacity is stuck at 0
   // (e.g. the device locked mid-fade-out), force it back to visible.
@@ -787,8 +868,7 @@ export default function ChatScreen() {
         if (contentOpacity.value < 0.5 && !newConvoTimer.current) {
           contentOpacity.value = withTiming(1, { duration: 240 });
         }
-        setMemesOpen(false);
-        setGifsOpen(false);
+        setPickers((p) => dismissPickers(p));
         // Re-evaluate usage against the current clock — a reset boundary may
         // have passed while backgrounded (see the usage memo above).
         setAppActiveAt(Date.now());
@@ -955,7 +1035,7 @@ export default function ChatScreen() {
                     onRetry={handleRetry}
                     onRate={rateMessage}
                     onEmoji={setMessageEmoji}
-                    showSenderAvatar={multiBot}
+                    showSenderAvatar={false}
                     resolveSender={resolveSender}
                     isLastAgent={
                       item.serverId != null &&
@@ -970,11 +1050,11 @@ export default function ChatScreen() {
             tap on the conversation into "dismiss the picker" — the same
             tap-away gesture that closes a keyboard. Only mounted when open, so
             it never intercepts normal scrolling or message taps otherwise. */}
-              {anyPickerOpen({ memesOpen, gifsOpen }) ? (
+              {anyPickerOpen(pickers) ? (
                 <Pressable
                   accessibilityElementsHidden
                   importantForAccessibility="no-hide-descendants"
-                  onPress={() => applyPickers(dismissPickers())}
+                  onPress={() => applyPickers(dismissPickers(pickers))}
                   style={StyleSheet.absoluteFill}
                 />
               ) : null}
@@ -1045,17 +1125,6 @@ export default function ChatScreen() {
                   onUpgrade={openPlan}
                 />
               </View>
-            ) : personaLimitReached ? (
-              // This thread already holds the max distinct bots and the user has
-              // switched to a new one. Swap the composer for the two ways
-              // forward: start fresh, or pick a bot already in the thread. Plain
-              // View (no `entering`) to keep the buttons' hit-test frame synced.
-              <View>
-                <PersonaLimitBlock
-                  onNewChat={handleNewConversation}
-                  onChooseAnother={openPersonaSheet}
-                />
-              </View>
             ) : (
               // NOTE: plain View, not an `entering` Animated.View. The entering
               // fade desynced the photo button's hit-test frame on Fabric (the
@@ -1070,72 +1139,120 @@ export default function ChatScreen() {
                     onUpgrade={openPlan}
                   />
                 ) : null}
-                <CollapsiblePicker open={memesOpen}>
+                {/* Unified media drawer: one collapsible surface with a tab
+                    header (GIFs · Memes · Stickers) above the active strip. Only
+                    the active tab's hook fetches (see `enabled` wiring above). */}
+                <CollapsiblePicker open={mediaOpen}>
                   <View style={{ paddingBottom: 8 }}>
-                    <TrendingMemeStrip
-                      items={klipy.memes}
-                      loading={klipy.loading}
-                      loadingMore={klipy.loadingMore}
-                      error={klipy.error}
-                      hasNext={klipy.hasNext}
-                      mode={klipy.mode}
-                      searching={klipy.searching}
-                      query={klipy.query}
-                      onChangeQuery={klipy.setQuery}
-                      onClearSearch={klipy.clearSearch}
-                      onEndReached={klipy.loadMore}
-                      onRetry={klipy.retry}
-                      onSelectItem={handleSelectMeme}
-                      bleed={16}
+                    <MediaTabBar
+                      tab={mediaTab}
+                      onChange={handleSelectTab}
                       labels={{
-                        searchPlaceholder: t("chat.memes.searchPlaceholder"),
-                        empty: t("chat.memes.empty"),
-                        noResults: t("chat.memes.noResults"),
-                        error: t("chat.memes.error"),
-                        retry: t("chat.memes.retry"),
+                        gifs: t("chat.media.tabs.gifs"),
+                        memes: t("chat.media.tabs.memes"),
+                        stickers: t("chat.media.tabs.stickers"),
                       }}
                     />
-                  </View>
-                </CollapsiblePicker>
-                <CollapsiblePicker open={gifsOpen}>
-                  <View style={{ paddingBottom: 8 }}>
-                    <TrendingMemeStrip
-                      items={klipyGifs.gifs}
-                      loading={klipyGifs.loading}
-                      loadingMore={klipyGifs.loadingMore}
-                      error={klipyGifs.error}
-                      hasNext={klipyGifs.hasNext}
-                      mode={klipyGifs.mode}
-                      searching={klipyGifs.searching}
-                      query={klipyGifs.query}
-                      onChangeQuery={klipyGifs.setQuery}
-                      onClearSearch={klipyGifs.clearSearch}
-                      onEndReached={klipyGifs.loadMore}
-                      onRetry={klipyGifs.retry}
-                      onSelectItem={handleSelectGif}
-                      animated
-                      bleed={16}
-                      labels={{
-                        searchPlaceholder: t("chat.gifs.searchPlaceholder"),
-                        empty: t("chat.gifs.empty"),
-                        noResults: t("chat.gifs.noResults"),
-                        error: t("chat.gifs.error"),
-                        retry: t("chat.gifs.retry"),
-                      }}
-                    />
+                    {mediaTab === "gifs" ? (
+                      <TrendingMemeStrip
+                        items={klipyGifs.gifs}
+                        loading={klipyGifs.loading}
+                        loadingMore={klipyGifs.loadingMore}
+                        error={klipyGifs.error}
+                        hasNext={klipyGifs.hasNext}
+                        mode={klipyGifs.mode}
+                        searching={klipyGifs.searching}
+                        query={klipyGifs.query}
+                        onChangeQuery={klipyGifs.setQuery}
+                        onClearSearch={klipyGifs.clearSearch}
+                        onEndReached={klipyGifs.loadMore}
+                        onRetry={klipyGifs.retry}
+                        onSelectItem={handleSelectGif}
+                        animated
+                        bleed={16}
+                        labels={{
+                          searchPlaceholder: t("chat.gifs.searchPlaceholder"),
+                          empty: t("chat.gifs.empty"),
+                          noResults: t("chat.gifs.noResults"),
+                          error: t("chat.gifs.error"),
+                          retry: t("chat.gifs.retry"),
+                        }}
+                      />
+                    ) : null}
+                    {mediaTab === "memes" ? (
+                      <TrendingMemeStrip
+                        items={klipy.memes}
+                        loading={klipy.loading}
+                        loadingMore={klipy.loadingMore}
+                        error={klipy.error}
+                        hasNext={klipy.hasNext}
+                        mode={klipy.mode}
+                        searching={klipy.searching}
+                        query={klipy.query}
+                        onChangeQuery={klipy.setQuery}
+                        onClearSearch={klipy.clearSearch}
+                        onEndReached={klipy.loadMore}
+                        onRetry={klipy.retry}
+                        onSelectItem={handleSelectMeme}
+                        bleed={16}
+                        labels={{
+                          searchPlaceholder: t("chat.memes.searchPlaceholder"),
+                          empty: t("chat.memes.empty"),
+                          noResults: t("chat.memes.noResults"),
+                          error: t("chat.memes.error"),
+                          retry: t("chat.memes.retry"),
+                        }}
+                      />
+                    ) : null}
+                    {mediaTab === "stickers" ? (
+                      <TrendingMemeStrip
+                        items={klipyStickers.stickers}
+                        loading={klipyStickers.loading}
+                        loadingMore={klipyStickers.loadingMore}
+                        error={klipyStickers.error}
+                        hasNext={klipyStickers.hasNext}
+                        mode={klipyStickers.mode}
+                        searching={klipyStickers.searching}
+                        query={klipyStickers.query}
+                        onChangeQuery={klipyStickers.setQuery}
+                        onClearSearch={klipyStickers.clearSearch}
+                        onEndReached={klipyStickers.loadMore}
+                        onRetry={klipyStickers.retry}
+                        onSelectItem={handleSelectSticker}
+                        animated
+                        // Transparent stickers read best uncropped + with no
+                        // grey tile behind them.
+                        contentFit="contain"
+                        transparent
+                        bleed={16}
+                        labels={{
+                          searchPlaceholder: t("chat.stickers.searchPlaceholder"),
+                          empty: t("chat.stickers.empty"),
+                          noResults: t("chat.stickers.noResults"),
+                          error: t("chat.stickers.error"),
+                          retry: t("chat.stickers.retry"),
+                        }}
+                      />
+                    ) : null}
                   </View>
                 </CollapsiblePicker>
                 <CollapsiblePicker
                   open={
-                    stagedImages.length > 0 || stagedGif !== null || maxNotice
+                    stagedImages.length > 0 ||
+                    stagedGif !== null ||
+                    stagedStickers.length > 0 ||
+                    maxNotice
                   }
                 >
                   <StagedAttachmentTray
                     images={stagedImages}
                     gif={stagedGif}
+                    stickers={stagedStickers}
                     showMaxNotice={maxNotice}
+                    maxNoticeCount={maxNoticeCount}
                     onRemove={handleRemoveStagedImage}
                     onRemoveGif={handleRemoveStagedGif}
+                    onRemoveSticker={handleRemoveStagedSticker}
                   />
                 </CollapsiblePicker>
                 <ChatInput
@@ -1143,10 +1260,14 @@ export default function ChatScreen() {
                   value={draft}
                   onChangeText={setDraft}
                   onSend={handleSubmit}
-                  onCancel={cancelStreaming}
-                  onFocus={() => applyPickers(dismissPickers())}
+                  onCancel={pauseStreaming}
+                  onFocus={() => applyPickers(dismissPickers(pickers))}
                   streaming={status === "streaming"}
-                  hasAttachments={stagedImages.length > 0 || stagedGif !== null}
+                  hasAttachments={
+                    stagedImages.length > 0 ||
+                    stagedGif !== null ||
+                    stagedStickers.length > 0
+                  }
                   placeholder={t("chat.input.placeholder", { name: personaTitle })}
                   sendAccessibilityLabel={t("chat.send")}
                   cancelAccessibilityLabel={t("chat.cancel")}
@@ -1178,21 +1299,14 @@ export default function ChatScreen() {
                     busy={uploadingImage}
                     onPress={handleAddPhoto}
                   />
-                  <GifToggleButton
+                  <MediaToggleButton
                     label={
-                      gifsOpen ? t("chat.gifs.keyboard") : t("chat.gifs.button")
+                      mediaOpen
+                        ? t("chat.media.keyboard")
+                        : t("chat.media.button")
                     }
-                    open={gifsOpen}
-                    onPress={handleToggleGifs}
-                  />
-                  <MemeToggleButton
-                    label={
-                      memesOpen
-                        ? t("chat.memes.keyboard")
-                        : t("chat.memes.button")
-                    }
-                    open={memesOpen}
-                    onPress={handleToggleMemes}
+                    open={mediaOpen}
+                    onPress={handleToggleMedia}
                   />
                   <RotLevelButton
                     label={t("chat.rot.button")}

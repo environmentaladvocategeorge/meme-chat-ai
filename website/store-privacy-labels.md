@@ -57,6 +57,16 @@ These are the calls that are easy to get wrong. The policy and both store forms 
    "sharing"). See the Google section. **[Confirm]** that each has a DPA / processor terms in place; if
    you cannot confirm processor status for Klipy, declare the relevant types as **Shared**.
 
+8. **Stickers (v1.2.0) reuse existing data buckets — no new store category.**
+   The send-only Klipy sticker feature (`functions/src/stickers/`, `functions/src/messages/messageSticker.ts`)
+   adds no new data type to either form. The sticker's still PNG is sent to OpenAI as an image input
+   (same bucket as meme/GIF image inputs → Apple **User Content → Other**, Google **App activity → Other
+   UGC**); the sticker reference, title, and the search term you typed are stored on the message
+   (User Content); and a sticker search query goes to Klipy (Apple **Search History**, Google **In-app
+   search history**), but **only ever a query you type** — stickers are send-only, so the AI never
+   generates sticker queries. No sticker is downloaded to the gallery, so the Photos/gallery analysis is
+   unchanged.
+
 ---
 
 ## 1) Apple App Store — "App Privacy"

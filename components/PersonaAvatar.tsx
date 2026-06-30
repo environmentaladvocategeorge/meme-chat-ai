@@ -26,6 +26,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
+// Bundled avatar art for curated first-party bots, keyed by their avatarKey
+// (domain/personas FIRST_PARTY_PERSONAS). A key with no mapped asset falls
+// through to the monogram, so a new first-party bot can ship before its art does.
+const FIRST_PARTY_AVATARS: Record<string, number> = {
+  luna: require("../assets/images/luna-avatar.png"),
+};
+
 export function PersonaAvatar({
   persona,
   size,
@@ -37,6 +44,29 @@ export function PersonaAvatar({
 }) {
   const theme = useTheme();
   if (persona.kind === "default") return <AgentAvatar size={size} float={float} />;
+
+  // First-party bots (e.g. Luna) render their bundled app asset, with the same
+  // soft bob as a user persona. Falls through to avatarUrl/monogram if unmapped.
+  const bundled =
+    persona.kind === "firstParty" && persona.persona.avatarKey
+      ? FIRST_PARTY_AVATARS[persona.persona.avatarKey]
+      : undefined;
+  if (bundled) {
+    return (
+      <Floaty size={size} float={float}>
+        <Image
+          source={bundled}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor: theme["--color-card-muted"],
+          }}
+          contentFit="cover"
+        />
+      </Floaty>
+    );
+  }
 
   if (persona.persona.avatarUrl) {
     return (

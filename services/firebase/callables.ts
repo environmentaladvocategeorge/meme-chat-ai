@@ -5,6 +5,7 @@ import {
   type TrendingMemesResult,
 } from "@/domain/memes";
 import { type TrendingGifsResult } from "@/domain/gifs";
+import { type TrendingStickersResult } from "@/domain/stickers";
 import { getFirebaseServices } from "./app";
 
 export async function deleteMyAccountCallable(): Promise<{ success: true }> {
@@ -196,6 +197,30 @@ export async function deletePersonaCallable(
   return result.data;
 }
 
+// Durably cancels (deletes) an in-flight agent reply — the pause action. Unlike
+// closing the SSE socket (best-effort, racy), this deletes the agent message
+// server-side so it can never re-appear via the live listener, and signals the
+// still-running stream function to stop. Idempotent + best-effort: callers fire
+// it without awaiting, since the local UI clear has already happened. Pass the
+// agent serverId (`messageId`) when known, else the user turn's `clientMessageId`.
+export async function cancelAgentReplyCallable(args: {
+  conversationId: string;
+  messageId?: string;
+  clientMessageId?: string;
+}): Promise<{ success: true; deleted: number }> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<
+    { conversationId: string; messageId?: string; clientMessageId?: string },
+    { success: true; deleted: number }
+  >(firebase.services.functions, "cancelAgentReply");
+  const result = await callable(args);
+  return result.data;
+}
+
 export type MessageReaction = "up" | "down";
 
 // Records (or clears, when reaction is null) the caller's thumbs rating on a
@@ -364,6 +389,44 @@ export async function searchGifsCallable(
   const callable = httpsCallable<SearchGifsParams, TrendingGifsResult>(
     firebase.services.functions,
     "searchGifs",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+export type TrendingStickersParams = TrendingMemesParams;
+export type SearchStickersParams = SearchMemesParams;
+
+// Fetches a page of trending stickers from Klipy via the backend. Mirrors
+// getTrendingGifsCallable; the backend holds the (shared) app key.
+export async function getTrendingStickersCallable(
+  params: TrendingStickersParams = {},
+): Promise<TrendingStickersResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<TrendingStickersParams, TrendingStickersResult>(
+    firebase.services.functions,
+    "getTrendingStickers",
+  );
+  const result = await callable(params);
+  return result.data;
+}
+
+// Searches Klipy stickers by keyword via the backend.
+export async function searchStickersCallable(
+  params: SearchStickersParams,
+): Promise<TrendingStickersResult> {
+  const firebase = getFirebaseServices();
+  if (!firebase.available) {
+    throw new Error("firebase-unavailable");
+  }
+
+  const callable = httpsCallable<SearchStickersParams, TrendingStickersResult>(
+    firebase.services.functions,
+    "searchStickers",
   );
   const result = await callable(params);
   return result.data;

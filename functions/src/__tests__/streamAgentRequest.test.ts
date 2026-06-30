@@ -147,4 +147,67 @@ describe("streamAgentRequestSchema", () => {
       expect(result.data.respondWithMedia).toBe(false);
     }
   });
+
+  // ---- Stickers (additive; old clients send none) ----
+
+  const validSticker = {
+    id: "s1",
+    source: "klipy-sticker" as const,
+    url: "https://static.klipy.com/s.webp",
+    previewUrl: "https://static.klipy.com/s.png",
+  };
+
+  it("defaults stickers to [] when omitted (proves old clients are unaffected)", () => {
+    const result = streamAgentRequestSchema.safeParse({ message: "hi" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.stickers).toEqual([]);
+    }
+  });
+
+  it("accepts a sticker-only turn (no text/images/gifs)", () => {
+    const result = streamAgentRequestSchema.safeParse({ stickers: [validSticker] });
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts a turn combining a meme, a gif, and stickers", () => {
+    const result = streamAgentRequestSchema.safeParse({
+      message: "combo",
+      images: [
+        {
+          id: "m1",
+          source: "klipy",
+          url: "https://static.klipy.com/a.png",
+          previewUrl: "https://static.klipy.com/a-preview.png",
+        },
+      ],
+      gifs: [
+        {
+          id: "g1",
+          source: "klipy-gif",
+          url: "https://static.klipy.com/g.webp",
+          previewUrl: "https://static.klipy.com/g.jpg",
+          frameSourceUrl: "https://static.klipy.com/g-sm.webp",
+        },
+      ],
+      stickers: [validSticker, { ...validSticker, id: "s2" }],
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects more than MAX_STICKERS stickers", () => {
+    const many = Array.from({ length: 4 }, (_, i) => ({
+      ...validSticker,
+      id: `s${i}`,
+    }));
+    const result = streamAgentRequestSchema.safeParse({ stickers: many });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects stickers from a non-allowlisted host", () => {
+    const result = streamAgentRequestSchema.safeParse({
+      stickers: [{ ...validSticker, url: "https://evil.example/s.webp" }],
+    });
+    expect(result.success).toBe(false);
+  });
 });

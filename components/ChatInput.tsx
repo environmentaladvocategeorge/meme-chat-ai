@@ -51,11 +51,14 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  type StyleProp,
   Text,
   TextInput,
   View,
+  type ViewStyle,
 } from "react-native";
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -115,6 +118,174 @@ interface ChatInputProps {
   collapseAccessibilityLabel: string;
 }
 
+// Shared geometry for the composer's send / stop button so the two states sit
+// in the exact same spot.
+const sendButtonContainerStyle = {
+  width: SEND_BUTTON_SIZE,
+  height: SEND_BUTTON_SIZE,
+  // The button bottom-anchors to the input row (flex-end), so it tracks the last
+  // line as the input grows. Half the row/button difference keeps it centered on
+  // a single line and lifted off the pill floor when grown.
+  marginBottom: (MIN_INPUT_HEIGHT - SEND_BUTTON_SIZE) / 2,
+} as const;
+
+const sendButtonBaseStyle = {
+  width: SEND_BUTTON_SIZE,
+  height: SEND_BUTTON_SIZE,
+  borderRadius: SEND_BUTTON_SIZE / 2,
+  alignItems: "center",
+  justifyContent: "center",
+  overflow: "hidden",
+} as const;
+
+// The streaming "stop" affordance: a faint track with a bright accent arc
+// rotating over it. Its OWN component (and its own `spin` SharedValue) so the
+// rotation can never leak onto the send button — they're different component
+// types, so React fully remounts when streaming flips, instead of reusing the
+// same host view and leaving the send icon frozen at the spinner's last angle.
+function StopButton({
+  onCancel,
+  accessibilityLabel,
+}: {
+  onCancel: () => void;
+  accessibilityLabel: string;
+}) {
+  const theme = useTheme();
+  // Created on mount, cancelled on unmount → every stream gets a clean spin from
+  // 0, and nothing survives the unmount to taint the send button.
+  const spin = useSharedValue(0);
+  useEffect(() => {
+    spin.value = withRepeat(
+      withTiming(360, { duration: 1000, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    return () => cancelAnimation(spin);
+  }, [spin]);
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spin.value}deg` }],
+  }));
+
+  return (
+    <AppPressable
+      onPress={onCancel}
+      haptic
+      pressScale={0.08}
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={8}
+      containerStyle={sendButtonContainerStyle}
+      // No fill while streaming — the affordance is the ring + icon.
+      style={{ ...sendButtonBaseStyle, backgroundColor: "transparent" }}
+    >
+      {/* Faint full track the arc sweeps over. */}
+      <View
+        pointerEvents="none"
+        style={{
+          ...StyleSheet.absoluteFillObject,
+          borderRadius: SEND_BUTTON_SIZE / 2,
+          borderWidth: 3,
+          borderColor: theme["--color-border"],
+        }}
+      />
+      {/* Rotating accent arc: a bright ~half-ring orbiting the track — a
+          recognizable "working, tap to stop" loader. The two transparent edges
+          let the track show through as the lit segment sweeps. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            ...StyleSheet.absoluteFillObject,
+            borderRadius: SEND_BUTTON_SIZE / 2,
+            borderWidth: 3,
+            borderColor: "transparent",
+            borderTopColor: theme["--color-primary"],
+            borderRightColor: theme["--color-primary"],
+          },
+          spinStyle,
+        ]}
+      />
+      <Stop size={14} color={theme["--color-foreground"]} weight="fill" />
+    </AppPressable>
+  );
+}
+
+// The send button: a muted base with the accent gradient + arrow cross-fading
+// in as the turn becomes sendable. Separate component from StopButton (see the
+// note there). The active/inactive cross-fade styles are driven by the parent's
+// sendActiveProgress (shared with the expanded-composer send button) and passed
+// in, so both buttons fade in unison.
+function SendButton({
+  onSend,
+  canSend,
+  accessibilityLabel,
+  gradientColors,
+  gradientStart,
+  gradientEnd,
+  activeIconColor,
+  activeStyle,
+  inactiveStyle,
+}: {
+  onSend: () => void;
+  canSend: boolean;
+  accessibilityLabel: string;
+  gradientColors: readonly [string, string, ...string[]];
+  gradientStart: { x: number; y: number };
+  gradientEnd: { x: number; y: number };
+  activeIconColor: string;
+  activeStyle: StyleProp<ViewStyle>;
+  inactiveStyle: StyleProp<ViewStyle>;
+}) {
+  const theme = useTheme();
+  return (
+    <AppPressable
+      onPress={canSend ? onSend : undefined}
+      disabled={!canSend}
+      haptic
+      pressScale={0.08}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: !canSend }}
+      hitSlop={8}
+      containerStyle={sendButtonContainerStyle}
+      style={{
+        ...sendButtonBaseStyle,
+        // The inactive base always sits underneath; the active gradient
+        // cross-fades over it via activeStyle for a smooth transition.
+        backgroundColor: theme["--color-background-muted"],
+      }}
+    >
+      {/* Active layer: gradient + white icon, faded in by sendActiveProgress. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, activeStyle]}
+      >
+        <LinearGradient
+          colors={gradientColors}
+          start={gradientStart}
+          end={gradientEnd}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </Animated.View>
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, centeredAbsolute, activeStyle]}
+      >
+        <ArrowFatUp size={20} color={activeIconColor} weight="fill" />
+      </Animated.View>
+      {/* Inactive layer: muted icon, faded out as the active layer fades in. */}
+      <Animated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFillObject, centeredAbsolute, inactiveStyle]}
+      >
+        <ArrowFatUp
+          size={20}
+          color={theme["--color-foreground-muted"]}
+          weight="fill"
+        />
+      </Animated.View>
+    </AppPressable>
+  );
+}
+
 export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   function ChatInput(
     {
@@ -153,9 +324,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
   // and white icon fade in, muted icon fades out (and vice versa) as the
   // user types or clears the draft, instead of snapping between states.
   const sendActiveProgress = useSharedValue(0);
-  // Continuous breathing loop driving the stop button's "working" ring
-  // while a reply streams.
-  const pulse = useSharedValue(0);
   // Tap feedback: a quick dip-and-settle scale plus a faint brighten flash
   // when the user taps the text area — the small "alive" cue ChatGPT's
   // composer has. Lives only on the text region so the send/expand buttons
@@ -193,24 +361,6 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
       easing: Easing.out(Easing.cubic),
     });
   }, [canSend, sendActiveProgress]);
-
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
-      -1,
-      true,
-    );
-  }, [pulse]);
-
-  // Stop-button "working" treatment: the ring breathes (opacity pulse) while
-  // a reply streams. Deliberately NOT a rotating arc — the arc's first frames
-  // on each send painted at whatever angle the previous stream's cancelled
-  // animation froze at (before the reset effect ran), which read as the send
-  // button snapping to a random rotation. An opacity pulse has no angle to be
-  // stale at. Rides the composer's always-running `pulse` loop.
-  const stopRingStyle = useAnimatedStyle(() => ({
-    opacity: 0.35 + pulse.value * 0.65,
-  }));
 
   const triggerPressFeedback = useCallback(() => {
     pressScale.value = withSequence(
@@ -414,122 +564,29 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(
               </Pressable>
             </Animated.View>
 
-            <AppPressable
-            onPress={showStop ? onCancel : canSend ? onSend : undefined}
-            disabled={!showStop && !canSend}
-            haptic
-            pressScale={0.08}
-            accessibilityLabel={
-              showStop ? cancelAccessibilityLabel : sendAccessibilityLabel
-            }
-            accessibilityState={{ disabled: !showStop && !canSend }}
-            hitSlop={8}
-            containerStyle={{
-              width: SEND_BUTTON_SIZE,
-              height: SEND_BUTTON_SIZE,
-              // The button bottom-anchors to the input row (flex-end, so it
-              // tracks the last line as the input grows). Smaller than the
-              // 40px single-line row, it needs half the difference as bottom
-              // margin to sit vertically centered when there's one line —
-              // and the same comfortable lift off the pill floor when grown.
-              marginBottom: (MIN_INPUT_HEIGHT - SEND_BUTTON_SIZE) / 2,
-            }}
-            style={{
-              width: SEND_BUTTON_SIZE,
-              height: SEND_BUTTON_SIZE,
-              borderRadius: SEND_BUTTON_SIZE / 2,
-              alignItems: "center",
-              justifyContent: "center",
-              // The "inactive" base color always lives underneath. The
-              // active gradient fades over it via sendActiveStyle, so the
-              // transition is a smooth cross-fade rather than a snap. While
-              // streaming there's no fill at all — the stop affordance is
-              // the spinner ring + icon.
-              backgroundColor: showStop
-                ? "transparent"
-                : theme["--color-background-muted"],
-              overflow: "hidden",
-            }}
-          >
+            {/* Send and Stop are deliberately SEPARATE components, swapped by
+                `showStop`. A single shared button reused the same host views
+                across the swap, so the spinner's rotate transform lingered on
+                the returning send icon (it came back "pointing at a random
+                angle"). Different component types force a clean remount. */}
             {showStop ? (
-              <>
-                {/* Faint static track the arc orbits on. */}
-                <View
-                  pointerEvents="none"
-                  style={{
-                    ...StyleSheet.absoluteFillObject,
-                    borderRadius: SEND_BUTTON_SIZE / 2,
-                    borderWidth: 2.5,
-                    borderColor: theme["--color-border"],
-                  }}
-                />
-                {/* Breathing ring: the full primary ring pulses over the track
-                    to read as "working" without any rotation. */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    {
-                      ...StyleSheet.absoluteFillObject,
-                      borderRadius: SEND_BUTTON_SIZE / 2,
-                      borderWidth: 2.5,
-                      borderColor: theme["--color-primary"],
-                    },
-                    stopRingStyle,
-                  ]}
-                />
-                {/* --color-foreground: white in dark mode (the ask), and it
-                    stays near-black in light mode so the icon never vanishes
-                    against the light pill. */}
-                <Stop
-                  size={16}
-                  color={theme["--color-foreground"]}
-                  weight="fill"
-                />
-              </>
+              <StopButton
+                onCancel={onCancel}
+                accessibilityLabel={cancelAccessibilityLabel}
+              />
             ) : (
-              <>
-                {/* Active layer: gradient + white icon, faded in by
-                    sendActiveProgress. */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[StyleSheet.absoluteFillObject, sendActiveStyle]}
-                >
-                  <LinearGradient
-                    colors={gradientColors}
-                    start={gradientStart}
-                    end={gradientEnd}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                </Animated.View>
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    StyleSheet.absoluteFillObject,
-                    centeredAbsolute,
-                    sendActiveStyle,
-                  ]}
-                >
-                  <ArrowFatUp size={20} color={activeIconColor} weight="fill" />
-                </Animated.View>
-                {/* Inactive layer: muted icon, faded out as the active
-                    layer fades in. */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    StyleSheet.absoluteFillObject,
-                    centeredAbsolute,
-                    sendInactiveStyle,
-                  ]}
-                >
-                  <ArrowFatUp
-                    size={20}
-                    color={theme["--color-foreground-muted"]}
-                    weight="fill"
-                  />
-                </Animated.View>
-              </>
+              <SendButton
+                onSend={onSend}
+                canSend={canSend}
+                accessibilityLabel={sendAccessibilityLabel}
+                gradientColors={gradientColors}
+                gradientStart={gradientStart}
+                gradientEnd={gradientEnd}
+                activeIconColor={activeIconColor}
+                activeStyle={sendActiveStyle}
+                inactiveStyle={sendInactiveStyle}
+              />
             )}
-          </AppPressable>
           </View>
         </GlassSurface>
       </Animated.View>

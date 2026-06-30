@@ -656,6 +656,23 @@ const ru = {
       // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "Медиа",
+      keyboard: "Клавиатура",
+      tabs: {
+        gifs: "GIF-ки",
+        memes: "Мемы",
+        stickers: "Стикеры",
+      },
+    },
+    stickers: {
+      empty: "Стикеров пока нет",
+      noResults: "Ни один стикер не подходит",
+      error: "Не удалось загрузить стикеры",
+      retry: "Повторить",
+      // "Search KLIPY" is a KLIPY brand-attribution requirement — keep verbatim.
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Уровень брейнрота",
       title: "Насколько rotted должны быть ответы?",
@@ -700,6 +717,7 @@ const ru = {
       remove: "Убрать мем",
       imageLabel: "Вложение-мем",
       gifLabel: "GIF-вложение",
+      stickerLabel: "Стикер-вложение",
       sentMeme: "Отправил мем",
       invalid: "Не удалось прикрепить этот мем",
       download: {

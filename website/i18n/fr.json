@@ -92,10 +92,23 @@
       "card3Title": "Choisis son look",
       "card3Body": "Téléverse un avatar ou génère-en un à partir d'une brève description, écris son slogan d'une ligne et enregistre. Il apparaît dans ton sélecteur de bots, prêt à l'emploi."
     },
+    "bots": {
+      "eyebrow": "Découvre les bots",
+      "h2": "Deux bots intégrés. Change quand tu veux.",
+      "p": "Chaque téléchargement inclut deux bots prêts à discuter, en plus de ceux que tu crées. Touche pour les rencontrer.",
+      "brainrotName": "Brainrot Bot",
+      "brainrotTagline": "L'original",
+      "brainrotBody": "Le plus drôle du groupe : il te clashe, envoie le GIF parfait et te donne quand même une vraie réponse. Monte ou baisse le chaos avec le Rot Level.",
+      "brainrotSample": "ce plan tient avec de l'ambiance et un trombone 💀",
+      "lunaName": "Luna",
+      "lunaTagline": "Nouveau",
+      "lunaBody": "Ta bestie astro un peu delulu : elle lit ton thème astral, te booste et répond quand même à ta question. La même intelligence que Brainrot Bot, dans une ambiance cosmique plus douce.",
+      "lunaSample": "mercure est rétrograde, protège ta paix et ne réponds SURTOUT pas 🔮"
+    },
     "meme": {
-      "eyebrow": "Des mèmes à la demande",
+      "eyebrow": "Mèmes, GIFs et stickers",
       "h2": "Quand les mots manquent, envoie le mème.",
-      "p": "En plein chat, ouvre une série de mèmes tendance ou cherche la réaction exacte, puis lâche-la direct dans la conversation. Certains moments méritent une tête, pas un paragraphe."
+      "p": "En plein chat, ouvre une série de mèmes et de GIFs tendance ou cherche la réaction exacte, puis lâche-la direct dans la conversation. Les stickers, c'est pareil : trouves-en un et envoie-le. Certains moments méritent une tête, pas un paragraphe."
     },
     "memory": {
       "eyebrow": "Mémoire",

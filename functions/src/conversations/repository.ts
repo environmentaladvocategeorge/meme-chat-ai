@@ -7,6 +7,7 @@ import type { ChatMessage, ChatRole } from "../agent/types";
 import type { PlanId } from "../billing/plans";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
+import type { MessageSticker } from "../messages/messageSticker";
 
 type MessageStatus = "complete" | "streaming" | "error";
 
@@ -16,6 +17,7 @@ type StoredMessage = {
   status?: MessageStatus;
   images?: MessageImage[];
   gifs?: MessageGif[];
+  stickers?: MessageSticker[];
 };
 
 // Placeholder title shown for image-only conversations (no first-message text
@@ -54,24 +56,26 @@ function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
   const text = typeof data.text === "string" ? data.text : "";
   const images = Array.isArray(data.images) ? data.images : undefined;
   const gifs = Array.isArray(data.gifs) ? data.gifs : undefined;
+  const stickers = Array.isArray(data.stickers) ? data.stickers : undefined;
   const hasImages = Boolean(images && images.length > 0);
   const hasGifs = Boolean(gifs && gifs.length > 0);
-  if (text.length === 0 && !hasImages && !hasGifs) return null;
+  const hasStickers = Boolean(stickers && stickers.length > 0);
+  if (text.length === 0 && !hasImages && !hasGifs && !hasStickers) return null;
 
   const message: ChatMessage = { role: data.role, text };
   if (hasImages) message.images = images;
   if (hasGifs) message.gifs = gifs;
+  if (hasStickers) message.stickers = stickers;
   return message;
 }
 
-export async function createConversation(
+// The document fields for a freshly created conversation. Shared by
+// createConversation (server-assigned id) and ensureConversation (client id).
+function newConversationFields(
   uid: string,
   firstUserMessageText: string,
   options?: { hasImages?: boolean },
-): Promise<{ conversationId: string }> {
-  const db = getFirestore();
-  const conversationRef = db.collection("conversations").doc();
-
+) {
   const trimmedFirst = firstUserMessageText.trim();
   // Always a neutral placeholder until generateConversationTitle names the
   // exchange from the bot's first reply. Image-only openers get the meme
@@ -82,7 +86,7 @@ export async function createConversation(
       ? IMAGE_ONLY_TITLE_FALLBACK
       : NEW_CONVERSATION_TITLE_FALLBACK;
 
-  await conversationRef.set({
+  return {
     uid,
     // Placeholder title shown immediately; generateConversationTitle replaces it
     // with a meme title once the bot's first reply lands.
@@ -92,9 +96,47 @@ export async function createConversation(
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
     lastMessagePreview: "",
-  });
+  };
+}
 
+export async function createConversation(
+  uid: string,
+  firstUserMessageText: string,
+  options?: { hasImages?: boolean },
+): Promise<{ conversationId: string }> {
+  const db = getFirestore();
+  const conversationRef = db.collection("conversations").doc();
+  await conversationRef.set(
+    newConversationFields(uid, firstUserMessageText, options),
+  );
   return { conversationId: conversationRef.id };
+}
+
+// Resolves a CLIENT-PROVIDED conversation id: creates the conversation with that
+// id if it doesn't exist yet (a brand-new chat whose id the app minted so it
+// could subscribe to the reply stream early), or asserts the caller owns it if
+// it does (continuing an existing conversation). Runs in a transaction so a
+// retry / double-send can't clobber an existing doc or create two. Throws
+// "conversation-not-found" when the id belongs to a different user — the caller
+// maps that to a 404, exactly like assertConversationOwner, so a provided id can
+// never touch another account's conversation.
+export async function ensureConversation(
+  conversationId: string,
+  uid: string,
+  firstUserMessageText: string,
+  options?: { hasImages?: boolean },
+): Promise<{ isNew: boolean }> {
+  const db = getFirestore();
+  const ref = db.collection("conversations").doc(conversationId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists) {
+      if (snap.data()?.uid !== uid) throw new Error("conversation-not-found");
+      return { isNew: false };
+    }
+    tx.set(ref, newConversationFields(uid, firstUserMessageText, options));
+    return { isNew: true };
+  });
 }
 
 // Re-titles a conversation whose opening message was rejected by the moderation
@@ -143,6 +185,7 @@ export async function appendMessage(
     persona?: MessagePersonaMetadata;
     images?: MessageImage[];
     gifs?: MessageGif[];
+    stickers?: MessageSticker[];
     // Brainrot intensity selected for this turn (1–3). Stored as-is on the
     // message; nothing downstream consumes it yet.
     levelOfRot?: number;
@@ -170,6 +213,7 @@ export async function appendMessage(
 
   const hasImages = Boolean(message.images && message.images.length > 0);
   const hasGifs = Boolean(message.gifs && message.gifs.length > 0);
+  const hasStickers = Boolean(message.stickers && message.stickers.length > 0);
 
   const messageData: Record<string, unknown> = {
     role: message.role,
@@ -185,6 +229,10 @@ export async function appendMessage(
 
   if (hasGifs) {
     messageData.gifs = message.gifs;
+  }
+
+  if (hasStickers) {
+    messageData.stickers = message.stickers;
   }
 
   if (typeof message.levelOfRot === "number") {
@@ -238,7 +286,7 @@ export async function appendMessage(
 
   if (message.text.length > 0) {
     conversationUpdate.lastMessagePreview = message.text.slice(0, 160);
-  } else if (hasImages || hasGifs) {
+  } else if (hasImages || hasGifs || hasStickers) {
     // Attachment-only turn: keep the list preview non-blank. The client renders
     // the thumbnail itself; this is just the fallback label for the history
     // list.
@@ -250,6 +298,22 @@ export async function appendMessage(
   return { messageId: messageRef.id };
 }
 
+// True for a Firestore Admin NOT_FOUND (gRPC status 5) — what `.update()` throws
+// when the target doc no longer exists. The stream functions use it to tell an
+// explicit pause (the agent doc was deleted) apart from a real write failure.
+function isNotFoundError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: unknown }).code === 5
+  );
+}
+
+// Finalizes the streaming agent message to `complete`. Returns `{ saved: false }`
+// when the doc no longer exists (an explicit pause deleted it mid-stream) so the
+// caller can skip charging for a cancelled turn; `.update()` never recreates a
+// deleted doc, so a raced cancel can't resurrect the reply.
 export async function finalizeAgentMessage(
   conversationId: string,
   messageId: string,
@@ -260,7 +324,7 @@ export async function finalizeAgentMessage(
   // GIF attachment the agent chose for this turn (a get_gif result). Omitted
   // for plain text replies.
   gifs?: MessageGif[],
-): Promise<void> {
+): Promise<{ saved: boolean }> {
   const db = getFirestore();
 
   const messageUpdate: Record<string, unknown> = {
@@ -275,12 +339,17 @@ export async function finalizeAgentMessage(
     messageUpdate.gifs = gifs;
   }
 
-  await db
-    .collection("conversations")
-    .doc(conversationId)
-    .collection("messages")
-    .doc(messageId)
-    .update(messageUpdate);
+  try {
+    await db
+      .collection("conversations")
+      .doc(conversationId)
+      .collection("messages")
+      .doc(messageId)
+      .update(messageUpdate);
+  } catch (err) {
+    if (isNotFoundError(err)) return { saved: false };
+    throw err;
+  }
 
   const hasAttachment =
     Boolean(images && images.length > 0) || Boolean(gifs && gifs.length > 0);
@@ -293,6 +362,8 @@ export async function finalizeAgentMessage(
           ? "Sent a meme"
           : "",
   });
+
+  return { saved: true };
 }
 
 export async function markAgentMessageErrored(
@@ -328,6 +399,7 @@ export type ReplayMessageRecord = {
   inReplyToClientMessageId?: string;
   images?: MessageImage[];
   gifs?: MessageGif[];
+  stickers?: MessageSticker[];
   levelOfRot?: number;
   // The turn's local-only answering prefs, read back for replay. Absent fields
   // mean "on" (the default), since appendMessage only persists the OFF state.
@@ -380,6 +452,9 @@ function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null 
   }
   if (Array.isArray(data.gifs) && data.gifs.length > 0) {
     record.gifs = data.gifs;
+  }
+  if (Array.isArray(data.stickers) && data.stickers.length > 0) {
+    record.stickers = data.stickers;
   }
   if (typeof data.levelOfRot === "number") {
     record.levelOfRot = data.levelOfRot;
@@ -446,6 +521,33 @@ export async function loadReplayTargets(
   }
 
   return { found: true, isLatest, agent, user };
+}
+
+// Watches a single message doc and invokes `onDeleted` the first time it stops
+// existing. The stream functions use this as the explicit-cancel signal: the
+// pause action deletes the in-flight agent doc (cancelAgentReply), and this
+// listener lets the still-running stream notice and abort. The initial snapshot
+// is the doc that already exists, so onDeleted never fires for a live doc — only
+// for an actual deletion. Returns an unsubscribe; listener errors are swallowed
+// (the deletion + finalize guard remain the authoritative cancel path).
+export function watchMessageDeleted(
+  conversationId: string,
+  messageId: string,
+  onDeleted: () => void,
+): () => void {
+  return getFirestore()
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .doc(messageId)
+    .onSnapshot(
+      (snap) => {
+        if (!snap.exists) onDeleted();
+      },
+      () => {
+        // Transient listener error — ignore.
+      },
+    );
 }
 
 // Hard-deletes a single message doc. Used by turn replay to remove the old

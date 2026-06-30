@@ -653,6 +653,22 @@ const ja = {
       retry: "再試行",
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "メディア",
+      keyboard: "キーボード",
+      tabs: {
+        gifs: "GIF",
+        memes: "ミーム",
+        stickers: "ステッカー",
+      },
+    },
+    stickers: {
+      empty: "今はステッカーなし",
+      noResults: "そのステッカーは見つかりません",
+      error: "ステッカーを読み込めませんでした",
+      retry: "再試行",
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "ロットレベル",
       title: "返信はどのくらい腐ってるべき？",
@@ -697,6 +713,7 @@ const ja = {
       remove: "ミームを削除",
       imageLabel: "ミームの添付",
       gifLabel: "GIFの添付",
+      stickerLabel: "ステッカーの添付",
       sentMeme: "ミームを送信しました",
       invalid: "そのミームを添付できませんでした",
       download: {

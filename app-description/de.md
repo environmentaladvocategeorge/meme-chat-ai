@@ -14,12 +14,11 @@ spruch,antwort,humor,witz,slang,chatbot,charakter,persona,begleiter,erstellen,um
 
 ## What's New (Neuigkeiten)
 
-• Bau deine eigenen Bots: eigene KI-Charaktere mit Namen, Persönlichkeit, Stimme und Avatar. Chatte mit ihnen wie mit jedem anderen Bot und bearbeite sie jederzeit. Gratis enthält 1; Bezahlpläne speichern 10 bis 100.
-• KI-Avatare: generier einen aus einer kurzen Beschreibung oder lad deinen eigenen hoch.
-• Beschreibung per KI: lass sie die Persönlichkeit eines Bots aus ein paar Angaben schreiben.
-• Ein frischer neuer Look in der ganzen App.
-• Neuer Bildschirm „Tarif & Nutzung“, um deinen Verbrauch zu sehen und deinen Tarif zu verwalten.
-• Kleine Verbesserungen bei den täglichen Benachrichtigungen und der Kontolöschung.
+• Lern Luna kennen: ein neuer Bot zum Chatten, deine delulu Astro-Bestie, die dich pusht und dir trotzdem echte Antworten gibt, mit einer völlig anderen Vibe als Brainrot Bot.
+• Sticker: schick mitten im Chat Klipy-Sticker. Wähl sie aus den Trends oder such den passenden, pack bis zu drei in eine Nachricht, und Brainrot Bot reagiert darauf, ohne aus der Rolle zu fallen.
+• Ein Bot pro Chat: jede Unterhaltung bleibt jetzt bei einem einzigen Bot. Wechselst du den Bot, startest du einen neuen Chat, damit deine Verläufe übersichtlich bleiben.
+• Flüssigeres Streaming: Antworten kommen zuverlässiger an, und der Stopp-Button bricht eine Antwort jetzt sauber ab.
+• Memes, GIFs und Sticker teilen sich jetzt eine Medienleiste.
 • Dazu Verbesserungen bei Leistung und Stabilität.
 
 ## Promotional Text (Werbetext)
@@ -36,14 +35,18 @@ CHATTE MIT BRAINROT BOT
 
 Öffne einen Chat und hol dir eine Antwort, wenn du feststeckst, eine Caption, die sitzt, ein Comeback oder eine Erklärung, die nicht wie ein Lehrbuch klingt. Stell das Rot Level ein, um von normalem Assistenten bis völlig durchgeknallt zu schalten, und Brainrot Bot macht mit. Er antwortet mit Memes und GIFs, nicht nur mit Textwänden.
 
+LERN LUNA KENNEN
+
+Lust auf eine andere Energie? Luna ist ein zweiter eingebauter Bot: deine delulu Astro-Bestie, die dein Geburtshoroskop liest, dich pusht und dir trotzdem echte Antworten gibt. Sie hat ihre eigene Stimme, ihre eigenen Emojis und ihre eigenen kosmischen GIFs, mit einer sanfteren Vibe als Brainrot Bot. Wechsle zwischen beiden, wann immer du willst.
+
 BAU DEINE EIGENEN BRAINROT BOTS
 
 Bau deine eigenen KI-Charaktere von Grund auf. Gib einem Namen, eine Persönlichkeit, eine Stimme, ein Emoji-Set und ein Avatar, das du hochlädst oder aus einer kurzen Beschreibung generierst. Speicher ihn und chatte mit ihm wie mit jedem anderen Bot. Gratis enthält einen; Bezahlpläne speichern 10 bis 100, und jeder Bot durchläuft einen Sicherheits-Check, bevor er live geht.
 
 WAS ER SONST NOCH KANN
 
-• Memes und GIFs inklusive
-Such nach angesagten Memes und GIFs, pack sie in den Chat, häng eigene an und speicher die, die dir gefallen, in deiner Galerie.
+• Memes, GIFs und Sticker inklusive
+Such nach angesagten Memes, GIFs und Stickern und pack sie direkt in den Chat. Speicher die Memes und GIFs, die dir gefallen, in deiner Galerie, und schick bis zu drei Sticker auf einmal.
 
 • Fotos schicken
 Füge ein Foto aus Kamera oder Galerie hinzu und erhalte eine Reaktion, eine Caption oder eine Antwort zu dem, was du teilst.

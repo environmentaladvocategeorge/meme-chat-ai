@@ -298,6 +298,40 @@
         </div>
       </section>
 
+      <section class="section bots-section reveal" id="bots">
+        <div class="section-heading">
+          <p class="eyebrow">ボットに会う</p>
+          <h2>内蔵ボットは2体。いつでも切り替え。</h2>
+          <p>どのダウンロードにも、すぐ話せるボットが2体。自分で作るボットと並んで使えます。タップして会ってみて。</p>
+        </div>
+        <div class="bot-switch" data-bot-switch>
+          <div class="bot-tabs" role="tablist" aria-label="ボットに会う">
+            <button class="bot-tab is-active" type="button" role="tab" aria-selected="true" id="bot-tab-brainrot" aria-controls="bot-panel-brainrot" data-bot-tab="brainrot">Brainrot Bot</button>
+            <button class="bot-tab" type="button" role="tab" aria-selected="false" id="bot-tab-luna" aria-controls="bot-panel-luna" data-bot-tab="luna">Luna</button>
+          </div>
+          <div class="bot-panels">
+            <article class="bot-panel is-active" role="tabpanel" id="bot-panel-brainrot" aria-labelledby="bot-tab-brainrot" data-bot-panel="brainrot">
+              <img class="bot-avatar" src="/assets/images/meme-level-up.png?v=2" alt="Brainrot Bot avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline">オリジナル</span>
+                <h3>Brainrot Bot</h3>
+                <p>グループで一番面白いやつ。ツッコんで、ドンピシャのGIFを送って、それでもちゃんと答えてくれる。Rot Levelでカオスの強さを上げ下げできます。</p>
+                <p class="bot-sample">その計画、ノリとクリップ1個で持ってるだけ 💀</p>
+              </div>
+            </article>
+            <article class="bot-panel" role="tabpanel" id="bot-panel-luna" aria-labelledby="bot-tab-luna" data-bot-panel="luna" hidden>
+              <img class="bot-avatar" src="/assets/images/luna-avatar.png?v=2" alt="Luna avatar" />
+              <div class="bot-copy">
+                <span class="bot-tagline bot-tagline-new">新着</span>
+                <h3>Luna</h3>
+                <p>あなたのちょっとdeluluな占い好きの相棒。ホロスコープを読んで、テンションを上げつつ、ちゃんと質問にも答えます。Brainrot Botと同じ賢さで、もっとやわらかいコズミックな雰囲気。</p>
+                <p class="bot-sample">水星逆行中、心の平和を守って、絶対に返信しないで 🔮</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
       <section class="section split-section reveal" id="personas">
         <div>
           <p class="eyebrow">自分だけのを作る</p>
@@ -323,9 +357,9 @@
       <section class="section reveal">
         <div class="meme-card">
           <div class="meme-card-copy">
-            <p class="eyebrow">ミームをすぐ呼び出し</p>
+            <p class="eyebrow">ミーム・GIF・ステッカー</p>
             <h2>言葉に詰まったら、ミームを送ろう。</h2>
-            <p>チャットの途中で、トレンドのミーム一覧を開くか、ちょうどいいリアクションを検索して、そのまま会話に投下。ある瞬間には、段落より顔がふさわしい。</p>
+            <p>チャットの途中で、トレンドのミームや GIF の一覧を開くか、ちょうどいいリアクションを検索して、そのまま会話に投下。ステッカーも同じで、見つけて送るだけ。ある瞬間には、段落より顔がふさわしい。</p>
             <p class="meme-card-emojis" aria-hidden="true">😎 🔥 💀 ✨</p>
           </div>
           <a
@@ -570,6 +604,35 @@
           initial.offsetLeft - (track.clientWidth - initial.offsetWidth) / 2;
         track.style.scrollBehavior = prev;
         update();
+      })();
+    </script>
+    <!-- Meet-the-bots tabs: swap the Brainrot Bot / Luna panel on click. Pure
+         progressive enhancement — with no JS, the default Brainrot Bot panel
+         shows (Luna's panel stays in the DOM for crawlers, just hidden). -->
+    <script>
+      (function () {
+        var sw = document.querySelector("[data-bot-switch]");
+        if (!sw) return;
+        var tabs = [].slice.call(sw.querySelectorAll("[data-bot-tab]"));
+        var panels = [].slice.call(sw.querySelectorAll("[data-bot-panel]"));
+        function select(name) {
+          tabs.forEach(function (t) {
+            var on = t.getAttribute("data-bot-tab") === name;
+            t.classList.toggle("is-active", on);
+            t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          panels.forEach(function (p) {
+            var on = p.getAttribute("data-bot-panel") === name;
+            p.classList.toggle("is-active", on);
+            if (on) p.removeAttribute("hidden");
+            else p.setAttribute("hidden", "");
+          });
+        }
+        tabs.forEach(function (t) {
+          t.addEventListener("click", function () {
+            select(t.getAttribute("data-bot-tab"));
+          });
+        });
       })();
     </script>
     <script>try{localStorage.setItem("mcai_lang","ja");}catch(e){}</script>

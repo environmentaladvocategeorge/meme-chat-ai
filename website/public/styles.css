@@ -1265,3 +1265,97 @@ h3 {
     animation: none;
   }
 }
+
+/* Meet-the-bots switch — segmented Brainrot Bot / Luna tabs + a swapping panel. */
+.bot-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-card-muted);
+  margin-bottom: 22px;
+}
+.bot-tab {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 10px 24px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-foreground-secondary);
+  font: inherit;
+  font-weight: 700;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+.bot-tab.is-active {
+  background: var(--color-primary);
+  color: #ffffff;
+}
+.bot-panel {
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 4vw, 40px);
+  border: 1px solid var(--color-border);
+  border-radius: calc(var(--radius-card) * 2.5);
+  background: var(--color-card);
+  box-shadow: var(--shadow-card);
+  padding: clamp(22px, 4vw, 40px);
+}
+.bot-panel[hidden] {
+  display: none;
+}
+.bot-avatar {
+  width: clamp(96px, 22vw, 150px);
+  height: clamp(96px, 22vw, 150px);
+  border-radius: 24px;
+  object-fit: cover;
+  flex-shrink: 0;
+  box-shadow: 0 14px 34px rgba(15, 123, 133, 0.18);
+}
+.bot-copy {
+  max-width: 560px;
+}
+.bot-copy h3 {
+  margin: 8px 0 10px;
+  font-size: clamp(22px, 3vw, 28px);
+}
+.bot-copy p {
+  margin: 0;
+  color: var(--color-foreground-secondary);
+}
+.bot-tagline {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-card-muted);
+  color: var(--color-foreground-secondary);
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.bot-tagline-new {
+  border-color: var(--color-primary-muted);
+  background: var(--color-primary-subtle);
+  color: var(--color-primary);
+}
+.bot-sample {
+  margin-top: 14px !important;
+  font-style: italic;
+  color: var(--color-foreground) !important;
+}
+.bot-sample::before {
+  content: "\201C";
+}
+.bot-sample::after {
+  content: "\201D";
+}
+@media (max-width: 620px) {
+  .bot-panel {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+}

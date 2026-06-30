@@ -148,4 +148,68 @@ describe("buildCurrentUserContent", () => {
       "should-not-leak",
     );
   });
+
+  // ---- Stickers (user-send-only; static png fed directly) ----
+
+  const STICKER_URL = "https://static.klipy.com/s.png";
+
+  it("does NOT add sticker parts when no sticker urls are passed (back-compat)", () => {
+    // Older clients pass no 5th arg → output is byte-identical to before.
+    const content = buildCurrentUserContent("", [KLIPY_URL], undefined, {
+      memes: [],
+    });
+    const parts = content as Array<Record<string, unknown>>;
+    expect(parts).toHaveLength(1);
+    expect(parts[0]).toMatchObject({ type: "image_url" });
+  });
+
+  it("emits a sticker note then one low-detail image per sticker still", () => {
+    const content = buildCurrentUserContent(
+      "hi",
+      undefined,
+      undefined,
+      { memes: [], stickers: ["rawr"], stickerQuery: "dino" },
+      [STICKER_URL],
+    );
+    const parts = content as Array<Record<string, unknown>>;
+    // text, sticker-note (text), sticker image
+    expect(parts).toHaveLength(3);
+    expect(parts[0]).toEqual({ type: "text", text: "hi" });
+    expect(parts[1]).toMatchObject({ type: "text" });
+    const note = String((parts[1] as { text: string }).text);
+    expect(note).toContain("sticker");
+    expect(note).toContain('"rawr"');
+    expect(parts[2]).toEqual({
+      type: "image_url",
+      image_url: { url: STICKER_URL, detail: "low" },
+    });
+  });
+
+  it("appends the sticker block last when memes + a gif are also present", () => {
+    const gifFrames: ExtractedGifFrames = {
+      frames: ["data:image/jpeg;base64,F1"],
+      frameCount: 1,
+      degraded: false,
+    };
+    const content = buildCurrentUserContent(
+      "combo",
+      [KLIPY_URL],
+      gifFrames,
+      { memes: ["Gigachad"], gif: "rat dancing", stickers: ["rawr"] },
+      [STICKER_URL],
+    );
+    const parts = content as Array<Record<string, unknown>>;
+    // text, meme image, meme-note, gif-note, gif frame, sticker-note, sticker image
+    expect(parts).toHaveLength(7);
+    expect(parts[0]).toEqual({ type: "text", text: "combo" });
+    expect(parts[1]).toMatchObject({ type: "image_url" }); // meme
+    expect(String((parts[2] as { text: string }).text)).toContain('"Gigachad"');
+    expect(String((parts[3] as { text: string }).text)).toContain("ONE animated GIF");
+    expect(parts[4]).toMatchObject({ type: "image_url" }); // gif frame
+    expect(String((parts[5] as { text: string }).text)).toContain("sticker");
+    expect(parts[6]).toEqual({
+      type: "image_url",
+      image_url: { url: STICKER_URL, detail: "low" },
+    });
+  });
 });

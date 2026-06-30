@@ -652,6 +652,22 @@ const fr = {
       retry: "Réessayer",
       searchPlaceholder: "Search KLIPY",
     },
+    media: {
+      button: "Médias",
+      keyboard: "Clavier",
+      tabs: {
+        gifs: "GIFs",
+        memes: "Mèmes",
+        stickers: "Stickers",
+      },
+    },
+    stickers: {
+      empty: "Aucun sticker pour l'instant",
+      noResults: "Aucun sticker ne correspond",
+      error: "Impossible de charger les stickers",
+      retry: "Réessayer",
+      searchPlaceholder: "Search KLIPY",
+    },
     rot: {
       button: "Niveau de Rot",
       title: "À quel point les réponses doivent-elles être rotted ?",
@@ -696,6 +712,7 @@ const fr = {
       remove: "Retirer le mème",
       imageLabel: "Pièce jointe mème",
       gifLabel: "Pièce jointe GIF",
+      stickerLabel: "Pièce jointe sticker",
       sentMeme: "A envoyé un mème",
       invalid: "Impossible de joindre ce mème",
       download: {

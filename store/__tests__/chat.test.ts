@@ -3,12 +3,16 @@ const mockStreamReplayTurn = jest.fn();
 const mockSignOut = jest.fn().mockResolvedValue(undefined);
 // Controllable so a test can make the emoji persist resolve or reject (rollback).
 const mockSetMessageEmojiCallable = jest.fn();
+// The durable-pause callable; asserted on by the pause tests.
+const mockCancelAgentReplyCallable = jest.fn();
 // Captured so snapshot tests can drive the live listener's callback directly.
 const mockSubscribeToMessages = jest.fn((...args: unknown[]) => () => {});
 const mockSubscribeToConversationParticipants = jest.fn(
   (...args: unknown[]) => () => {},
 );
 const mockFetchOlderMessages = jest.fn();
+// A brand-new chat mints its conversation id up front; tests pin it.
+const mockNewConversationId = jest.fn(() => "minted-cid");
 
 // Mock every module that would otherwise drag in the Firebase SDK / native
 // AsyncStorage at import time. SessionExpiredError is left REAL so the
@@ -21,12 +25,15 @@ jest.mock("@/services/firebase/callables", () => ({
   rateMessageCallable: jest.fn(),
   setMessageEmojiCallable: (...args: unknown[]) =>
     mockSetMessageEmojiCallable(...args),
+  cancelAgentReplyCallable: (...args: unknown[]) =>
+    mockCancelAgentReplyCallable(...args),
 }));
 jest.mock("@/services/firebase/conversations", () => ({
   subscribeToMessages: (...args: unknown[]) => mockSubscribeToMessages(...args),
   subscribeToConversationParticipants: (...args: unknown[]) =>
     mockSubscribeToConversationParticipants(...args),
   fetchOlderMessages: (...args: unknown[]) => mockFetchOlderMessages(...args),
+  newConversationId: () => mockNewConversationId(),
 }));
 jest.mock("@/store/storage", () => ({
   DEFAULT_ROT_LEVEL: 2,
@@ -108,14 +115,27 @@ const IDLE_STATE = {
   streamingText: "",
   streamingMeme: null,
   streamingGif: null,
+  streamingAgentServerId: null,
+  cancelledServerId: null,
+  awaitingPersistedReply: null,
   activeReplyClientId: null,
   settledReply: null,
+  replacingServerId: null,
   currentModel: null,
   quota: null,
   status: "idle" as const,
   abortController: null,
   error: null,
 };
+
+// A stream stand-in that yields events in order, then throws — for modeling a
+// mid-flight transport drop after some events were received.
+function streamThenThrow(events: unknown[], error: unknown) {
+  return async function* () {
+    for (const event of events) yield event;
+    throw error;
+  };
+}
 
 describe("useChatStore sendMessage auth handling", () => {
   beforeEach(() => {
@@ -156,6 +176,354 @@ describe("useChatStore sendMessage auth handling", () => {
     expect(state.messages.some((m) => m.role === "user")).toBe(true);
     // A generic error must NOT sign the user out.
     expect(mockSignOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("useChatStore sendMessage attachments", () => {
+  beforeEach(() => {
+    mockStreamAgentAnswer.mockReset();
+    useChatStore.setState(IDLE_STATE);
+  });
+
+  const sticker = (id: string) => ({
+    id,
+    source: "klipy-sticker" as const,
+    url: `https://static.klipy.com/${id}.webp`,
+    previewUrl: `https://static.klipy.com/${id}.png`,
+    title: "rawr",
+  });
+
+  it("forwards staged stickers to the stream and stamps them on the optimistic bubble", async () => {
+    let captured: Record<string, unknown> | undefined;
+    mockStreamAgentAnswer.mockImplementation((args: Record<string, unknown>) => {
+      captured = args;
+      return (async function* () {})();
+    });
+
+    const stickers = [sticker("s1"), sticker("s2")];
+    await useChatStore.getState().sendMessage("hey", [], null, stickers);
+    await flushMicrotasks();
+
+    // The payload carries the stickers.
+    expect(captured?.stickers).toEqual(stickers);
+
+    // The optimistic user bubble carries them too (so they render immediately and
+    // survive a failed-send retry).
+    const userMsg = useChatStore
+      .getState()
+      .messages.find((m) => m.role === "user");
+    expect(userMsg?.stickers).toEqual(stickers);
+  });
+
+  it("allows a sticker-only turn (no text, no images, no gif)", async () => {
+    let called = false;
+    mockStreamAgentAnswer.mockImplementation(() => {
+      called = true;
+      return (async function* () {})();
+    });
+
+    await useChatStore.getState().sendMessage("", [], null, [sticker("s1")]);
+    await flushMicrotasks();
+
+    expect(called).toBe(true);
+  });
+});
+
+describe("useChatStore pauseStreaming (durable cancel)", () => {
+  beforeEach(() => {
+    mockCancelAgentReplyCallable.mockReset().mockResolvedValue({
+      success: true,
+      deleted: 1,
+    });
+    useChatStore.setState({ ...IDLE_STATE });
+  });
+
+  it("deletes the in-flight reply server-side and suppresses it locally", () => {
+    const controller = new AbortController();
+    useChatStore.setState({
+      ...IDLE_STATE,
+      conversationId: "c1",
+      status: "streaming",
+      activeReplyClientId: "client-1",
+      streamingAgentServerId: "agent-server-1",
+      streamingText: "half a rep",
+      abortController: controller,
+    });
+
+    useChatStore.getState().pauseStreaming();
+
+    // Durable: the callable is fired to delete the exact reply (by serverId).
+    expect(mockCancelAgentReplyCallable).toHaveBeenCalledWith({
+      conversationId: "c1",
+      messageId: "agent-server-1",
+      clientMessageId: "client-1",
+    });
+    // The local stream is torn down with no error…
+    const s = useChatStore.getState();
+    expect(s.status).toBe("idle");
+    expect(s.error).toBeNull();
+    expect(s.streamingText).toBe("");
+    expect(s.activeReplyClientId).toBeNull();
+    expect(s.streamingAgentServerId).toBeNull();
+    // …and the doc is suppressed until its server-side delete reaches the snapshot.
+    expect(s.cancelledServerId).toBe("agent-server-1");
+    expect(controller.signal.aborted).toBe(true);
+  });
+
+  it("falls back to the user turn's clientMessageId when the reply id isn't known yet", () => {
+    useChatStore.setState({
+      ...IDLE_STATE,
+      conversationId: "c1",
+      status: "streaming",
+      activeReplyClientId: "client-1",
+      streamingAgentServerId: null,
+      abortController: new AbortController(),
+    });
+
+    useChatStore.getState().pauseStreaming();
+
+    expect(mockCancelAgentReplyCallable).toHaveBeenCalledWith({
+      conversationId: "c1",
+      messageId: undefined,
+      clientMessageId: "client-1",
+    });
+  });
+});
+
+describe("useChatStore resilient stream drop", () => {
+  beforeAll(installRafPolyfill);
+
+  beforeEach(() => {
+    mockStreamAgentAnswer.mockReset();
+    mockSignOut.mockClear();
+    useChatStore.setState({ ...IDLE_STATE });
+  });
+
+  afterEach(() => {
+    // Tear down the module-level live subscription opened by loadConversation.
+    useChatStore.getState().startNewConversation();
+  });
+
+  it("defers to Firestore on a transport drop instead of showing an error", async () => {
+    const cb = openConversation("c1");
+    mockStreamAgentAnswer.mockImplementation(
+      streamThenThrow(
+        [
+          { type: "message", role: "agent", id: "a-server" },
+          { type: "delta", text: "partial" },
+        ],
+        new Error("stream-network-error"),
+      ),
+    );
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    let s = useChatStore.getState();
+    // No error card: the typing bubble stays up while we wait on the listener.
+    expect(s.status).toBe("streaming");
+    expect(s.error).toBeNull();
+    expect(s.awaitingPersistedReply?.agentServerId).toBe("a-server");
+    const clientId = s.awaitingPersistedReply!.clientMessageId!;
+
+    // The backend finished (finish & save) and the reply lands via the listener.
+    cb(
+      [
+        storedMsg({ id: "u-server", role: "user", text: "hi", clientMessageId: clientId }),
+        storedMsg({
+          id: "a-server",
+          role: "agent",
+          text: "the full reply",
+          inReplyToClientMessageId: clientId,
+        }),
+      ],
+      META_EMPTY,
+    );
+
+    s = useChatStore.getState();
+    expect(s.status).toBe("idle");
+    expect(s.error).toBeNull();
+    expect(s.awaitingPersistedReply).toBeNull();
+    expect(
+      s.messages.some((m) => m.serverId === "a-server" && m.text === "the full reply"),
+    ).toBe(true);
+  });
+
+  it("shows the error when the awaited reply never lands (grace timeout)", async () => {
+    jest.useFakeTimers();
+    try {
+      openConversation("c1");
+      mockStreamAgentAnswer.mockImplementation(
+        streamThenThrow(
+          [{ type: "message", role: "agent", id: "a-server" }],
+          new Error("stream-network-error"),
+        ),
+      );
+
+      await useChatStore.getState().sendMessage("hi");
+
+      expect(useChatStore.getState().status).toBe("streaming");
+      expect(useChatStore.getState().awaitingPersistedReply).not.toBeNull();
+
+      // No reply ever persists; the grace window expires → retryable error.
+      await jest.advanceTimersByTimeAsync(60_000);
+
+      const s = useChatStore.getState();
+      expect(s.status).toBe("error");
+      expect(s.error).toBe("generic");
+      expect(s.awaitingPersistedReply).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("still shows the error card for a real backend error mid-stream", async () => {
+    openConversation("c1");
+    mockStreamAgentAnswer.mockImplementation(
+      streamOf([
+        { type: "message", role: "agent", id: "a-server" },
+        { type: "error", code: "agent_error" },
+      ]),
+    );
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    const s = useChatStore.getState();
+    expect(s.status).toBe("error");
+    expect(s.error).toBe("agent_error");
+    expect(s.awaitingPersistedReply).toBeNull();
+  });
+
+  it("does NOT show an error when the snapshot lands the reply before the drop surfaces (resume race)", async () => {
+    const cb = openConversation("c1");
+    // Model the real background→resume ordering: the Firestore listener
+    // re-delivers the finished reply (and the committed user turn) BEFORE the
+    // dead XHR's error reaches our catch. The stream throws a transport drop
+    // without ever emitting the agent `message` event (agentServerId stays null).
+    mockStreamAgentAnswer.mockImplementation((args: Record<string, unknown>) => {
+      const cid = args.clientMessageId as string;
+      return (async function* () {
+        cb(
+          [
+            storedMsg({ id: "u-server", role: "user", text: "hi", clientMessageId: cid }),
+            storedMsg({
+              id: "a-server",
+              role: "agent",
+              text: "the full reply",
+              inReplyToClientMessageId: cid,
+            }),
+          ],
+          META_EMPTY,
+        );
+        throw new Error("stream-network-error");
+      })();
+    });
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    const s = useChatStore.getState();
+    // The reply is already shown, so the drop must settle quietly, not error.
+    expect(s.status).toBe("idle");
+    expect(s.error).toBeNull();
+    expect(s.awaitingPersistedReply).toBeNull();
+    expect(s.erroredReplyClientId).toBeNull();
+    expect(
+      s.messages.some((m) => m.serverId === "a-server" && m.text === "the full reply"),
+    ).toBe(true);
+  });
+
+  it("defers (not errors) on a drop after the user turn committed but before the agent message event", async () => {
+    openConversation("c1");
+    // The backend wrote the user turn (we got its `message` event) but the OS
+    // killed the XHR before the agent `message` event → agentServerId is null,
+    // yet the turn reached the backend, so we must wait on Firestore, not error.
+    mockStreamAgentAnswer.mockImplementation((args: Record<string, unknown>) => {
+      const cid = args.clientMessageId as string;
+      return streamThenThrow(
+        [{ type: "message", role: "user", id: "u-server", clientMessageId: cid }],
+        new Error("aborted"),
+      )();
+    });
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    const s = useChatStore.getState();
+    expect(s.status).toBe("streaming");
+    expect(s.error).toBeNull();
+    expect(s.awaitingPersistedReply).not.toBeNull();
+  });
+
+  it("shows the error immediately when the drop happens before any reply was committed", async () => {
+    openConversation("c1");
+    // Drop before the agent `message` event → no reply doc exists to wait for.
+    mockStreamAgentAnswer.mockImplementation(
+      throwingStream(new Error("stream-network-error")),
+    );
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    const s = useChatStore.getState();
+    expect(s.status).toBe("error");
+    expect(s.error).toBe("stream-network-error");
+    expect(s.awaitingPersistedReply).toBeNull();
+  });
+});
+
+describe("useChatStore new-conversation id", () => {
+  beforeAll(installRafPolyfill);
+
+  beforeEach(() => {
+    // startNewConversation clears the module-level message subscription so the
+    // early-subscribe guard (`if (!unsubscribeMessages)`) starts from null.
+    useChatStore.getState().startNewConversation();
+    mockStreamAgentAnswer.mockReset();
+    mockSubscribeToMessages.mockClear();
+    mockNewConversationId.mockClear();
+    useChatStore.setState({ ...IDLE_STATE });
+  });
+
+  afterEach(() => {
+    useChatStore.getState().startNewConversation();
+  });
+
+  it("mints the id up front, subscribes, and sends it to the backend", async () => {
+    let sentConversationId: unknown;
+    mockStreamAgentAnswer.mockImplementation((args: Record<string, unknown>) => {
+      sentConversationId = args.conversationId;
+      return (async function* () {})();
+    });
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    // The client minted the id and used it for state, the listener, and the request
+    // — so a backgrounded first message is never orphaned.
+    expect(mockNewConversationId).toHaveBeenCalledTimes(1);
+    expect(useChatStore.getState().conversationId).toBe("minted-cid");
+    expect(mockSubscribeToMessages).toHaveBeenCalledWith(
+      "minted-cid",
+      expect.any(Function),
+    );
+    expect(sentConversationId).toBe("minted-cid");
+  });
+
+  it("does NOT mint a new id when continuing an existing conversation", async () => {
+    useChatStore.setState({ ...IDLE_STATE, conversationId: "existing-cid" });
+    let sentConversationId: unknown;
+    mockStreamAgentAnswer.mockImplementation((args: Record<string, unknown>) => {
+      sentConversationId = args.conversationId;
+      return (async function* () {})();
+    });
+
+    await useChatStore.getState().sendMessage("hi");
+    await flushMicrotasks();
+
+    expect(mockNewConversationId).not.toHaveBeenCalled();
+    expect(sentConversationId).toBe("existing-cid");
   });
 });
 
@@ -464,6 +832,32 @@ describe("shallowEqualMessage", () => {
     ).toBe(false);
     expect(shallowEqualMessage(base({ images: [img("m1")] }), base())).toBe(false);
   });
+
+  it("detects a changed sticker attachment (id + url, absent ≡ empty)", () => {
+    const sticker = (id: string, url = "https://static.klipy.com/s.webp") => ({
+      id,
+      source: "klipy-sticker" as const,
+      url,
+      previewUrl: "https://static.klipy.com/s.png",
+    });
+
+    expect(shallowEqualMessage(base({ stickers: [] }), base())).toBe(true);
+    expect(
+      shallowEqualMessage(
+        base({ stickers: [sticker("s1")] }),
+        base({ stickers: [sticker("s1")] }),
+      ),
+    ).toBe(true);
+    expect(
+      shallowEqualMessage(
+        base({ stickers: [sticker("s1")] }),
+        base({ stickers: [sticker("s2")] }),
+      ),
+    ).toBe(false);
+    expect(
+      shallowEqualMessage(base({ stickers: [sticker("s1")] }), base()),
+    ).toBe(false);
+  });
 });
 
 describe("useChatStore snapshot reconciliation", () => {
@@ -580,6 +974,55 @@ describe("useChatStore snapshot reconciliation", () => {
     // …and the snapshot that lands it (non-empty text on the same turn) drops it.
     cb(snapshotPair(), META_EMPTY);
     expect(useChatStore.getState().settledReply).toBeNull();
+  });
+
+  it("heals a locally-errored turn when its finished reply lands in the snapshot", () => {
+    const cb = openConversation();
+    // A background kill errored the turn locally (no agentServerId, so it never
+    // entered awaitingPersistedReply) but the finish-&-save backend still
+    // finalized the reply.
+    useChatStore.setState({
+      status: "error",
+      error: "stream-network-error",
+      erroredReplyClientId: "c-1",
+    });
+
+    // A snapshot with only the user turn (reply not finalized yet) keeps the error…
+    cb([storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" })], META_EMPTY);
+    expect(useChatStore.getState().status).toBe("error");
+
+    // …and the snapshot that lands the finished reply clears it.
+    cb(snapshotPair(), META_EMPTY);
+    const healed = useChatStore.getState();
+    expect(healed.status).toBe("idle");
+    expect(healed.error).toBeNull();
+    expect(healed.erroredReplyClientId).toBeNull();
+  });
+
+  it("keeps the error when only a persisted ERROR reply lands (no content)", () => {
+    const cb = openConversation();
+    useChatStore.setState({
+      status: "error",
+      error: "agent_error",
+      erroredReplyClientId: "c-1",
+    });
+
+    // An empty agent reply with status "error" is a genuine failure, not a heal.
+    cb(
+      [
+        storedMsg({ id: "s1", role: "user", text: "q", clientMessageId: "c-1" }),
+        storedMsg({
+          id: "s2",
+          role: "agent",
+          text: "",
+          status: "error",
+          inReplyToClientMessageId: "c-1",
+        }),
+      ],
+      META_EMPTY,
+    );
+    expect(useChatStore.getState().status).toBe("error");
+    expect(useChatStore.getState().erroredReplyClientId).toBe("c-1");
   });
 
   it("leaves the paged-in older prefix untouched", () => {

@@ -7,10 +7,12 @@ import {
 } from "../gifs/extractFrames";
 import {
   buildMemeTitleNote,
+  buildStickerNote,
   type CurrentAttachmentTitles,
 } from "../messages/attachmentMeta";
 import type { MessageGif } from "../messages/messageGif";
 import type { MessageImage } from "../messages/messageImage";
+import type { MessageSticker } from "../messages/messageSticker";
 import { RECENT_LOAD_LIMIT } from "./compaction";
 import { countMessagesTokens } from "./tokens";
 
@@ -68,6 +70,11 @@ export type AssembleArgs = {
   // Model-ready image URLs for the current turn (resolved by resolveImageInputs:
   // Klipy CDN previewUrls and/or base64 data URLs for ingested uploads).
   currentImageUrls?: string[];
+  // Static png still URLs for the current turn's stickers (Klipy CDN, already
+  // allowlisted). Fed to the model directly as low-detail images — stickers ship
+  // a usable still so there's no frame extraction. Empty/omitted on sticker-free
+  // turns and for older clients (byte-identical output).
+  currentStickerUrls?: string[];
   // Pre-extracted frames for the current turn's GIF (if any). Frame extraction
   // is async (fetch + decode), so the caller does it before this pure
   // assembler runs and hands the result in here.
@@ -173,6 +180,7 @@ function collapseHistoricalUserContent(
   text: string,
   images?: MessageImage[],
   gifs?: MessageGif[],
+  stickers?: MessageSticker[],
 ): string {
   const trimmed = text.trim();
   const notes: string[] = [];
@@ -207,6 +215,23 @@ function collapseHistoricalUserContent(
         : "[User sent an animated GIF]",
     );
   }
+  if (stickers && stickers.length > 0) {
+    const stickerTitles = stickers.flatMap((s) => (s.title ? [s.title] : []));
+    if (stickerTitles.length > 0) {
+      const quoted = stickerTitles.map((t) => `"${t}"`).join(", ");
+      notes.push(
+        stickers.length === 1
+          ? `[User sent a sticker: ${quoted}]`
+          : `[User sent ${stickers.length} stickers: ${quoted}]`,
+      );
+    } else {
+      notes.push(
+        stickers.length === 1
+          ? "[User sent a sticker]"
+          : `[User sent ${stickers.length} stickers]`,
+      );
+    }
+  }
 
   if (notes.length === 0) return trimmed;
   const joined = notes.join("\n");
@@ -228,12 +253,17 @@ export function buildCurrentUserContent(
   // is folded into the GIF note. Omitted/empty → output is byte-identical to the
   // pre-title behavior, so older clients are unaffected.
   attachmentTitles?: CurrentAttachmentTitles,
+  // Static png still URLs for the current turn's stickers (newer clients only).
+  // Each is fed as a low-detail image preceded by a sticker note. Omitted/empty
+  // → output is byte-identical to the pre-sticker behavior.
+  stickerUrls?: string[],
 ): string | OpenAIContentPart[] {
   const trimmed = text.trim();
   const hasImages = Boolean(imageUrls && imageUrls.length > 0);
   const hasGif = Boolean(gifFrames);
+  const hasStickers = Boolean(stickerUrls && stickerUrls.length > 0);
 
-  if (!hasImages && !hasGif) {
+  if (!hasImages && !hasGif && !hasStickers) {
     return trimmed;
   }
 
@@ -262,6 +292,18 @@ export function buildCurrentUserContent(
     });
     for (const frame of gifFrames.frames) {
       parts.push({ type: "image_url", image_url: { url: frame, detail: "low" } });
+    }
+  }
+  // Stickers: a note introducing them (so the model treats them as reaction
+  // stickers, not photos), then one low-detail image per static png still. The
+  // sticker block is appended last so meme/GIF turns stay byte-identical.
+  if (hasStickers && stickerUrls) {
+    const stickerNote = buildStickerNote(stickerUrls.length, attachmentTitles);
+    if (stickerNote) {
+      parts.push({ type: "text", text: stickerNote });
+    }
+    for (const url of stickerUrls) {
+      parts.push({ type: "image_url", image_url: { url, detail: "low" } });
     }
   }
   return parts;
@@ -307,7 +349,12 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
           ? { role: "assistant", content: m.text }
           : {
               role: "user",
-              content: collapseHistoricalUserContent(m.text, m.images, m.gifs),
+              content: collapseHistoricalUserContent(
+                m.text,
+                m.images,
+                m.gifs,
+                m.stickers,
+              ),
             },
       );
     }
@@ -338,6 +385,7 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
         args.currentImageUrls,
         args.currentGifFrames,
         args.currentAttachmentTitles,
+        args.currentStickerUrls,
       ),
     });
     return out;
@@ -391,6 +439,7 @@ type MessageDoc = {
   status?: "complete" | "streaming" | "error";
   images?: MessageImage[];
   gifs?: MessageGif[];
+  stickers?: MessageSticker[];
 };
 
 type ConversationDoc = {
@@ -406,16 +455,19 @@ function mapMessage(doc: QueryDocumentSnapshot): ChatMessage | null {
   const text = typeof data.text === "string" ? data.text : "";
   const images = Array.isArray(data.images) ? data.images : undefined;
   const gifs = Array.isArray(data.gifs) ? data.gifs : undefined;
+  const stickers = Array.isArray(data.stickers) ? data.stickers : undefined;
   const hasImages = Boolean(images && images.length > 0);
   const hasGifs = Boolean(gifs && gifs.length > 0);
+  const hasStickers = Boolean(stickers && stickers.length > 0);
 
   // Keep attachment-only user messages (empty text) so they can be collapsed to
   // placeholders; otherwise require non-empty text as before.
-  if (text.length === 0 && !hasImages && !hasGifs) return null;
+  if (text.length === 0 && !hasImages && !hasGifs && !hasStickers) return null;
 
   const message: ChatMessage = { role: data.role, text };
   if (hasImages) message.images = images;
   if (hasGifs) message.gifs = gifs;
+  if (hasStickers) message.stickers = stickers;
   return message;
 }
 
@@ -425,6 +477,9 @@ export type AssembleContextArgs = {
   currentUserMessage: string;
   // Model-ready image URLs for the current turn (see resolveImageInputs).
   currentImageUrls?: string[];
+  // Static png still URLs for the current turn's stickers (Klipy CDN). Fed to
+  // the model directly as low-detail images. Empty/omitted on sticker-free turns.
+  currentStickerUrls?: string[];
   // The GIF attached to the current turn (max one). Decoded into sampled frames
   // for the model before assembly.
   currentGif?: MessageGif;
@@ -521,6 +576,7 @@ export async function assembleContext(args: AssembleContextArgs): Promise<Assemb
     recent,
     currentText: args.currentUserMessage,
     currentImageUrls: args.currentImageUrls,
+    currentStickerUrls: args.currentStickerUrls,
     currentGifFrames,
     currentAttachmentTitles: args.currentAttachmentTitles,
     attachedMedia: args.attachedMedia,

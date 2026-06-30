@@ -31,6 +31,7 @@ import {
   loadRecentMessages,
   loadReplayTargets,
   markAgentMessageErrored,
+  watchMessageDeleted,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
 import {
@@ -39,6 +40,7 @@ import {
 } from "./messages/messageImage";
 import { resolveTrustedImageInputs } from "./messages/resolveImageInputs";
 import { summarizeGifsForLog } from "./messages/messageGif";
+import { summarizeStickersForLog } from "./messages/messageSticker";
 import {
   buildDeciderAttachmentHint,
   collectCurrentAttachmentTitles,
@@ -165,9 +167,14 @@ export const streamReplayTurn = onRequest(
     const images = userTurn.images ?? [];
     const gifs = userTurn.gifs ?? [];
     const currentGif = gifs[0];
+    // Stickers persisted on the replayed user turn (empty for older turns →
+    // no-op downstream). Each still png is re-fed to the regenerated reply so it
+    // reacts to the same stickers; stickers are input-only here too.
+    const stickers = userTurn.stickers ?? [];
+    const currentStickerUrls = stickers.map((s) => s.previewUrl);
     // Klipy "meme name" metadata persisted on the replayed turn's attachments
     // (empty for uploads/older turns → no-op downstream).
-    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs);
+    const attachmentTitles = collectCurrentAttachmentTitles(images, gifs, stickers);
     // Reconstruct the original turn's dials: reuse the persona the deleted reply
     // was generated with so the same character answers; default rot to 2 to
     // match the request schema's default for turns stored before the dial.
@@ -186,6 +193,11 @@ export const streamReplayTurn = onRequest(
     if (gifs.length > 0) {
       logger.info("[streamReplayTurn] replaying gif turn", {
         ...summarizeGifsForLog(gifs),
+      });
+    }
+    if (stickers.length > 0) {
+      logger.info("[streamReplayTurn] replaying sticker turn", {
+        ...summarizeStickersForLog(stickers),
       });
     }
 
@@ -318,6 +330,12 @@ export const streamReplayTurn = onRequest(
             if (i.memeId) excludeIds.add(i.memeId);
           }
         }
+        // Stickers are input-only, but drop their ids too so the regenerated
+        // reaction can never coincide with a Klipy asset the user sent.
+        for (const s of stickers) {
+          if (s.id) excludeIds.add(s.id);
+          if (s.stickerId) excludeIds.add(s.stickerId);
+        }
         // Append the Klipy "meme name" hint (when present) so the regenerated
         // reaction can recognize the named reference the user originally sent.
         const deciderHint = buildDeciderAttachmentHint(attachmentTitles);
@@ -327,7 +345,9 @@ export const streamReplayTurn = onRequest(
               ? "[user sent an image]"
               : gifs.length > 0
                 ? "[user sent a GIF]"
-                : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
+                : stickers.length > 0
+                  ? "[user sent a sticker]"
+                  : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
         // Decode the replayed turn's GIF once, reused by the decider and
         // assembleContext below.
         const currentGifFrames = currentGif
@@ -349,8 +369,13 @@ export const streamReplayTurn = onRequest(
           currentMessage: currentForDecider,
           recentReactions,
           // Hand the decider the actual pixels of the replayed turn's attachments
-          // so the regenerated reaction matches what the user originally sent.
-          imageUrls: [...currentImageUrls, ...(currentGifFrames?.frames ?? [])],
+          // (memes/uploads + GIF frames + sticker stills) so the regenerated
+          // reaction matches what the user originally sent.
+          imageUrls: [
+            ...currentImageUrls,
+            ...(currentGifFrames?.frames ?? []),
+            ...currentStickerUrls,
+          ],
         });
         decideUsage = usage;
         deciderGifFrames = currentGifFrames;
@@ -417,6 +442,7 @@ export const streamReplayTurn = onRequest(
         plan: entitlement.plan,
         currentUserMessage: userText,
         currentImageUrls,
+        currentStickerUrls,
         currentGif,
         currentGifFrames: deciderGifFrames,
         currentAttachmentTitles: attachmentTitles,
@@ -458,6 +484,31 @@ export const streamReplayTurn = onRequest(
     let agentMeme: MessageImage | null = pendingMeme;
     let agentGif: MessageGif | null = pendingGif;
     const abortController = new AbortController();
+    // Explicit-pause signal: cancelAgentReply deletes the new agent doc and the
+    // watcher below flips this + aborts. Distinct from clientClosed (socket gone
+    // but the turn should still finish + persist).
+    let cancelled = false;
+    let unsubscribeCancelWatch: (() => void) | null = null;
+
+    // Guarded SSE write: once the socket is gone, skip writes and never let a
+    // write failure abort generation — the persisted message is the source of
+    // truth, so the turn still finalizes (finish & save on background).
+    const emit = (event: string, data: unknown) => {
+      if (clientClosed) return;
+      try {
+        writeSse(res, event, data);
+      } catch {
+        clientClosed = true;
+      }
+    };
+    const endResponse = () => {
+      if (clientClosed) return;
+      try {
+        res.end();
+      } catch {
+        clientClosed = true;
+      }
+    };
 
     const chargeForUsage = async (reason: string) => {
       const usages: ModelUsage[] = [];
@@ -529,11 +580,13 @@ export const streamReplayTurn = onRequest(
       }
     };
 
+    // Socket closed (background / navigate-away / network drop). Do NOT abort or
+    // mark errored: the turn finishes and persists so the regenerated reply is
+    // there, clean and complete, when the user returns. Writes to the dead socket
+    // are skipped (see emit). Only an explicit pause (the agent doc deleted,
+    // watched below) stops generation.
     req.on("close", () => {
-      if (!finalized) {
-        clientClosed = true;
-        abortController.abort();
-      }
+      if (!finalized) clientClosed = true;
     });
 
     try {
@@ -569,15 +622,28 @@ export const streamReplayTurn = onRequest(
           : undefined,
       });
       agentMessageIdNew = agentMessage.messageId;
-      writeSse(res, "message", {
+      // Watch our own (new) agent doc for deletion — the durable cancel signal a
+      // pause sends via cancelAgentReply. The initial snapshot is the doc we just
+      // created (never fires); a later delete aborts generation. The delete is
+      // authoritative regardless (finalize can't resurrect a deleted doc).
+      unsubscribeCancelWatch = watchMessageDeleted(
+        conversationId,
+        agentMessageIdNew,
+        () => {
+          if (finalized) return;
+          cancelled = true;
+          abortController.abort();
+        },
+      );
+      emit("message", {
         role: "agent",
         id: agentMessageIdNew,
         inReplyToClientMessageId: userTurn.clientMessageId,
       });
 
-      writeSse(res, "model", { id: internalModel });
+      emit("model", { id: internalModel });
       if (resolvedPersona) {
-        writeSse(res, "persona", {
+        emit("persona", {
           id: resolvedPersona.id,
           name: resolvedPersona.name,
           displayName: resolvedPersona.publicConfig.displayName,
@@ -586,9 +652,9 @@ export const streamReplayTurn = onRequest(
 
       // Media-first: show the regenerated turn's chosen GIF/meme before the text.
       if (agentGif) {
-        writeSse(res, "gif", { gif: agentGif });
+        emit("gif", { gif: agentGif });
       } else if (agentMeme) {
-        writeSse(res, "meme", { image: agentMeme });
+        emit("meme", { image: agentMeme });
       }
 
       let fullText = "";
@@ -603,17 +669,14 @@ export const streamReplayTurn = onRequest(
         // No tools: media was already decided + fetched by the decider pre-step.
         signal: abortController.signal,
       })) {
-        if (clientClosed) {
-          await markErroredSafely(conversationId, agentMessageIdNew);
-          finalized = true;
-          await chargeForUsage("client-closed");
-          return;
-        }
+        // Explicit pause: the agent doc was deleted out from under us. Stop now —
+        // no finalize (the doc is gone), no markErrored, no charge (free pause).
+        if (cancelled) return;
 
         if (delta.type === "delta") {
           sawDelta = true;
           fullText += delta.text;
-          writeSse(res, "delta", { text: delta.text });
+          emit("delta", { text: delta.text });
           continue;
         }
 
@@ -623,12 +686,15 @@ export const streamReplayTurn = onRequest(
         }
 
         if (delta.type === "error") {
+          // The abort we fire on cancel surfaces here as a stream error — treat
+          // it as the (already-handled) pause, not a real failure.
+          if (cancelled) return;
           logger.error("[streamReplayTurn] agent stream failed", {
             agentError: delta.message,
             sawDelta,
           });
-          writeSse(res, "error", { code: "agent_error" });
-          res.end();
+          emit("error", { code: "agent_error" });
+          endResponse();
           finalized = true;
           await markErroredSafely(conversationId, agentMessageIdNew);
           await chargeForUsage("agent-error");
@@ -636,9 +702,12 @@ export const streamReplayTurn = onRequest(
         }
       }
 
-      writeSse(res, "done", {});
+      // Paused as the stream wrapped up — nothing to save or charge.
+      if (cancelled) return;
+
+      emit("done", {});
       finalized = true;
-      res.end();
+      endResponse();
 
       // Same post-hoc output lint as streamAgentAnswer — advisory, log-only.
       try {
@@ -661,14 +730,16 @@ export const streamReplayTurn = onRequest(
         logger.error("[outputLint] linter threw", { err });
       }
 
+      let savedOk = true;
       try {
-        await finalizeAgentMessage(
+        const result = await finalizeAgentMessage(
           conversationId,
           agentMessageIdNew,
           stripMemeArtifacts(fullText),
           agentMeme ? [agentMeme] : undefined,
           agentGif ? [agentGif] : undefined,
         );
+        savedOk = result.saved;
       } catch (err) {
         logger.error("[streamReplayTurn] failed to finalize agent message", {
           conversationId,
@@ -677,8 +748,16 @@ export const streamReplayTurn = onRequest(
         });
         await markErroredSafely(conversationId, agentMessageIdNew);
       }
-      await chargeForUsage("done");
+      // A pause whose delete raced in after the stream finished leaves no doc to
+      // save — skip the charge (free pause).
+      if (savedOk) {
+        await chargeForUsage("done");
+      }
     } catch (err) {
+      // Explicit pause aborted us mid-flight — the doc is already deleted, so
+      // there's nothing to error or charge. Bail quietly.
+      if (cancelled) return;
+
       logger.error("[streamReplayTurn] request failed", {
         conversationId,
         agentMessageId: agentMessageIdNew,
@@ -687,8 +766,8 @@ export const streamReplayTurn = onRequest(
       });
 
       if (res.headersSent) {
-        writeSse(res, "error", { code: "agent_error" });
-        res.end();
+        emit("error", { code: "agent_error" });
+        endResponse();
         if (agentMessageIdNew) {
           await markErroredSafely(conversationId, agentMessageIdNew);
         }
@@ -699,6 +778,8 @@ export const streamReplayTurn = onRequest(
 
       res.status(500).json({ code: "internal" });
       await chargeForUsage("exception-before-headers");
+    } finally {
+      unsubscribeCancelWatch?.();
     }
   },
 );

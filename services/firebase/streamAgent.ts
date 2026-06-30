@@ -1,5 +1,6 @@
 import type { MessageGif } from "@/domain/gifs";
 import type { MessageImage } from "@/domain/memes";
+import type { MessageSticker } from "@/domain/stickers";
 import { getFirebaseServices } from "./app";
 import {
   EMULATOR_PORTS,
@@ -90,6 +91,9 @@ type StreamAgentAnswerParams = {
   images?: MessageImage[];
   // The single GIF attached to this turn, if any (separate from images).
   gif?: MessageGif | null;
+  // User-send-only stickers attached to this turn (up to MAX_MESSAGE_STICKERS).
+  // Combinable with images + a gif. The model never sends stickers back.
+  stickers?: MessageSticker[];
   conversationId?: string | null;
   clientMessageId?: string;
   personaId?: string | null;
@@ -526,6 +530,7 @@ export async function* streamAgentAnswer({
   message,
   images,
   gif,
+  stickers,
   conversationId,
   clientMessageId,
   personaId,
@@ -537,10 +542,12 @@ export async function* streamAgentAnswer({
 }: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
   const body = JSON.stringify({
     message,
-    // Only include `images` / `gifs` when present, so text-only payloads stay
-    // byte-identical to the pre-attachment format (backend defaults to []).
+    // Only include `images` / `gifs` / `stickers` when present, so text-only
+    // payloads stay byte-identical to the pre-attachment format (backend
+    // defaults each to []).
     images: images && images.length > 0 ? images : undefined,
     gifs: gif ? [gif] : undefined,
+    stickers: stickers && stickers.length > 0 ? stickers : undefined,
     conversationId: conversationId ?? undefined,
     clientMessageId,
     personaId: personaId ?? undefined,
