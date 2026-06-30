@@ -50,10 +50,15 @@ describe("wipeLocalAppData", () => {
       appearance: "dark",
       language: "es",
       alias: "tester",
+      intent: "memes",
       chatBubbleStyle: DEFAULT_SETTINGS.chatBubbleStyle,
       chatBackground: DEFAULT_SETTINGS.chatBackground,
     });
-    await OnboardingStorage.write({ completed: true, step: 3 });
+    await OnboardingStorage.write({
+      completed: true,
+      cursor: 3,
+      answers: { intent: "memes", alias: "tester", rotLevel: 3 },
+    });
     await ChatSessionStorage.write({ conversationId: "c1", rotLevel: 3 });
     await PersonaDraftsStorage.write([createDraft("chaos_goblin")]);
     await EditAvatarCandidatesStorage.setFor("persona-1", [candidate("file:///a.jpg")]);
@@ -67,7 +72,8 @@ describe("wipeLocalAppData", () => {
     await expect(SettingsStorage.read()).resolves.toEqual(DEFAULT_SETTINGS);
     await expect(OnboardingStorage.read()).resolves.toEqual({
       completed: false,
-      step: 0,
+      cursor: 0,
+      answers: {},
     });
     await expect(ChatSessionStorage.read()).resolves.toEqual(DEFAULT_CHAT_SESSION);
     await expect(PersonaDraftsStorage.read()).resolves.toEqual([]);
@@ -127,6 +133,64 @@ describe("listResidualUserKeys", () => {
     await wipeLocalAppData();
 
     await expect(listResidualUserKeys()).resolves.toEqual([]);
+  });
+});
+
+describe("OnboardingStorage normalization", () => {
+  beforeEach(() => {
+    mockAsyncStorageData.clear();
+    jest.clearAllMocks();
+  });
+
+  it("round-trips a valid cursor + answers", async () => {
+    await OnboardingStorage.write({
+      cursor: 4,
+      answers: { intent: "school", alias: "Jorge", rotLevel: 2 },
+    });
+    await expect(OnboardingStorage.read()).resolves.toEqual({
+      completed: false,
+      cursor: 4,
+      answers: { intent: "school", alias: "Jorge", rotLevel: 2 },
+    });
+  });
+
+  it("drops an unknown intent, clamps rotLevel, and floors a negative cursor", async () => {
+    mockAsyncStorageData.set(
+      "app.onboarding",
+      JSON.stringify({
+        completed: false,
+        cursor: -3,
+        answers: { intent: "spaghetti", alias: 123, rotLevel: 99 },
+      }),
+    );
+    await expect(OnboardingStorage.read()).resolves.toEqual({
+      completed: false,
+      cursor: 0,
+      // unknown intent dropped, non-string alias dropped, rotLevel clamped to max
+      answers: { rotLevel: 3 },
+    });
+  });
+});
+
+describe("SettingsStorage intent normalization", () => {
+  beforeEach(() => {
+    mockAsyncStorageData.clear();
+    jest.clearAllMocks();
+  });
+
+  it("keeps a valid intent and drops a bogus one", async () => {
+    await SettingsStorage.write({ intent: "texts" });
+    await expect(SettingsStorage.read()).resolves.toMatchObject({
+      intent: "texts",
+    });
+
+    mockAsyncStorageData.set(
+      "app.settings",
+      JSON.stringify({ ...DEFAULT_SETTINGS, intent: "not-a-real-intent" }),
+    );
+    await expect(SettingsStorage.read()).resolves.toMatchObject({
+      intent: null,
+    });
   });
 });
 

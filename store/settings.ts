@@ -14,6 +14,7 @@ import {
   Language,
   SettingsStorage,
 } from "./storage";
+import type { IntentValue } from "@/domain/onboarding/script";
 
 export type { Appearance, Language } from "./storage";
 
@@ -25,6 +26,7 @@ interface SettingsState {
   chatUiColors: ChatUiColorOverrides;
   chatThemePresets: ChatThemePreset[];
   alias: string;
+  intent: IntentValue | null;
   hydrate: () => Promise<void>;
   setAppearance: (v: Appearance) => void;
   setLanguage: (v: Language) => void;
@@ -37,6 +39,7 @@ interface SettingsState {
   deleteChatThemePreset: (key: string) => void;
   resetChatAppearance: () => void;
   setAlias: (v: string) => void;
+  setIntent: (v: IntentValue | null) => void;
   reset: () => Promise<void>;
 }
 
@@ -53,6 +56,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
       chatUiColors: stored.chatUiColors,
       chatThemePresets: stored.chatThemePresets,
       alias: stored.alias,
+      intent: stored.intent,
     });
     i18next.changeLanguage(resolveLanguage(stored.language));
   },
@@ -137,6 +141,12 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     if (get().alias === alias) return;
     set({ alias });
     SettingsStorage.write({ alias });
+  },
+
+  setIntent: (intent) => {
+    if (get().intent === intent) return;
+    set({ intent });
+    SettingsStorage.write({ intent });
   },
 
   reset: async () => {

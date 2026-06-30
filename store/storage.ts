@@ -14,6 +14,11 @@ import {
   normalizeGeneratedAvatars,
   type PersonaDraft,
 } from "@/domain/personaDrafts";
+import {
+  isIntentValue,
+  type IntentValue,
+  type OnboardingAnswers,
+} from "@/domain/onboarding/script";
 import type { PickedAvatar } from "@/services/firebase/uploadPersonaAvatar";
 
 export type Appearance = "system" | "light" | "dark";
@@ -36,6 +41,12 @@ export interface PersistedSettings {
   // profiles/{uid} via the updateProfile callable so it survives reinstall;
   // this local copy is the fast read for the UI.
   alias: string;
+  // The "what brought you here" answer captured during conversational
+  // onboarding. Committed here at finish() (alongside the alias) and read once by
+  // the first chat's empty state to seed intent-matched starter prompts.
+  // Local-only — never synced to the backend; wiped on sign-out/delete like the
+  // rest of settings.
+  intent: IntentValue | null;
 }
 
 export const MAX_ALIAS_LENGTH = 40;
@@ -54,6 +65,7 @@ export const DEFAULT_SETTINGS: PersistedSettings = {
   chatUiColors: {},
   chatThemePresets: [],
   alias: "",
+  intent: null,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -137,6 +149,7 @@ function normalizeSettings(value: unknown): PersistedSettings {
       typeof value.alias === "string"
         ? value.alias.slice(0, MAX_ALIAS_LENGTH)
         : DEFAULT_SETTINGS.alias,
+    intent: isIntentValue(value.intent) ? value.intent : DEFAULT_SETTINGS.intent,
   };
 }
 
@@ -178,19 +191,47 @@ export const SettingsStorage = {
 
 interface PersistedOnboarding {
   completed: boolean;
-  // The step index the user last reached. Persisted on every advance so that
-  // leaving the app mid-onboarding resumes where they left off instead of
-  // restarting the flow. Ignored once `completed` is true.
-  step: number;
+  // The script cursor (index of the turn the user last reached). Persisted on
+  // every advance so that leaving the app mid-onboarding resumes where they left
+  // off instead of restarting the conversation. Ignored once `completed` is true
+  // (a completed account routes straight to /chat and never mounts the flow).
+  cursor: number;
+  // The personalization captured so far (intent / alias / rotLevel). Persisted
+  // alongside the cursor so a resumed session can rebuild the full chat
+  // transcript via buildTranscript. Transient resume state only — the durable
+  // homes are Settings.alias, Settings.intent, and the chat rot level, all
+  // committed at finish(). Wiped on sign-out/delete with the rest of `app.*`.
+  answers: OnboardingAnswers;
 }
 
-const DEFAULT_ONBOARDING: PersistedOnboarding = { completed: false, step: 0 };
+const DEFAULT_ONBOARDING: PersistedOnboarding = {
+  completed: false,
+  cursor: 0,
+  answers: {},
+};
 
-function clampStep(value: unknown): number {
+function clampCursor(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     return 0;
   }
   return Math.floor(value);
+}
+
+function normalizeAnswers(value: unknown): OnboardingAnswers {
+  if (!isRecord(value)) return {};
+  const out: OnboardingAnswers = {};
+  if (isIntentValue(value.intent)) out.intent = value.intent;
+  if (typeof value.alias === "string") {
+    const alias = value.alias.slice(0, MAX_ALIAS_LENGTH);
+    if (alias.length > 0) out.alias = alias;
+  }
+  if (typeof value.rotLevel === "number" && Number.isFinite(value.rotLevel)) {
+    out.rotLevel = Math.min(
+      Math.max(Math.round(value.rotLevel), MIN_ROT_LEVEL),
+      MAX_ROT_LEVEL,
+    );
+  }
+  return out;
 }
 
 let pendingOnboardingWrite = Promise.resolve();
@@ -204,7 +245,8 @@ export const OnboardingStorage = {
       if (!isRecord(parsed)) return DEFAULT_ONBOARDING;
       return {
         completed: parsed.completed === true,
-        step: clampStep(parsed.step),
+        cursor: clampCursor(parsed.cursor),
+        answers: normalizeAnswers(parsed.answers),
       };
     } catch {
       return DEFAULT_ONBOARDING;
@@ -312,6 +354,10 @@ export interface PersistedChatSession {
   // stream payload. Both default to true. See store/chat.ts and streamAgent.ts.
   respondWithEmojis: boolean;
   respondWithMedia: boolean;
+  // "Big Brain" reply-model upgrade. Same device-local, per-message lifecycle as
+  // the prefs above, but defaults to FALSE (off) — it's an opt-in that spends
+  // credits faster. See store/chat.ts and streamAgent.ts.
+  bigBrain: boolean;
 }
 
 const CHAT_SESSION_KEY = "app.chatSession";
@@ -325,6 +371,7 @@ export const DEFAULT_CHAT_SESSION: PersistedChatSession = {
   rotLevel: DEFAULT_ROT_LEVEL,
   respondWithEmojis: true,
   respondWithMedia: true,
+  bigBrain: false,
 };
 
 function clampRotLevel(value: unknown): number {
@@ -347,6 +394,9 @@ function normalizeChatSession(value: unknown): PersistedChatSession {
     // true, matching the backend's default.
     respondWithEmojis: value.respondWithEmojis !== false,
     respondWithMedia: value.respondWithMedia !== false,
+    // Default OFF: only an explicit `true` enables it, so older installs (field
+    // absent) and the common case stay off, matching the backend's default.
+    bigBrain: value.bigBrain === true,
   };
 }
 

@@ -5,6 +5,7 @@ import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import { gradients } from "@/nativewind-theme";
 import { useOnboardingStore } from "@/store/onboarding";
+import { useSettingsStore } from "@/store/settings";
 import { useSelectedPersona, usePersonaSelectionReady } from "@/store/personas";
 import { LinearGradient } from "expo-linear-gradient";
 import { useColorScheme } from "nativewind";
@@ -81,6 +82,10 @@ export function EmptyChatState({
   const seedFirstChat = useRef(
     useOnboardingStore.getState().justCompleted && !atLimit,
   );
+  // The "what brought you here" answer captured during onboarding, snapshotted
+  // once (like seedFirstChat) so the seeded starters match the user's stated
+  // intent — a "school" user lands on homework prompts, "memes" on meme prompts.
+  const seededIntent = useRef(useSettingsStore.getState().intent);
   useEffect(() => {
     if (seedFirstChat.current) consumeJustCompleted();
   }, [consumeJustCompleted]);
@@ -90,6 +95,17 @@ export function EmptyChatState({
   // Right after onboarding, use the fixed seeded chips instead.
   const starters = useMemo(() => {
     if (seedFirstChat.current) {
+      // Prefer intent-matched starters when onboarding captured an intent; fall
+      // back to the generic seeded pool otherwise.
+      const intent = seededIntent.current;
+      if (intent) {
+        const byIntent = t(`chat.firstChat.chipsByIntent.${intent}`, {
+          returnObjects: true,
+        });
+        if (Array.isArray(byIntent) && byIntent.length > 0) {
+          return (byIntent as string[]).slice(0, STARTER_COUNT);
+        }
+      }
       const seeded = t("chat.firstChat.chips", { returnObjects: true });
       // The seeded pool can hold more than we want to show; only ever surface
       // STARTER_COUNT chips so the empty state stays tidy.

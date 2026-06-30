@@ -64,6 +64,35 @@ describe("markCompletedFromServer", () => {
   });
 });
 
+describe("setProgress", () => {
+  it("persists the cursor + answers and exposes them in state", async () => {
+    useOnboardingStore.getState().setProgress(2, { intent: "school" });
+    await flush();
+
+    expect(useOnboardingStore.getState().cursor).toBe(2);
+    expect(useOnboardingStore.getState().answers).toEqual({ intent: "school" });
+    await expect(OnboardingStorage.read()).resolves.toMatchObject({
+      cursor: 2,
+      answers: { intent: "school" },
+    });
+  });
+
+  it("hydrate restores a persisted resume point", async () => {
+    await OnboardingStorage.write({
+      cursor: 3,
+      answers: { intent: "memes", alias: "gng", rotLevel: 3 },
+    });
+    await useOnboardingStore.getState().hydrate();
+
+    expect(useOnboardingStore.getState().cursor).toBe(3);
+    expect(useOnboardingStore.getState().answers).toEqual({
+      intent: "memes",
+      alias: "gng",
+      rotLevel: 3,
+    });
+  });
+});
+
 describe("reset", () => {
   it("clears the flag in memory and storage", async () => {
     useOnboardingStore.getState().markCompletedFromServer();
@@ -73,7 +102,8 @@ describe("reset", () => {
     expect(useOnboardingStore.getState().completed).toBe(false);
     await expect(OnboardingStorage.read()).resolves.toEqual({
       completed: false,
-      step: 0,
+      cursor: 0,
+      answers: {},
     });
   });
 });

@@ -1,17 +1,23 @@
 import { create } from "zustand";
+import type { OnboardingAnswers } from "@/domain/onboarding/script";
 import { OnboardingStorage } from "./storage";
 
 interface OnboardingState {
   completed: boolean;
-  // Persisted resume point: the step index the user last reached. Written on
-  // every advance so leaving the app mid-flow returns them to the same step.
-  step: number;
+  // Persisted resume point: the script cursor (turn index) the user last
+  // reached, plus the personalization captured so far. Written on every advance
+  // so leaving the app mid-flow rebuilds the conversation transcript exactly via
+  // buildTranscript. Ignored once `completed` is true.
+  cursor: number;
+  answers: OnboardingAnswers;
   // Transient (not persisted) one-shot: set the moment onboarding finishes so
   // the first chat can open with Brainrot Bot's seeded welcome + prompt chips, then
   // cleared once consumed. A relaunch never re-seeds — it's purely in-memory.
   justCompleted: boolean;
   hydrate: () => Promise<void>;
-  setStep: (step: number) => void;
+  // Persist the resume point after an advance. Both pieces move together so a
+  // resumed transcript always matches the cursor it was saved with.
+  setProgress: (cursor: number, answers: OnboardingAnswers) => void;
   setCompleted: (v: boolean) => void;
   // Restore from the server-side profiles/{uid} marker at sign-in: marks
   // onboarding complete WITHOUT the justCompleted one-shot, so an established
@@ -23,18 +29,23 @@ interface OnboardingState {
 
 export const useOnboardingStore = create<OnboardingState>()((set, get) => ({
   completed: false,
-  step: 0,
+  cursor: 0,
+  answers: {},
   justCompleted: false,
 
   hydrate: async () => {
     const stored = await OnboardingStorage.read();
-    set({ completed: stored.completed, step: stored.step });
+    set({
+      completed: stored.completed,
+      cursor: stored.cursor,
+      answers: stored.answers,
+    });
   },
 
-  setStep: (step) => {
-    if (get().step === step) return;
-    set({ step });
-    OnboardingStorage.write({ step });
+  setProgress: (cursor, answers) => {
+    if (get().cursor === cursor && get().answers === answers) return;
+    set({ cursor, answers });
+    OnboardingStorage.write({ cursor, answers });
   },
 
   setCompleted: (completed) => {
@@ -58,6 +69,6 @@ export const useOnboardingStore = create<OnboardingState>()((set, get) => ({
 
   reset: async () => {
     await OnboardingStorage.reset();
-    set({ completed: false, step: 0, justCompleted: false });
+    set({ completed: false, cursor: 0, answers: {}, justCompleted: false });
   },
 }));
