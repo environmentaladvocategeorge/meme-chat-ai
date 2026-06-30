@@ -36,7 +36,7 @@ describe("pickBestMediaIndex", () => {
 
     expect(none).toEqual({
       index: 0,
-      usage: { model: "nano", inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0 },
+      usage: { model: "gpt-5.4-nano", inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0 },
     });
     expect(one.index).toBe(0);
     expect(mockCreate).not.toHaveBeenCalled();
@@ -49,7 +49,7 @@ describe("pickBestMediaIndex", () => {
 
     expect(r.index).toBe(2);
     expect(r.usage).toEqual({
-      model: "nano",
+      model: "gpt-5.4-nano",
       inputTokens: 10,
       cachedInputTokens: 4,
       outputTokens: 2,
@@ -77,7 +77,7 @@ describe("pickBestMediaIndex", () => {
 
     expect(r.index).toBe(0);
     expect(r.usage).toEqual({
-      model: "nano",
+      model: "gpt-5.4-nano",
       inputTokens: 0,
       cachedInputTokens: 0,
       outputTokens: 0,

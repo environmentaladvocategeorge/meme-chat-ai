@@ -114,7 +114,7 @@ describe("media decider prompt v7", () => {
 
 describe("decider model config (Decision A)", () => {
   it("resolves to the mini model string", () => {
-    expect(DECIDER_CALL_CONFIG.model).toBe(resolveModelId("mini"));
+    expect(DECIDER_CALL_CONFIG.model).toBe(resolveModelId("gpt-5.4-mini"));
     expect(DECIDER_CALL_CONFIG.model).toBe("gpt-5.4-mini");
   });
 });

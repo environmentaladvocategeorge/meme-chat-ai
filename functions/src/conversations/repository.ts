@@ -197,6 +197,11 @@ export async function appendMessage(
     // the common "both on" turn stays byte-identical to the pre-toggle format.
     respondWithEmojis?: boolean;
     respondWithMedia?: boolean;
+    // "Big Brain" reply-model upgrade for this turn (full gpt-5.4 instead of the
+    // plan's standard model). Denormalized onto the user message — like the prefs
+    // above — so turn replay regenerates with the same model the user chose.
+    // Defaults OFF, so unlike the prefs we persist only the ON state (true).
+    bigBrain?: boolean;
     // The conversation owner's current plan, denormalized onto the conversation
     // doc so the background summarizer (which only sees the conversation, not
     // the user) can size the verbatim window to the plan's token budget. Stamped
@@ -246,6 +251,11 @@ export async function appendMessage(
   }
   if (message.respondWithMedia === false) {
     messageData.respondWithMedia = false;
+  }
+  // Big Brain defaults off, so persist only when on — old turns (field absent)
+  // read back as off downstream, unaffected.
+  if (message.bigBrain === true) {
+    messageData.bigBrain = true;
   }
 
   if (message.persona) {
@@ -405,6 +415,9 @@ export type ReplayMessageRecord = {
   // mean "on" (the default), since appendMessage only persists the OFF state.
   respondWithEmojis?: boolean;
   respondWithMedia?: boolean;
+  // Big Brain reply-model upgrade chosen for this turn. Absent (older turns or
+  // off) reads back as off, so replay regenerates on the standard model.
+  bigBrain?: boolean;
   // Persona the agent reply was generated with (agent records only). Replay
   // reuses it so the same character answers again.
   personaId?: string;
@@ -432,6 +445,7 @@ function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null 
     levelOfRot?: number;
     respondWithEmojis?: boolean;
     respondWithMedia?: boolean;
+    bigBrain?: boolean;
     personaId?: string;
   };
   if (data.role !== "user" && data.role !== "agent") return null;
@@ -464,6 +478,9 @@ function toReplayRecord(doc: QueryDocumentSnapshot): ReplayMessageRecord | null 
   }
   if (typeof data.respondWithMedia === "boolean") {
     record.respondWithMedia = data.respondWithMedia;
+  }
+  if (typeof data.bigBrain === "boolean") {
+    record.bigBrain = data.bigBrain;
   }
   if (typeof data.personaId === "string") {
     record.personaId = data.personaId;

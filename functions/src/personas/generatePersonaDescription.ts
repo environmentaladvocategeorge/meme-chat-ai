@@ -203,7 +203,7 @@ async function callModel(
     // nano: this is a light, cheap one-shot write from text only. The avatar is
     // deliberately not sent (see the header note) — nano is a text model and the
     // vision pass is what made it return empty "couldn't write it" output.
-    model: resolveModelId("nano"),
+    model: resolveModelId("gpt-5.4-nano"),
     // No reasoning: drafting an opening line doesn't need a reasoning pass, and
     // at "low" the budget got spent reasoning instead of writing. "none" gives
     // the whole budget to output and keeps it fast. The pinned SDK types this as
@@ -264,12 +264,12 @@ export const generatePersonaDescription = onCall(
         generate: (input) => callModel(client, input),
         moderate: (text) => checkHateSpeech(text, OPENAI_API_KEY.value()),
         charge: (usage) => {
-          const costUsd = calculateCostUsd("nano", usage);
+          const costUsd = calculateCostUsd("gpt-5.4-nano", usage);
           return chargeCredits(uid, entitlement.plan, {
             conversationId: "persona-description",
             messageId: null,
             kind: "persona_desc",
-            usages: [{ model: "nano", ...usage }],
+            usages: [{ model: "gpt-5.4-nano", ...usage }],
             costUsd,
             credits: calculateCredits(costUsd),
           });

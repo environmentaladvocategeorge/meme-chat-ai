@@ -6,24 +6,27 @@ import {
 } from "../models";
 
 describe("model registry", () => {
-  it("MODEL_IDS covers pricing and resolves to a gpt-5.4 model", () => {
+  it("MODEL_IDS covers pricing and is itself the gpt-5.4 model string", () => {
     for (const id of MODEL_IDS) {
       expect(MODEL_PRICING[id]).toBeDefined();
-      expect(resolveModelId(id)).toMatch(/^gpt-5\.4-/);
+      expect(id).toMatch(/^gpt-5\.4/);
+      // ModelId IS the OpenAI string, so resolveModelId is an identity passthrough.
+      expect(resolveModelId(id)).toBe(id);
     }
   });
 
-  it("maps nano → gpt-5.4-nano and mini → gpt-5.4-mini", () => {
-    expect(resolveModelId("nano")).toBe("gpt-5.4-nano");
-    expect(resolveModelId("mini")).toBe("gpt-5.4-mini");
-  });
-
-  it("mini is pricier than nano on input and output", () => {
-    expect(MODEL_PRICING.mini.inputPerToken).toBeGreaterThan(
-      MODEL_PRICING.nano.inputPerToken,
+  it("the model ladder is nano < mini < full on input and output price", () => {
+    expect(MODEL_PRICING["gpt-5.4-mini"].inputPerToken).toBeGreaterThan(
+      MODEL_PRICING["gpt-5.4-nano"].inputPerToken,
     );
-    expect(MODEL_PRICING.mini.outputPerToken).toBeGreaterThan(
-      MODEL_PRICING.nano.outputPerToken,
+    expect(MODEL_PRICING["gpt-5.4-mini"].outputPerToken).toBeGreaterThan(
+      MODEL_PRICING["gpt-5.4-nano"].outputPerToken,
+    );
+    expect(MODEL_PRICING["gpt-5.4"].inputPerToken).toBeGreaterThan(
+      MODEL_PRICING["gpt-5.4-mini"].inputPerToken,
+    );
+    expect(MODEL_PRICING["gpt-5.4"].outputPerToken).toBeGreaterThan(
+      MODEL_PRICING["gpt-5.4-mini"].outputPerToken,
     );
   });
 

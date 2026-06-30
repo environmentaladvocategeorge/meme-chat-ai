@@ -19,7 +19,7 @@ import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger"
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
-import { chooseModel } from "./billing/router";
+import { chooseReplyModel } from "./billing/router";
 import { IMAGE_TOKENS_LOW } from "./context/tokens";
 import { Agent, type ReplyContext } from "./agent/Agent";
 import { MemoryService } from "./agent/memory";
@@ -159,6 +159,9 @@ export const streamAgentAnswer = onRequest(
     // media → whether the media decider runs at all.
     const respondWithEmojis = parsed.data.respondWithEmojis;
     const respondWithMedia = parsed.data.respondWithMedia;
+    // Per-turn Big Brain upgrade (default false). Only affects which model writes
+    // the reply; the decider/routers/memory stay on their cheap models.
+    const bigBrain = parsed.data.bigBrain;
 
     // Log only safe, URL-free attachment metadata (count/hosts/source/mime).
     // Never log full asset URLs.
@@ -357,7 +360,7 @@ export const streamAgentAnswer = onRequest(
     // reaction GIF/meme, no attachedMedia note — so the reply is purely text.
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
-      internalModel = chooseModel(entitlement.plan);
+      internalModel = chooseReplyModel(entitlement.plan, { bigBrain });
 
       // Read the user's memory ONCE for the whole turn and render both views:
       // the taste-only `media` view nudges the decider toward more personal
@@ -692,6 +695,7 @@ export const streamAgentAnswer = onRequest(
           costUsd,
           credits,
           searchCostUsd,
+          bigBrain,
         });
       } catch (err) {
         logger.error("[streamAgentAnswer] charge failed", {
@@ -733,6 +737,9 @@ export const streamAgentAnswer = onRequest(
         // state is actually written — see appendMessage).
         respondWithEmojis,
         respondWithMedia,
+        // Denormalized so replay regenerates on the same reply model (only the
+        // ON state is written — see appendMessage).
+        bigBrain,
         // Denormalize the owner's plan onto the conversation so the background
         // summarizer can size its verbatim window to this plan's token budget.
         plan: entitlement.plan,

@@ -24,7 +24,7 @@ import { resolveModelId } from "../billing/models";
 const PICK_REASONING_EFFORT = "none" as unknown as ReasoningEffort;
 
 const ZERO_USAGE: ModelUsage = {
-  model: "nano",
+  model: "gpt-5.4-nano",
   inputTokens: 0,
   cachedInputTokens: 0,
   outputTokens: 0,
@@ -49,7 +49,7 @@ export async function pickBestMediaIndex(args: {
       .join("\n");
     const completion = await client.chat.completions.create(
       {
-        model: resolveModelId("nano"),
+        model: resolveModelId("gpt-5.4-nano"),
         reasoning_effort: PICK_REASONING_EFFORT,
         max_completion_tokens: 80,
         response_format: {
@@ -82,7 +82,7 @@ export async function pickBestMediaIndex(args: {
 
     const u = completion.usage;
     const usage: ModelUsage = {
-      model: "nano",
+      model: "gpt-5.4-nano",
       inputTokens: u?.prompt_tokens ?? 0,
       cachedInputTokens:
         (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)

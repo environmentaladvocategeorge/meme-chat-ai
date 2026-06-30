@@ -3,13 +3,16 @@ import { MODEL_PRICING } from "../models";
 
 describe("calculateCostUsd", () => {
   it("computes input + output cost for nano (gpt-5.4-nano pricing)", () => {
-    const cost = calculateCostUsd("nano", { inputTokens: 1000, outputTokens: 1000 });
+    const cost = calculateCostUsd("gpt-5.4-nano", {
+      inputTokens: 1000,
+      outputTokens: 1000,
+    });
     // 1000 * 0.20/M + 1000 * 1.25/M = 0.0002 + 0.00125 = 0.00145
     expect(cost).toBeCloseTo(0.00145, 10);
   });
 
   it("discounts cached input tokens", () => {
-    const cost = calculateCostUsd("nano", {
+    const cost = calculateCostUsd("gpt-5.4-nano", {
       inputTokens: 1000,
       cachedInputTokens: 500,
       outputTokens: 0,
@@ -19,22 +22,32 @@ describe("calculateCostUsd", () => {
   });
 
   it("treats reasoning tokens as output tokens", () => {
-    const cost = calculateCostUsd("mini", {
+    const cost = calculateCostUsd("gpt-5.4-mini", {
       inputTokens: 0,
       outputTokens: 100,
       reasoningTokens: 100,
     });
-    expect(cost).toBeCloseTo(200 * MODEL_PRICING.mini.outputPerToken, 12);
+    expect(cost).toBeCloseTo(200 * MODEL_PRICING["gpt-5.4-mini"].outputPerToken, 12);
+  });
+
+  it("prices the Big Brain full model above mini for the same tokens", () => {
+    const usage = { inputTokens: 1000, outputTokens: 1000 };
+    expect(calculateCostUsd("gpt-5.4", usage)).toBeGreaterThan(
+      calculateCostUsd("gpt-5.4-mini", usage),
+    );
   });
 
   it("clamps cached tokens to inputTokens", () => {
-    const cost = calculateCostUsd("nano", {
+    const cost = calculateCostUsd("gpt-5.4-nano", {
       inputTokens: 100,
       cachedInputTokens: 500,
       outputTokens: 0,
     });
     // All 100 input treated as cached; no negative fresh charge.
-    expect(cost).toBeCloseTo(100 * MODEL_PRICING.nano.cachedInputPerToken, 12);
+    expect(cost).toBeCloseTo(
+      100 * MODEL_PRICING["gpt-5.4-nano"].cachedInputPerToken,
+      12,
+    );
   });
 });
 

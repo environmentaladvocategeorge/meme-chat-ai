@@ -53,6 +53,11 @@ export type SettlementInput = {
   // `credits`; this is stored on the usageEvent purely for cost attribution so
   // dashboards can split out web-search spend. Omitted/0 when no search ran.
   searchCostUsd?: number;
+  // True when this was a Big Brain turn (reply ran on full gpt-5.4). The reply
+  // model is already recorded in `usages`, but this flag lets cost dashboards
+  // count/attribute Big Brain turns directly without reverse-engineering them
+  // from the model field. Stored on the usageEvent only when true.
+  bigBrain?: boolean;
 };
 
 // Builds a SettlementInput for a charge billed as a flat USD cost rather than
@@ -77,8 +82,9 @@ export function flatCostSettlement(input: {
 }
 
 // Flattens per-model usages into the usageEvents token fields: summed aggregates
-// (what aggregateDailyUsage reads) PLUS per-model split fields (nanoInputTokens,
-// miniCachedInputTokens, …) so a single event shows the full cost breakdown.
+// (what aggregateDailyUsage reads) PLUS per-model split fields keyed by the
+// OpenAI model id ("gpt-5.4-nanoInputTokens", "gpt-5.4-miniCachedInputTokens",
+// …) so a single event shows the full cost breakdown.
 export function usageTokenFields(usages: ModelUsage[]): Record<string, number> {
   const out: Record<string, number> = {
     inputTokens: 0,
@@ -111,7 +117,7 @@ export function primaryModel(usages: ModelUsage[]): ModelId {
       best = u;
     }
   }
-  return best?.model ?? "mini";
+  return best?.model ?? "gpt-5.4-mini";
 }
 
 // ---------- pure decision helpers (unit-testable) ----------
@@ -205,6 +211,9 @@ export async function chargeCredits(
       // Flat web-search spend folded into costUsd above; recorded separately so
       // dashboards can attribute it. Always present (0 when no search ran).
       searchCostUsd: settlement.searchCostUsd ?? 0,
+      // Stamp Big Brain turns so the dashboard can chart their share/cost. Only
+      // written when true, so normal events stay byte-identical to before.
+      ...(settlement.bigBrain ? { bigBrain: true } : {}),
       createdAt: FieldValue.serverTimestamp(),
     });
   });

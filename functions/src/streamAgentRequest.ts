@@ -56,6 +56,12 @@ export const streamAgentRequestSchema = z
     //     turn never attaches a reaction GIF/meme.
     respondWithEmojis: z.boolean().optional().default(true),
     respondWithMedia: z.boolean().optional().default(true),
+    // "Big Brain" reply-model upgrade for this turn: when true the reply runs on
+    // the full gpt-5.4 model instead of the plan's standard model (see
+    // billing/router.ts chooseReplyModel). Available on every tier — the pricier
+    // model just costs more credits. Defaults FALSE so older clients that omit
+    // the field, and the common turn, behave exactly as before.
+    bigBrain: z.boolean().optional().default(false),
   })
   .refine(
     (body) =>

@@ -148,6 +148,25 @@ describe("streamAgentRequestSchema", () => {
     }
   });
 
+  it("defaults bigBrain to false when omitted (back-compat with old clients)", () => {
+    const result = streamAgentRequestSchema.safeParse({ message: "hi" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.bigBrain).toBe(false);
+    }
+  });
+
+  it("preserves an explicit bigBrain=true", () => {
+    const result = streamAgentRequestSchema.safeParse({
+      message: "hi",
+      bigBrain: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.bigBrain).toBe(true);
+    }
+  });
+
   // ---- Stickers (additive; old clients send none) ----
 
   const validSticker = {

@@ -100,25 +100,25 @@ describe("evaluateQuota", () => {
 
 describe("usageTokenFields", () => {
   const mini: ModelUsage = {
-    model: "mini",
+    model: "gpt-5.4-mini",
     inputTokens: 9000,
     cachedInputTokens: 7000,
     outputTokens: 60,
     reasoningTokens: 0,
   };
   const nano: ModelUsage = {
-    model: "nano",
+    model: "gpt-5.4-nano",
     inputTokens: 1500,
     cachedInputTokens: 1000,
     outputTokens: 10,
     reasoningTokens: 5,
   };
 
-  it("emits per-model split fields for a single model", () => {
+  it("emits per-model split fields keyed by the OpenAI model id", () => {
     const f = usageTokenFields([mini]);
-    expect(f.miniInputTokens).toBe(9000);
-    expect(f.miniCachedInputTokens).toBe(7000);
-    expect(f.miniOutputTokens).toBe(60);
+    expect(f["gpt-5.4-miniInputTokens"]).toBe(9000);
+    expect(f["gpt-5.4-miniCachedInputTokens"]).toBe(7000);
+    expect(f["gpt-5.4-miniOutputTokens"]).toBe(60);
     // Aggregate mirrors the single model.
     expect(f.inputTokens).toBe(9000);
     expect(f.cachedInputTokens).toBe(7000);
@@ -132,30 +132,30 @@ describe("usageTokenFields", () => {
     expect(f.outputTokens).toBe(70);
     expect(f.reasoningTokens).toBe(5);
     // Split fields preserved per model.
-    expect(f.nanoInputTokens).toBe(1500);
-    expect(f.nanoReasoningTokens).toBe(5);
-    expect(f.miniInputTokens).toBe(9000);
+    expect(f["gpt-5.4-nanoInputTokens"]).toBe(1500);
+    expect(f["gpt-5.4-nanoReasoningTokens"]).toBe(5);
+    expect(f["gpt-5.4-miniInputTokens"]).toBe(9000);
   });
 });
 
 describe("primaryModel", () => {
   it("attributes the event to the model that did the most token work", () => {
     const nano: ModelUsage = {
-      model: "nano",
+      model: "gpt-5.4-nano",
       inputTokens: 1500,
       cachedInputTokens: 1000,
       outputTokens: 10,
       reasoningTokens: 0,
     };
     const mini: ModelUsage = {
-      model: "mini",
+      model: "gpt-5.4-mini",
       inputTokens: 9000,
       cachedInputTokens: 7000,
       outputTokens: 60,
       reasoningTokens: 0,
     };
-    expect(primaryModel([nano, mini])).toBe("mini");
-    expect(primaryModel([nano])).toBe("nano");
+    expect(primaryModel([nano, mini])).toBe("gpt-5.4-mini");
+    expect(primaryModel([nano])).toBe("gpt-5.4-nano");
   });
 });
 
@@ -182,7 +182,7 @@ describe("flatCostSettlement", () => {
       outputTokens: 0,
       reasoningTokens: 0,
     });
-    expect(primaryModel(s.usages)).toBe("mini");
+    expect(primaryModel(s.usages)).toBe("gpt-5.4-mini");
   });
 });
 

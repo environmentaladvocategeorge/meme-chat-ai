@@ -4,6 +4,7 @@ import { IconButton } from "@/components/IconButton";
 import { Typography } from "@/components/Typography";
 import { useTheme } from "@/hooks/useTheme";
 import {
+  Brain as BrainIcon,
   Camera as CameraIcon,
   Images as ImagesIcon,
   Keyboard as KeyboardIcon,
@@ -256,6 +257,37 @@ export function MediaToggleButton({
               weight="fill"
             />
           }
+        />
+      }
+    />
+  );
+}
+
+// Big Brain chip — a plain on/off toggle for the reply-model upgrade. It takes
+// the same tinted "active" selection as the media chip when on (the brain glyph
+// + label flip to primary), so "on" always reads as a lit chip. Distinct from
+// the rot chip (which opens a sheet); this just flips state in place.
+export function BigBrainToggleButton({
+  label,
+  on,
+  onPress,
+}: {
+  label: string;
+  on: boolean;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  return (
+    <ComposerPill
+      label={label}
+      active={on}
+      onPress={onPress}
+      accessibilityLabel={label}
+      leading={
+        <BrainIcon
+          size={GLYPH_SIZE}
+          color={theme["--color-primary"]}
+          weight="fill"
         />
       }
     />

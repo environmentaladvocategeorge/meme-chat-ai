@@ -20,7 +20,7 @@ import { chargeCredits, evaluateQuota, type ModelUsage } from "./billing/ledger"
 import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
-import { chooseModel } from "./billing/router";
+import { chooseReplyModel } from "./billing/router";
 import { assembleContext } from "./context/assemble";
 import { IMAGE_TOKENS_LOW } from "./context/tokens";
 import {
@@ -184,6 +184,9 @@ export const streamReplayTurn = onRequest(
     // default), since the user turn only stores the OFF state.
     const respondWithEmojis = userTurn.respondWithEmojis ?? true;
     const respondWithMedia = userTurn.respondWithMedia ?? true;
+    // Big Brain defaults off, so an absent field (older turns) regenerates on the
+    // standard model — current users' existing replays are unaffected.
+    const bigBrain = userTurn.bigBrain ?? false;
 
     if (images.length > 0) {
       logger.info("[streamReplayTurn] replaying image turn", {
@@ -284,7 +287,7 @@ export const streamReplayTurn = onRequest(
     // Honor the replayed turn's "Respond with media" pref: off skips the decider.
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
-      internalModel = chooseModel(entitlement.plan);
+      internalModel = chooseReplyModel(entitlement.plan, { bigBrain });
       // Loaded once for both pre-steps' context (media decider + web router).
       const priorMessages = await loadRecentMessages(conversationId, 12);
       const deciderContext = buildDeciderContext(priorMessages);
@@ -568,6 +571,7 @@ export const streamReplayTurn = onRequest(
           costUsd,
           credits,
           searchCostUsd,
+          bigBrain,
         });
       } catch (err) {
         logger.error("[streamReplayTurn] charge failed", {

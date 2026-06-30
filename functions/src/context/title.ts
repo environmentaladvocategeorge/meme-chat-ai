@@ -202,7 +202,7 @@ export const generateConversationTitle = onDocumentWritten(
       const completion = await client.chat.completions.create({
         // Billable nano (gpt-5.4-nano) so the title's cost is recorded against
         // the user with exact pricing, rather than the unpriced utility model.
-        model: resolveModelId("nano"),
+        model: resolveModelId("gpt-5.4-nano"),
         // gpt-5-nano is a reasoning model: max_completion_tokens is the TOTAL
         // budget (reasoning + visible output). The previous 80-token cap let the
         // reasoning pass eat the whole budget, leaving content empty
@@ -287,12 +287,12 @@ export const generateConversationTitle = onDocumentWritten(
             (u?.completion_tokens_details as { reasoning_tokens?: number } | undefined)
               ?.reasoning_tokens ?? 0,
         };
-        const costUsd = calculateCostUsd("nano", usage);
+        const costUsd = calculateCostUsd("gpt-5.4-nano", usage);
         await chargeCredits(uid, planId, {
           conversationId: cid,
           messageId: null,
           kind: "title",
-          usages: [{ model: "nano", ...usage }],
+          usages: [{ model: "gpt-5.4-nano", ...usage }],
           costUsd,
           credits: calculateCredits(costUsd),
         });

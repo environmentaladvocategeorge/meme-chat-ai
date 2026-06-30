@@ -64,7 +64,7 @@ export type MediaDecision =
 // Billing record for a decider call that didn't actually hit the API (error /
 // skipped). Zero tokens → zero cost, so it never charges the user.
 const ZERO_DECIDER_USAGE: ModelUsage = {
-  model: "mini",
+  model: "gpt-5.4-mini",
   inputTokens: 0,
   cachedInputTokens: 0,
   outputTokens: 0,
@@ -98,7 +98,7 @@ const RESPONSE_FORMAT = {
 // vision-first (recognize meme formats vs. describe subjects from GIF frames),
 // which is exactly the nano/mini capability gap — nano's vague image readings
 // ("dog, sad") collapsed into reaction-bank terms. Billing follows: every usage
-// this module emits is model "mini" so the ledger prices it at mini rates.
+// this module emits is model "gpt-5.4-mini" so the ledger prices it at mini rates.
 // reasoning_effort "none": gpt-5.4-mini does NOT accept "minimal" (400s the
 // turn — verified live), so "none" is this model's floor and the latency win.
 // The decider is a single classify-then-emit-JSON step, not a multi-hop reason:
@@ -112,7 +112,7 @@ const RESPONSE_FORMAT = {
 const DECIDER_REASONING_EFFORT = "none" as unknown as ReasoningEffort;
 
 export const DECIDER_CALL_CONFIG = {
-  model: resolveModelId("mini"),
+  model: resolveModelId("gpt-5.4-mini"),
   reasoning_effort: DECIDER_REASONING_EFFORT,
   max_completion_tokens: 1000,
   response_format: RESPONSE_FORMAT,
@@ -253,7 +253,7 @@ export async function decideMedia(args: {
 
     const u = completion.usage;
     const usage: ModelUsage = {
-      model: "mini",
+      model: "gpt-5.4-mini",
       inputTokens: u?.prompt_tokens ?? 0,
       cachedInputTokens:
         (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)

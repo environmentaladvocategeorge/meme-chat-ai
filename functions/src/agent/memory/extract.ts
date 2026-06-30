@@ -99,7 +99,7 @@ export async function extractMemoryOps(args: {
   try {
     const client = new OpenAI({ apiKey });
     const completion = await client.chat.completions.create({
-      model: resolveModelId("nano"),
+      model: resolveModelId("gpt-5.4-nano"),
       reasoning_effort: "low",
       max_completion_tokens: MAX_COMPLETION_TOKENS,
       messages: [
@@ -114,7 +114,7 @@ export async function extractMemoryOps(args: {
     const u = completion.usage;
     const usage: ModelUsage | null = u
       ? {
-          model: "nano",
+          model: "gpt-5.4-nano",
           inputTokens: u.prompt_tokens ?? 0,
           cachedInputTokens:
             (u.prompt_tokens_details as { cached_tokens?: number } | undefined)

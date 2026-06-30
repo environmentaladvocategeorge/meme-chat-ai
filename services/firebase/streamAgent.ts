@@ -108,6 +108,9 @@ type StreamAgentAnswerParams = {
   // of "on"; pass false to turn emojis / reaction media off for this turn.
   respondWithEmojis?: boolean;
   respondWithMedia?: boolean;
+  // "Big Brain" upgrade: when true the reply runs on the full gpt-5.4 model.
+  // Omit (or pass false) to keep the backend default (standard plan model).
+  bigBrain?: boolean;
   signal?: AbortSignal;
 };
 
@@ -538,6 +541,7 @@ export async function* streamAgentAnswer({
   language,
   respondWithEmojis,
   respondWithMedia,
+  bigBrain,
   signal,
 }: StreamAgentAnswerParams): AsyncIterable<StreamEvent> {
   const body = JSON.stringify({
@@ -557,6 +561,8 @@ export async function* streamAgentAnswer({
     // default case; the backend treats a missing flag as true.
     respondWithEmojis,
     respondWithMedia,
+    // Omit when off so the default payload is unchanged; backend default is false.
+    bigBrain,
   });
 
   yield* runAuthedStream(getFunctionUrl("streamAgentAnswer"), body, signal);

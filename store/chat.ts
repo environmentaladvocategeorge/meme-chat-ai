@@ -18,6 +18,7 @@ import {
 import { streamAgentAnswer, streamReplayTurn } from "@/services/firebase/streamAgent";
 import { SessionExpiredError } from "@/services/firebase/sessionErrors";
 import { ChatSessionStorage, DEFAULT_ROT_LEVEL } from "@/store/storage";
+import { useAdGateStore } from "@/store/adGate";
 import { useSettingsStore } from "@/store/settings";
 import { usePersonaStore } from "@/store/personas";
 import { DEFAULT_PERSONA_ID } from "@/domain/personas";
@@ -87,6 +88,10 @@ type ChatState = {
   // `hydrateSession`. Both default to true.
   respondWithEmojis: boolean;
   respondWithMedia: boolean;
+  // Sticky "Big Brain" reply-model upgrade, applied to every turn and sent in
+  // the stream payload. Same device-local lifecycle as the prefs above, but
+  // defaults to FALSE — it's an opt-in that spends credits faster.
+  bigBrain: boolean;
   // The LIVE tail of the conversation: the most recent window of stored
   // messages (mirrored from the capped Firestore listener) plus optimistic
   // sends. All streaming/settled/optimistic logic operates on this list only.
@@ -197,6 +202,8 @@ type ChatState = {
   // Toggle the local-only answering prefs and persist them.
   setRespondWithEmojis: (value: boolean) => void;
   setRespondWithMedia: (value: boolean) => void;
+  // Toggle the sticky Big Brain reply upgrade and persist it.
+  setBigBrain: (value: boolean) => void;
   // Restore the persisted rot level and (optionally) re-open the last
   // conversation. Called once when the chat screen mounts on app open.
   hydrateSession: (options?: { autoLoadConversation?: boolean }) => Promise<void>;
@@ -593,6 +600,7 @@ export const useChatStore = create<ChatState>()((set, get) => ({
   rotLevel: DEFAULT_ROT_LEVEL,
   respondWithEmojis: true,
   respondWithMedia: true,
+  bigBrain: false,
   messages: [],
   olderMessages: [],
   olderCursor: null,
@@ -724,6 +732,9 @@ export const useChatStore = create<ChatState>()((set, get) => ({
         // backend default) so a "both on" payload stays identical to before.
         respondWithEmojis: get().respondWithEmojis ? undefined : false,
         respondWithMedia: get().respondWithMedia ? undefined : false,
+        // Sticky Big Brain upgrade, read at send time. Omitted when off (the
+        // backend default) so a normal payload stays identical to before.
+        bigBrain: get().bigBrain ? true : undefined,
         signal: controller.signal,
       })) {
         if (event.type === "conversation") {
@@ -897,6 +908,14 @@ export const useChatStore = create<ChatState>()((set, get) => ({
           error: null,
         }));
       }
+
+      // The reply finished streaming successfully — advance the free-tier ad
+      // cadence. Every AD_INTERVAL completed replies arms an interstitial ad,
+      // which useInterstitialAdGate then shows to confirmed-free users now that
+      // the reply has settled. Counts genuine sends only: quota/hate-speech bail
+      // and errors throw before reaching here, and regenerate (replayTurn)
+      // doesn't call this.
+      void useAdGateStore.getState().recordReplyCompleted();
     } catch (error) {
       cancelDeltaFlush();
 
@@ -1479,12 +1498,19 @@ export const useChatStore = create<ChatState>()((set, get) => ({
     void ChatSessionStorage.write({ respondWithMedia: value });
   },
 
+  setBigBrain: (value) => {
+    if (get().bigBrain === value) return;
+    set({ bigBrain: value });
+    void ChatSessionStorage.write({ bigBrain: value });
+  },
+
   hydrateSession: async ({ autoLoadConversation = true } = {}) => {
     const stored = await ChatSessionStorage.read();
     set({
       rotLevel: stored.rotLevel,
       respondWithEmojis: stored.respondWithEmojis,
       respondWithMedia: stored.respondWithMedia,
+      bigBrain: stored.bigBrain,
     });
 
     // Re-open the last session only when nothing else has claimed the screen

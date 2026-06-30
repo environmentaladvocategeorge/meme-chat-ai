@@ -170,7 +170,7 @@ describe("runGetGif", () => {
     const selectIndex = jest.fn(async (titles: string[]) => ({
       index: 2, // pick the third hit regardless of randomness
       usage: {
-        model: "nano" as const,
+        model: "gpt-5.4-nano" as const,
         inputTokens: 50,
         cachedInputTokens: 0,
         outputTokens: 3,
@@ -196,7 +196,7 @@ describe("runGetGif", () => {
     const selectIndex = jest.fn(async () => ({
       index: 99,
       usage: {
-        model: "nano" as const,
+        model: "gpt-5.4-nano" as const,
         inputTokens: 10,
         cachedInputTokens: 0,
         outputTokens: 1,

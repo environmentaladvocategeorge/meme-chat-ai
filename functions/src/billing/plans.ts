@@ -92,7 +92,7 @@ export function computeDailyCap(monthlyCredits: number, date: Date): number {
 // functions deploy must accompany any change.
 export const PLANS: Record<PlanId, PlanConfig> = {
   free: {
-    model: "mini",
+    model: "gpt-5.4-mini",
     monthlyCredits: 370,
     // The static persona/platform prompt is ~4k tokens on its own, so a 4k input
     // budget left free with literally zero room for conversational memory — every
@@ -104,19 +104,19 @@ export const PLANS: Record<PlanId, PlanConfig> = {
     maxOutputTokens: 512,
   },
   basic: {
-    model: "mini",
+    model: "gpt-5.4-mini",
     monthlyCredits: 1953,
     maxInputTokens: 8000,
     maxOutputTokens: 1024,
   },
   plus: {
-    model: "mini",
+    model: "gpt-5.4-mini",
     monthlyCredits: 5103,
     maxInputTokens: 16_000,
     maxOutputTokens: 2048,
   },
   power: {
-    model: "mini",
+    model: "gpt-5.4-mini",
     monthlyCredits: 11052,
     maxInputTokens: 32_000,
     maxOutputTokens: 4096,

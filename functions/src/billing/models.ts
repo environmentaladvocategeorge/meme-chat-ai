@@ -1,17 +1,21 @@
-// Stable internal model IDs decouple billing/routing from the live OpenAI
-// model string. Swap the OPENAI_MODEL_BY_INTERNAL_ID / MODEL_PRICING entries
-// when OpenAI ships new SKUs — no callsite changes.
-export type ModelId = "nano" | "mini";
+// ModelId IS the live OpenAI model string. We used to keep short internal
+// nicknames (nano/mini) mapped to OpenAI SKUs, but that mapping became a chore
+// the moment a new SKU shipped — adding gpt-5.5 meant inventing a nickname and
+// wiring it through. Now adding a model is just a new union member + a
+// MODEL_PRICING row. The value stored on usageEvents.model and the per-model
+// token split fields (`${model}InputTokens`) are therefore the real model name.
+//
+// gpt-5.4-mini → every chat reply on the standard path (all plans) AND the media
+// decider (vision-first since 2026-06-10); gpt-5.4-nano → background memory
+// extraction + the look-&-pick / web-search routers; gpt-5.4 (full) → the Big
+// Brain reply upgrade (any plan, opt-in per turn — see billing/router.ts).
+export type ModelId = "gpt-5.4-nano" | "gpt-5.4-mini" | "gpt-5.4";
 
-export const MODEL_IDS: readonly ModelId[] = ["nano", "mini"] as const;
-
-// mini → every chat reply (all plans) AND the media decider (vision-first since
-// 2026-06-10); nano → background memory extraction only. Resolved to live
-// OpenAI models here.
-const OPENAI_MODEL_BY_INTERNAL_ID: Record<ModelId, string> = {
-  nano: "gpt-5.4-nano",
-  mini: "gpt-5.4-mini",
-};
+export const MODEL_IDS: readonly ModelId[] = [
+  "gpt-5.4-nano",
+  "gpt-5.4-mini",
+  "gpt-5.4",
+] as const;
 
 // Internal utility model for summaries + conversation titles. NOT user-billed —
 // its cost is absorbed as system margin, so it never touches the credit ledger.
@@ -27,22 +31,34 @@ export type ModelPricing = {
 // Standard-tier OpenAI pricing (USD per 1M tokens, divided to per-token):
 //   gpt-5.4-nano: $0.20 in / $0.02 cached / $1.25 out
 //   gpt-5.4-mini: $0.75 in / $0.075 cached / $4.50 out
-// Must track live OpenAI cost or calculateCostUsd (and therefore credits) lies.
+//   gpt-5.4:      $2.50 in / $0.25 cached / $15.00 out  (Big Brain upgrade)
+// Cached input is OpenAI's standard 10%-of-input rate across the family. The
+// gpt-5.4 (full) numbers were verified against published 2026 pricing. Must
+// track live OpenAI cost or calculateCostUsd (and therefore credits) lies.
 export const MODEL_PRICING: Record<ModelId, ModelPricing> = {
-  nano: {
+  "gpt-5.4-nano": {
     inputPerToken: 0.2 / 1_000_000,
     cachedInputPerToken: 0.02 / 1_000_000,
     outputPerToken: 1.25 / 1_000_000,
   },
-  mini: {
+  "gpt-5.4-mini": {
     inputPerToken: 0.75 / 1_000_000,
     cachedInputPerToken: 0.075 / 1_000_000,
     outputPerToken: 4.5 / 1_000_000,
   },
+  "gpt-5.4": {
+    inputPerToken: 2.5 / 1_000_000,
+    cachedInputPerToken: 0.25 / 1_000_000,
+    outputPerToken: 15.0 / 1_000_000,
+  },
 };
 
+// ModelId is already the live OpenAI model string, so this is an identity
+// passthrough. Kept (rather than inlined at callsites) so the intent — "turn an
+// internal id into the string OpenAI expects" — stays explicit and a future
+// indirection (e.g. a region-specific SKU) has one home again.
 export function resolveModelId(internalId: ModelId): string {
-  return OPENAI_MODEL_BY_INTERNAL_ID[internalId];
+  return internalId;
 }
 
 // ── Image generation (persona avatars) ───────────────────────────────────────

@@ -1,4 +1,4 @@
-import { chooseModel } from "../router";
+import { chooseModel, chooseReplyModel } from "../router";
 import { PLANS, PLAN_IDS } from "../plans";
 
 describe("chooseModel", () => {
@@ -8,10 +8,25 @@ describe("chooseModel", () => {
     }
   });
 
-  it("routes every user-facing tier to mini (uniform model)", () => {
-    expect(chooseModel("free")).toBe("mini");
-    expect(chooseModel("basic")).toBe("mini");
-    expect(chooseModel("plus")).toBe("mini");
-    expect(chooseModel("power")).toBe("mini");
+  it("routes every user-facing tier to gpt-5.4-mini (uniform model)", () => {
+    expect(chooseModel("free")).toBe("gpt-5.4-mini");
+    expect(chooseModel("basic")).toBe("gpt-5.4-mini");
+    expect(chooseModel("plus")).toBe("gpt-5.4-mini");
+    expect(chooseModel("power")).toBe("gpt-5.4-mini");
+  });
+});
+
+describe("chooseReplyModel (Big Brain)", () => {
+  it("defaults to the plan's standard model when Big Brain is off/absent", () => {
+    for (const plan of PLAN_IDS) {
+      expect(chooseReplyModel(plan)).toBe(chooseModel(plan));
+      expect(chooseReplyModel(plan, { bigBrain: false })).toBe(chooseModel(plan));
+    }
+  });
+
+  it("upgrades the reply to full gpt-5.4 on EVERY tier when Big Brain is on", () => {
+    for (const plan of PLAN_IDS) {
+      expect(chooseReplyModel(plan, { bigBrain: true })).toBe("gpt-5.4");
+    }
   });
 });

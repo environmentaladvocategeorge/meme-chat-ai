@@ -136,7 +136,7 @@ export const summarizeConversation = onDocumentWritten(
       const completion = await client.chat.completions.create({
         // Billable nano (gpt-5.4-nano) so the cost is recorded against the user
         // with exact pricing, rather than the unpriced utility model.
-        model: resolveModelId("nano"),
+        model: resolveModelId("gpt-5.4-nano"),
         // gpt-5.x requires `max_completion_tokens`; `max_tokens` 400s. Note this
         // budget is shared by reasoning + visible output, so it needs headroom
         // for both the reasoning pass and the 6-12 sentence summary, or the
@@ -194,12 +194,12 @@ export const summarizeConversation = onDocumentWritten(
             (u?.completion_tokens_details as { reasoning_tokens?: number } | undefined)
               ?.reasoning_tokens ?? 0,
         };
-        const costUsd = calculateCostUsd("nano", usage);
+        const costUsd = calculateCostUsd("gpt-5.4-nano", usage);
         await chargeCredits(uid, planId, {
           conversationId: cid,
           messageId: null,
           kind: "summary",
-          usages: [{ model: "nano", ...usage }],
+          usages: [{ model: "gpt-5.4-nano", ...usage }],
           costUsd,
           credits: calculateCredits(costUsd),
         });

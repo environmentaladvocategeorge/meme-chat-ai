@@ -46,6 +46,14 @@ jest.mock("@/store/storage", () => ({
 jest.mock("@/store/settings", () => ({
   useSettingsStore: { getState: () => ({ language: "system" }) },
 }));
+// The free-tier ad cadence the chat store advances on a completed reply. Mocked
+// to a no-op here so it doesn't touch native AsyncStorage; its own cadence is
+// covered by adGate.test.ts.
+jest.mock("@/store/adGate", () => ({
+  useAdGateStore: {
+    getState: () => ({ recordReplyCompleted: jest.fn() }),
+  },
+}));
 jest.mock("@/i18n", () => ({
   resolveLanguage: () => "en",
 }));

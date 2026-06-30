@@ -69,6 +69,8 @@ export function ComposerSkeleton() {
         <Shimmer progress={progress} style={chip(COMPOSER_CHIP_HEIGHT)} />
         <Shimmer progress={progress} style={chip(104)} />
         <Shimmer progress={progress} style={chip(120)} />
+        {/* Big Brain chip (brain glyph + label). */}
+        <Shimmer progress={progress} style={chip(116)} />
       </View>
     </View>
   );

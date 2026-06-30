@@ -25,7 +25,7 @@ export type WebSearchDecision =
 // Billing record for a router call that didn't hit the API (skipped / error).
 // Zero tokens → zero cost, so it never charges the user.
 const ZERO_ROUTER_USAGE: ModelUsage = {
-  model: "nano",
+  model: "gpt-5.4-nano",
   inputTokens: 0,
   cachedInputTokens: 0,
   outputTokens: 0,
@@ -57,7 +57,7 @@ const RESPONSE_FORMAT = {
 const ROUTER_REASONING_EFFORT = "none" as unknown as ReasoningEffort;
 
 export const WEB_SEARCH_ROUTER_CONFIG = {
-  model: resolveModelId("nano"),
+  model: resolveModelId("gpt-5.4-nano"),
   reasoning_effort: ROUTER_REASONING_EFFORT,
   max_completion_tokens: 200,
   response_format: RESPONSE_FORMAT,
@@ -161,7 +161,7 @@ export async function routeWebSearch(args: {
 
     const u = completion.usage;
     const usage: ModelUsage = {
-      model: "nano",
+      model: "gpt-5.4-nano",
       inputTokens: u?.prompt_tokens ?? 0,
       cachedInputTokens:
         (u?.prompt_tokens_details as { cached_tokens?: number } | undefined)

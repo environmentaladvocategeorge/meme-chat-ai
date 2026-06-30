@@ -19,6 +19,7 @@ import {
 import { ChatLoading } from "@/components/chat/ChatLoading";
 import { CollapsiblePicker } from "@/components/chat/CollapsiblePicker";
 import {
+  BigBrainToggleButton,
   MediaToggleButton,
   PhotoButton,
   RotLevelButton,
@@ -26,6 +27,7 @@ import {
 import { MediaTabBar } from "@/components/chat/MediaTabBar";
 import { EdgeFadedScrollRow } from "@/components/chat/EdgeFadedScrollRow";
 import { EmptyChatState } from "@/components/chat/EmptyChatState";
+import { BigBrainBanner } from "@/components/chat/BigBrainBanner";
 import { MemoryOnBanner } from "@/components/chat/MemoryOnBanner";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { NewConversationButton } from "@/components/chat/NewConversationButton";
@@ -206,6 +208,10 @@ export default function ChatScreen() {
   // every turn; defaults to "Rotted". Edited via the RotLevelSheet (mounted in
   // the root layout, opened here through useRotLevelSheetStore).
   const rotLevel = useChatStore((s) => s.rotLevel);
+  // Sticky Big Brain reply-model upgrade. Persisted in the chat store, applied
+  // to every turn; defaults off. Toggled in place from the composer chip.
+  const bigBrain = useChatStore((s) => s.bigBrain);
+  const setBigBrain = useChatStore((s) => s.setBigBrain);
   const openRotSheet = useRotLevelSheetStore((s) => s.open);
   const hydrateSession = useChatStore((s) => s.hydrateSession);
   const messages = useChatStore((s) => s.messages);
@@ -1139,6 +1145,17 @@ export default function ChatScreen() {
                     onUpgrade={openPlan}
                   />
                 ) : null}
+                {/* Subtle glass status pill while Big Brain is on — sits right
+                    above the composer (same slot as the usage nudge). Always
+                    mounted and driven by `on` so it can fade + collapse in/out
+                    smoothly (and keep the Liquid Glass material alive across the
+                    fade — see BigBrainBanner). Tapping it turns Big Brain off. */}
+                <BigBrainBanner
+                  on={bigBrain}
+                  label={t("chat.bigBrain.bannerOn")}
+                  a11yLabel={t("chat.bigBrain.bannerA11y")}
+                  onPress={() => setBigBrain(false)}
+                />
                 {/* Unified media drawer: one collapsible surface with a tab
                     header (GIFs · Memes · Stickers) above the active strip. Only
                     the active tab's hook fetches (see `enabled` wiring above). */}
@@ -1312,6 +1329,11 @@ export default function ChatScreen() {
                     label={t("chat.rot.button")}
                     level={rotLevel}
                     onPress={handleOpenRot}
+                  />
+                  <BigBrainToggleButton
+                    label={t("chat.bigBrain.button")}
+                    on={bigBrain}
+                    onPress={() => setBigBrain(!bigBrain)}
                   />
                 </EdgeFadedScrollRow>
               </View>
