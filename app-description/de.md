@@ -14,11 +14,9 @@ spruch,antwort,humor,witz,slang,chatbot,charakter,persona,begleiter,erstellen,um
 
 ## What's New (Neuigkeiten)
 
-• Lern Luna kennen: ein neuer Bot zum Chatten, deine delulu Astro-Bestie, die dich pusht und dir trotzdem echte Antworten gibt, mit einer völlig anderen Vibe als Brainrot Bot.
-• Sticker: schick mitten im Chat Klipy-Sticker. Wähl sie aus den Trends oder such den passenden, pack bis zu drei in eine Nachricht, und Brainrot Bot reagiert darauf, ohne aus der Rolle zu fallen.
-• Ein Bot pro Chat: jede Unterhaltung bleibt jetzt bei einem einzigen Bot. Wechselst du den Bot, startest du einen neuen Chat, damit deine Verläufe übersichtlich bleiben.
-• Flüssigeres Streaming: Antworten kommen zuverlässiger an, und der Stopp-Button bricht eine Antwort jetzt sauber ab.
-• Memes, GIFs und Sticker teilen sich jetzt eine Medienleiste.
+• Big Brain Mode: schalt ihn ein für eine klügere, schärfere Antwort, wenn eine Frage wirklich zählt. Er verbraucht dein Tageslimit schneller, also heb ihn dir für die wichtigen auf.
+• Ein frischerer Einstieg: die Einrichtung ist jetzt ein kurzes Hin und Her, das dich in Sekunden in deinen ersten Chat bringt.
+• Mehr eigene Bots: Gratis enthält jetzt drei, Bezahlpläne speichern bis zu hundert, und der Top-Tarif ist unbegrenzt.
 • Dazu Verbesserungen bei Leistung und Stabilität.
 
 ## Promotional Text (Werbetext)
@@ -41,9 +39,12 @@ Lust auf eine andere Energie? Luna ist ein zweiter eingebauter Bot: deine delulu
 
 BAU DEINE EIGENEN BRAINROT BOTS
 
-Bau deine eigenen KI-Charaktere von Grund auf. Gib einem Namen, eine Persönlichkeit, eine Stimme, ein Emoji-Set und ein Avatar, das du hochlädst oder aus einer kurzen Beschreibung generierst. Speicher ihn und chatte mit ihm wie mit jedem anderen Bot. Gratis enthält einen; Bezahlpläne speichern 10 bis 100, und jeder Bot durchläuft einen Sicherheits-Check, bevor er live geht.
+Bau deine eigenen KI-Charaktere von Grund auf. Gib einem Namen, eine Persönlichkeit, eine Stimme, ein Emoji-Set und ein Avatar, das du hochlädst oder aus einer kurzen Beschreibung generierst. Speicher ihn und chatte mit ihm wie mit jedem anderen Bot. Gratis enthält drei; Bezahlpläne speichern 10 bis 100 (im Top-Tarif unbegrenzt), und jeder Bot durchläuft einen Sicherheits-Check, bevor er live geht.
 
 WAS ER SONST NOCH KANN
+
+• Big Brain Mode
+Schalt Big Brain ein für eine schärfere, durchdachtere Antwort, wenn du eine brauchst. Er läuft auf einem stärkeren Modell und verbraucht dein Tageslimit dadurch schneller. Heb ihn dir für die Fragen auf, die zählen, und lass ihn beim Alltagsgeplauder aus.
 
 • Memes, GIFs und Sticker inklusive
 Such nach angesagten Memes, GIFs und Stickern und pack sie direkt in den Chat. Speicher die Memes und GIFs, die dir gefallen, in deiner Galerie, und schick bis zu drei Sticker auf einmal.

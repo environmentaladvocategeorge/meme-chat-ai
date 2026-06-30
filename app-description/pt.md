@@ -14,11 +14,9 @@ legenda,resposta,humor,piada,gíria,chatbot,personagem,persona,companheiro,criar
 
 ## What's New (Novidades)
 
-• Conheça a Luna: um novo bot para conversar, sua bestie da astrologia e meio delulu que te anima e ainda dá respostas de verdade, com uma vibe totalmente diferente da do Brainrot Bot.
-• Figurinhas: mande figurinhas do Klipy no meio do chat. Escolha entre as que estão em alta ou busque a que você quer, solte até três numa mensagem, e o Brainrot Bot reage a elas sem sair do personagem.
-• Um bot por chat: cada conversa agora fica com um único bot. Trocou de bot, começa um chat novo, então suas conversas ficam organizadas.
-• Streaming mais suave: as respostas chegam de forma mais estável, e o botão de parar agora cancela uma resposta sem complicação.
-• Memes, GIFs e figurinhas agora dividem uma mesma gaveta de mídia.
+• Big Brain Mode: ative para uma resposta mais inteligente e afiada quando a pergunta realmente importa. Ele gasta seu limite diário mais rápido, então guarde para as que valem a pena.
+• Uma recepção mais fresca: a configuração agora é um bate-volta rápido que te coloca no primeiro chat em segundos.
+• Mais bots próprios: o grátis agora inclui três, os pagos guardam até cem e o plano top é ilimitado.
 • Além de melhorias de desempenho e estabilidade.
 
 ## Promotional Text (Texto promocional)
@@ -41,9 +39,12 @@ Quer outra energia? Luna é um segundo bot já incluído: sua bestie da astrolog
 
 CRIE OS SEUS PRÓPRIOS BRAINROT BOTS
 
-Crie seus próprios personagens de IA do zero. Dê um nome, uma personalidade, uma voz, os emojis e um avatar que você pode enviar ou gerar a partir de uma breve descrição. Salve e converse com ele como com qualquer outro bot. O grátis inclui um; os pagos guardam de 10 a 100, e cada bot passa por uma verificação de segurança antes de ficar disponível.
+Crie seus próprios personagens de IA do zero. Dê um nome, uma personalidade, uma voz, os emojis e um avatar que você pode enviar ou gerar a partir de uma breve descrição. Salve e converse com ele como com qualquer outro bot. O grátis inclui três; os pagos guardam de 10 a 100 (ilimitados no plano top), e cada bot passa por uma verificação de segurança antes de ficar disponível.
 
 O QUE MAIS ELE FAZ
+
+• Big Brain Mode
+Ative o Big Brain para uma resposta mais afiada e pensada quando precisar. Ele roda num modelo mais forte, então gasta seu limite diário mais rápido. Guarde para as perguntas que importam e deixe desligado para a conversa do dia a dia.
 
 • Memes, GIFs e figurinhas integrados
 Busque memes, GIFs e figurinhas em alta e solte direto no chat. Salve os memes e GIFs que você curtir na galeria, e mande até três figurinhas de uma vez.

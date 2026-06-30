@@ -14,11 +14,9 @@ légende,réponse,humour,blague,argot,chatbot,personnage,persona,compagnon,crée
 
 ## What's New (Nouveautés)
 
-• Rencontre Luna : un nouveau bot avec qui discuter, ta bestie astro un peu delulu qui te booste tout en te donnant de vraies réponses, pour une ambiance totalement différente de Brainrot Bot.
-• Stickers : envoie des stickers Klipy en plein chat. Choisis-les dans les tendances ou cherche celui qu'il te faut, lâche-en jusqu'à trois dans un message, et Brainrot Bot y réagit sans sortir de son personnage.
-• Un bot par chat : chaque conversation garde un seul bot. Change de bot et tu démarres un nouveau chat, pour que tes conversations restent nettes.
-• Streaming plus fluide : les réponses arrivent de façon plus fiable, et le bouton stop annule désormais une réponse proprement.
-• Mèmes, GIFs et stickers partagent maintenant un seul tiroir média.
+• Big Brain Mode : active-le pour une réponse plus futée et plus tranchante quand la question compte vraiment. Il consomme ta limite quotidienne plus vite, alors garde-le pour celles qui comptent.
+• Un accueil plus frais : la mise en route est maintenant un court échange qui te lance dans ton premier chat en quelques secondes.
+• Plus de bots perso : le gratuit en inclut trois, les payants en gardent jusqu'à cent, et le forfait max est illimité.
 • Et des améliorations de performances et de stabilité.
 
 ## Promotional Text (Texte promotionnel)
@@ -41,9 +39,12 @@ Envie d'une autre énergie ? Luna est un deuxième bot intégré : ta bestie ast
 
 CRÉE TES PROPRES BRAINROT BOTS
 
-Crée tes propres personnages IA depuis zéro. Donne-lui un nom, une personnalité, une voix, ses emojis et un avatar à téléverser ou à générer à partir d'une brève description. Sauvegarde-le et discute avec lui comme avec n'importe quel autre bot. Le gratuit en inclut un ; les payants en gardent de 10 à 100, et chaque bot passe un contrôle de sécurité avant d'être disponible.
+Crée tes propres personnages IA depuis zéro. Donne-lui un nom, une personnalité, une voix, ses emojis et un avatar à téléverser ou à générer à partir d'une brève description. Sauvegarde-le et discute avec lui comme avec n'importe quel autre bot. Le gratuit en inclut trois ; les payants en gardent de 10 à 100 (illimités sur le forfait max), et chaque bot passe un contrôle de sécurité avant d'être disponible.
 
 CE QU'IL FAIT D'AUTRE
+
+• Big Brain Mode
+Active Big Brain pour une réponse plus tranchante et plus réfléchie quand tu en as besoin. Il tourne sur un modèle plus puissant, donc il consomme ta limite quotidienne plus vite. Garde-le pour les questions qui comptent et laisse-le éteint pour les discussions de tous les jours.
 
 • Mèmes et GIFs intégrés
 Cherche des mèmes et GIFs tendance, glisse-les dans le chat, attache les tiens et enregistre ceux que tu aimes dans ta galerie.

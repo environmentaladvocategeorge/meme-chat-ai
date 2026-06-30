@@ -14,11 +14,9 @@ leyenda,respuesta,humor,chiste,jerga,chatbot,personaje,persona,compañero,crear,
 
 ## What's New (Novedades)
 
-• Conoce a Luna: un nuevo bot con el que chatear, tu bestie astróloga y delulu que te sube el ánimo y aun así te da respuestas de verdad, con una vibra totalmente distinta a la del Brainrot Bot.
-• Stickers: manda stickers de Klipy a mitad del chat. Elígelos de las tendencias o busca el que quieras, suelta hasta tres en un mensaje y el Brainrot Bot reacciona a ellos sin salirse de personaje.
-• Un bot por chat: cada conversación se queda con un solo bot. Si cambias de bot, empiezas un chat nuevo, así tus conversaciones se mantienen ordenadas.
-• Streaming más fluido: las respuestas llegan de forma más estable y el botón de parar ahora cancela una respuesta sin líos.
-• Memes, GIFs y stickers ahora comparten un mismo cajón de medios.
+• Big Brain Mode: actívalo para una respuesta más inteligente y afilada cuando la pregunta de verdad importa. Gasta tu límite diario más rápido, así que guárdalo para las que cuentan.
+• Una bienvenida más fresca: la configuración ahora es un ida y vuelta rápido que te mete en tu primer chat en segundos.
+• Más bots propios: el plan gratis ahora incluye tres, los de pago guardan hasta cien y el plan top es ilimitado.
 • Además, mejoras de rendimiento y estabilidad.
 
 ## Promotional Text (Texto promocional)
@@ -41,9 +39,12 @@ CONOCE A LUNA
 
 CREA TUS PROPIOS BRAINROT BOTS
 
-Crea tus propios personajes de IA desde cero. Ponle nombre, una personalidad, una voz, sus emojis y un avatar que puedes subir o generar a partir de una breve descripción. Guárdalo y chatea con él como con cualquier otro bot. El plan gratis incluye uno; los de pago guardan de 10 a 100, y cada bot pasa un control de seguridad antes de estar disponible.
+Crea tus propios personajes de IA desde cero. Ponle nombre, una personalidad, una voz, sus emojis y un avatar que puedes subir o generar a partir de una breve descripción. Guárdalo y chatea con él como con cualquier otro bot. El plan gratis incluye tres; los de pago guardan de 10 a 100 (ilimitados en el plan top), y cada bot pasa un control de seguridad antes de estar disponible.
 
 MÁS COSAS QUE HACE
+
+• Big Brain Mode
+Activa Big Brain para una respuesta más afilada y pensada cuando la necesites. Funciona con un modelo más potente, así que gasta tu límite diario más rápido. Guárdalo para las preguntas que importan y déjalo apagado para la charla de cada día.
 
 • Memes, GIFs y stickers incluidos
 Busca memes, GIFs y stickers en tendencia y suéltalos directo en el chat. Guarda los memes y GIFs que te gusten en tu galería, y manda hasta tres stickers a la vez.

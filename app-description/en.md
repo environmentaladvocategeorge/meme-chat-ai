@@ -14,11 +14,9 @@ caption,reply,texting,humor,joke,slang,chatbot,persona,companion,roast,genz,gpt,
 
 ## What's New
 
-• Meet Luna: a new bot to chat with, your delulu astrology bestie who hypes you up and still gives you a real answer, for a totally different vibe than Brainrot Bot.
-• Stickers: send Klipy stickers mid-chat. Pick from trending or search for the one you want, drop up to three in a message, and Brainrot Bot reacts to them in character.
-• One bot per chat: each conversation now sticks to a single bot. Switch bots and you start a fresh chat, so your threads stay clean.
-• Smoother streaming: replies come through more reliably, and the stop button now cancels a reply cleanly.
-• Memes, GIFs, and stickers now share one media drawer.
+• Big Brain Mode: turn it on for a smarter, sharper reply when a question really matters. It spends your daily limit faster, so save it for the ones that count.
+• A fresher welcome: setup is now a quick back-and-forth that drops you into your first chat in seconds.
+• More custom bots: free now includes three, paid plans hold up to a hundred, and the top plan is unlimited.
 • Plus performance and stability fixes.
 
 ## Promotional Text
@@ -41,9 +39,12 @@ Want a different energy? Luna is a second built-in bot: your delulu astrology be
 
 BUILD YOUR OWN BRAINROT BOTS
 
-Make your own AI characters from scratch. Give one a name, a personality, a voice, an emoji set, and an avatar you upload or generate from a short description. Save it, then chat with it like any other bot. Free includes one custom bot; paid plans hold from 10 up to 100, and every bot passes a safety check before it goes live.
+Make your own AI characters from scratch. Give one a name, a personality, a voice, an emoji set, and an avatar you upload or generate from a short description. Save it, then chat with it like any other bot. Free includes three custom bots; paid plans hold from 10 up to 100 (unlimited on the top tier), and every bot passes a safety check before it goes live.
 
 MORE THINGS IT DOES
+
+• Big Brain Mode
+Turn on Big Brain for a sharper, more thoughtful reply when you need one. It runs on a stronger model, so it uses your daily limit faster. Save it for the questions that matter and leave it off for everyday chatter.
 
 • Memes, GIFs, and stickers, built in
 Search trending memes, GIFs, and stickers and drop them straight into the chat. Save the memes and GIFs you like to your gallery, and send up to three stickers at once.
