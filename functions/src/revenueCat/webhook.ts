@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "crypto";
 import { FieldValue, getFirestore, type Firestore } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
@@ -14,6 +15,16 @@ function isProduction() {
 
 function sandboxAllowed() {
   return process.env.ALLOW_RC_SANDBOX === "true";
+}
+
+// Constant-time secret comparison. timingSafeEqual throws on length mismatch,
+// so unequal lengths short-circuit to false (length itself leaks nothing useful
+// about the secret's content).
+function secretsMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(expected, "utf8");
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
 
 function isRcEvent(value: unknown): value is RcEvent {
@@ -111,7 +122,7 @@ export const revenueCatWebhook = onRequest(
 
     const expected = REVENUECAT_WEBHOOK_AUTH.value();
     const provided = req.header("authorization") ?? "";
-    if (!expected || provided !== expected) {
+    if (!expected || !secretsMatch(provided, expected)) {
       logger.warn("[rc-webhook] unauthorized");
       res.status(401).end();
       return;

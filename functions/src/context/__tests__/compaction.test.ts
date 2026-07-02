@@ -4,6 +4,7 @@ import {
   RECENT_LOAD_LIMIT,
   SUMMARIZE_BATCH_MESSAGES,
   SUMMARIZE_BATCH_TOKENS,
+  SUMMARIZE_SCAN_LIMIT,
   VERBATIM_BUDGET_FRACTION,
   planCompaction,
   verbatimBudgetTokens,
@@ -26,6 +27,17 @@ describe("compaction invariant", () => {
     expect(RECENT_LOAD_LIMIT).toBeGreaterThanOrEqual(
       MAX_VERBATIM_MESSAGES + SUMMARIZE_BATCH_MESSAGES,
     );
+  });
+
+  it("summarizer scan window comfortably covers the worst-case healthy tail", () => {
+    // The bounded scan replaces the old full-history read. A healthy
+    // conversation's un-summarized tail never exceeds the verbatim allowance
+    // plus one batch; the scan window must exceed that (with buffer for
+    // filtered docs) or the boundary-missing fallback would fire every run.
+    expect(SUMMARIZE_SCAN_LIMIT).toBeGreaterThan(
+      MAX_VERBATIM_MESSAGES + SUMMARIZE_BATCH_MESSAGES,
+    );
+    expect(SUMMARIZE_SCAN_LIMIT).toBeGreaterThanOrEqual(RECENT_LOAD_LIMIT);
   });
 });
 

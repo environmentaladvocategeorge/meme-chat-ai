@@ -1,9 +1,4 @@
-import {
-  MODEL_IDS,
-  MODEL_PRICING,
-  UTILITY_MODEL,
-  resolveModelId,
-} from "../models";
+import { MODEL_IDS, MODEL_PRICING, resolveModelId } from "../models";
 
 describe("model registry", () => {
   it("MODEL_IDS covers pricing and is itself the gpt-5.4 model string", () => {
@@ -28,10 +23,6 @@ describe("model registry", () => {
     expect(MODEL_PRICING["gpt-5.4"].outputPerToken).toBeGreaterThan(
       MODEL_PRICING["gpt-5.4-mini"].outputPerToken,
     );
-  });
-
-  it("utility model is gpt-5-nano (system-billed, never user-facing)", () => {
-    expect(UTILITY_MODEL).toBe("gpt-5-nano");
   });
 
   it("all pricing fields are positive and cached <= input", () => {

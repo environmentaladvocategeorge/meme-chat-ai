@@ -22,14 +22,17 @@ import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
 import { chooseReplyModel } from "./billing/router";
 import { assembleContext } from "./context/assemble";
-import { IMAGE_TOKENS_LOW } from "./context/tokens";
+import { RECENT_LOAD_LIMIT } from "./context/compaction";
+import { countTokens, IMAGE_TOKENS_LOW } from "./context/tokens";
 import {
   appendMessage,
   assertConversationOwner,
   deleteMessage,
   finalizeAgentMessage,
-  loadRecentMessages,
+  getConversationData,
+  loadRecentMessageDocs,
   loadReplayTargets,
+  mapRecentMessageDocs,
   markAgentMessageErrored,
   watchMessageDeleted,
 } from "./conversations/repository";
@@ -72,6 +75,19 @@ function writeSse(res: SseResponse, event: string, data: unknown) {
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+type SseHeaderResponse = {
+  setHeader: (name: string, value: string) => unknown;
+  flushHeaders: () => unknown;
+};
+
+function beginSseResponse(res: SseHeaderResponse) {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+}
+
 function logKey(value: string | null): string | null {
   if (!value) return null;
   return createHash("sha256").update(value).digest("hex").slice(0, 16);
@@ -91,7 +107,7 @@ async function markErroredSafely(conversationId: string, messageId: string) {
 
 // Turn replay. Regenerates the agent reply named by `agentMessageId`: the old
 // reply is deleted and a fresh answer is streamed for the SAME user turn, nudged
-// toward something different via randomized seed/top_p. The user turn (text +
+// toward something different via a fresh sampling seed. The user turn (text +
 // attachments + rot level) is read from Firestore, so the client never resends
 // it. Billing note: the deletion touches nothing in the ledger; the new stream
 // charges itself once at the end, exactly like a normal turn — so a replay
@@ -221,11 +237,7 @@ export const streamReplayTurn = onRequest(
     // A replay is a billable turn, so it's gated exactly like a fresh message.
     const quota = evaluateQuota({ state: entitlement, plan: entitlement.plan });
     if (!quota.ok) {
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      res.flushHeaders();
+      beginSseResponse(res);
       writeSse(res, "quota_exceeded", {
         reason: quota.reason,
         resetAt: quota.resetAt?.toISOString() ?? null,
@@ -288,8 +300,26 @@ export const streamReplayTurn = onRequest(
     const mediaEnabled = klipyApiKey.length > 0 && respondWithMedia;
     try {
       internalModel = chooseReplyModel(entitlement.plan, { bigBrain });
-      // Loaded once for both pre-steps' context (media decider + web router).
-      const priorMessages = await loadRecentMessages(conversationId, 12);
+      // One parallel batch for every independent read this replay needs —
+      // mirrors the normal turn path: memory rendered ONCE into both views
+      // (taste-only for the decider, full `reply` view for assembly — the
+      // regenerated reply keeps the user's long-term memory exactly like the
+      // original did), the persona resolved once (system prompt + decider
+      // config), ONE message window serving both the decider transcript and
+      // context assembly, the conversation doc (summary), and the replayed
+      // GIF decoded once.
+      const [memViews, personaForStream, windowDocs, conversationData, gifFramesEarly] =
+        await Promise.all([
+          memoryService.getMemoryViews(uid, entitlement.plan),
+          resolvePersonaForStream(personaId, uid),
+          loadRecentMessageDocs(conversationId, RECENT_LOAD_LIMIT),
+          getConversationData(conversationId),
+          currentGif ? extractGifFrames(currentGif) : Promise.resolve(undefined),
+        ]);
+      deciderGifFrames = gifFramesEarly;
+
+      // Derived once for both pre-steps' context (media decider + web router).
+      const priorMessages = mapRecentMessageDocs(windowDocs, 12);
       const deciderContext = buildDeciderContext(priorMessages);
       // Web-search router (nano) + Tavily fetch for the regenerated turn, kicked
       // off concurrently with the media pipeline and awaited before assembly.
@@ -300,9 +330,6 @@ export const streamReplayTurn = onRequest(
         history: deciderContext.history,
       });
       const perTurnNote = buildPerTurnNote();
-      // Resolve the persona ONCE for the whole replay: the system prompt and
-      // the media decider (mediaDeciderKey/mediaNotes) share the resolution.
-      const personaForStream = await resolvePersonaForStream(personaId, uid);
       const promptResult = await buildSystemPromptForStream(
         personaId,
         levelOfRot,
@@ -351,11 +378,9 @@ export const streamReplayTurn = onRequest(
                 : stickers.length > 0
                   ? "[user sent a sticker]"
                   : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
-        // Decode the replayed turn's GIF once, reused by the decider and
-        // assembleContext below.
-        const currentGifFrames = currentGif
-          ? await extractGifFrames(currentGif)
-          : undefined;
+        // GIF frames were already decoded once in the parallel batch above —
+        // the decider and assembleContext share the same extraction.
+        const currentGifFrames = deciderGifFrames;
         const deciderSystemPrompt = await buildMediaDeciderPrompt(
           levelOfRot,
           personaForStream.personaPrompt,
@@ -364,10 +389,8 @@ export const streamReplayTurn = onRequest(
           apiKey: OPENAI_API_KEY.value(),
           systemPrompt: deciderSystemPrompt,
           // Taste-only memory so the regenerated reaction can be more personal,
-          // matching the normal turn path.
-          memoryBlock: (
-            await memoryService.getMemoryViews(uid, entitlement.plan)
-          ).media,
+          // matching the normal turn path (read once in the batch above).
+          memoryBlock: memViews.media,
           history,
           currentMessage: currentForDecider,
           recentReactions,
@@ -381,7 +404,6 @@ export const streamReplayTurn = onRequest(
           ],
         });
         decideUsage = usage;
-        deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
           // Look-&-pick on broad queries only (same rule as a normal turn).
@@ -455,10 +477,16 @@ export const streamReplayTurn = onRequest(
         systemPrompt,
         userAlias: entitlement.alias,
         userLanguage: language,
+        // The regenerated reply gets the same long-term memory the original
+        // had (read once in the batch above; "" on plans without memory).
+        memoryBlock: memViews.reply,
         // The user turn still lives in Firestore; it's passed as the current
         // turn above, so exclude it from the history window to avoid a
         // duplicate plus a trailing empty user message.
         excludeMessageIds: [userTurn.id],
+        // The window + conversation doc loaded once in the parallel batch —
+        // assembly reads nothing from Firestore.
+        preloaded: { docs: windowDocs, conversation: conversationData },
       });
     } catch (err) {
       if (err instanceof PersonaAccessError) {
@@ -484,6 +512,9 @@ export const streamReplayTurn = onRequest(
     let sawDelta = false;
     let oldReplyDeleted = false;
     let lastUsage: AgentUsage | null = null;
+    // Accumulated reply text. Declared out here (not inside the try) so the
+    // cancel settlement below can size an aborted turn's output estimate.
+    let fullText = "";
     let agentMeme: MessageImage | null = pendingMeme;
     let agentGif: MessageGif | null = pendingGif;
     const abortController = new AbortController();
@@ -584,6 +615,25 @@ export const streamReplayTurn = onRequest(
       }
     };
 
+    // An explicit pause landed (the new agent doc is already deleted, nothing
+    // to save or mark errored) — but real tokens were still consumed and the
+    // client already received every streamed delta. Charge what we know so a
+    // pause at 99% can't regenerate replies for free; the usage chunk rarely
+    // survives an abort, so estimate from the assembled input count and the
+    // streamed text. A pause BEFORE any delta stays free.
+    const settleCancelled = async () => {
+      endResponse();
+      if (!lastUsage && sawDelta) {
+        lastUsage = {
+          inputTokens: assembleResult.inputTokens,
+          cachedInputTokens: 0,
+          outputTokens: countTokens(fullText),
+          reasoningTokens: 0,
+        };
+      }
+      await chargeForUsage("cancelled");
+    };
+
     // Socket closed (background / navigate-away / network drop). Do NOT abort or
     // mark errored: the turn finishes and persists so the regenerated reply is
     // there, clean and complete, when the user returns. Writes to the dead socket
@@ -594,11 +644,7 @@ export const streamReplayTurn = onRequest(
     });
 
     try {
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      res.flushHeaders();
+      beginSseResponse(res);
 
       // Delete the old reply only now that everything is ready to stream — so a
       // preflight failure above leaves the conversation untouched. No ledger
@@ -661,21 +707,26 @@ export const streamReplayTurn = onRequest(
         emit("meme", { image: agentMeme });
       }
 
-      let fullText = "";
       for await (const delta of streamAgent({
         messages: assembleResult.messages,
         apiKey: OPENAI_API_KEY.value(),
         model: resolveModelId(internalModel),
         maxOutputTokens: entitlement.maxOutputTokens,
-        // The whole point of replay: a fresh seed + nudged top_p so the answer
-        // differs from the one we just deleted.
+        // A fresh seed nudges the sampling RNG toward a different answer than
+        // the one we just deleted (top_p/temperature are off the table on
+        // gpt-5.x — see replaySampling.ts; default-temperature randomness does
+        // most of the real work here).
         sampling: randomReplaySampling(),
         // No tools: media was already decided + fetched by the decider pre-step.
         signal: abortController.signal,
       })) {
         // Explicit pause: the agent doc was deleted out from under us. Stop now —
-        // no finalize (the doc is gone), no markErrored, no charge (free pause).
-        if (cancelled) return;
+        // no finalize (the doc is gone), no markErrored; settle the charge for
+        // what was already consumed.
+        if (cancelled) {
+          await settleCancelled();
+          return;
+        }
 
         if (delta.type === "delta") {
           sawDelta = true;
@@ -691,8 +742,11 @@ export const streamReplayTurn = onRequest(
 
         if (delta.type === "error") {
           // The abort we fire on cancel surfaces here as a stream error — treat
-          // it as the (already-handled) pause, not a real failure.
-          if (cancelled) return;
+          // it as a pause (settled, not errored), not a real failure.
+          if (cancelled) {
+            await settleCancelled();
+            return;
+          }
           logger.error("[streamReplayTurn] agent stream failed", {
             agentError: delta.message,
             sawDelta,
@@ -706,8 +760,11 @@ export const streamReplayTurn = onRequest(
         }
       }
 
-      // Paused as the stream wrapped up — nothing to save or charge.
-      if (cancelled) return;
+      // Paused as the stream wrapped up — nothing to save; settle the charge.
+      if (cancelled) {
+        await settleCancelled();
+        return;
+      }
 
       emit("done", {});
       finalized = true;
@@ -752,15 +809,17 @@ export const streamReplayTurn = onRequest(
         });
         await markErroredSafely(conversationId, agentMessageIdNew);
       }
-      // A pause whose delete raced in after the stream finished leaves no doc to
-      // save — skip the charge (free pause).
-      if (savedOk) {
-        await chargeForUsage("done");
-      }
+      // A pause whose delete raced in after the stream finished leaves no doc
+      // to save — but the full regenerated reply already streamed to the
+      // client, so the turn is charged either way (only the save is skipped).
+      await chargeForUsage(savedOk ? "done" : "cancelled-after-stream");
     } catch (err) {
       // Explicit pause aborted us mid-flight — the doc is already deleted, so
-      // there's nothing to error or charge. Bail quietly.
-      if (cancelled) return;
+      // there's nothing to error; settle the charge and bail quietly.
+      if (cancelled) {
+        await settleCancelled();
+        return;
+      }
 
       logger.error("[streamReplayTurn] request failed", {
         conversationId,

@@ -20,7 +20,8 @@ import { calculateCostUsd, calculateCredits } from "./billing/credits";
 import { resolveModelId } from "./billing/models";
 import { checkIpRateLimit, extractClientIp } from "./billing/rateLimit";
 import { chooseReplyModel } from "./billing/router";
-import { IMAGE_TOKENS_LOW } from "./context/tokens";
+import { RECENT_LOAD_LIMIT } from "./context/compaction";
+import { countTokens, IMAGE_TOKENS_LOW } from "./context/tokens";
 import { Agent, type ReplyContext } from "./agent/Agent";
 import { MemoryService } from "./agent/memory";
 import {
@@ -28,9 +29,10 @@ import {
   createConversation,
   ensureConversation,
   finalizeAgentMessage,
-  loadRecentMessages,
+  getConversationData,
+  loadRecentMessageDocs,
+  mapRecentMessageDocs,
   markAgentMessageErrored,
-  markConversationFiltered,
   watchMessageDeleted,
 } from "./conversations/repository";
 import { loadEntitlement } from "./entitlement/loadEntitlement";
@@ -75,6 +77,19 @@ type SseResponse = {
 function writeSse(res: SseResponse, event: string, data: unknown) {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+type SseHeaderResponse = {
+  setHeader: (name: string, value: string) => unknown;
+  flushHeaders: () => unknown;
+};
+
+function beginSseResponse(res: SseHeaderResponse) {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
 }
 
 function logKey(value: string | null): string | null {
@@ -181,7 +196,106 @@ export const streamAgentAnswer = onRequest(
       });
     }
 
-    // ---------- resolve conversation ----------
+    // ---------- ownership re-check (sync, before any work) ----------
+    // The zod schema can't see uid: every upload path must live under this
+    // caller's namespace. Client validation is UX-only.
+    const ownershipOk = images.every(
+      (img) =>
+        img.source !== "upload" || isOwnedMessageImagePath(uid, img.path),
+    );
+    if (!ownershipOk) {
+      logger.warn("[streamAgentAnswer] rejected unowned upload path", {
+        userKey: logKey(uid),
+      });
+      res.status(400).json({ code: "invalid_request" });
+      return;
+    }
+
+    // ---------- parallel preflight (nothing persisted yet) ----------
+    // Entitlement, the hate-speech text gate, and image ingestion/moderation
+    // are independent — run them concurrently instead of serially (each is a
+    // network round-trip, so this is a straight time-to-first-token win).
+    // Deliberately BEFORE the conversation is created: a turn blocked by any
+    // gate below must leave no trace — no empty "New Chat" doc in history and
+    // no client session pointing at a conversation that never got a message.
+    let entitlement;
+    let hateFlagged: boolean;
+    let imageResolution;
+    try {
+      [entitlement, hateFlagged, imageResolution] = await Promise.all([
+        loadEntitlement(uid),
+        // Only text turns are text-moderated (attachment-only turns skip it;
+        // images go through the image-moderation pipeline alongside). Checks
+        // only the hate / hate-threatening categories so medical, firearms,
+        // and self-harm discussions pass through unblocked. Fails open.
+        userText.length > 0
+          ? checkHateSpeech(userText, OPENAI_API_KEY.value()).catch((err) => {
+              logger.warn(
+                "[streamAgentAnswer] hate speech check threw; failing open",
+                { err },
+              );
+              return false;
+            })
+          : Promise.resolve(false),
+        // Ingest uploads by Storage path (Admin SDK), downscale to the model
+        // copy, and run the moderation gate. Klipy images pass through by URL.
+        resolveImageInputs(uid, images, OPENAI_API_KEY.value()),
+      ]);
+    } catch (err) {
+      logger.error("[streamAgentAnswer] preflight load failed", { err });
+      res.status(500).json({ code: "internal" });
+      return;
+    }
+
+    // ---------- quota gate (read-only) ----------
+    // No credits are reserved up front. We only refuse a turn when the user
+    // has already exhausted a window; the real cost is charged after the
+    // stream (see chargeForUsage), so the displayed balance moves exactly once.
+    const quota = evaluateQuota({ state: entitlement, plan: entitlement.plan });
+    if (!quota.ok) {
+      beginSseResponse(res);
+      writeSse(res, "quota_exceeded", {
+        reason: quota.reason,
+        resetAt: quota.resetAt?.toISOString() ?? null,
+      });
+      res.end();
+      return;
+    }
+
+    // ---------- hate speech gate ----------
+    if (hateFlagged) {
+      logger.warn("[streamAgentAnswer] hate speech detected in message", {
+        userKey: logKey(uid),
+      });
+      // No conversation has been created yet, so a blocked FIRST message
+      // leaves nothing behind (no placeholder doc to relabel). The client id
+      // is still logged for moderation-review correlation.
+      void logFlaggedContent({
+        uid,
+        conversationId: parsed.data.conversationId ?? null,
+        messageId: clientMessageId ?? null,
+        reason: "hate_speech",
+        context: "message",
+      });
+      beginSseResponse(res);
+      writeSse(res, "hate_speech", {});
+      res.end();
+      return;
+    }
+
+    // ---------- image moderation verdict ----------
+    if (!imageResolution.ok) {
+      if (imageResolution.reason === "moderation") {
+        await deleteUploadObjects(imageResolution.rejectedPaths);
+        res.status(400).json({ code: "image_rejected" });
+        return;
+      }
+      res.status(502).json({ code: "image_unavailable" });
+      return;
+    }
+    const currentImageUrls: string[] = imageResolution.modelImageUrls;
+
+    // ---------- resolve conversation (all gates passed) ----------
     let conversationId = parsed.data.conversationId;
     let newConversation: boolean;
     try {
@@ -207,132 +321,6 @@ export const streamAgentAnswer = onRequest(
       }
     } catch {
       res.status(404).json({ code: "not_found" });
-      return;
-    }
-
-    // ---------- entitlement ----------
-    let entitlement;
-    try {
-      entitlement = await loadEntitlement(uid);
-    } catch (err) {
-      logger.error("[streamAgentAnswer] entitlement load failed", {
-        conversationId,
-        err,
-      });
-      res.status(500).json({ code: "internal" });
-      return;
-    }
-
-    // ---------- quota gate (read-only) ----------
-    // No credits are reserved up front. We only refuse a turn when the user
-    // has already exhausted a window; the real cost is charged after the
-    // stream (see chargeForUsage), so the displayed balance moves exactly once.
-    const quota = evaluateQuota({ state: entitlement, plan: entitlement.plan });
-    if (!quota.ok) {
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      res.flushHeaders();
-      writeSse(res, "quota_exceeded", {
-        reason: quota.reason,
-        resetAt: quota.resetAt?.toISOString() ?? null,
-      });
-      res.end();
-      return;
-    }
-
-    // ---------- hate speech gate ----------
-    // Only runs when there is text. Attachment-only turns (memes, GIFs) are
-    // not text-moderated here; images go through the OpenAI image moderation
-    // pipeline below. We check only the `hate` / `hate/threatening` categories
-    // so medical, firearms, and self-harm discussions pass through unblocked.
-    if (userText.length > 0) {
-      let hateFlagged = false;
-      try {
-        hateFlagged = await checkHateSpeech(userText, OPENAI_API_KEY.value());
-      } catch (err) {
-        logger.warn("[streamAgentAnswer] hate speech check threw; failing open", {
-          conversationId,
-          err,
-        });
-      }
-      if (hateFlagged) {
-        logger.warn("[streamAgentAnswer] hate speech detected in message", {
-          userKey: logKey(uid),
-          conversationId,
-        });
-        // A brand-new conversation was created above with a neutral placeholder
-        // title; since the gate blocks the reply, AI titling will never run, so
-        // relabel it now to a clean filtered title instead of leaving the
-        // placeholder. Best-effort: a failure here must not change the response.
-        if (newConversation) {
-          await markConversationFiltered(conversationId).catch((err) =>
-            logger.warn("[streamAgentAnswer] failed to relabel filtered conversation", {
-              conversationId,
-              err,
-            }),
-          );
-        }
-        void logFlaggedContent({
-          uid,
-          conversationId,
-          messageId: clientMessageId ?? null,
-          reason: "hate_speech",
-          context: "message",
-        });
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache, no-transform");
-        res.setHeader("Connection", "keep-alive");
-        res.setHeader("X-Accel-Buffering", "no");
-        res.flushHeaders();
-        writeSse(res, "hate_speech", {});
-        res.end();
-        return;
-      }
-    }
-
-    // ---------- resolve + moderate image inputs ----------
-    // Ownership re-check (the zod schema can't see uid): every upload path must
-    // live under this caller's namespace. Client validation is UX-only.
-    const ownershipOk = images.every(
-      (img) =>
-        img.source !== "upload" || isOwnedMessageImagePath(uid, img.path),
-    );
-    if (!ownershipOk) {
-      logger.warn("[streamAgentAnswer] rejected unowned upload path", {
-        userKey: logKey(uid),
-      });
-      res.status(400).json({ code: "invalid_request" });
-      return;
-    }
-
-    // Ingest uploads by Storage path (Admin SDK), downscale to the model copy,
-    // and run the moderation gate. Klipy images pass through by URL. Done before
-    // anything is persisted, so a rejected turn writes nothing.
-    let currentImageUrls: string[];
-    try {
-      const resolved = await resolveImageInputs(
-        uid,
-        images,
-        OPENAI_API_KEY.value(),
-      );
-      if (!resolved.ok) {
-        if (resolved.reason === "moderation") {
-          await deleteUploadObjects(resolved.rejectedPaths);
-          res.status(400).json({ code: "image_rejected" });
-          return;
-        }
-        res.status(502).json({ code: "image_unavailable" });
-        return;
-      }
-      currentImageUrls = resolved.modelImageUrls;
-    } catch (err) {
-      logger.error("[streamAgentAnswer] image resolution failed", {
-        conversationId,
-        err,
-      });
-      res.status(500).json({ code: "internal" });
       return;
     }
 
@@ -362,17 +350,31 @@ export const streamAgentAnswer = onRequest(
     try {
       internalModel = chooseReplyModel(entitlement.plan, { bigBrain });
 
-      // Read the user's memory ONCE for the whole turn and render both views:
-      // the taste-only `media` view nudges the decider toward more personal
-      // reactions; the full `reply` view is handed to the Agent below so it
-      // isn't read twice. Paid-gated + never throws — free users get empties.
-      // The persona resolves in parallel (also once for the whole turn): the
-      // media decider needs its mediaDeciderKey/mediaNotes BEFORE the reply,
-      // and the Agent reuses the same resolution for the system prompt.
-      const [memViews, personaForStream] = await Promise.all([
-        memoryService.getMemoryViews(uid, entitlement.plan),
-        resolvePersonaForStream(personaId, uid),
-      ]);
+      // One parallel batch for every independent read this turn needs:
+      //   - memory, rendered ONCE into both views (taste-only `media` for the
+      //     decider, full `reply` for the Agent) — paid-gated, never throws;
+      //   - the persona (also once for the whole turn: the media decider needs
+      //     its mediaDeciderKey/mediaNotes BEFORE the reply, and the Agent
+      //     reuses the same resolution for the system prompt);
+      //   - ONE message window (RECENT_LOAD_LIMIT, newest-first) that serves
+      //     BOTH the decider transcript and context assembly below — this used
+      //     to be two separate reads of the same collection;
+      //   - the conversation doc (summary) for assembly — skipped for a brand
+      //     new conversation, which can't have a summary yet;
+      //   - the current GIF decoded once, reused by the decider AND assembly.
+      const [memViews, personaForStream, windowDocs, conversationData, gifFramesEarly] =
+        await Promise.all([
+          memoryService.getMemoryViews(uid, entitlement.plan),
+          resolvePersonaForStream(personaId, uid),
+          newConversation
+            ? Promise.resolve([])
+            : loadRecentMessageDocs(conversationId, RECENT_LOAD_LIMIT),
+          newConversation
+            ? Promise.resolve(undefined)
+            : getConversationData(conversationId),
+          currentGif ? extractGifFrames(currentGif) : Promise.resolve(undefined),
+        ]);
+      deciderGifFrames = gifFramesEarly;
 
       // Decider pre-step (mini — vision-first since 2026-06-10): decide whether
       // this turn warrants a reaction GIF/meme and pick the search term, then
@@ -381,8 +383,8 @@ export const streamAgentAnswer = onRequest(
       let attachedMedia:
         | { kind: "gif" | "meme"; description: string }
         | undefined;
-      // Loaded once for both pre-steps' context (media decider + web router).
-      const priorMessages = await loadRecentMessages(conversationId, 12);
+      // Derived once for both pre-steps' context (media decider + web router).
+      const priorMessages = mapRecentMessageDocs(windowDocs, 12);
       const deciderContext = buildDeciderContext(priorMessages);
 
       // Web-search router (nano) + Tavily fetch, kicked off here WITHOUT awaiting
@@ -432,12 +434,9 @@ export const streamAgentAnswer = onRequest(
                 : stickers.length > 0
                   ? "[user sent a sticker]"
                   : "")) + (deciderHint ? `\n\n${deciderHint}` : "");
-        // Decode the GIF once here and reuse it for both the decider (so it can
-        // see what was sent) and assembleContext (so the reply model sees it too)
-        // — avoids fetching/decoding the same GIF twice.
-        const currentGifFrames = currentGif
-          ? await extractGifFrames(currentGif)
-          : undefined;
+        // GIF frames were already decoded once in the parallel batch above —
+        // the decider and assembleContext share the same extraction.
+        const currentGifFrames = deciderGifFrames;
         const deciderSystemPrompt = await buildMediaDeciderPrompt(
           levelOfRot,
           personaForStream.personaPrompt,
@@ -461,7 +460,6 @@ export const streamAgentAnswer = onRequest(
           ],
         });
         decideUsage = usage;
-        deciderGifFrames = currentGifFrames;
 
         if (decision.type === "gif" || decision.type === "meme") {
           // Look-&-pick on BROAD queries only (randomness > 2): a cheap nano
@@ -567,6 +565,9 @@ export const streamAgentAnswer = onRequest(
         // Already read above for the decider — hand the reply view to the Agent
         // so it doesn't read the memory state a second time.
         memoryBlock: memViews.reply,
+        // The window + conversation doc loaded once in the parallel batch —
+        // assembly reads nothing from Firestore.
+        preloaded: { docs: windowDocs, conversation: conversationData },
       });
       resolvedPersona = replyContext.persona;
       assembleResult = replyContext.assembled;
@@ -594,6 +595,9 @@ export const streamAgentAnswer = onRequest(
     let clientClosed = false;
     let sawDelta = false;
     let lastUsage: AgentUsage | null = null;
+    // Accumulated reply text. Declared out here (not inside the try) so the
+    // cancel settlement below can size an aborted turn's output estimate.
+    let fullText = "";
     // The reaction GIF/meme chosen by the media decider before streaming, if any.
     // Emitted to the client first (media-then-text), then persisted on the agent
     // message at finalize. At most one is set.
@@ -708,6 +712,27 @@ export const streamAgentAnswer = onRequest(
       }
     };
 
+    // An explicit pause landed (the agent doc is already deleted, so there's
+    // nothing to save or mark errored) — but real tokens were still consumed:
+    // the full assembled input plus everything streamed before the abort, all
+    // of which the client already received. Charge what we know so pausing at
+    // 99% can't be used to read replies for free. The stream's own usage chunk
+    // rarely survives an abort, so estimate from the assembled input count and
+    // the streamed text; a pause BEFORE any delta stays free (nothing was
+    // delivered, and the provider-side cost is minimal).
+    const settleCancelled = async () => {
+      endResponse();
+      if (!lastUsage && sawDelta) {
+        lastUsage = {
+          inputTokens: assembleResult.inputTokens,
+          cachedInputTokens: 0,
+          outputTokens: countTokens(fullText),
+          reasoningTokens: 0,
+        };
+      }
+      await chargeForUsage("cancelled");
+    };
+
     // Socket closed (background / navigate-away / network drop). Do NOT abort or
     // mark errored: the turn finishes and persists so the reply is there, clean
     // and complete, when the user returns. Writes to the dead socket are skipped
@@ -718,11 +743,7 @@ export const streamAgentAnswer = onRequest(
     });
 
     try {
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache, no-transform");
-      res.setHeader("Connection", "keep-alive");
-      res.setHeader("X-Accel-Buffering", "no");
-      res.flushHeaders();
+      beginSseResponse(res);
 
       const userMessage = await appendMessage(conversationId, {
         role: "user",
@@ -810,7 +831,6 @@ export const streamAgentAnswer = onRequest(
         emit("meme", { image: agentMeme });
       }
 
-      let fullText = "";
       for await (const delta of streamAgent({
         messages: assembleResult.messages,
         apiKey: OPENAI_API_KEY.value(),
@@ -825,8 +845,12 @@ export const streamAgentAnswer = onRequest(
         signal: abortController.signal,
       })) {
         // Explicit pause: the agent doc was deleted out from under us. Stop now —
-        // no finalize (the doc is gone), no markErrored, no charge (free pause).
-        if (cancelled) return;
+        // no finalize (the doc is gone), no markErrored; settle the charge for
+        // what was already consumed.
+        if (cancelled) {
+          await settleCancelled();
+          return;
+        }
 
         if (delta.type === "delta") {
           sawDelta = true;
@@ -842,8 +866,11 @@ export const streamAgentAnswer = onRequest(
 
         if (delta.type === "error") {
           // The abort we fire on cancel surfaces here as a stream error — treat
-          // it as the (already-handled) pause, not a real failure.
-          if (cancelled) return;
+          // it as a pause (settled, not errored), not a real failure.
+          if (cancelled) {
+            await settleCancelled();
+            return;
+          }
           logger.error("[streamAgentAnswer] agent stream failed", {
             // Renamed off `message` — the logger reserves that field and was
             // overwriting the real agent error with the log title.
@@ -859,8 +886,11 @@ export const streamAgentAnswer = onRequest(
         }
       }
 
-      // Paused as the stream wrapped up — nothing to save or charge.
-      if (cancelled) return;
+      // Paused as the stream wrapped up — nothing to save; settle the charge.
+      if (cancelled) {
+        await settleCancelled();
+        return;
+      }
 
       emit("done", {});
       finalized = true;
@@ -909,15 +939,17 @@ export const streamAgentAnswer = onRequest(
         });
         await markErroredSafely(conversationId, agentMessageId);
       }
-      // A pause whose delete raced in after the stream finished leaves no doc to
-      // save — skip the charge (free pause).
-      if (savedOk) {
-        await chargeForUsage("done");
-      }
+      // A pause whose delete raced in after the stream finished leaves no doc
+      // to save — but the full reply already streamed to the client, so the
+      // turn is charged either way (only the save is skipped).
+      await chargeForUsage(savedOk ? "done" : "cancelled-after-stream");
     } catch (err) {
       // Explicit pause aborted us mid-flight — the doc is already deleted, so
-      // there's nothing to error or charge. Bail quietly.
-      if (cancelled) return;
+      // there's nothing to error; settle the charge and bail quietly.
+      if (cancelled) {
+        await settleCancelled();
+        return;
+      }
 
       logger.error("[streamAgentAnswer] request failed", {
         conversationId,

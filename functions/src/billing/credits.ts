@@ -22,8 +22,11 @@ export function calculateCostUsd(model: ModelId, usage: TokenUsage): number {
   const pricing = MODEL_PRICING[model];
   const cached = Math.min(usage.cachedInputTokens ?? 0, usage.inputTokens);
   const fresh = usage.inputTokens - cached;
-  // reasoningTokens are billed at the output rate (OpenAI o-series convention).
-  const output = usage.outputTokens + (usage.reasoningTokens ?? 0);
+  // outputTokens is OpenAI's `completion_tokens`, which ALREADY INCLUDES the
+  // reasoning tokens (completion_tokens_details.reasoning_tokens is a subset
+  // of it, not an addition). reasoningTokens is carried on ModelUsage purely
+  // as a telemetry split — adding it here double-billed every reasoning turn.
+  const output = usage.outputTokens;
 
   return (
     fresh * pricing.inputPerToken +

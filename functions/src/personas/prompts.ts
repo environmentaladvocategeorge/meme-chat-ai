@@ -25,6 +25,32 @@ export type ResolvedPersonaForStream = {
   personaPrompt: PersonaPrompt;
 };
 
+// ── Short-lived read cache for Firestore-served prompts ──────────────────────
+// The persona docs, persona prompts, platform guardrails, and media-decider
+// prompts change on the order of DAYS (they're pushed by ops scripts), but a
+// naive turn re-reads 4-5 of them every time. With minInstances: 1 the function
+// instance persists between turns, so a tiny in-memory TTL cache removes those
+// reads (and their latency) while keeping the "edit is live within ~a minute"
+// property the push scripts rely on. Deployments start a fresh instance with an
+// empty cache, so a redeploy is always an instant flush.
+const PROMPT_CACHE_TTL_MS = 45_000;
+const promptCache = new Map<string, { value: unknown; expiresAt: number }>();
+
+async function cachedRead<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const now = Date.now();
+  const hit = promptCache.get(key);
+  if (hit && hit.expiresAt > now) return hit.value as T;
+  const value = await load();
+  promptCache.set(key, { value, expiresAt: now + PROMPT_CACHE_TTL_MS });
+  return value;
+}
+
+// Test-only: drop all cached prompt reads so a unit test never sees another
+// test's cached Firestore stub.
+export function __clearPromptCache(): void {
+  promptCache.clear();
+}
+
 export type BuiltSystemPromptForStream = {
   systemPrompt: string;
   persona: Pick<Persona, "id" | "name" | "slug" | "publicConfig">;
@@ -85,51 +111,59 @@ function isPlatformPrompt(data: DocumentData | undefined): data is PlatformPromp
 export async function getActivePlatformPrompt(
   key: string,
 ): Promise<PlatformPrompt | null> {
-  const snap = await getFirestore()
-    .collection("platform_prompts")
-    .where("key", "==", key)
-    .where("isActive", "==", true)
-    .orderBy("createdAt", "desc")
-    .limit(1)
-    .get();
+  return cachedRead(`platform:${key}`, async () => {
+    const snap = await getFirestore()
+      .collection("platform_prompts")
+      .where("key", "==", key)
+      .where("isActive", "==", true)
+      .orderBy("createdAt", "desc")
+      .limit(1)
+      .get();
 
-  const data = snap.docs[0]?.data();
-  return isPlatformPrompt(data) ? data : null;
+    const data = snap.docs[0]?.data();
+    return isPlatformPrompt(data) ? data : null;
+  });
 }
 
 export async function getDefaultPersona(): Promise<Persona | null> {
-  const snap = await getFirestore()
-    .collection("personas")
-    .where("isDefault", "==", true)
-    .where("isEnabled", "==", true)
-    .limit(1)
-    .get();
+  return cachedRead("persona:default", async () => {
+    const snap = await getFirestore()
+      .collection("personas")
+      .where("isDefault", "==", true)
+      .where("isEnabled", "==", true)
+      .limit(1)
+      .get();
 
-  const data = snap.docs[0]?.data();
-  if (isPersona(data)) return data;
+    const data = snap.docs[0]?.data();
+    if (isPersona(data)) return data;
 
-  return getPersonaById(DEFAULT_PERSONA_ID);
+    return getPersonaById(DEFAULT_PERSONA_ID);
+  });
 }
 
 export async function getPersonaById(personaId: string): Promise<Persona | null> {
-  const snap = await getFirestore().collection("personas").doc(personaId).get();
-  const data = snap.data();
-  return isPersona(data) ? data : null;
+  return cachedRead(`persona:${personaId}`, async () => {
+    const snap = await getFirestore().collection("personas").doc(personaId).get();
+    const data = snap.data();
+    return isPersona(data) ? data : null;
+  });
 }
 
 export async function getActivePersonaPrompt(
   personaId: string,
 ): Promise<PersonaPrompt | null> {
-  const snap = await getFirestore()
-    .collection("persona_prompts")
-    .where("personaId", "==", personaId)
-    .where("isActive", "==", true)
-    .orderBy("createdAt", "desc")
-    .limit(1)
-    .get();
+  return cachedRead(`personaPrompt:${personaId}`, async () => {
+    const snap = await getFirestore()
+      .collection("persona_prompts")
+      .where("personaId", "==", personaId)
+      .where("isActive", "==", true)
+      .orderBy("createdAt", "desc")
+      .limit(1)
+      .get();
 
-  const data = snap.docs[0]?.data();
-  return isPersonaPrompt(data) ? data : null;
+    const data = snap.docs[0]?.data();
+    return isPersonaPrompt(data) ? data : null;
+  });
 }
 
 // Thrown when a stream turn references a user persona the requester does NOT

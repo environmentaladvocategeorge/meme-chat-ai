@@ -10,8 +10,16 @@ import {
   resolvePersonaForStream,
   DEFAULT_PERSONA_ID,
   MEDIA_DECIDER_KEY,
+  __clearPromptCache,
   type ResolvedPersonaForStream,
 } from "../prompts";
+
+// Prompt reads are TTL-cached per function instance; each test rewires the
+// Firestore mock, so the cache must be dropped between tests or one case
+// would see another's docs.
+beforeEach(() => {
+  __clearPromptCache();
+});
 
 type Doc = Record<string, unknown>;
 type Collections = Record<string, Record<string, Doc>>;

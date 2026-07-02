@@ -17,9 +17,9 @@ export const MODEL_IDS: readonly ModelId[] = [
   "gpt-5.4",
 ] as const;
 
-// Internal utility model for summaries + conversation titles. NOT user-billed —
-// its cost is absorbed as system margin, so it never touches the credit ledger.
-export const UTILITY_MODEL = "gpt-5-nano";
+// (Summaries and conversation titles run on gpt-5.4-nano and ARE billed to the
+// conversation owner as "summary"/"title" usageEvents — see context/summarize.ts
+// and context/title.ts. The old unpriced "utility model" concept is gone.)
 
 export type ModelPricing = {
   // USD per token.

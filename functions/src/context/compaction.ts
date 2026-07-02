@@ -85,6 +85,18 @@ export const SUMMARIZE_BATCH_TOKENS = 1500;
 export const RECENT_LOAD_LIMIT =
   MAX_VERBATIM_MESSAGES + SUMMARIZE_BATCH_MESSAGES + 8;
 
+// How many newest message docs the background summarizer scans per run. It
+// used to read the ENTIRE message history on every message write — the largest
+// Firestore cost line as conversations age. A healthy conversation's
+// un-summarized tail can never exceed the verbatim allowance
+// (≤ MAX_VERBATIM_MESSAGES) plus one batch, so a window comfortably above that
+// always contains the summary boundary; the buffer absorbs filtered docs
+// (streaming/errored/empty). When the boundary is NOT inside the window (an
+// un-summarized backlog predating this limit), the summarizer falls back to a
+// one-off full read that catches the boundary back up.
+export const SUMMARIZE_SCAN_LIMIT =
+  MAX_VERBATIM_MESSAGES + SUMMARIZE_BATCH_MESSAGES + 40;
+
 export type CompactionPlan =
   | { summarize: false }
   | {

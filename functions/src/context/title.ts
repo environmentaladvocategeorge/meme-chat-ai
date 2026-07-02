@@ -115,20 +115,43 @@ export const generateConversationTitle = onDocumentWritten(
   },
   async (event) => {
     const cid = event.params.cid;
+
+    // Cheapest guard first — no reads at all: titling only ever needs a write
+    // that lands a COMPLETE message (the first finished exchange). Streaming
+    // placeholders, errored turns, reaction/emoji updates, and deletions can
+    // never unlock a title, so they bail before the conversation read below.
+    const afterSnap = event.data?.after;
+    const after = afterSnap?.exists
+      ? (afterSnap.data() as { status?: string; text?: string })
+      : null;
+    if (!after || after.status !== "complete") return;
+    const beforeSnap = event.data?.before;
+    const before = beforeSnap?.exists
+      ? (beforeSnap.data() as { status?: string; text?: string })
+      : null;
+    if (before && before.status === "complete" && before.text === after.text) {
+      return;
+    }
+
     const db = getFirestore();
     const conversationRef = db.doc(`conversations/${cid}`);
 
-    // Cheap guard first: one doc read, then bail on already-titled conversations
-    // before we ever scan the messages subcollection.
+    // Cheap guard second: one doc read, then bail on already-titled
+    // conversations before we ever scan the messages subcollection.
     const conversationSnap = await conversationRef.get();
     const conv = conversationSnap.data() as
       | { titleGenerated?: boolean; uid?: string; plan?: PlanId }
       | undefined;
     if (!conv || conv.titleGenerated) return;
 
+    // The opening exchange lives at the very start of the thread, so a small
+    // bounded scan is enough (headroom covers placeholder/errored docs that
+    // don't count) — this used to read the entire subcollection every write
+    // until the title landed.
     const messagesSnap = await conversationRef
       .collection("messages")
       .orderBy("createdAt", "asc")
+      .limit(30)
       .get();
 
     let firstUser: Turn | null = null;

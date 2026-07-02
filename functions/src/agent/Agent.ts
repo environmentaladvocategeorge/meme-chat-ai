@@ -1,5 +1,5 @@
 import type { PlanId } from "../billing/plans";
-import type { AssembledContext } from "../context/assemble";
+import type { AssembleContextArgs, AssembledContext } from "../context/assemble";
 import type { ExtractedGifFrames } from "../gifs/extractFrames";
 import type { CurrentAttachmentTitles } from "../messages/attachmentMeta";
 import type { MessageGif } from "../messages/messageGif";
@@ -61,6 +61,9 @@ export type BuildReplyContextArgs = {
   // itself (back-compat). Empty string is a valid value (no memory).
   memoryBlock?: string;
   excludeMessageIds?: string[];
+  // Pre-fetched message window + conversation doc (the orchestrator loaded them
+  // once for the decider pre-step) so history assembly re-reads nothing.
+  preloaded?: AssembleContextArgs["preloaded"];
 };
 
 // Composes the per-turn agent: persona (system prompt + identity), the user's
@@ -109,6 +112,7 @@ export class Agent {
       userAlias: args.userAlias,
       userLanguage: args.userLanguage,
       excludeMessageIds: args.excludeMessageIds,
+      preloaded: args.preloaded,
     });
 
     return { assembled, persona: promptResult.persona };

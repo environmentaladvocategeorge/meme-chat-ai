@@ -114,6 +114,44 @@ describe("assembleContext excludeMessageIds (replay)", () => {
     expect(userContents(result.messages)).not.toContain("");
   });
 
+  it("preloaded window + conversation → zero Firestore reads", async () => {
+    // The orchestrators load ONE message window per turn and hand it in as
+    // `preloaded`; assembly must not touch Firestore at all in that mode.
+    mockedGetFirestore.mockImplementation(() => {
+      throw new Error("assembleContext must not read Firestore when preloaded");
+    });
+
+    const docs = [
+      { id: "u2", role: "user", text: "replay me" },
+      { id: "a1", role: "agent", text: "kept reply" },
+      { id: "u1", role: "user", text: "summarized away" },
+    ].map((m) => ({
+      id: m.id,
+      data: () => ({ role: m.role, text: m.text, status: "complete" }),
+    }));
+
+    const result = await assembleContext({
+      conversationId: "c1",
+      plan: "free",
+      currentUserMessage: "replay me",
+      excludeMessageIds: ["u2"],
+      preloaded: {
+        docs: docs as never,
+        conversation: {
+          summary: "Earlier the user said hi.",
+          summaryUpToMessageId: "u1",
+        },
+      },
+    });
+
+    const users = userContents(result.messages);
+    // Same semantics as the self-loading path: summary cutoff + exclusion.
+    expect(users).not.toContain("summarized away");
+    expect(users.filter((c) => c === "replay me")).toHaveLength(1);
+    expect(result.messages.some((m) => m.content === "kept reply")).toBe(true);
+    expect(result.summaryUsed).toBe(true);
+  });
+
   it("still honors a summary cutoff alongside exclusion", async () => {
     const db = makeDb(
       [

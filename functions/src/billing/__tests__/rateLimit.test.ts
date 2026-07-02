@@ -8,18 +8,31 @@ import { getFirestore } from "firebase-admin/firestore";
 import { checkIpRateLimit, extractClientIp } from "../rateLimit";
 
 describe("extractClientIp", () => {
-  it("prefers the leftmost x-forwarded-for entry", () => {
+  it("takes the RIGHTMOST x-forwarded-for entry (the one Google appended)", () => {
+    // The left side of XFF is client-supplied and spoofable; Google's front
+    // end appends the real connecting IP at the end. Trusting the leftmost
+    // entry let anyone bypass the per-IP cap with a random header per request.
     expect(
       extractClientIp({
-        forwarded: "1.1.1.1, 2.2.2.2",
+        forwarded: "6.6.6.6, 1.1.1.1",
         realIp: "9.9.9.9",
         fallback: "8.8.8.8",
       }),
     ).toBe("1.1.1.1");
   });
 
+  it("spoofed leading entries never win", () => {
+    expect(
+      extractClientIp({ forwarded: "spoofed, 10.0.0.1, 2.2.2.2" }),
+    ).toBe("2.2.2.2");
+  });
+
   it("trims whitespace on the forwarded entry", () => {
-    expect(extractClientIp({ forwarded: "  3.3.3.3 ,4.4.4.4" })).toBe("3.3.3.3");
+    expect(extractClientIp({ forwarded: "4.4.4.4,  3.3.3.3 " })).toBe("3.3.3.3");
+  });
+
+  it("skips empty trailing segments", () => {
+    expect(extractClientIp({ forwarded: "5.5.5.5, " })).toBe("5.5.5.5");
   });
 
   it("falls back realIp -> fallback -> null", () => {

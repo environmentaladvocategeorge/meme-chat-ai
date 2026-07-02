@@ -1,7 +1,6 @@
 export {
   MODEL_IDS,
   MODEL_PRICING,
-  UTILITY_MODEL,
   resolveModelId,
 } from "./models";
 export type { ModelId, ModelPricing } from "./models";

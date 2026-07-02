@@ -84,7 +84,11 @@ service cloud.firestore {
 
     match /conversations/{cid} {
       allow get: if signedIn() && emailVerified() && resource.data.uid == request.auth.uid;
-      allow list: if signedIn() && emailVerified();
+      // List queries MUST be provably constrained to the caller's own docs
+      // (where("uid","==",request.auth.uid)) — without the resource.data.uid
+      // check, any verified user could page through every user's conversation
+      // docs (titles, firstUserMessage, lastMessagePreview).
+      allow list: if signedIn() && emailVerified() && resource.data.uid == request.auth.uid;
       allow create, update, delete: if false;
 
       match /messages/{mid} {

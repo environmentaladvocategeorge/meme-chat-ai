@@ -7,7 +7,11 @@ import { resolveModelId } from "../billing/models";
 import { calculateCostUsd, calculateCredits } from "../billing/credits";
 import { chargeCredits } from "../billing/ledger";
 import { PLANS, type PlanId } from "../billing/plans";
-import { planCompaction, verbatimBudgetTokens } from "./compaction";
+import {
+  planCompaction,
+  SUMMARIZE_SCAN_LIMIT,
+  verbatimBudgetTokens,
+} from "./compaction";
 import { countTokens } from "./tokens";
 
 const OPENAI_API_KEY = defineSecret("OPENAI_API_KEY");
@@ -29,8 +33,9 @@ type SummarizableDoc = {
 
 // Background summarizer. Fires on every message write inside a conversation and
 // short-circuits via planCompaction unless enough turns have aged out of the
-// verbatim window. Cost is absorbed by us (never billed to the user), so it runs
-// on the cheap UTILITY_MODEL (gpt-5-nano) and only over the newly-aged-out tail.
+// verbatim window. Runs on gpt-5.4-nano over only the newly-aged-out tail; the
+// cost is billed to the conversation owner as a "summary" usageEvent (see the
+// chargeCredits call below).
 export const summarizeConversation = onDocumentWritten(
   {
     document: "conversations/{cid}/messages/{mid}",
@@ -41,18 +46,74 @@ export const summarizeConversation = onDocumentWritten(
   },
   async (event) => {
     const cid = event.params.cid;
+
+    // Cheap doc-level gate BEFORE any reads: compaction state only changes when
+    // a message's COMPLETE content changes — a doc that is complete now and
+    // either just appeared, just became complete (finalize), or changed text.
+    // Reaction/emoji updates, streaming placeholders, errored turns, and
+    // deletions all short-circuit here, cutting this trigger's Firestore reads
+    // to the writes that matter (it fires on EVERY message write).
+    const afterSnap = event.data?.after;
+    const after = afterSnap?.exists
+      ? (afterSnap.data() as { role?: string; status?: string; text?: string })
+      : null;
+    if (!after || after.status !== "complete") return;
+    if (after.role !== "user" && after.role !== "agent") return;
+    const beforeSnap = event.data?.before;
+    const before = beforeSnap?.exists
+      ? (beforeSnap.data() as { status?: string; text?: string })
+      : null;
+    if (before && before.status === "complete" && before.text === after.text) {
+      return;
+    }
+
     const db = getFirestore();
     const conversationRef = db.doc(`conversations/${cid}`);
     const messagesRef = conversationRef.collection("messages");
 
-    const allSnap = await messagesRef.orderBy("createdAt", "asc").get();
+    // The conversation doc first: its summary boundary decides whether the
+    // bounded window below is sufficient.
+    const conversationSnap = await conversationRef.get();
+    const data = conversationSnap.data() as
+      | {
+          uid?: string;
+          summary?: string;
+          summaryUpToMessageId?: string | null;
+          plan?: PlanId;
+        }
+      | undefined;
+
+    // Bounded scan: newest SUMMARIZE_SCAN_LIMIT docs (reversed to oldest-first)
+    // instead of the entire history on every write. A healthy conversation's
+    // summary boundary always sits inside this window; when it doesn't (an
+    // un-summarized backlog predating the limit, or a long-never-summarized
+    // thread that overflows the window), fall back to the full read once so
+    // nothing older is ever silently dropped from the summary.
+    const boundedSnap = await messagesRef
+      .orderBy("createdAt", "desc")
+      .limit(SUMMARIZE_SCAN_LIMIT)
+      .get();
+    let allDocs = boundedSnap.docs.slice().reverse();
+    const lastSummarizedId = data?.summaryUpToMessageId ?? null;
+    const boundaryMissing =
+      lastSummarizedId !== null && !allDocs.some((d) => d.id === lastSummarizedId);
+    const unsummarizedOverflow =
+      lastSummarizedId === null && allDocs.length >= SUMMARIZE_SCAN_LIMIT;
+    if (boundaryMissing || unsummarizedOverflow) {
+      logger.warn(
+        "[summarizeConversation] bounded window insufficient; full read",
+        { cid, boundaryMissing, unsummarizedOverflow },
+      );
+      const allSnap = await messagesRef.orderBy("createdAt", "asc").get();
+      allDocs = allSnap.docs;
+    }
 
     // Only COMPLETE messages participate. Streaming placeholders (empty text)
     // and errored turns are excluded so the summary boundary can never land on a
     // doc whose id is about to be reused with different content, and so the
     // boundary id we persist is stable for assembly to match against.
     const docs: SummarizableDoc[] = [];
-    for (const doc of allSnap.docs) {
+    for (const doc of allDocs) {
       const d = doc.data() as {
         role?: string;
         text?: string;
@@ -82,16 +143,6 @@ export const summarizeConversation = onDocumentWritten(
         attachmentNote,
       });
     }
-
-    const conversationSnap = await conversationRef.get();
-    const data = conversationSnap.data() as
-      | {
-          uid?: string;
-          summary?: string;
-          summaryUpToMessageId?: string | null;
-          plan?: PlanId;
-        }
-      | undefined;
 
     // Size the verbatim window from the conversation owner's plan (denormalized
     // onto the conversation doc by the turn handler). Default to "free" — the

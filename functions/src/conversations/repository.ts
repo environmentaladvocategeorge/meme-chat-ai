@@ -2,6 +2,7 @@ import {
   FieldValue,
   QueryDocumentSnapshot,
   getFirestore,
+  type DocumentData,
 } from "firebase-admin/firestore";
 import type { ChatMessage, ChatRole } from "../agent/types";
 import type { PlanId } from "../billing/plans";
@@ -31,13 +32,9 @@ const IMAGE_ONLY_TITLE_FALLBACK = "Sent a meme";
 // replied (e.g. the hate-speech gate), there was no reply, so AI titling never
 // ran and the raw text — slurs included — stayed as the chat-list title forever.
 // A generic placeholder never leaks user text; generateConversationTitle names
-// the exchange once the bot's first reply lands.
+// the exchange once the bot's first reply lands. (A hate-blocked FIRST message
+// no longer creates a conversation at all — the gates now run before creation.)
 const NEW_CONVERSATION_TITLE_FALLBACK = "New Chat 💬";
-
-// Title applied when a new conversation's opening message is flagged by the
-// moderation gate (see markConversationFiltered). Replaces the placeholder so a
-// blocked opener never shows raw flagged text.
-const PROFANITY_FILTERED_TITLE = "Filtered due to profanity";
 
 export type MessagePersonaMetadata = {
   id: string;
@@ -137,27 +134,6 @@ export async function ensureConversation(
     tx.set(ref, newConversationFields(uid, firstUserMessageText, options));
     return { isNew: true };
   });
-}
-
-// Re-titles a conversation whose opening message was rejected by the moderation
-// gate before the bot ever replied. Without this the conversation would keep the
-// neutral placeholder forever (no reply -> AI titling never runs); this gives a
-// clear, content-free label instead. titleGenerated is set so the background
-// titler treats it as done and never tries to title the blocked exchange.
-export async function markConversationFiltered(
-  conversationId: string,
-): Promise<void> {
-  await getFirestore()
-    .collection("conversations")
-    .doc(conversationId)
-    .set(
-      {
-        title: PROFANITY_FILTERED_TITLE,
-        titleGenerated: true,
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
 }
 
 export async function assertConversationOwner(
@@ -582,10 +558,28 @@ export async function deleteMessage(
     .delete();
 }
 
-export async function loadRecentMessages(
+// Raw conversations/{cid} data (undefined when missing). The turn orchestrators
+// read it once alongside the message window and hand both to context assembly
+// as `preloaded`, so assembly re-reads nothing.
+export async function getConversationData(
   conversationId: string,
-  limit = 20,
-): Promise<ChatMessage[]> {
+): Promise<DocumentData | undefined> {
+  const snap = await getFirestore()
+    .collection("conversations")
+    .doc(conversationId)
+    .get();
+  return snap.data();
+}
+
+// Raw message docs, NEWEST FIRST, straight off the createdAt index. The turn
+// orchestrators load ONE window per turn and derive both views from it — the
+// decider's short mapped transcript (mapRecentMessageDocs) and context
+// assembly's full doc window (assembleContext's `preloaded`) — instead of
+// querying the same collection twice per turn.
+export async function loadRecentMessageDocs(
+  conversationId: string,
+  limit: number,
+): Promise<QueryDocumentSnapshot[]> {
   const snapshot = await getFirestore()
     .collection("conversations")
     .doc(conversationId)
@@ -593,9 +587,28 @@ export async function loadRecentMessages(
     .orderBy("createdAt", "desc")
     .limit(limit)
     .get();
+  return snapshot.docs;
+}
 
-  return snapshot.docs.reverse().flatMap((doc) => {
+// Maps a NEWEST-FIRST doc window (see loadRecentMessageDocs) to the newest
+// `limit` complete messages, oldest → newest — the decider transcript view.
+export function mapRecentMessageDocs(
+  docs: QueryDocumentSnapshot[],
+  limit: number,
+): ChatMessage[] {
+  const mapped: ChatMessage[] = [];
+  for (const doc of docs) {
+    if (mapped.length >= limit) break;
     const message = mapMessage(doc);
-    return message ? [message] : [];
-  });
+    if (message) mapped.push(message);
+  }
+  return mapped.reverse();
+}
+
+export async function loadRecentMessages(
+  conversationId: string,
+  limit = 20,
+): Promise<ChatMessage[]> {
+  const docs = await loadRecentMessageDocs(conversationId, limit);
+  return mapRecentMessageDocs(docs, limit);
 }

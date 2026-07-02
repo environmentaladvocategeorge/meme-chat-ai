@@ -1,6 +1,7 @@
 import type { PlanId } from "../billing/plans";
 import {
   assembleContext,
+  type AssembleContextArgs,
   type AssembledContext,
 } from "../context/assemble";
 import type { ExtractedGifFrames } from "../gifs/extractFrames";
@@ -28,6 +29,9 @@ export type HistoryAssembleArgs = {
   userAlias?: string | null;
   userLanguage?: string | null;
   excludeMessageIds?: string[];
+  // Pre-fetched message window + conversation doc from the orchestrator (see
+  // AssembleContextArgs.preloaded) so assembly re-reads nothing.
+  preloaded?: AssembleContextArgs["preloaded"];
 };
 
 // Owns a single conversation's stored history (recent verbatim turns + the
@@ -58,6 +62,7 @@ export class ConversationHistory {
       userAlias: args.userAlias,
       userLanguage: args.userLanguage,
       excludeMessageIds: args.excludeMessageIds,
+      preloaded: args.preloaded,
     });
   }
 }

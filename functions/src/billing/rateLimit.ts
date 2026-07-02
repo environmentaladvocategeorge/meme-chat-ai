@@ -14,8 +14,17 @@ export function extractClientIp(headers: {
   realIp?: string | undefined;
   fallback?: string | undefined;
 }): string | null {
-  // x-forwarded-for is a comma-separated list — leftmost is original client.
-  const forwarded = headers.forwarded?.split(",")[0]?.trim();
+  // x-forwarded-for is a comma-separated list. The LEFT side is client-supplied
+  // and fully spoofable (Google's front end appends the real connecting IP to
+  // the RIGHT and does not strip inbound values), so trusting the leftmost
+  // entry let anyone bypass the per-IP cap with a random header per request.
+  // On plain cloudfunctions.net/Cloud Run URLs the rightmost entry is the IP
+  // that actually connected to Google — that's the only one we can trust.
+  const parts = headers.forwarded
+    ?.split(",")
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+  const forwarded = parts && parts.length > 0 ? parts[parts.length - 1] : null;
   if (forwarded) return forwarded;
   if (headers.realIp) return headers.realIp;
   if (headers.fallback) return headers.fallback;

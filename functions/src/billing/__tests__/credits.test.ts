@@ -21,13 +21,16 @@ describe("calculateCostUsd", () => {
     expect(cost).toBeCloseTo(0.00011, 10);
   });
 
-  it("treats reasoning tokens as output tokens", () => {
+  it("does NOT double-bill reasoning tokens (already inside outputTokens)", () => {
+    // outputTokens mirrors OpenAI's completion_tokens, which already CONTAINS
+    // completion_tokens_details.reasoning_tokens — the reasoning split is
+    // telemetry, not an extra charge.
     const cost = calculateCostUsd("gpt-5.4-mini", {
       inputTokens: 0,
       outputTokens: 100,
       reasoningTokens: 100,
     });
-    expect(cost).toBeCloseTo(200 * MODEL_PRICING["gpt-5.4-mini"].outputPerToken, 12);
+    expect(cost).toBeCloseTo(100 * MODEL_PRICING["gpt-5.4-mini"].outputPerToken, 12);
   });
 
   it("prices the Big Brain full model above mini for the same tokens", () => {

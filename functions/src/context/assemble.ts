@@ -1,4 +1,8 @@
-import { getFirestore, type QueryDocumentSnapshot } from "firebase-admin/firestore";
+import {
+  getFirestore,
+  type DocumentData,
+  type QueryDocumentSnapshot,
+} from "firebase-admin/firestore";
 import type { ChatMessage } from "../agent/types";
 import { PLANS, type PlanId } from "../billing/plans";
 import {
@@ -102,11 +106,19 @@ export type AssembleArgs = {
 };
 
 // Friendly names for the app's supported language codes so the language
-// instruction reads naturally to the model. Falls back to the raw code for any
+// instruction reads naturally to the model. Must cover every entry in the
+// app's SUPPORTED_LANGUAGES (i18n.ts); falls back to the raw code for any
 // value we don't have a name for.
 const LANGUAGE_NAMES: Record<string, string> = {
   en: "English",
   es: "Spanish",
+  fr: "French",
+  pt: "Portuguese",
+  de: "German",
+  zh: "Chinese",
+  ja: "Japanese",
+  hi: "Hindi",
+  ru: "Russian",
 };
 
 function languageDisplayName(code: string): string {
@@ -309,6 +321,18 @@ export function buildCurrentUserContent(
   return parts;
 }
 
+// Converts one stored history turn into its model-ready message. Shared by the
+// builder and the truncation sizing below so both always agree on the exact
+// text a history turn contributes.
+function toHistoryMessage(m: ChatMessage): OpenAIMessage {
+  return m.role === "agent"
+    ? { role: "assistant", content: m.text }
+    : {
+        role: "user",
+        content: collapseHistoricalUserContent(m.text, m.images, m.gifs, m.stickers),
+      };
+}
+
 // Pure assembler: takes the candidate inputs and returns the truncated
 // message sequence that fits under maxInputTokens. Drops oldest recent
 // messages first (never the system, summary, or current). Reports the
@@ -344,19 +368,7 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
       });
     }
     for (const m of recentSlice) {
-      out.push(
-        m.role === "agent"
-          ? { role: "assistant", content: m.text }
-          : {
-              role: "user",
-              content: collapseHistoricalUserContent(
-                m.text,
-                m.images,
-                m.gifs,
-                m.stickers,
-              ),
-            },
-      );
+      out.push(toHistoryMessage(m));
     }
     // Fresh tail: per-turn notes sit after the cacheable
     // system+summary+recent prefix, right before the current turn, so they
@@ -416,9 +428,25 @@ export function assembleFromInputs(args: AssembleArgs): AssembledContext {
         : args.maxInputTokens;
     // Drop oldest recent messages until we hit the target. Keep
     // system/summary/current intact — those are load-bearing.
-    while (inputTokens > target && current.length > 0) {
-      current = current.slice(1);
+    // countMessagesTokens is additive per message, so each drop shrinks the
+    // total by exactly that message's own cost — size the cut in one pass
+    // instead of rebuilding + re-tokenizing the whole sequence per drop (the
+    // old loop was O(n²) in tokenization on big overflow turns).
+    const emptyCost = countMessagesTokens([]);
+    const perMessageTokens = current.map(
+      (m) => countMessagesTokens([toHistoryMessage(m)]) - emptyCost,
+    );
+    let dropCount = 0;
+    let sizedTokens = inputTokens;
+    while (sizedTokens > target && dropCount < current.length) {
+      sizedTokens -= perMessageTokens[dropCount];
+      dropCount += 1;
+    }
+    if (dropCount > 0) {
+      current = current.slice(dropCount);
       messages = build(current);
+      // One exact recount keeps the reported inputTokens authoritative even if
+      // the additive sizing above ever drifts from countMessagesTokens.
       inputTokens = countMessagesTokens(messages);
     }
   }
@@ -514,27 +542,50 @@ export type AssembleContextArgs = {
   // it from being both a history turn AND the current turn (a duplicate plus a
   // trailing empty user message). Empty/omitted on a normal turn.
   excludeMessageIds?: string[];
+  // Pre-fetched inputs from the turn orchestrator, which already loaded ONE
+  // message window (loadRecentMessageDocs, newest-first, RECENT_LOAD_LIMIT) and
+  // the conversation doc for the decider pre-step. When present, assembly reads
+  // NOTHING from Firestore — the same window serves both consumers. Omitted =
+  // legacy self-loading path (kept for tests/back-compat).
+  preloaded?: {
+    // Newest-first, exactly as loadRecentMessageDocs returns them.
+    docs: QueryDocumentSnapshot[];
+    // conversations/{cid} data (undefined when the doc is missing).
+    conversation: DocumentData | undefined;
+  };
 };
 
 export async function assembleContext(args: AssembleContextArgs): Promise<AssembledContext> {
-  const db = getFirestore();
-  const conversationRef = db.doc(`conversations/${args.conversationId}`);
-  const conversationSnap = await conversationRef.get();
-  const conversation = conversationSnap.data() as ConversationDoc | undefined;
+  let conversation: ConversationDoc | undefined;
+  let windowDocs: QueryDocumentSnapshot[];
+
+  if (args.preloaded) {
+    // The orchestrator already read the window + conversation doc for the
+    // decider pre-step — reuse both instead of re-querying.
+    conversation = args.preloaded.conversation as ConversationDoc | undefined;
+    windowDocs = args.preloaded.docs;
+  } else {
+    const db = getFirestore();
+    const conversationRef = db.doc(`conversations/${args.conversationId}`);
+    const conversationSnap = await conversationRef.get();
+    conversation = conversationSnap.data() as ConversationDoc | undefined;
+
+    const recentSnap = await db
+      .collection(`conversations/${args.conversationId}/messages`)
+      .orderBy("createdAt", "desc")
+      .limit(RECENT_LOAD_LIMIT)
+      .get();
+    windowDocs = recentSnap.docs;
+  }
+
   const summary = conversation?.summary ?? null;
   const summaryUpToMessageId = conversation?.summaryUpToMessageId ?? null;
 
-  let query = db
-    .collection(`conversations/${args.conversationId}/messages`)
-    .orderBy("createdAt", "desc")
-    .limit(RECENT_LOAD_LIMIT);
-
-  const recentSnap = await query.get();
   // Filter out any excluded docs (replay) up front so every downstream path —
   // the plain window and the summary-cutoff branch — operates on the same set.
   // Ordered oldest → newest after the reverse, matching `recent`.
   const exclude = new Set(args.excludeMessageIds ?? []);
-  const orderedDocs = recentSnap.docs
+  const orderedDocs = windowDocs
     .slice()
     .reverse()
     .filter((d) => !exclude.has(d.id));
